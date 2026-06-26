@@ -1,0 +1,510 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useMember } from '../../store/memberStore.jsx';
+import { memberClient } from '../../api/client';
+import { getMemberReasons, uploadEvidence, createPassRequest, getMyPassRequests } from '../../api/passAdjustments';
+import dayjs from 'dayjs';
+
+const BottomNav = ({ navigate }) => (
+  <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50 }}>
+    {[
+      { icon:'🏠', label:'首頁', path:'/member/home' },
+      { icon:'📚', label:'課程總覽', path:'/member/courses' },
+      { icon:'🎫', label:'我的票券', path:'/member/passes' },
+      { icon:'👤', label:'我的', path:'/member/profile' },
+    ].map(n => {
+      const active = location.pathname === n.path;
+      return (
+        <div key={n.path} onClick={() => navigate(n.path)}
+          style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? '#8B1A1A' : '#999' }}>
+          <div style={{ fontSize:20 }}>{n.icon}</div>
+          <div style={{ fontSize:10, fontWeight: active ? 600 : 400 }}>{n.label}</div>
+        </div>
+      );
+    })}
+  </div>
+);
+
+// 移轉 Modal
+function TransferModal({ ticket, ticketType, onClose, memberName }) {
+  const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const handleTransfer = async () => {
+    if (!phone || phone.length < 10) { setMsg('請輸入有效手機號碼'); return; }
+    setLoading(true);
+    try {
+      await memberClient.post('/ticket-transfers/request', {
+        ticketType,
+        ticketId: ticket.id,
+        targetPhone: phone,
+      });
+      setSuccess(true);
+      setMsg('移轉申請已送出，等待對方確認');
+    } catch (e) {
+      setMsg(e.response?.data?.message || '申請失敗');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+      <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', width:'100%' }}>
+        <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>申請票券移轉</div>
+        <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>移轉後對方需在 24 小時內確認，到期日依票券規則計算</div>
+        {success ? (
+          <div style={{ background:'#E6F4EB', borderRadius:12, padding:16, textAlign:'center', marginBottom:16 }}>
+            <div style={{ fontSize:24, marginBottom:8 }}>✅</div>
+            <div style={{ fontSize:14, color:'#2D7D46', fontWeight:500 }}>申請已送出！</div>
+            <div style={{ fontSize:13, color:'#666', marginTop:4 }}>等待對方接受移轉</div>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>對方手機號碼</label>
+              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
+                placeholder="0912345678" maxLength={10}
+                style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+            </div>
+            {msg && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#A32D2D', marginBottom:12 }}>{msg}</div>}
+            <button onClick={handleTransfer} disabled={loading}
+              style={{ width:'100%', height:50, borderRadius:14, background: loading?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: loading?'not-allowed':'pointer', marginBottom:10 }}>
+              {loading ? '送出中...' : '確認申請移轉'}
+            </button>
+          </>
+        )}
+        <button onClick={onClose}
+          style={{ width:'100%', height:48, borderRadius:14, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>關閉</button>
+      </div>
+    </div>
+  );
+}
+
+// 票券詳細 Modal
+function TicketDetailModal({ ticket, ticketType, onClose, onTransfer }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 載入使用紀錄
+    memberClient.get(`/checkin/history?ticketId=${ticket.id}&ticketType=${ticketType}`)
+      .then(r => setHistory(r.data.records || []))
+      .catch(() => setHistory([]))
+      .finally(() => setLoading(false));
+  }, [ticket.id]);
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+      <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 0', width:'100%', maxHeight:'80vh', display:'flex', flexDirection:'column' }}>
+        <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>票券詳情</div>
+        <div style={{ fontSize:13, color:'#666', marginBottom:16 }}>
+          {ticketType === 'discount_card' && `優惠卡 · 剩餘 ${ticket.remainingCredits} 次`}
+          {ticketType === 'black_card' && `黑卡 · 剩餘 ${ticket.remainingCredits} 次`}
+          {ticketType === 'bonus' && '紅利入場'}
+          {ticketType === 'single_entry' && '單日入場券'}
+        </div>
+
+        <div style={{ flex:1, overflowY:'auto', paddingBottom:120 }}>
+          {/* 移轉按鈕 */}
+          {['discount_card','black_card','bonus','single_entry'].includes(ticketType) && (
+            <button onClick={onTransfer}
+              style={{ width:'100%', height:46, borderRadius:12, border:'0.5px solid #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:14, fontWeight:500, cursor:'pointer', marginBottom:16 }}>
+              📤 申請移轉給他人
+            </button>
+          )}
+
+          {/* 使用紀錄 */}
+          <div style={{ fontWeight:600, fontSize:13, color:'#666', marginBottom:10 }}>使用紀錄</div>
+          {loading ? (
+            <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:13 }}>載入中...</div>
+          ) : history.length === 0 ? (
+            <div style={{ textAlign:'center', padding:20, color:'#ccc', fontSize:13 }}>尚無使用紀錄</div>
+          ) : history.map((r, i) => (
+            <div key={i} style={{ padding:'10px 0', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:500 }}>{r.gymName || r.gymId}</div>
+                <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
+                  {dayjs(r.checkedInAt?.seconds ? r.checkedInAt.seconds*1000 : r.checkedInAt).format('MM/DD HH:mm')}
+                </div>
+              </div>
+              <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:500 }}>-1 次</span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ padding:'12px 0 36px', background:'#fff' }}>
+          <button onClick={onClose}
+            style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>關閉</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function MemberPassesPage() {
+  const { member } = useMember();
+  const navigate = useNavigate();
+  const [passes, setPasses] = useState([]);
+  const [discountCards, setDiscountCards] = useState([]);
+  const [blackCards, setBlackCards] = useState([]);
+  const [singleTickets, setSingleTickets] = useState([]);
+  const [bonuses, setBonuses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState('passes');
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [selectedTicketType, setSelectedTicketType] = useState(null);
+  const [showTransfer, setShowTransfer] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  // 展延/退費/轉讓申請
+  const [myRequests, setMyRequests] = useState([]);
+  const [requestingPass, setRequestingPass] = useState(null);
+  const [requestType, setRequestType] = useState('extension');
+  const [reasons, setReasons] = useState([]);
+  const [reasonKey, setReasonKey] = useState('');
+  const [reasonDetail, setReasonDetail] = useState('');
+  const [evidenceFile, setEvidenceFile] = useState(null);
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
+  const [transferToPhone, setTransferToPhone] = useState('');
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState('');
+
+  useEffect(() => {
+    if (!member) return;
+    Promise.all([
+      memberClient.get(`/passes/member/${member.id}`),
+      memberClient.get(`/cards/discount/member/${member.id}`),
+      memberClient.get(`/cards/black/member/${member.id}`),
+      memberClient.get(`/cards/legacy-discount/member/${member.id}`),
+      memberClient.get(`/passes/single-entry/member/${member.id}`).catch(() => ({ data: { tickets: [] } })),
+      getMyPassRequests(member.id).catch(() => ({ data: { requests: [] } })),
+    ]).then(([p, dc, bc, ldc, se, reqs]) => {
+      setPasses(p.data.passes || []);
+      setDiscountCards([...(dc.data.cards || []), ...(ldc.data.cards || [])]);
+      setBlackCards(bc.data.cards || []);
+      setSingleTickets(se.data.tickets || []);
+      setMyRequests(reqs.data.requests || []);
+      // 紅利從 discount cards 衍生
+      const bonusList = (dc.data.cards || []).filter(c => c.bonusEarned && !c.bonusUsed);
+      setBonuses(bonusList);
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, [member]);
+
+  const passStatus = (p) => {
+    if (p.status === 'cancelled') return { color:'#999', label:'已取消', bg:'#F0EDED' };
+    if (p.endDate < dayjs().format('YYYY-MM-DD')) return { color:'#A32D2D', label:'已過期', bg:'#FCEBEB' };
+    const d = dayjs(p.endDate).diff(dayjs(), 'day');
+    if (d <= 7) return { color:'#854F0B', label:`剩 ${d} 天`, bg:'#FAEEDA' };
+    return { color:'#2D7D46', label:'有效', bg:'#E6F4EB' };
+  };
+
+  const hasRequestForPass = (passId) => myRequests.some(r => r.passId === passId);
+
+  const openRequest = async (pass) => {
+    setRequestingPass(pass);
+    setRequestType('extension');
+    setReasonKey('');
+    setReasonDetail('');
+    setEvidenceFile(null);
+    setTransferToPhone('');
+    setRequestError('');
+    if (reasons.length === 0) {
+      try {
+        const res = await getMemberReasons();
+        setReasons(res.data.reasons || []);
+      } catch (e) {}
+    }
+  };
+
+  const handleSubmitRequest = async () => {
+    setRequestError('');
+    if (!reasonKey) { setRequestError('請選擇符合的事由'); return; }
+    if (!evidenceFile) { setRequestError('請上傳證明文件'); return; }
+    if (requestType === 'transfer' && !transferToPhone.trim()) { setRequestError('請輸入轉讓對象的手機號碼'); return; }
+
+    setRequestSubmitting(true);
+    try {
+      setEvidenceUploading(true);
+      const formData = new FormData();
+      formData.append('file', evidenceFile);
+      const uploadRes = await uploadEvidence(formData);
+      setEvidenceUploading(false);
+
+      await createPassRequest({
+        passId: requestingPass.id,
+        memberId: member.id,
+        type: requestType,
+        reasonKey,
+        reasonDetail,
+        evidenceUrl: uploadRes.data.url,
+        transferToPhone: requestType === 'transfer' ? transferToPhone.trim() : undefined,
+      });
+
+      setMsg('申請已送出，請等待館方審核');
+      setRequestingPass(null);
+      const reqs = await getMyPassRequests(member.id);
+      setMyRequests(reqs.data.requests || []);
+    } catch (err) {
+      setRequestError(err.response?.data?.message || '申請失敗，請再試一次');
+    } finally {
+      setRequestSubmitting(false);
+      setEvidenceUploading(false);
+    }
+  };
+
+  const TABS = [
+    { key:'passes', label:'定期票', count: passes.filter(p => p.status==='active').length },
+    { key:'discount', label:'優惠卡', count: discountCards.length },
+    { key:'black', label:'黑卡', count: blackCards.length },
+    { key:'single', label:'單日券', count: singleTickets.length },
+    { key:'bonus', label:'紅利', count: bonuses.length },
+  ];
+
+  const handleTicketClick = (ticket, type) => {
+    setSelectedTicket(ticket);
+    setSelectedTicketType(type);
+  };
+
+  return (
+    <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+      {/* 頂部 */}
+      <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
+        <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
+        <div style={{ fontWeight:600, fontSize:15 }}>我的票券</div>
+      </div>
+
+      {/* Tab 列 */}
+      <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto' }}>
+        {TABS.map(t => (
+          <div key={t.key} onClick={() => setTab(t.key)}
+            style={{ flexShrink:0, height:44, padding:'0 16px', display:'flex', alignItems:'center', justifyContent:'center', gap:5, cursor:'pointer', fontSize:13, fontWeight: tab===t.key ? 600 : 400, color: tab===t.key ? '#8B1A1A' : '#999', borderBottom: tab===t.key ? '2px solid #8B1A1A' : '2px solid transparent' }}>
+            {t.label}
+            {t.count > 0 && <span style={{ fontSize:10, background: tab===t.key ? '#8B1A1A' : '#E0E0E0', color: tab===t.key ? '#fff' : '#999', borderRadius:10, padding:'1px 6px', fontWeight:600 }}>{t.count}</span>}
+          </div>
+        ))}
+      </div>
+
+      {msg && (
+        <div style={{ margin:'12px 16px 0', background:'#E6F4EB', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#2D7D46' }}>{msg}</div>
+      )}
+
+      <div style={{ padding:16 }}>
+        {loading ? <div style={{ textAlign:'center', padding:40, color:'#999' }}>載入中...</div> : (
+          <>
+            {/* 定期票 */}
+            {tab === 'passes' && (passes.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>
+                <div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎫</div>目前沒有定期票
+              </div>
+            ) : passes.map(p => {
+              const st = passStatus(p);
+              const total = dayjs(p.endDate).diff(dayjs(p.startDate), 'day');
+              const used = dayjs().diff(dayjs(p.startDate), 'day');
+              const pct = Math.min(100, Math.max(0, (used/total)*100));
+              return (
+                <div key={p.id} style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12, overflow:'hidden', position:'relative' }}>
+                  <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:st.color }}/>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+                    <div><div style={{ fontWeight:600, fontSize:16 }}>{p.passTypeName}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{p.scope === 'shared' ? '全館適用' : '單館'}</div></div>
+                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:st.bg, color:st.color }}>{st.label}</span>
+                  </div>
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#6b6b6b', marginBottom:8 }}><span>{p.startDate}</span><span>～</span><span>{p.endDate}</span></div>
+                  <div style={{ height:5, background:'#EEE', borderRadius:3, overflow:'hidden' }}><div style={{ height:'100%', width:`${pct}%`, background:st.color, borderRadius:3 }}/></div>
+                  {p.credits !== null && <div style={{ marginTop:10, fontSize:13, display:'flex', justifyContent:'space-between' }}><span style={{ color:'#6b6b6b' }}>剩餘次數</span><span style={{ fontWeight:600, fontFamily:'monospace', fontSize:16, color:'#8B1A1A' }}>{p.credits} 次</span></div>}
+                  {p.status === 'active' && (
+                    hasRequestForPass(p.id) ? (
+                      <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>
+                        已申請過展延/退費/轉讓（限一次）
+                      </div>
+                    ) : (
+                      <button onClick={() => openRequest(p)}
+                        style={{ width:'100%', marginTop:10, height:34, borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
+                        申請展延／退費／轉讓
+                      </button>
+                    )
+                  )}
+                </div>
+              );
+            }))}
+
+            {/* 優惠卡 */}
+            {tab === 'discount' && (discountCards.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>
+                <div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🃏</div>目前沒有優惠卡
+              </div>
+            ) : discountCards.map(c => (
+              <div key={c.id} onClick={() => handleTicketClick(c, 'discount_card')}
+                style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer' }}>
+                <div style={{ position:'absolute', right:-15, top:-15, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:70, opacity:.07, fontWeight:700 }}>RR</div>
+                <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>優惠卡{c.isExpiringSoon && ' ⚠ 即將到期'}</div>
+                <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
+                <div style={{ fontSize:12, opacity:.75 }}>有效至 {c.expiresAtFormatted}</div>
+                <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${(c.remainingCredits/10)*100}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
+                <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}><span>已使用 {10 - c.remainingCredits} 次</span><span>剩餘 {c.remainingCredits}/10</span></div>
+                <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>點擊查看詳情 →</div>
+              </div>
+            )))}
+
+            {/* 黑卡 */}
+            {tab === 'black' && (blackCards.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>
+                <div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🖤</div>目前沒有黑卡
+              </div>
+            ) : blackCards.map(c => (
+              <div key={c.id} onClick={() => handleTicketClick(c, 'black_card')}
+                style={{ background:'linear-gradient(135deg,#1a1a1a,#444)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer' }}>
+                <div style={{ position:'absolute', right:-15, top:-15, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:70, opacity:.07, fontWeight:700 }}>RR</div>
+                <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>黑卡</div>
+                <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
+                <div style={{ fontSize:12, opacity:.75 }}>有效至 {c.expiresAtFormatted || '—'}</div>
+                <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${(c.remainingCredits/12)*100}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
+                <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}><span>已使用 {12 - c.remainingCredits} 次</span><span>剩餘 {c.remainingCredits}/12</span></div>
+                <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>點擊查看詳情 →</div>
+              </div>
+            )))}
+
+            {/* 單日入場券 */}
+            {tab === 'single' && (singleTickets.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>
+                <div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎟️</div>目前沒有單日入場券
+              </div>
+            ) : singleTickets.map(t => (
+              <div key={t.id} onClick={() => handleTicketClick(t, 'single_entry')}
+                style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:15 }}>單日入場券</div>
+                  <div style={{ fontSize:12, color:'#999', marginTop:3 }}>有效至 {t.expiresAt ? dayjs(t.expiresAt?.seconds ? t.expiresAt.seconds*1000 : t.expiresAt).format('YYYY/MM/DD') : '—'}</div>
+                </div>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>有效</span>
+              </div>
+            )))}
+
+            {/* 紅利 */}
+            {tab === 'bonus' && (bonuses.length === 0 ? (
+              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>
+                <div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎁</div>目前沒有紅利<br/>
+                <span style={{ fontSize:12 }}>優惠卡全部次數用完後即可獲得</span>
+              </div>
+            ) : bonuses.map(b => (
+              <div key={b.id} onClick={() => handleTicketClick(b, 'bonus')}
+                style={{ background:'#fff', borderRadius:14, border:'1px solid #B3DEC0', padding:16, marginBottom:12, cursor:'pointer' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                  <div style={{ fontSize:18 }}>🎁</div>
+                  <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background: b.isExpiringSoon ? '#FAEEDA' : '#E6F4EB', color: b.isExpiringSoon ? '#854F0B' : '#2D7D46' }}>{b.isExpiringSoon ? `剩 ${b.daysLeft} 天` : '有效'}</span>
+                </div>
+                <div style={{ fontWeight:600, fontSize:16, color:'#2D7D46' }}>免費入場 1 次</div>
+                <div style={{ fontSize:12, color:'#6b6b6b', marginTop:4 }}>有效至 {b.expiresAtFormatted}</div>
+                <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'right' }}>點擊查看詳情 →</div>
+              </div>
+            )))}
+          </>
+        )}
+      </div>
+
+      {/* 票券詳細 Modal */}
+      {selectedTicket && !showTransfer && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          ticketType={selectedTicketType}
+          onClose={() => setSelectedTicket(null)}
+          onTransfer={() => setShowTransfer(true)}
+        />
+      )}
+
+      {/* 移轉 Modal */}
+      {selectedTicket && showTransfer && (
+        <TransferModal
+          ticket={selectedTicket}
+          ticketType={selectedTicketType}
+          memberName={member?.name}
+          onClose={() => { setShowTransfer(false); setSelectedTicket(null); }}
+        />
+      )}
+
+      {/* 展延/退費/轉讓申請 Modal */}
+      {requestingPass && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 0', width:'100%', maxHeight:'88vh', display:'flex', flexDirection:'column' }}>
+            <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:4 }}>申請 — {requestingPass.passTypeName}</div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>展延、退費、轉讓三者擇一，且每張定期票限申請一次</div>
+
+            <div style={{ flex:1, overflowY:'auto', paddingBottom:20 }}>
+              <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+                {[{key:'extension',label:'展延'},{key:'refund',label:'退費'},{key:'transfer',label:'轉讓'}].map(t => (
+                  <button key={t.key} onClick={() => setRequestType(t.key)}
+                    style={{ flex:1, height:38, borderRadius:8, border: requestType===t.key?'none':'0.5px solid #E8D5D5', background: requestType===t.key?'#8B1A1A':'#fff', color: requestType===t.key?'#fff':'#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+
+              {requestType === 'refund' && (
+                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6 }}>
+                  退費需持發票正本親至櫃檯辦理，扣除手續費NT$600後依剩餘天數比例退費（四捨五入）。
+                </div>
+              )}
+              {requestType === 'extension' && (
+                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6 }}>
+                  展延以一次為限，展延期間不得逾6個月。
+                </div>
+              )}
+              {requestType === 'transfer' && (
+                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6 }}>
+                  轉讓需收取手續費NT$300，原權益不變。
+                </div>
+              )}
+
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>請選擇符合的事由</label>
+                <select value={reasonKey} onChange={e => setReasonKey(e.target.value)}
+                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                  <option value="">請選擇...</option>
+                  {reasons.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>補充說明（選填）</label>
+                <input value={reasonDetail} onChange={e => setReasonDetail(e.target.value)}
+                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              </div>
+
+              {requestType === 'transfer' && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>轉讓對象手機號碼</label>
+                  <input type="tel" value={transferToPhone} onChange={e => setTransferToPhone(e.target.value)}
+                    placeholder="0912345678"
+                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+              )}
+
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>證明文件（圖片或PDF）</label>
+                <input type="file" accept="image/*,application/pdf" onChange={e => setEvidenceFile(e.target.files?.[0] || null)}
+                  style={{ width:'100%', fontSize:13 }}/>
+                {evidenceFile && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>已選擇：{evidenceFile.name}</div>}
+              </div>
+
+              {requestError && <div style={{ color:'#A32D2D', fontSize:12, marginTop:6 }}>{requestError}</div>}
+            </div>
+
+            <div style={{ padding:'12px 0 36px', display:'flex', gap:8 }}>
+              <button onClick={() => setRequestingPass(null)}
+                style={{ flex:1, height:46, borderRadius:10, border:'0.5px solid #E8D5D5', background:'none', fontSize:14, color:'#666', cursor:'pointer' }}>取消</button>
+              <button onClick={handleSubmitRequest} disabled={requestSubmitting}
+                style={{ flex:2, height:46, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
+                {evidenceUploading ? '上傳文件中...' : requestSubmitting ? '送出中...' : '送出申請'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <BottomNav navigate={navigate} />
+    </div>
+  );
+}

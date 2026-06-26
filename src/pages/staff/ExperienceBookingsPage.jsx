@@ -1,0 +1,290 @@
+import { useState, useEffect } from 'react';
+import client from '../../api/client';
+import SaveButton from '../../components/SaveButton';
+import { useAuth } from '../../store/authStore';
+import dayjs from 'dayjs';
+
+const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+const STATUS = {
+  pending:   { bg:'#FAEEDA', color:'#854F0B', label:'待確認' },
+  confirmed: { bg:'#E6F4EB', color:'#2D7D46', label:'已確認' },
+  cancelled: { bg:'#FCEBEB', color:'#A32D2D', label:'已取消' },
+};
+const inp = { height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
+const tinp = { width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
+
+export default function ExperienceBookingsPage() {
+  const { staff, token } = useAuth();
+  const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
+  const [tab, setTab] = useState('bookings');
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
+  const [gymFilter, setGymFilter] = useState('');
+  const [fromDate, setFromDate] = useState(dayjs().subtract(7,'day').format('YYYY-MM-DD'));
+  const [toDate, setToDate] = useState(dayjs().add(60,'day').format('YYYY-MM-DD'));
+  const [expanded, setExpanded] = useState(null);
+  // Settings
+  const [settings, setSettings] = useState(null);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+
+  const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await client.get('/experience-bookings', { params:{ gymId:gymFilter||undefined, from:fromDate, to:toDate } });
+      setBookings(res.data.bookings||[]);
+    } catch(e){} finally { setLoading(false); }
+  };
+
+  const loadSettings = async () => {
+    try { const r = await client.get('/experience-bookings/settings'); setSettings(r.data); }
+    catch(e) {}
+  };
+
+  useEffect(()=>{ load(); }, [gymFilter]);
+
+  const handleConfirm = async (id) => {
+    try { await client.post(`/experience-bookings/${id}/confirm`); showMsg('已確認收款'); load(); }
+    catch(e) { showMsg('操作失敗','red'); }
+  };
+
+  const handleCancel = async (id) => {
+    if (!window.confirm('確定取消此預約？')) return;
+    try { await client.post(`/experience-bookings/${id}/cancel`,{reason:'館方取消'}); showMsg('已取消'); load(); }
+    catch(e) { showMsg('操作失敗','red'); }
+  };
+
+  const getToken = () => token || localStorage.getItem('token') || localStorage.getItem('operatorToken') || '';
+
+  const downloadXLS = () => {
+    const params = new URLSearchParams();
+    if (gymFilter) params.set('gymId',gymFilter);
+    if (fromDate) params.set('from',fromDate);
+    if (toDate) params.set('to',toDate);
+    fetch(`${API}/experience-bookings/download?${params}`, { headers:{ Authorization:`Bearer ${getToken()}` } })
+      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`experience_${dayjs().format('YYYYMMDD')}.xlsx`; a.click(); URL.revokeObjectURL(url); });
+  };
+
+  const downloadInsurance = (bookingId) => {
+    const params = new URLSearchParams();
+    if (bookingId) { params.set('bookingId',bookingId); }
+    else { if (gymFilter) params.set('gymId',gymFilter); if (fromDate) params.set('from',fromDate); if (toDate) params.set('to',toDate); }
+    fetch(`${API}/experience-bookings/insurance-download?${params}`, { headers:{ Authorization:`Bearer ${getToken()}` } })
+      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`旅平險名冊_${dayjs().format('YYYYMMDD')}.xls`; a.click(); URL.revokeObjectURL(url); });
+  };
+
+  const saveSettings = async () => {
+    await client.put('/experience-bookings/settings', settings);
+    setSettingsDirty(false);
+    showMsg('✅ 設定已儲存');
+  };
+
+  const updateCT = (idx, field, val) => { setSettingsDirty(true); setSettings(s=>({...s, courseTypes:s.courseTypes.map((ct,i)=>i===idx?{...ct,[field]:val}:ct)})); };
+  const updateTier = (ctIdx, tIdx, field, val) => { setSettingsDirty(true); setSettings(s=>({...s, courseTypes:s.courseTypes.map((ct,i)=>i!==ctIdx?ct:{...ct,tiers:ct.tiers.map((t,j)=>j===tIdx?{...t,[field]:Number(val)||0}:t)})})); };
+
+  return (
+    <div style={{ padding:24, maxWidth:900, margin:'0 auto' }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+        <div style={{ fontSize:20, fontWeight:700 }}>🧗 體驗課程預約管理</div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={downloadXLS} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>⬇ XLS 名單</button>
+          <button onClick={()=>downloadInsurance()} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>📋 保險名冊</button>
+        </div>
+      </div>
+
+      {msg && <div style={{ background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'8px 14px', marginBottom:14, fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:0, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3, marginBottom:16, width:'fit-content' }}>
+        {[{key:'bookings',label:'預約管理'},{key:'settings',label:'⚙ 課程設定'}].map(t=>(
+          <button key={t.key} onClick={()=>{ setTab(t.key); if(t.key==='settings') loadSettings(); }}
+            style={{ height:32, padding:'0 16px', borderRadius:6, border:tab===t.key?'0.5px solid #E8D5D5':'none', background:tab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color:tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── 預約管理 ── */}
+      {tab==='bookings' && (
+        <div>
+          {/* 篩選 */}
+          <div style={{ display:'flex', gap:10, marginBottom:16, flexWrap:'wrap', alignItems:'flex-end' }}>
+            {isAdmin && <select value={gymFilter} onChange={e=>setGymFilter(e.target.value)} style={inp}>
+              <option value="">全部館別</option>
+              <option value="gym-hsinchu">新竹館</option>
+              <option value="gym-shilin">士林館</option>
+            </select>}
+            <div><div style={{ fontSize:11, color:'#666', marginBottom:3 }}>起</div><input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={inp}/></div>
+            <div><div style={{ fontSize:11, color:'#666', marginBottom:3 }}>迄</div><input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={inp}/></div>
+            <button onClick={load} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>查詢</button>
+          </div>
+          {/* 統計 */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 }}>
+            {[{label:'總預約數',value:bookings.length,color:'#1a1a1a'},{label:'待確認',value:bookings.filter(b=>b.status==='pending').length,color:'#854F0B'},{label:'已確認',value:bookings.filter(b=>b.status==='confirmed').length,color:'#2D7D46'}].map(s=>(
+              <div key={s.label} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', textAlign:'center' }}>
+                <div style={{ fontSize:11, color:'#999', marginBottom:4 }}>{s.label}</div>
+                <div style={{ fontSize:24, fontWeight:700, color:s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
+          {!loading && bookings.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>查無預約記錄</div>}
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {bookings.map(b=>{
+              const sl = STATUS[b.status]||STATUS.pending;
+              const isExpanded = expanded===b.id;
+              return (
+                <div key={b.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
+                  <div style={{ padding:14 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:4 }}>
+                          <span style={{ fontWeight:600, fontSize:14 }}>{b.contactName}</span>
+                          <span style={{ fontSize:12, color:'#666' }}>{b.gymId==='gym-hsinchu'?'新竹館':'士林館'}</span>
+                          <span style={{ fontSize:11, fontWeight:600, padding:'1px 8px', borderRadius:6, background:sl.bg, color:sl.color }}>{sl.label}</span>
+                        </div>
+                        <div style={{ fontSize:13, color:'#444' }}>{b.bookingDate} {b.bookingTime} · {b.numParticipants} 人 · NT${b.totalFee}</div>
+                        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
+                          {b.contactPhone}{b.bankLastFive&&` · 末五碼：${b.bankLastFive}`}{b.paymentDate&&` · 匯款日：${b.paymentDate}`}
+                        </div>
+                      </div>
+                      <button onClick={()=>setExpanded(isExpanded?null:b.id)}
+                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                        {isExpanded?'收起':'查看名單'}
+                      </button>
+                    </div>
+                    <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap' }}>
+                      {b.status==='pending' && <>
+                        <button onClick={()=>handleConfirm(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認收款</button>
+                        <button onClick={()=>handleCancel(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>取消</button>
+                      </>}
+                      {b.status!=='cancelled' && <button onClick={()=>downloadInsurance(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>📋 保險名冊</button>}
+                    </div>
+                  </div>
+                  {isExpanded && (
+                    <div style={{ borderTop:'0.5px solid #F5EFEF', background:'#FBF5F5', padding:'12px 14px' }}>
+                      <div style={{ fontSize:12, fontWeight:600, marginBottom:10, color:'#666' }}>參加者名單（保險資料）</div>
+                      <div style={{ background:'#fff', borderRadius:10, overflow:'hidden', border:'0.5px solid #E8D5D5' }}>
+                        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                          <thead><tr style={{ background:'#FBF5F5' }}>
+                            {['序','姓名','身分證字號','生日（民國）','國籍'].map(h=>(
+                              <th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5' }}>{h}</th>
+                            ))}
+                          </tr></thead>
+                          <tbody>
+                            {(b.participants||[]).map((p,i)=>(
+                              <tr key={i} style={{ borderBottom:'0.5px solid #F5EFEF' }}>
+                                <td style={{ padding:'8px 10px', color:'#999' }}>{i+1}</td>
+                                <td style={{ padding:'8px 10px', fontWeight:500 }}>{p.name}</td>
+                                <td style={{ padding:'8px 10px', fontFamily:'monospace' }}>{p.idNumber}</td>
+                                <td style={{ padding:'8px 10px' }}>{p.birthday}</td>
+                                <td style={{ padding:'8px 10px' }}>{p.nationality||'台灣'}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      {b.notes && <div style={{ fontSize:12, color:'#666', marginTop:8 }}>備註：{b.notes}</div>}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 課程設定 ── */}
+      {tab==='settings' && (
+        <div>
+          {!settings && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
+          {settings && (
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              {/* 課程說明 */}
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
+                <div style={{ fontSize:14, fontWeight:600, marginBottom:12 }}>📋 課程說明文字</div>
+                <div style={{ marginBottom:10 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>課程說明（會員端顯示）</label>
+                  <textarea rows={3} value={settings.description||''} onChange={e=>{ setSettingsDirty(true); setSettings(s=>({...s,description:e.target.value})); }}
+                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, resize:'vertical', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                </div>
+                <div style={{ marginBottom:10 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>注意事項</label>
+                  <textarea rows={2} value={settings.notice||''} onChange={e=>{ setSettingsDirty(true); setSettings(s=>({...s,notice:e.target.value})); }}
+                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, resize:'vertical', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <label style={{ fontSize:12, color:'#666' }}>付款期限</label>
+                  <input type="number" min={1} max={14} value={settings.paymentDeadlineDays||3} onChange={e=>setSettings(s=>({...s,paymentDeadlineDays:Number(e.target.value)}))}
+                    style={{ ...inp, width:60 }}/>
+                  <span style={{ fontSize:12, color:'#666' }}>日內完成匯款</span>
+                </div>
+              </div>
+              {/* 匯款帳號 - 兩館分開 */}
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
+                <div style={{ fontSize:14, fontWeight:600, marginBottom:14 }}>🏦 匯款帳號</div>
+                {[{key:'hsinchu',label:'新竹館'},{key:'shilin',label:'士林館'}].map(gym=>(
+                  <div key={gym.key} style={{ marginBottom:16 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:8 }}>{gym.label}</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                      {[{label:'銀行名稱',field:'bankName'},{label:'分行',field:'branch'},{label:'帳號',field:'account'},{label:'戶名',field:'accountName'}].map(({label,field})=>(
+                        <div key={field}>
+                          <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{label}</label>
+                          <input value={settings.bankInfo?.[gym.key]?.[field]||''} onChange={e=>setSettings(s=>({...s,bankInfo:{...s.bankInfo,[gym.key]:{...(s.bankInfo?.[gym.key]||{}),[field]:e.target.value}}}))} style={tinp}/>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* 課程類型 */}
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
+                <div style={{ fontSize:14, fontWeight:600, marginBottom:12 }}>🧗 課程類型與費率</div>
+                {(settings.courseTypes||[]).map((ct,ctIdx)=>(
+                  <div key={ct.id} style={{ background:'#FBF5F5', borderRadius:10, padding:14, marginBottom:12, border:'0.5px solid #E8D5D5' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                      <div style={{ fontWeight:600, fontSize:13, color:'#8B1A1A' }}>{ct.id}</div>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12 }}>
+                        <input type="checkbox" checked={ct.active!==false} onChange={e=>updateCT(ctIdx,'active',e.target.checked)} style={{ accentColor:'#8B1A1A' }}/>開放報名
+                      </label>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
+                      <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>課程名稱</label><input value={ct.label||''} onChange={e=>updateCT(ctIdx,'label',e.target.value)} style={tinp}/></div>
+                      <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>時數說明</label><input value={ct.durationNote||''} onChange={e=>updateCT(ctIdx,'durationNote',e.target.value)} style={tinp}/></div>
+                    </div>
+                    {ct.pricingType==='fixed' ? (
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <label style={{ fontSize:12, color:'#666' }}>費用</label>
+                        <input type="number" value={ct.price||0} onChange={e=>updateCT(ctIdx,'price',Number(e.target.value))} style={{ ...tinp, width:100 }}/>
+                        <span style={{ fontSize:12, color:'#666' }}>元/人</span>
+                      </div>
+                    ) : (
+                      <div>
+                        <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>階梯費率（人數→單價）</label>
+                        {(ct.tiers||[]).map((tier,tIdx)=>(
+                          <div key={tIdx} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:6, fontSize:12 }}>
+                            <span style={{ color:'#999', minWidth:20 }}>{tier.min}~</span>
+                            <input type="number" value={tier.max} onChange={e=>updateTier(ctIdx,tIdx,'max',e.target.value)} style={{ ...tinp, width:50, height:30 }}/>
+                            <span style={{ color:'#666' }}>人：</span>
+                            <input type="number" value={tier.price} onChange={e=>updateTier(ctIdx,tIdx,'price',e.target.value)} style={{ ...tinp, width:70, height:30 }}/>
+                            <span style={{ color:'#666' }}>元/人</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <SaveButton onSave={saveSettings} isDirty={settingsDirty} label='✓ 儲存設定' fullWidth />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

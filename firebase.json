@@ -1,0 +1,16 @@
+{
+  "hosting": [
+    {
+      "site": "redrock-member",
+      "public": "dist-member",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    },
+    {
+      "site": "redrock-staff",
+      "public": "dist-staff",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    }
+  ]
+}
