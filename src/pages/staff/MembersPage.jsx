@@ -3,7 +3,6 @@ import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWai
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
-import { MemberRecords } from '../../components/MemberRecords';
 import dayjs from 'dayjs';
 
 const Modal = ({ title, onClose, children }) => (
@@ -27,7 +26,6 @@ const TAG = {
   purple: { bg:'#F0E8FB', color:'#6B21A8' },
 };
 
-
 const Tag = ({ type='ok', children }) => (
   <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:TAG[type].bg, color:TAG[type].color }}>
     {children}
@@ -35,20 +33,102 @@ const Tag = ({ type='ok', children }) => (
 );
 
 
-
-const RECORD_TABS_CFG = [
-  { key:'checkins', icon:'🚪', label:'入場' },
-  { key:'passes',   icon:'🎫', label:'定期票' },
-  { key:'courses',  icon:'📚', label:'課程' },
-  { key:'competitions', icon:'🏆', label:'比賽' },
-  { key:'adjustments', icon:'📋', label:'退費/調整' },
-];
+function MemberRecords({ records }) {
+  const [tab, setTab] = useState('checkins');
+  const r = records || {};
+  const tabs = [
+    { key:'checkins', icon:'🚪', label:'入場', count:(r.checkins||[]).length },
+    { key:'passes',   icon:'🎫', label:'定期票', count:(r.passes||[]).length },
+    { key:'courses',  icon:'📚', label:'課程', count:(r.courses||[]).length },
+    { key:'competitions', icon:'🏆', label:'比賽', count:(r.competitions||[]).length },
+    { key:'adjustments', icon:'📋', label:'退費', count:(r.adjustments||[]).length },
+  ];
+  return (
+    <div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:4, marginBottom:12 }}>
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            style={{ height:36, borderRadius:8, border:tab===t.key?'1.5px solid #8B1A1A':'1.5px solid #EDE5E5', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:10, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:1 }}>
+            <span style={{ fontSize:12 }}>{t.icon}</span>
+            <span>{t.label}{t.count>0?' ('+t.count+')':''}</span>
+          </button>
+        ))}
+      </div>
+      {tab==='checkins' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.checkins||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無入場紀錄</div>}
+        {(r.checkins||[]).slice(0,30).map((c,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:500 }}>{c.gymId==='gym-hsinchu'?'新竹館':'士林館'}</div>
+              <div style={{ fontSize:11, color:'#999' }}>{c.entryType}</div>
+            </div>
+            <div style={{ fontSize:11, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date}</div>
+          </div>
+        ))}
+      </div>}
+      {tab==='passes' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.passes||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無定期票紀錄</div>}
+        {(r.passes||[]).map((p,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between' }}>
+              <div style={{ fontSize:12, fontWeight:500 }}>{p.passTypeName||p.passType}</div>
+              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:p.status==='active'?'#E6F4EB':'#F0EDED', color:p.status==='active'?'#2D7D46':'#999' }}>{p.status==='active'?'使用中':'已到期'}</span>
+            </div>
+            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{p.startDate} ~ {p.endDate}</div>
+          </div>
+        ))}
+      </div>}
+      {tab==='courses' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.courses||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無課程紀錄</div>}
+        {(r.courses||[]).slice(0,30).map((e,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:500 }}>{e.courseName}{e.isMakeup?' 🔄':''}</div>
+              <div style={{ fontSize:11, color:'#999' }}>{e.date} {e.startTime}</div>
+            </div>
+            <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:e.status==='confirmed'?'#E6F4EB':e.status==='course_cancelled'?'#FCEBEB':'#F0EDED', color:e.status==='confirmed'?'#2D7D46':e.status==='course_cancelled'?'#A32D2D':'#999' }}>
+              {e.status==='confirmed'?'已報名':e.status==='leave'?'已請假':e.status==='course_cancelled'?'課程取消':e.status}
+            </span>
+          </div>
+        ))}
+      </div>}
+      {tab==='competitions' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.competitions||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無比賽紀錄</div>}
+        {(r.competitions||[]).map((c,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ fontSize:12, fontWeight:500 }}>{c.competitionName}</div>
+            <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:c.paymentStatus==='confirmed'?'#E6F4EB':'#FAEEDA', color:c.paymentStatus==='confirmed'?'#2D7D46':'#854F0B' }}>{c.paymentStatus==='confirmed'?'已繳費':'待繳費'}</span>
+          </div>
+        ))}
+      </div>}
+      {tab==='adjustments' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.adjustments||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無退費/調整紀錄</div>}
+        {(r.adjustments||[]).map((a,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between' }}>
+              <div style={{ fontSize:12, fontWeight:500 }}>{a.courseName||'申請'}</div>
+              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:a.status==='approved'?'#E6F4EB':a.status==='rejected'?'#FCEBEB':'#FAEEDA', color:a.status==='approved'?'#2D7D46':a.status==='rejected'?'#A32D2D':'#854F0B' }}>
+                {a.status==='pending'?'待審核':a.status==='approved'?'已核准':a.status==='rejected'?'已拒絕':a.status}
+              </span>
+            </div>
+            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+              {a.createdAt?._seconds ? dayjs(a.createdAt._seconds*1000).format('YYYY/MM/DD') : ''}
+              {a.refundAmount ? ' · 退款 NT$' + a.refundAmount : ''}
+            </div>
+          </div>
+        ))}
+      </div>}
+    </div>
+  );
+}
 
 
 export default function MembersPage() {
   const { staff, activeGymId, station, operator } = useAuth();
   const targetGymId = activeGymId || staff?.gymId;
   const isAdmin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!station || !!operator;
+  const [memberRecords, setMemberRecords] = useState(null);
+  const [recordsLoading, setRecordsLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [members, setMembers] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -59,30 +139,6 @@ export default function MembersPage() {
   const [promoteForm, setPromoteForm] = useState({ phone:'', email:'', password:'' });
   const [promoteMsg, setPromoteMsg] = useState('');
   const [promoteLoading, setPromoteLoading] = useState(false);
-  const [detailTab, setDetailTab] = useState('info');
-  const [memberRecords, setMemberRecords] = useState(null);
-  const [recordsLoading, setRecordsLoading] = useState(false);
-
-  const loadMemberRecords = async (memberId) => {
-    setRecordsLoading(true);
-    try {
-      const [checkins, passes, courses, comps, adjustments] = await Promise.allSettled([
-        client.get(`/checkin/history`, { params: { memberId, limit: 30 } }),
-        client.get(`/passes/member/${memberId}`),
-        client.get(`/courses/member/${memberId}/enrollments`),
-        client.get(`/competitions/registrations/member/${memberId}`),
-        client.get(`/course-adjustments/member/${memberId}`),
-      ]);
-      setMemberRecords({
-        checkins: checkins.status==='fulfilled' ? checkins.value.data.checkIns || checkins.value.data || [] : [],
-        passes: passes.status==='fulfilled' ? passes.value.data.passes || [] : [],
-        courses: courses.status==='fulfilled' ? courses.value.data.enrollments || [] : [],
-        competitions: comps.status==='fulfilled' ? comps.value.data.registrations || [] : [],
-        adjustments: adjustments.status==='fulfilled' ? adjustments.value.data.requests || [] : [],
-      });
-    } catch(e) { setMemberRecords(null); }
-    finally { setRecordsLoading(false); }
-  };
 
   const handlePromote = async () => {
     setPromoteMsg(''); setPromoteLoading(true);
@@ -92,16 +148,34 @@ export default function MembersPage() {
       await promoteChild(promotingChild.id, payload);
       setPromotingChild(null);
       setPromoteForm({ phone:'', email:'', password:'' });
-      setDetailTab('info');
-      setMemberRecords(null);
       if (selected) {
         const res = await getMember(selected.id);
-        if (!isMobile) loadMemberRecords(selected.id);
         setDetail(res.data);
       }
     } catch (err) {
       setPromoteMsg(err.response?.data?.message || '升級失敗，請確認資料是否正確');
     } finally { setPromoteLoading(false); }
+  };
+
+  const loadMemberRecords = async (memberId) => {
+    setRecordsLoading(true);
+    try {
+      const [checkins, passes, courses, comps, adjs] = await Promise.allSettled([
+        client.get('/checkin/history', { params: { memberId, limit:30 } }),
+        client.get('/passes/member/' + memberId),
+        client.get('/courses/member/' + memberId + '/enrollments'),
+        client.get('/competitions/registrations/member/' + memberId),
+        client.get('/course-adjustments/member/' + memberId),
+      ]);
+      setMemberRecords({
+        checkins: checkins.status==='fulfilled' ? (checkins.value.data.checkIns || checkins.value.data || []) : [],
+        passes: passes.status==='fulfilled' ? (passes.value.data.passes || []) : [],
+        courses: courses.status==='fulfilled' ? (courses.value.data.enrollments || []) : [],
+        competitions: comps.status==='fulfilled' ? (comps.value.data.registrations || []) : [],
+        adjustments: adjs.status==='fulfilled' ? (adjs.value.data.requests || []) : [],
+      });
+    } catch(e) { setMemberRecords(null); }
+    finally { setRecordsLoading(false); }
   };
 
   const handleSearch = async (e) => {
@@ -132,32 +206,9 @@ export default function MembersPage() {
   };
 
   const openEdit = () => {
-    setEditForm({
-      name: detail?.name || selected?.name || '',
-      email: detail?.email || selected?.email || '',
-      emergencyContact: detail?.emergencyContact || '',
-      notes: detail?.notes || '',
-      gender: detail?.gender || '',
-    });
+    setEditForm({ notes: detail.member?.notes || '' });
     setEditMsg('');
     setShowEdit(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editForm.name.trim()) { setEditMsg('請輸入姓名'); return; }
-    setEditSaving(true);
-    setEditMsg('');
-    try {
-      await client.put(`/members/${selected.id}`, editForm);
-      const res = await getMember(selected.id);
-      setDetail(res.data);
-      setSelected({ ...selected, name: editForm.name, email: editForm.email });
-      setShowEdit(false);
-    } catch (err) {
-      setEditMsg(err.response?.data?.message || '更新失敗');
-    } finally {
-      setEditSaving(false);
-    }
   };
 
   const [checkinEligibility, setCheckinEligibility] = useState(null);
@@ -168,7 +219,7 @@ export default function MembersPage() {
     setShowCheckin(true);
     // 查詢入場資格（有無定期票）
     try {
-      const res = await client.get(`/checkin/eligibility/${selected.id}`, { params: { gymId: targetGymId } });
+      const res = await client.get(`/checkin/eligibility/${selected.id}`);
       setCheckinEligibility(res.data);
     } catch (e) {}
     // 載入入場類型
@@ -181,11 +232,7 @@ export default function MembersPage() {
   };
 
   const handleQuickCheckin = async () => {
-    const effectiveEntryType = checkinEligibility?.isVip ? 'vip'
-      : checkinEligibility?.hasValidPass ? 'pass'
-      : checkinEligibility?.hasCourseAccess ? 'course_access'
-      : checkinEntryType;
-    if (!effectiveEntryType) { setCheckinMsg('請選擇入場類型'); setCheckinMsgType('red'); return; }
+    if (!checkinEntryType) { setCheckinMsg('請選擇入場類型'); setCheckinMsgType('red'); return; }
     if (!targetGymId) { setCheckinMsg('無法判斷操作館別，請確認登入狀態'); setCheckinMsgType('red'); return; }
     setCheckinSaving(true);
     setCheckinMsg('');
@@ -193,7 +240,7 @@ export default function MembersPage() {
       await client.post('/checkin/phone', {
         memberId: selected.id,
         gymId: targetGymId,
-        entryType: effectiveEntryType,
+        entryType: checkinEligibility?.isVip ? 'vip' : checkinEligibility?.hasValidPass ? 'pass' : checkinEligibility?.hasCourseAccess ? 'course_access' : checkinEntryType,
         paymentMethod: checkinPayment,
       });
       setCheckinMsg(`${selected.name} 入場成功`);
@@ -256,7 +303,17 @@ export default function MembersPage() {
     } catch {}
   };
 
-  const openWaiverView = async () => {
+  const handleEditSave = async () => {
+    setEditSaving(true); setEditMsg('');
+    try {
+      await client.put('/members/' + selected.id, { notes: editForm.notes || '' });
+      await reloadDetail();
+      setShowEdit(false);
+    } catch(err) { setEditMsg(err.response?.data?.message || '更新失敗'); }
+    finally { setEditSaving(false); }
+  };
+
+    const openWaiverView = async () => {
     setModalMsg(''); setWaiverData(null);
     try {
       const res = await getMemberWaiver(detail.member.id);
@@ -331,11 +388,8 @@ export default function MembersPage() {
     return dayjs().diff(dayjs(birthday), 'year') < 18;
   };
 
-  const handleLoadRecords = () => { if (!memberRecords) loadMemberRecords(selected.id); };
-
   return (
-    <div style={{ padding: isMobile ? 12 : 20, minHeight:'100vh', background:'#F7F3F3', boxSizing:'border-box' }}>
-      <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns:'1fr 420px', gap:16 }}>
+    <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns:'1fr 420px', gap:16, padding: isMobile ? 12 : 20, minHeight:'100vh', background:'#F7F3F3', boxSizing:'border-box' }}>
 
       {/* 左側：搜尋 + 列表 */}
       <div>
@@ -428,12 +482,10 @@ export default function MembersPage() {
             <div style={{ fontSize:14, fontWeight:600, marginBottom:14 }}>📋 {selected.name} 的紀錄查詢</div>
             {recordsLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
             {!recordsLoading && memberRecords && <MemberRecords records={memberRecords} />}
-            {!recordsLoading && !memberRecords && (
-              <div style={{ textAlign:'center', color:'#ccc', padding:24, fontSize:13 }}>載入中...</div>
-            )}
+            {!recordsLoading && !memberRecords && <div style={{ textAlign:'center', color:'#ccc', padding:24, fontSize:13 }}>載入中...</div>}
           </div>
         )}
-      </div>{/* end left column */}
+      </div>
 
       {/* 右側：詳情 */}
       <div style={isMobile && selected ? {
@@ -457,23 +509,7 @@ export default function MembersPage() {
           <div style={{ padding:'40px 0', textAlign:'center', color:'#999' }}>載入中...</div>
         ) : detail ? (
           <>
-            {/* Tab 切換 - 只在手機顯示 */}
-            {isMobile && (
-              <div style={{ display:'flex', gap:1, background:'#F5EFEF', borderRadius:8, padding:3, marginBottom:16 }}>
-                {[
-                  { key:'info', label:'基本資料' },
-                  { key:'records', label:'紀錄查詢' },
-                ].map(t => (
-                  <button key={t.key} onClick={() => { setDetailTab(t.key); if(t.key==='records'&&!memberRecords) loadMemberRecords(selected.id); }}
-                    style={{ flex:1, height:30, borderRadius:6, border:detailTab===t.key?'0.5px solid #E8D5D5':'none', background:detailTab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color:detailTab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
             {/* 頭像 + 姓名 */}
-            {(detailTab === 'info' || !isMobile) && <>
             <div style={{ textAlign:'center', marginBottom:16 }}>
               <div style={{ width:52, height:52, borderRadius:'50%', background:'#F5E8E8', color:'#8B1A1A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:600, margin:'0 auto 8px' }}>
                 {detail.member?.name?.[0]}
@@ -492,12 +528,20 @@ export default function MembersPage() {
               { label:'生日', value: detail.member?.birthday },
               { label:'Email', value: detail.member?.email },
               { label:'性別', value: detail.member?.gender === 'male' ? '男' : detail.member?.gender === 'female' ? '女' : '不公開' },
+              { label:'緊急聯絡人', value: detail.member?.emergencyContact || '—' },
             ].map(r => (
               <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #F5EFEF', fontSize:13 }}>
                 <span style={{ color:'#6b6b6b' }}>{r.label}</span>
                 <span style={{ fontWeight:500 }}>{r.value || '—'}</span>
               </div>
             ))}
+
+            {detail.member?.notes ? (
+              <div style={{ marginTop:10, padding:'10px 12px', background:'#FBF5F5', borderRadius:8, marginBottom:8 }}>
+                <div style={{ fontSize:11, color:'#6b6b6b', fontWeight:600, marginBottom:4 }}>備註</div>
+                <div style={{ fontSize:13, color:'#333', whiteSpace:'pre-wrap' }}>{detail.member.notes}</div>
+              </div>
+            ) : null}
 
             {/* Waiver */}
             <div style={{ padding:'10px 0', borderBottom:'1px solid #F5EFEF', fontSize:13 }}>
@@ -604,18 +648,9 @@ export default function MembersPage() {
                 入場登記
               </button>
             </div>
-            </>}
-
-          {/* ── 紀錄查詢 Tab（手機） ── */}
-          {isMobile && detailTab === 'records' && (
-            <div>
-              {recordsLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
-              {!recordsLoading && memberRecords && <MemberRecords records={memberRecords} />}
-            </div>
-          )}
           </>
         ) : null}
-      </div>{/* end grid */}
+      </div>
 
       {promotingChild && (
         <Modal title={`升級為正式會員 — ${promotingChild.name}`} onClose={() => setPromotingChild(null)}>
@@ -659,48 +694,16 @@ export default function MembersPage() {
       {/* 編輯資料 Modal */}
       {showEdit && (
         <Modal title={`編輯資料 — ${selected?.name}`} onClose={() => setShowEdit(false)}>
-          <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>姓名</label>
-            <input value={editForm.name} onChange={e => setEditForm({...editForm, name:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>備註（內部使用，會員不可見）</label>
+            <textarea value={editForm.notes || ''} onChange={e => setEditForm(p => ({...p, notes: e.target.value}))} rows={4}
+              placeholder="例：VIP客戶、特殊需求..." style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'vertical', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }} />
           </div>
-          <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>Email</label>
-            <input type="email" value={editForm.email} onChange={e => setEditForm({...editForm, email:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-          </div>
-          <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>性別</label>
-            <select value={editForm.gender} onChange={e => setEditForm({...editForm, gender:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-              <option value="">未填寫</option>
-              <option value="male">男</option>
-              <option value="female">女</option>
-              <option value="other">其他</option>
-            </select>
-          </div>
-          <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>緊急聯絡人</label>
-            <input value={editForm.emergencyContact} onChange={e => setEditForm({...editForm, emergencyContact:e.target.value})}
-              placeholder="姓名 / 電話"
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-          </div>
-          <div style={{ marginBottom:20 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>備註</label>
-            <input value={editForm.notes} onChange={e => setEditForm({...editForm, notes:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-          </div>
-          {editMsg && (
-            <div style={{ background:'#FCEBEB', border:'0.5px solid #F5C4C4', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#A32D2D', marginBottom:14 }}>
-              {editMsg}
-            </div>
-          )}
+          {editMsg && <div style={{ color:'#A32D2D', fontSize:12, marginBottom:10 }}>{editMsg}</div>}
           <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => setShowEdit(false)}
-              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
-            <button onClick={handleSaveEdit} disabled={editSaving}
-              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {editSaving ? '儲存中...' : '儲存變更'}
+            <button onClick={() => setShowEdit(false)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <button onClick={handleEditSave} disabled={editSaving} style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
+              {editSaving ? '儲存中...' : '儲存備註'}
             </button>
           </div>
         </Modal>
@@ -733,7 +736,7 @@ export default function MembersPage() {
                 {entryTypes.map(t => (
                   <button key={t.id} onClick={() => setCheckinEntryType(t.id)}
                     style={{ height:34, padding:'0 12px', borderRadius:8, border: checkinEntryType===t.id?'none':'0.5px solid #E8D5D5', background: checkinEntryType===t.id?'#185FA5':'#fff', color: checkinEntryType===t.id?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
-                    {t.name} {t.price > 0 ? ' NT$' + t.price : ''}
+                    {t.name} {t.price > 0 ? `NT$${t.price}` : ''}
                   </button>
                 ))}
                 {entryTypes.length === 0 && <div style={{ fontSize:12, color:'#999' }}>載入中...</div>}
@@ -779,26 +782,32 @@ export default function MembersPage() {
       {/* Waiver 副本 Modal */}
       {waiverModal === 'view' && waiverData && (
         <Modal title="Waiver 副本" onClose={() => setWaiverModal(null)}>
-          <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>
-            簽署時間：{waiverData.memberSignedAt ? dayjs(waiverData.memberSignedAt._seconds * 1000).format('YYYY/MM/DD HH:mm') : '-'}
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+            <div style={{ fontSize:12, color:'#999' }}>
+              簽署時間：{waiverData.memberSignedAt ? dayjs(waiverData.memberSignedAt._seconds * 1000).format('YYYY/MM/DD HH:mm') : '-'}
+            </div>
+            <button onClick={() => { const w=window.open('','_blank'); const t=waiverData.memberSignedAt?new Date(waiverData.memberSignedAt._seconds*1000).toLocaleString('zh-TW'):'-'; const body=waiverData.contentSnapshot?.zh||''; const sig=waiverData.memberSignatureUrl?'<img src="'+waiverData.memberSignatureUrl+'" style="max-width:300px">':''; w.document.write('<html><head><title>Waiver</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 Waiver</h2><p style="color:#666;font-size:12px">簽署時間：'+t+'</p><hr><pre style="white-space:pre-wrap;font-size:13px">'+body+'</pre><h3>簽名</h3>'+sig+'</body></html>'); w.document.close(); w.print(); }}
+              style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
+              🖨️ 列印/PDF
+            </button>
           </div>
           {waiverData.contentSnapshot?.zh && (
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6, textAlign:'left' }}>聲明書內容</div>
-              <div style={{ fontSize:12, color:'#333', lineHeight:1.8, whiteSpace:'pre-wrap', background:'#FBF5F5', borderRadius:8, padding:12, border:'0.5px solid #E8D5D5', textAlign:'left', maxHeight:240, overflowY:'auto' }}>
+              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>聲明書內容</div>
+              <div style={{ fontSize:12, color:'#333', lineHeight:1.8, whiteSpace:'pre-wrap', background:'#FBF5F5', borderRadius:8, padding:12, textAlign:'left', maxHeight:200, overflowY:'auto' }}>
                 {waiverData.contentSnapshot.zh}
               </div>
             </div>
           )}
           {waiverData.memberSignatureUrl && (
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6, textAlign:'left' }}>本人簽名</div>
+              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>本人簽名</div>
               <img src={waiverData.memberSignatureUrl} alt="簽名" style={{ width:'100%', maxWidth:340, border:'0.5px solid #E8D5D5', borderRadius:8 }} />
             </div>
           )}
           {waiverData.parentSignatureUrl && (
             <div>
-              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6, textAlign:'left' }}>家長簽名</div>
+              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>家長簽名</div>
               <img src={waiverData.parentSignatureUrl} alt="家長簽名" style={{ width:'100%', maxWidth:340, border:'0.5px solid #E8D5D5', borderRadius:8 }} />
             </div>
           )}
@@ -807,7 +816,7 @@ export default function MembersPage() {
 
       {/* Waiver 退回重簽 Modal */}
       {waiverModal === 'reset' && (
-        <Modal title="退回 Waiver 重簽" onClose={() => setWaiverModal(null)}>
+        <Modal title="退回 Waiver 重簽" onClose={() => setWaiverModal(null)} width={420}>
           <div style={{ fontSize:13, color:'#A32D2D', marginBottom:12, lineHeight:1.6 }}>
             退回後會員下次入場時將需要重新簽署 Waiver。
           </div>
@@ -831,9 +840,30 @@ export default function MembersPage() {
         <Modal title="墜落測驗同意書副本" onClose={() => setFallTestModal(null)}>
           {fallTestSigData ? (
             <>
-              <div style={{ fontSize:12, color:'#999', marginBottom:12 }}>
-                簽署時間：{fallTestSigData.signedAt ? dayjs(fallTestSigData.signedAt._seconds * 1000).format('YYYY/MM/DD HH:mm') : '—'}
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                <div style={{ fontSize:12, color:'#999' }}>
+                  簽署時間：{fallTestSigData.signedAt ? dayjs(fallTestSigData.signedAt._seconds * 1000).format('YYYY/MM/DD HH:mm') : '-'}
+                </div>
+                <button onClick={() => {
+                  const w = window.open('', '_blank');
+                  const t = fallTestSigData.signedAt ? new Date(fallTestSigData.signedAt._seconds*1000).toLocaleString('zh-TW') : '-';
+                  const body = fallTestSigData.contentSnapshot?.zh || '';
+                  const sig = fallTestSigData.signatureData ? '<img src="' + fallTestSigData.signatureData + '" style="max-width:300px;border:1px solid #ddd;border-radius:4px">' : '';
+                  const gsig = fallTestSigData.guardianSignatureData ? '<h3>家長/監護人簽名</h3><img src="' + fallTestSigData.guardianSignatureData + '" style="max-width:300px;border:1px solid #ddd;border-radius:4px">' : '';
+                  w.document.write('<html><head><title>墜落測驗同意書</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 — 墜落測驗同意書</h2><p style="color:#666;font-size:12px">簽署時間：' + t + '</p><hr><pre style="white-space:pre-wrap;font-size:13px;line-height:1.8">' + body + '</pre><h3>本人簽名</h3>' + sig + gsig + '</body></html>');
+                  w.document.close(); w.print();
+                }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
+                  🖨️ 列印/PDF
+                </button>
               </div>
+              {fallTestSigData.contentSnapshot?.zh && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>同意書內容</div>
+                  <div style={{ fontSize:12, color:'#333', lineHeight:1.8, whiteSpace:'pre-wrap', background:'#FBF5F5', borderRadius:8, padding:12, textAlign:'left', maxHeight:200, overflowY:'auto' }}>
+                    {fallTestSigData.contentSnapshot.zh}
+                  </div>
+                </div>
+              )}
               {fallTestSigData.signatureData && (
                 <div style={{ marginBottom:16 }}>
                   <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>本人簽名</div>
@@ -842,7 +872,7 @@ export default function MembersPage() {
               )}
               {fallTestSigData.guardianSignatureData && (
                 <div>
-                  <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>家長/監護人簽名</div>
+                  <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>家長/監護人簽名（{fallTestSigData.guardianName}）</div>
                   <img src={fallTestSigData.guardianSignatureData} alt="家長簽名" style={{ width:'100%', maxWidth:340, border:'0.5px solid #E8D5D5', borderRadius:8 }} />
                 </div>
               )}
@@ -855,7 +885,7 @@ export default function MembersPage() {
 
       {/* 墜落測驗同意書退回 Modal */}
       {fallTestModal === 'reset' && (
-        <Modal title="退回墜落測驗同意書重簽" onClose={() => setFallTestModal(null)}>
+        <Modal title="退回墜落測驗同意書重簽" onClose={() => setFallTestModal(null)} width={420}>
           <div style={{ fontSize:13, color:'#A32D2D', marginBottom:12, lineHeight:1.6 }}>
             退回後會員需重新完成影片觀看與同意書簽署。
           </div>
@@ -876,7 +906,7 @@ export default function MembersPage() {
 
       {/* 登記墜落測驗結果 Modal */}
       {fallTestModal === 'record' && (
-        <Modal title="登記墜落測驗結果" onClose={() => setFallTestModal(null)}>
+        <Modal title="登記墜落測驗結果" onClose={() => setFallTestModal(null)} width={420}>
           {!detail.hasFallTestSignature && (
             <div style={{ background:'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#A32D2D', marginBottom:16, lineHeight:1.6 }}>
               ⚠ 此會員尚未簽署墜落測驗同意書，只能登記「未通過」。
