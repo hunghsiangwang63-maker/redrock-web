@@ -22,7 +22,6 @@ const TAB_GROUPS = [
     group: '入場規則',
     items: [
       { key: 'entryTypes',   icon: '🚪', label: '入場類型' },
-      { key: 'bank',         icon: '🏦', label: '銀行帳號' },
       { key: 'waiver',       icon: '📄', label: 'Waiver 內容' },
       { key: 'fallTest',     icon: '🧗', label: '墜落測驗' },
     ],
@@ -52,7 +51,7 @@ export default function SettingsPage() {
     getAllGyms().then(res => setGyms(res.data.gyms || [])).catch(() => {});
   }, []);
   const isAdmin = ['super_admin', 'admin'].includes(staff?.role);
-  const [activeTab, setActiveTab] = useState('bank');
+  const [activeTab, setActiveTab] = useState('entryTypes');
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -61,7 +60,6 @@ export default function SettingsPage() {
   const [teamFees, setTeamFees] = useState({ fullYearFee:3000, midYearFee:2000, lateYearFee:1000, midYearCutoff:'03-15', lateYearCutoff:'09-15', jerseyDiscount:300 });
   const [teamFeesSaving, setTeamFeesSaving] = useState(false);
   // isDirty 追蹤各區塊是否有未儲存的修改
-  const [bankDirty, setBankDirty] = useState(false);
   const [entryDirty, setEntryDirty] = useState(false);
   const [shoeDirty, setShoeDirty] = useState(false);
   const [waiverDirty, setWaiverDirty] = useState(false);
@@ -171,34 +169,6 @@ export default function SettingsPage() {
 
   const ROLE_LABELS = { super_admin:'系統管理員', gym_manager:'館長', full_time:'正職', part_time:'兼職' };
 
-  // ─── 銀行帳號 ───────────────────────────────────────────────────
-  const [bankAccounts, setBankAccounts] = useState({});
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ bankName:'', accountNumber:'', accountName:'', notes:'' });
-
-  const loadBank = async () => {
-    try {
-      const res = await client.get('/settings/bank-accounts');
-      setBankAccounts(res.data.bankAccounts || {});
-    } catch (e) {}
-  };
-
-  const openEdit = (gymId) => {
-    const c = bankAccounts[gymId] || {};
-    setForm({ bankName: c.bankName||'', accountNumber: c.accountNumber||'', accountName: c.accountName||'', notes: c.notes||'' });
-    setEditing(gymId);
-  };
-
-  const handleSaveBank = async () => {
-    setLoading(true);
-    try {
-      await client.put(`/settings/bank-accounts/${editing}`, form);
-      showMsg('銀行帳號已更新');
-      setEditing(null);
-      await loadBank();
-    } catch (err) { showMsg(err.response?.data?.message || '更新失敗', 'err'); }
-    finally { setLoading(false); }
-  };
 
   // ─── 入場類型 ───────────────────────────────────────────────────
   const [entryTypes, setEntryTypes] = useState([]);
@@ -342,7 +312,6 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    loadBank();
     loadEntryTypes();
     loadWaiver();
     loadShoeRental();
@@ -424,34 +393,6 @@ export default function SettingsPage() {
           );
         })}
       </div>
-
-      {/* ── 銀行帳號 ── */}
-      {activeTab === 'bank' && (
-        <div style={s.card}>
-          <div style={s.cardHead}>各館銀行轉帳帳號</div>
-          {gyms.map(g => {
-            const info = bankAccounts[g.id];
-            return (
-              <div key={g.id} style={s.row}>
-                <div>
-                  <div style={{ fontWeight:600, fontSize:14, marginBottom:4 }}>{g.name}</div>
-                  {info?.bankName ? (
-                    <div style={{ fontSize:12, color:'#666' }}>
-                      <div>{info.bankName}</div>
-                      <div style={{ fontFamily:'monospace', letterSpacing:1 }}>{info.accountNumber}</div>
-                      <div>{info.accountName}</div>
-                      {info.notes && <div style={{ color:'#999', marginTop:2 }}>{info.notes}</div>}
-                    </div>
-                  ) : <div style={{ fontSize:12, color:'#999' }}>尚未設定</div>}
-                </div>
-                <button style={s.btn} onClick={() => openEdit(g.id)}>
-                  {info?.bankName ? '編輯' : '設定'}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       {/* ── 入場類型 ── */}
       {activeTab === 'entryTypes' && (
@@ -723,32 +664,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {editing && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:24, width:420, maxWidth:'95vw', border:'0.5px solid #E8D5D5' }}>
-            <div style={{ fontWeight:600, fontSize:16, marginBottom:20 }}>
-              設定銀行帳號 — {gyms.find(g => g.id === editing)?.name}
-            </div>
-            {[
-              { label:'銀行名稱', key:'bankName', placeholder:'例：玉山銀行' },
-              { label:'帳號', key:'accountNumber', placeholder:'例：0081234567890' },
-              { label:'戶名', key:'accountName', placeholder:'例：紅石攀岩館' },
-              { label:'備註（選填）', key:'notes', placeholder:'例：請備註姓名' },
-            ].map(f => (
-              <div key={f.key} style={{ marginBottom:12 }}>
-                <label style={s.label}>{f.label}</label>
-                <input value={form[f.key]} onChange={e => setForm({...form, [f.key]:e.target.value})}
-                  placeholder={f.placeholder} style={s.input} />
-              </div>
-            ))}
-            <div style={{ display:'flex', gap:8, marginTop:20 }}>
-              <button onClick={() => setEditing(null)}
-                style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
-              <SaveButton onSave={handleSaveBank} isDirty={bankDirty} label='儲存' style={{ flex:2, height:40, borderRadius:9, fontSize:13 }} />
-            </div>
-          </div>
-        </div>
-      )}
       {/* ── 員工帳號 ── */}
       {activeTab === 'staffAccounts' && isSuperAdmin && (
         <div style={s.card}>

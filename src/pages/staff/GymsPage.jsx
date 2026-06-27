@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getGyms, getAnnouncements, updateGymInfo, updateGymHours, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../api/gyms';
+import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 
@@ -32,8 +33,21 @@ export default function GymsPage({ embedded = false }) {
   const [hoursForm, setHoursForm] = useState({});
   const [hoursSaving, setHoursSaving] = useState(false);
   const [hoursMsg, setHoursMsg] = useState('');
+  const [bankAccounts, setBankAccounts] = useState({});
+  const [showEditBank, setShowEditBank] = useState(false);
+  const [bankForm, setBankForm] = useState({ bankName:'', accountNumber:'', accountName:'', notes:'' });
+  const [bankSaving, setBankSaving] = useState(false);
+  const [bankMsg, setBankMsg] = useState('');
+
+  const loadBank = async () => {
+    try {
+      const res = await client.get('/settings/bank-accounts');
+      setBankAccounts(res.data.bankAccounts || {});
+    } catch (e) {}
+  };
 
   useEffect(() => {
+    loadBank();
     Promise.all([getGyms(), getAnnouncements()])
       .then(([gRes, aRes]) => {
         setGyms(gRes.data.gyms || []);
@@ -137,6 +151,25 @@ export default function GymsPage({ embedded = false }) {
     } finally { setHoursSaving(false); }
   };
 
+  const openEditBank = () => {
+    const c = bankAccounts[selected.id] || {};
+    setBankForm({ bankName: c.bankName||'', accountNumber: c.accountNumber||'', accountName: c.accountName||'', notes: c.notes||'' });
+    setBankMsg('');
+    setShowEditBank(true);
+  };
+
+  const handleSaveBank = async () => {
+    setBankSaving(true);
+    try {
+      await client.put(`/settings/bank-accounts/${selected.id}`, bankForm);
+      setBankMsg('已儲存');
+      await loadBank();
+      setTimeout(() => setShowEditBank(false), 600);
+    } catch (e) {
+      setBankMsg(e.response?.data?.message || '儲存失敗');
+    } finally { setBankSaving(false); }
+  };
+
   const annTypeLabel = (type) => ({
     closure:'休館', special_hours:'特殊時間', route_change:'路線更換', general:'一般公告'
   }[type] || type);
@@ -236,6 +269,30 @@ export default function GymsPage({ embedded = false }) {
             </div>
           ))}
         </div>
+
+        {/* 銀行轉帳帳號 */}
+        {selected && (
+          <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>
+                {selected.shortName} 銀行轉帳帳號
+              </span>
+              <button onClick={openEditBank} style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor: isSuperAdmin ? 'pointer' : 'not-allowed', opacity: isSuperAdmin ? 1 : 0.4 }} disabled={!isSuperAdmin}>修改</button>
+            </div>
+            {(() => {
+              const info = bankAccounts[selected.id];
+              if (!info?.bankName) return <div style={{ fontSize:13, color:'#999', padding:'8px 0' }}>尚未設定</div>;
+              const rows = [['銀行', info.bankName], ['帳號', info.accountNumber], ['戶名', info.accountName]];
+              if (info.notes) rows.push(['備註', info.notes]);
+              return rows.map(([k, v]) => (
+                <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #F5EFEF', fontSize:13 }}>
+                  <span style={{ color:'#999' }}>{k}</span>
+                  <span style={{ fontWeight:500, fontFamily: k==='帳號' ? 'monospace' : 'inherit', letterSpacing: k==='帳號' ? 1 : 0 }}>{v}</span>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
       </div>
 
       {/* 新增/編輯公告 Modal */}
@@ -377,6 +434,37 @@ export default function GymsPage({ embedded = false }) {
               <button onClick={handleSaveHours} disabled={hoursSaving}
                 style={{ flex:2, height:40, borderRadius:8, background: hoursSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: hoursSaving?'not-allowed':'pointer' }}>
                 {hoursSaving ? '儲存中...' : '儲存變更'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 修改銀行轉帳帳號 Modal */}
+      {showEditBank && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:420, maxHeight:'85vh', overflowY:'auto' }}>
+            <div style={{ fontWeight:600, fontSize:16, marginBottom:20 }}>銀行轉帳帳號 — {selected?.name}</div>
+            {bankMsg && <div style={{ background: bankMsg==='已儲存' ? '#E6F4EB' : '#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color: bankMsg==='已儲存' ? '#2D7D46' : '#A32D2D', marginBottom:12 }}>{bankMsg}</div>}
+            {[
+              { label:'銀行名稱', key:'bankName', placeholder:'例：玉山銀行' },
+              { label:'帳號', key:'accountNumber', placeholder:'例：0081234567890' },
+              { label:'戶名', key:'accountName', placeholder:'例：紅石攀岩館' },
+              { label:'備註（選填）', key:'notes', placeholder:'例：請備註姓名' },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom:12 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
+                <input value={bankForm[f.key]} placeholder={f.placeholder}
+                  onChange={e => setBankForm(p => ({...p, [f.key]: e.target.value}))}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              </div>
+            ))}
+            <div style={{ display:'flex', gap:8, marginTop:8 }}>
+              <button onClick={() => setShowEditBank(false)}
+                style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={handleSaveBank} disabled={bankSaving}
+                style={{ flex:2, height:40, borderRadius:8, background: bankSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: bankSaving?'not-allowed':'pointer' }}>
+                {bankSaving ? '儲存中...' : '儲存變更'}
               </button>
             </div>
           </div>
