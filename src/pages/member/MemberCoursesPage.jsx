@@ -94,7 +94,7 @@ export default function MemberCoursesPage() {
     setTimeout(() => setMsg(''), 3000);
   };
 
-  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, []);
+  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, [member?.id]);
   useEffect(() => {
     if (selectedCourse) loadSessions(selectedCourse);
   }, [selectedCourse]);

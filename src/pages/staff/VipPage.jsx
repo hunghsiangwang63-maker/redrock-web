@@ -399,7 +399,8 @@ export default function VipPage({ embedded = false }) {
             <tbody>
               {teamMembers.map(m => {
                 const daysLeft = dayjs(m.teamMemberUntil).diff(dayjs(), 'day');
-                const expiringSoon = daysLeft <= 30;
+                const expired = daysLeft < 0;
+                const expiringSoon = daysLeft >= 0 && daysLeft <= 30;
                 return (
                   <tr key={m.id} style={{ borderTop:'0.5px solid #F5EFEF' }}>
                     <td style={{ padding:'12px 16px' }}>
@@ -410,8 +411,8 @@ export default function VipPage({ embedded = false }) {
                       {m.teamMemberSince} ~ {m.teamMemberUntil}
                     </td>
                     <td style={{ padding:'12px 16px' }}>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: expiringSoon ? '#FAEEDA' : '#E6F4EB', color: expiringSoon ? '#854F0B' : '#2D7D46' }}>
-                        {expiringSoon ? `剩 ${daysLeft} 天` : '有效中'}
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: expired ? '#FCEBEB' : expiringSoon ? '#FAEEDA' : '#E6F4EB', color: expired ? '#A32D2D' : expiringSoon ? '#854F0B' : '#2D7D46' }}>
+                        {expired ? '已過期' : expiringSoon ? `剩 ${daysLeft} 天` : '有效中'}
                       </span>
                     </td>
                     {isSuperAdmin && (

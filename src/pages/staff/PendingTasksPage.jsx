@@ -42,7 +42,7 @@ export default function PendingTasksPage() {
 
   // 分組
   const groups = [
-    { key:'today',    label:'今日', tasks: tasks.filter(t => t.date === today) },
+    { key:'today',    label:'今日', tasks: tasks.filter(t => t.date >= today) },
     { key:'yesterday',label:'昨日', tasks: tasks.filter(t => t.date === yesterday) },
     { key:'week',     label:'近7天', tasks: tasks.filter(t => t.date < yesterday && t.date >= weekAgo) },
     { key:'older',    label:'更早', tasks: tasks.filter(t => t.date < weekAgo) },
