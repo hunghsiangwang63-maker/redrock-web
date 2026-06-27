@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/courseCategories';
 import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
-         generateWeeklySessions, updateSession, deleteCourse } from '../../api/courses';
+         generateWeeklySessions, updateSession, deleteCourse, permanentDeleteCourse } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -308,6 +308,18 @@ export default function CoursesPage({ embedded = false }) {
     }
   };
 
+  const handlePermanentDelete = async (course) => {
+    if (!window.confirm(`⚠️ 永久刪除「${course.name}」？\n將一併刪除所有場次、報名與補課紀錄，無法復原。\n（若仍有學員報名會被擋下，請先「取消課程」並處理退費）`)) return;
+    try {
+      await permanentDeleteCourse(course.id);
+      showMsg('課程已永久刪除');
+      if (selectedCourse?.id === course.id) setSelectedCourse(null);
+      await loadCourses();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '刪除失敗', 'red');
+    }
+  };
+
   const handleGenerateSessions = async (courseId) => {
     try {
       const res = await generateWeeklySessions(courseId);
@@ -474,22 +486,30 @@ export default function CoursesPage({ embedded = false }) {
                     {c.description.slice(0,50)}{c.description.length>50?'...':''}
                   </div>
                 )}
-                {c.status !== 'cancelled' && (
-                  <div style={{ marginTop:10, display:'flex', gap:6 }} onClick={e => e.stopPropagation()}>
+                <div style={{ marginTop:10, display:'flex', gap:6, flexWrap:'wrap' }} onClick={e => e.stopPropagation()}>
+                  {c.status !== 'cancelled' && (
                     <button onClick={() => handleEditCourse(c)}
-                      style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
+                      style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
                       編輯
                     </button>
+                  )}
+                  {c.status !== 'cancelled' && (
                     <button onClick={() => handleDeleteCourse(c)}
-                      style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>
+                      style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>
                       取消課程
                     </button>
-                    <button onClick={() => loadCourseRoster(c)}
-                      style={{ flex:1, height:28, borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>
-                      查看名單
+                  )}
+                  <button onClick={() => loadCourseRoster(c)}
+                    style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>
+                    查看名單
+                  </button>
+                  {isSuperAdmin && (
+                    <button onClick={() => handlePermanentDelete(c)}
+                      style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#A32D2D', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>
+                      刪除
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             );
           })}
