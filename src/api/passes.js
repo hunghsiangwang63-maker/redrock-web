@@ -14,8 +14,10 @@ export const updatePassType = (id, data) => client.put(`/passes/types/${id}`, da
 export const deactivatePassType = (id) => client.delete(`/passes/types/${id}`);
 
 // 單次入場券
+// 員工端專用：用 staff client（路由 authenticateAny 接受員工 token）。
+// 先前誤用 memberClient，員工無 member_token → 401 → 攔截器導向 /member/login（點選會員會「跳出去」）。
 export const getMemberSingleEntryTickets = (memberId) =>
-  memberClient.get(`/passes/single-entry/member/${memberId}`);
+  client.get(`/passes/single-entry/member/${memberId}`);
 export const getPendingTickets = (gymId) =>
   client.get('/passes/single-entry/pending', { params: gymId ? { gymId } : {} });
 export const issueSingleEntryTicket = (data) =>
