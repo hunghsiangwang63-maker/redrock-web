@@ -86,6 +86,9 @@ export default function CheckinPage() {
   const showQuickMsg = (text, type='ok') => { setQuickMsg(text); setQuickMsgType(type); setTimeout(() => setQuickMsg(''), 3000); };
 
   const [tab, setTab] = useState('scan');
+  const [todayCheckIns, setTodayCheckIns] = useState([]);
+  const [todayLoading, setTodayLoading] = useState(false);
+  const [cancellingId, setCancellingId] = useState(null);
   const [transfers, setTransfers] = useState([]);
   const [transferCount, setTransferCount] = useState(0); // scan | pending | notifications
   const [qrInput, setQrInput] = useState('');
@@ -117,7 +120,11 @@ export default function CheckinPage() {
   const inputRef = useRef(null);
 
   useEffect(() => { loadStats(); loadNotifications(); loadPendingTickets(); loadTransfers(); loadEntryTypes(); }, []);
-  useEffect(() => { if (tab === 'scan') inputRef.current?.focus(); }, [tab]);
+  useEffect(() => {
+    if (tab === 'scan') inputRef.current?.focus();
+    if (tab === 'today') loadTodayCheckIns();
+  }, [tab]);
+  useEffect(() => { if (tab === 'scan' && confirmedCheckIn) setTimeout(() => inputRef.current?.focus(), 300); }, [confirmedCheckIn]);
 
   const loadTransfers = async () => {
     try {
@@ -180,9 +187,31 @@ export default function CheckinPage() {
     } catch (e) {}
   };
 
+  const loadTodayCheckIns = async () => {
+    setTodayLoading(true);
+    try {
+      const res = await client.get('/checkin/today');
+      const all = res.data?.recent || [];
+      setTodayCheckIns(all.filter(c => !c.isCancelled));
+    } catch(e) { console.error(e); }
+    finally { setTodayLoading(false); }
+  };
+
+  const handleCancelCheckin = async (checkInId, force = false) => {
+    const msg = force ? '確定要強制取消這筆入場紀錄？（超管限定）' : '確定要取消這筆入場紀錄？';
+    if (!window.confirm(msg)) return;
+    setCancellingId(checkInId);
+    try {
+      await client.post('/checkin/cancel', { checkInId, force });
+      setTodayCheckIns(prev => prev.filter(c => c.id !== checkInId));
+    } catch(err) {
+      alert(err.response?.data?.message || '取消失敗');
+    } finally { setCancellingId(null); }
+  };
+
   const handleScan = async (e) => {
     e.preventDefault();
-    if (!qrInput.trim()) return;
+    if (!qrInput.trim()) { inputRef.current?.focus(); setScanResult({ error: '請將游標點入輸入框後再掃描 QR Code' }); return; }
     setLoading(true);
     setScanResult(null);
     setConfirmedCheckIn(null);
@@ -210,6 +239,7 @@ export default function CheckinPage() {
       setScanResult({ ...scanResult, confirmError: err.response?.data?.message || '確認失敗' });
     } finally {
       setLoading(false);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
   };
 
@@ -331,7 +361,7 @@ export default function CheckinPage() {
 
           {isSuperAdmin && !activeGymId && !staff?.gymId && gyms.length > 0 && (
             <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', background:'#FFFBF0', borderBottom:'0.5px solid #F0D9A8' }}>
-              <span style={{ fontSize:12, color:'#854F0B' }}>⚠ 尚未值班，請選擇操作館別：</span>
+              <span style={{ fontSize:12, color:selectedGymId ? '#2D7D46' : '#854F0B' }}>{selectedGymId ? '✅ 已選擇館別' : '⚠ 請選擇操作館別：'}</span>
               <select value={selectedGymId} onChange={e => setSelectedGymId(e.target.value)}
                 style={{ height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}>
                 {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
@@ -347,6 +377,7 @@ export default function CheckinPage() {
               { key:'pending', label:`待審核 ${pendingCount > 0 ? `(${pendingCount})` : ''}` },
               { key:'notifications', label:`通知 ${unreadCount > 0 ? `(${unreadCount})` : ''}` },
               { key:'transfers', label:`轉帳確認 ${transferCount > 0 ? `(${transferCount})` : ''}` },
+              { key:'today', label:'今日入場' },
             ].map(t => (
               <div key={t.key} onClick={() => setTab(t.key)}
                 style={{ flex:1, padding:'10px 0', textAlign:'center', fontSize:13, fontWeight: tab === t.key ? 600 : 400,
@@ -364,12 +395,14 @@ export default function CheckinPage() {
 
             {/* 左：QR Code 掃描 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom: isMobile ? 12 : 0 }}>
-              <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:12 }}>📷 掃描 QR Code</div>
-              <div style={{ fontSize:11, color:'#999', marginBottom:12 }}>定期票、優惠卡、黑卡、紅利入場</div>
+              <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:12 }} onClick={() => inputRef.current?.focus()}>📷 掃描 QR Code</div>
+              <div style={{ fontSize:11, color:'#999', marginBottom:8 }}>定期票、優惠卡、黑卡、紅利入場</div>
+              <div style={{ fontSize:11, color:'#185FA5', marginBottom:12, cursor:'pointer' }} onClick={() => inputRef.current?.focus()}>💡 掃描前請先點擊下方輸入框確認游標在內</div>
             <form onSubmit={handleScan} style={{ display:'flex', gap:8, marginBottom:16 }}>
               <input ref={inputRef}
                 value={qrInput} onChange={e => setQrInput(e.target.value)}
-                placeholder="掃描會員 QR Code..."
+                placeholder="點此後掃描 QR Code..."
+                onClick={() => inputRef.current?.focus()}
                 style={{ flex:1, height:44, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}
                 autoFocus
               />
@@ -411,6 +444,11 @@ export default function CheckinPage() {
                 {scanResult.rentShoes && (
                   <div style={{ background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:8, fontSize:12, color:'#854F0B' }}>
                     👟 需租借岩鞋 NT${scanResult.shoesPrice}
+                  </div>
+                )}
+                {scanResult.rentChalk && (
+                  <div style={{ background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:8, fontSize:12, color:'#854F0B' }}>
+                    🧴 需租借粉袋 NT${scanResult.chalkPrice || 50}
                   </div>
                 )}
                 {scanResult.isTeamDiscount && (
@@ -730,7 +768,51 @@ export default function CheckinPage() {
         )}
 
         {/* ── 轉帳確認 tab ── */}
-        {tab === 'transfers' && (
+        {tab === 'today' && (
+          <div style={{ padding:16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <div style={{ fontSize:14, fontWeight:600 }}>今日入場紀錄</div>
+              <button onClick={loadTodayCheckIns} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color:'#8B1A1A' }}>重新整理</button>
+            </div>
+            {todayLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+            {!todayLoading && todayCheckIns.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:24 }}>今日尚無入場紀錄</div>}
+            {!todayLoading && todayCheckIns.map(c => {
+              const checkedInAt = c.checkedInAt?._seconds ? new Date(c.checkedInAt._seconds * 1000) : new Date(c.checkedInAt);
+              const minutesAgo = Math.floor((Date.now() - checkedInAt.getTime()) / 60000);
+              const canCancel = minutesAgo <= 10;
+              return (
+                <div key={c.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                      {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {c.entryType}
+                      {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
+                    </div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                      {checkedInAt.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' })}
+                      {' · NT$'}{c.amountPaid}
+                      {canCancel ? <span style={{ color:'#2D7D46', marginLeft:6 }}>({minutesAgo}分鐘前)</span> : <span style={{ color:'#ccc', marginLeft:6 }}>(已超過10分鐘)</span>}
+                    </div>
+                  </div>
+                  {canCancel && (
+                    <button onClick={() => handleCancelCheckin(c.id)} disabled={cancellingId === c.id}
+                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                      {cancellingId === c.id ? '取消中...' : '取消入場'}
+                    </button>
+                  )}
+                  {!canCancel && isSuperAdmin && (
+                    <button onClick={() => handleCancelCheckin(c.id, true)} disabled={cancellingId === c.id}
+                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                      {cancellingId === c.id ? '取消中...' : '強制取消'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+                {tab === 'transfers' && (
           <div style={{ padding:16 }}>
             <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>待確認轉帳截圖</div>
             {transfers.length === 0 ? (
