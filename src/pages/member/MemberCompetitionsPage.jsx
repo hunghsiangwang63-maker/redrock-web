@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration } from '../../api/competitions';
+import PaymentFlow from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
@@ -19,6 +20,7 @@ export default function MemberCompetitionsPage() {
 
   // 報名 modal
   const [showModal, setShowModal] = useState(false);
+  const [payFor, setPayFor] = useState(null); // { registrationId, fee, gymId }
   const [familyMembers, setFamilyMembers] = useState([]);
   const [registerForId, setRegisterForId] = useState(null); // null = 本人
   const [selectedComp, setSelectedComp] = useState(null);
@@ -177,7 +179,7 @@ export default function MemberCompetitionsPage() {
     try {
       const targetId = registerForId || member.id;
       const targetName = familyMembers.find(c=>c.id===targetId)?.name || member.name;
-      await registerForCompetition(selectedComp.id, {
+      const res = await registerForCompetition(selectedComp.id, {
         memberId: targetId,
         memberName: targetName,
         isMinor,
@@ -194,9 +196,15 @@ export default function MemberCompetitionsPage() {
         signatureData: memberSig,
         guardianSignature: guardianSig || null,
       });
-      showMsg('報名成功！請完成繳費以確保名額。');
+      const reg = res?.data?.registration;
       setShowModal(false);
       await load();
+      if (reg && reg.registrationFee > 0 && reg.paymentStatus !== 'confirmed') {
+        // 提供立即線上付款（仍可關閉改用匯款）
+        setPayFor({ registrationId: reg.id, fee: reg.registrationFee, gymId: selectedComp.gymId });
+      } else {
+        showMsg('報名成功！');
+      }
     } catch (err) {
       showMsg(err.response?.data?.message || '報名失敗', 'red');
     } finally { setSubmitting(false); }
@@ -308,6 +316,27 @@ export default function MemberCompetitionsPage() {
           </>
         )}
       </div>
+
+      {/* 線上付款 Modal（Phase 1：競賽報名）*/}
+      {payFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontWeight:600, fontSize:15 }}>完成繳費</div>
+              <button onClick={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的報名」完成繳費或改用匯款'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <PaymentFlow
+              client={memberClient}
+              orderType="competition"
+              orderRef={{ registrationId: payFor.registrationId }}
+              amount={payFor.fee}
+              gymId={payFor.gymId}
+              onPaid={()=>{ setPayFor(null); showMsg('繳費完成，報名已確認！'); load(); }}
+              onCancel={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的報名」完成繳費或改用匯款'); }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* 報名 Modal */}
       {showModal && selectedComp && (
