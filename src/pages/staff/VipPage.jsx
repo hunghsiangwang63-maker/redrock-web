@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getVipList, addVip, updateVip, removeVip } from '../../api/vip';
-import { getTeamMembers, setTeamMember, removeTeamMember } from '../../api/teamMembers';
-import { getTeamFeeSettings, updateTeamFeeSettings } from '../../api/team';
+import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, confirmTeamPayment } from '../../api/team';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -27,23 +26,19 @@ export default function VipPage({ embedded = false }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // 攀岩隊員管理
+  // 攀岩隊員申請名單（會員端「加入攀岩隊」自動彙整）
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamLoading, setTeamLoading] = useState(true);
-  const [showAddTeam, setShowAddTeam] = useState(false);
-  const [teamSearchQuery, setTeamSearchQuery] = useState('');
-  const [teamSearchResults, setTeamSearchResults] = useState([]);
-  const [selectedTeamMember, setSelectedTeamMember] = useState(null);
-  const [teamSince, setTeamSince] = useState(dayjs().format('YYYY-MM-DD'));
-  const [teamUntil, setTeamUntil] = useState(dayjs().add(1, 'year').format('YYYY-MM-DD'));
-  const [teamSaving, setTeamSaving] = useState(false);
+  const [teamYear, setTeamYear] = useState(dayjs().year());
+  const [confirmingId, setConfirmingId] = useState(null);
   const [teamError, setTeamError] = useState(null);
 
   // 攀岩隊費設定
   const [teamFees, setTeamFees] = useState({ fullYearFee:3000, midYearFee:2000, lateYearFee:1000, midYearCutoff:'03-15', lateYearCutoff:'09-15', jerseyDiscount:300 });
   const [teamFeesSaving, setTeamFeesSaving] = useState(false);
 
-  useEffect(() => { loadTeamMembers(); loadTeamFees(); }, []);
+  useEffect(() => { loadTeamFees(); }, []);
+  useEffect(() => { loadTeamMembers(); }, [teamYear]);
 
   const loadTeamFees = async () => {
     try {
@@ -61,52 +56,28 @@ export default function VipPage({ embedded = false }) {
 
   const loadTeamMembers = async () => {
     setTeamLoading(true);
+    setTeamError(null);
     try {
-      const res = await getTeamMembers();
+      const res = await getTeamMembers(teamYear);
       setTeamMembers(res.data.members || []);
     } catch (e) {
+      setTeamError(e.response?.data?.message || '載入失敗');
       setTeamMembers([]);
     } finally {
       setTeamLoading(false);
     }
   };
 
-  const handleTeamSearch = async (q) => {
-    setTeamSearchQuery(q);
-    if (q.length < 2) { setTeamSearchResults([]); return; }
+  const handleConfirmPayment = async (app) => {
+    if (!window.confirm(`確認已收到 ${app.memberName} 的隊費 NT$${app.paymentAmount || app.expectedFee || 0}？`)) return;
+    setConfirmingId(app.id);
     try {
-      const res = await searchMembers(q);
-      setTeamSearchResults(res.data.members || []);
-    } catch (e) {}
-  };
-
-  const handleAddTeamMember = async () => {
-    if (!selectedTeamMember) return;
-    setTeamSaving(true);
-    setTeamError(null);
-    try {
-      await setTeamMember(selectedTeamMember.id, teamSince, teamUntil);
-      setShowAddTeam(false);
-      setSelectedTeamMember(null);
-      setTeamSearchQuery('');
-      setTeamSearchResults([]);
-      setTeamSince(dayjs().format('YYYY-MM-DD'));
-      setTeamUntil(dayjs().add(1, 'year').format('YYYY-MM-DD'));
-      await loadTeamMembers();
-    } catch (err) {
-      setTeamError(err.response?.data?.message || '設定失敗');
-    } finally {
-      setTeamSaving(false);
-    }
-  };
-
-  const handleRemoveTeamMember = async (memberId, name) => {
-    if (!window.confirm(`確定要移除 ${name} 的攀岩隊員身份？`)) return;
-    try {
-      await removeTeamMember(memberId);
+      await confirmTeamPayment(app.id);
       await loadTeamMembers();
     } catch (e) {
-      alert('移除失敗');
+      alert(e.response?.data?.message || '確認失敗');
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -324,17 +295,17 @@ export default function VipPage({ embedded = false }) {
       {tab === 'team' && (
       <>
       {/* Header */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, gap:12, flexWrap:'wrap' }}>
         <div>
           <div style={{ fontSize:20, fontWeight:600, color:'#1a1a1a' }}>攀岩隊員管理</div>
-          <div style={{ fontSize:13, color:'#999', marginTop:3 }}>年度隊員身份，消費滿NT$100享九折優惠</div>
+          <div style={{ fontSize:13, color:'#999', marginTop:3 }}>會員「加入攀岩隊」後自動彙整於此，確認收款即為正式隊員</div>
         </div>
-        {isSuperAdmin && (
-          <button onClick={() => setShowAddTeam(true)}
-            style={{ height:40, padding:'0 20px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-            + 新增隊員
-          </button>
-        )}
+        <select value={teamYear} onChange={e => setTeamYear(Number(e.target.value))}
+          style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', color:'#1a1a1a', cursor:'pointer' }}>
+          {Array.from({ length: 4 }, (_, i) => dayjs().year() - i).map(y => (
+            <option key={y} value={y}>{y} 年度</option>
+          ))}
+        </select>
       </div>
 
       {teamError && (
@@ -381,106 +352,67 @@ export default function VipPage({ embedded = false }) {
         )}
       </div>
 
-      {/* 新增隊員面板 */}
-      {showAddTeam && (
-        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:20, marginBottom:16 }}>
-          <div style={{ fontWeight:600, fontSize:14, marginBottom:14 }}>新增攀岩隊員</div>
-
-          <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>搜尋會員（姓名或手機）</label>
-            <input value={teamSearchQuery} onChange={e => handleTeamSearch(e.target.value)}
-              placeholder="輸入姓名或手機號碼..."
-              style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
-            {teamSearchResults.length > 0 && !selectedTeamMember && (
-              <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#fff', marginTop:4, overflow:'hidden' }}>
-                {teamSearchResults.slice(0, 5).map(m => (
-                  <div key={m.id} onClick={() => { setSelectedTeamMember(m); setTeamSearchQuery(m.name); setTeamSearchResults([]); }}
-                    style={{ padding:'10px 14px', cursor:'pointer', borderBottom:'0.5px solid #F5EFEF', fontSize:13, display:'flex', justifyContent:'space-between' }}>
-                    <span style={{ fontWeight:500 }}>{m.name}</span>
-                    <span style={{ color:'#999' }}>{m.phone}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {selectedTeamMember && (
-            <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <span>已選擇：<strong>{selectedTeamMember.name}</strong>（{selectedTeamMember.phone}）</span>
-              <span onClick={() => { setSelectedTeamMember(null); setTeamSearchQuery(''); }} style={{ cursor:'pointer', color:'#999', fontSize:16 }}>×</span>
-            </div>
-          )}
-
-          <div style={{ display:'flex', gap:10, marginBottom:16 }}>
-            <div style={{ flex:1 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>起始日期</label>
-              <input type="date" value={teamSince} onChange={e => setTeamSince(e.target.value)}
-                style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
-            </div>
-            <div style={{ flex:1 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>到期日期</label>
-              <input type="date" value={teamUntil} onChange={e => setTeamUntil(e.target.value)}
-                style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
-            </div>
-          </div>
-
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => { setShowAddTeam(false); setSelectedTeamMember(null); setTeamSearchQuery(''); setTeamError(null); }}
-              style={{ flex:1, height:40, borderRadius:8, background:'#f5f5f5', border:'none', fontSize:13, cursor:'pointer' }}>取消</button>
-            <button onClick={handleAddTeamMember} disabled={!selectedTeamMember || teamSaving}
-              style={{ flex:2, height:40, borderRadius:8, background: selectedTeamMember ? '#8B1A1A' : '#ccc', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: selectedTeamMember ? 'pointer' : 'not-allowed' }}>
-              {teamSaving ? '設定中...' : '確認設定'}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* 隊員列表 */}
+      {/* 申請名單 */}
       <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
         <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontWeight:600, fontSize:13 }}>隊員名單</span>
+          <span style={{ fontWeight:600, fontSize:13 }}>{teamYear} 年度申請名單</span>
           <span style={{ fontSize:12, color:'#999' }}>共 {teamMembers.length} 人</span>
         </div>
 
         {teamLoading ? (
           <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>載入中...</div>
         ) : teamMembers.length === 0 ? (
-          <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>目前無攀岩隊員</div>
+          <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>本年度尚無申請</div>
         ) : (
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#FBF5F5' }}>
                 <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>會員</th>
-                <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>有效期間</th>
+                <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>繳費</th>
+                <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>隊服</th>
                 <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>狀態</th>
-                {isSuperAdmin && <th style={{ padding:'10px 16px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>操作</th>}
+                <th style={{ padding:'10px 16px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>操作</th>
               </tr>
             </thead>
             <tbody>
-              {teamMembers.map(m => {
-                const daysLeft = dayjs(m.teamMemberUntil).diff(dayjs(), 'day');
-                const expired = daysLeft < 0;
-                const expiringSoon = daysLeft >= 0 && daysLeft <= 30;
+              {teamMembers.map(a => {
+                const paid = a.paymentStatus === 'confirmed';
+                const stTag = a.status === 'active'
+                  ? { bg:'#E6F4EB', color:'#2D7D46', t:'正式隊員' }
+                  : a.status === 'cancelled'
+                  ? { bg:'#FCEBEB', color:'#A32D2D', t:'已退隊' }
+                  : { bg:'#FAEEDA', color:'#854F0B', t:'待審核' };
                 return (
-                  <tr key={m.id} style={{ borderTop:'0.5px solid #F5EFEF' }}>
+                  <tr key={a.id} style={{ borderTop:'0.5px solid #F5EFEF' }}>
                     <td style={{ padding:'12px 16px' }}>
-                      <div style={{ fontWeight:600 }}>{m.name}</div>
-                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{m.phone}</div>
+                      <div style={{ fontWeight:600 }}>{a.memberName || '—'}</div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.memberPhone}{a.primaryGym ? ` · ${a.primaryGym}` : ''}</div>
                     </td>
                     <td style={{ padding:'12px 16px', fontSize:12 }}>
-                      {m.teamMemberSince} ~ {m.teamMemberUntil}
+                      <div>應繳 NT${a.expectedFee ?? '—'}{a.paymentAmount ? `／實繳 NT$${a.paymentAmount}` : ''}</div>
+                      <div style={{ color:'#999', marginTop:2 }}>{a.paymentDate || '—'}{a.bankLastFive ? ` · 末五碼 ${a.bankLastFive}` : ''}</div>
+                    </td>
+                    <td style={{ padding:'12px 16px', fontSize:12 }}>
+                      {a.noJersey ? <span style={{ color:'#999' }}>不拿隊服</span> : (a.jerseySize || '—')}
                     </td>
                     <td style={{ padding:'12px 16px' }}>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: expired ? '#FCEBEB' : expiringSoon ? '#FAEEDA' : '#E6F4EB', color: expired ? '#A32D2D' : expiringSoon ? '#854F0B' : '#2D7D46' }}>
-                        {expired ? '已過期' : expiringSoon ? `剩 ${daysLeft} 天` : '有效中'}
-                      </span>
+                      <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
+                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: paid ? '#E6F4EB' : '#FAEEDA', color: paid ? '#2D7D46' : '#854F0B' }}>
+                          {paid ? '已收款' : '待確認付款'}
+                        </span>
+                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: stTag.bg, color: stTag.color }}>{stTag.t}</span>
+                      </div>
                     </td>
-                    {isSuperAdmin && (
-                      <td style={{ padding:'12px 16px', textAlign:'center' }}>
-                        <button onClick={() => handleRemoveTeamMember(m.id, m.name)}
-                          style={{ height:30, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>移除</button>
-                      </td>
-                    )}
+                    <td style={{ padding:'12px 16px', textAlign:'center' }}>
+                      {a.status !== 'cancelled' && !paid ? (
+                        <button onClick={() => handleConfirmPayment(a)} disabled={confirmingId === a.id}
+                          style={{ height:30, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor: confirmingId === a.id ? 'not-allowed' : 'pointer' }}>
+                          {confirmingId === a.id ? '處理中...' : '確認收款'}
+                        </button>
+                      ) : paid ? (
+                        <span style={{ fontSize:12, color:'#2D7D46' }}>✓ 已確認</span>
+                      ) : <span style={{ color:'#ccc' }}>—</span>}
+                    </td>
                   </tr>
                 );
               })}
