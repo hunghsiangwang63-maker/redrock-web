@@ -557,6 +557,11 @@ export default function CheckinPage() {
                       ⚠ 此會員尚未簽署 Waiver，無法完成入場
                     </div>
                   )}
+                  {memberEligibility && memberEligibility.fallTestPassed === false && (
+                    <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', marginBottom:10, fontSize:12, color:'#A32D2D', fontWeight:500 }}>
+                      ⚠ {memberEligibility.fallTestReason === 'expired' ? '墜落測驗已到期，需重新測驗才能入場' : '尚未通過安全墜落測驗，無法完成入場'}
+                    </div>
+                  )}
                   {memberEligibility?.isVip ? (
                     <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#8B6914', fontWeight:500 }}>
                       👑 VIP 會員，免費入場{memberEligibility.vipNote ? `（${memberEligibility.vipNote}）` : ''}
@@ -647,11 +652,18 @@ export default function CheckinPage() {
                     );
                   })()}
 
+                  {(() => {
+                    const noWaiver = memberEligibility && !memberEligibility.waiverSigned;
+                    const noFallTest = memberEligibility && memberEligibility.fallTestPassed === false;
+                    const blocked = noWaiver || noFallTest;
+                    return (
                   <button type="button" onClick={handlePhoneCheckin}
-                    disabled={phoneLoading || (memberEligibility && !memberEligibility.waiverSigned)}
-                    style={{ width:'100%', height:44, borderRadius:8, background: (memberEligibility && !memberEligibility.waiverSigned) ? '#ccc' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (memberEligibility && !memberEligibility.waiverSigned) ? 'not-allowed' : 'pointer' }}>
-                    {phoneLoading ? '...' : (memberEligibility && !memberEligibility.waiverSigned) ? '⚠ Waiver 未簽署，無法入場' : memberEligibility?.isVip ? '✓ VIP 入場' : memberEligibility?.hasValidPass ? '✓ 定期票入場' : memberEligibility?.hasCourseAccess ? '✓ 課程學員入場' : '✓ 確認入場'}
+                    disabled={phoneLoading || blocked}
+                    style={{ width:'100%', height:44, borderRadius:8, background: blocked ? '#ccc' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: blocked ? 'not-allowed' : 'pointer' }}>
+                    {phoneLoading ? '...' : noWaiver ? '⚠ Waiver 未簽署，無法入場' : noFallTest ? '⚠ 未通過墜落測驗，無法入場' : memberEligibility?.isVip ? '✓ VIP 入場' : memberEligibility?.hasValidPass ? '✓ 定期票入場' : memberEligibility?.hasCourseAccess ? '✓ 課程學員入場' : '✓ 確認入場'}
                   </button>
+                    );
+                  })()}
                 </div>
               )}
 

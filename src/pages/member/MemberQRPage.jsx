@@ -38,15 +38,34 @@ export default function MemberQRPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
+  const [children, setChildren] = useState([]);
+  const [targetId, setTargetId] = useState(null); // null → 家長本人
+  const entrant = (targetId && children.find(c => c.id === targetId)) || member;
+  const isChildTarget = !!entrant && !!member && entrant.id !== member.id;
+
   const gymId = member?.defaultGymId || 'gym-hsinchu';
 
-  useEffect(() => { if (member) doVerify(); }, [member]);
+  // 載入子會員清單
+  useEffect(() => {
+    if (!member) return;
+    memberClient.get('/members/my/children')
+      .then(r => setChildren(r.data.children || []))
+      .catch(() => {});
+  }, [member]);
+
+  // 切換入場人員（或初次進入）時重新驗票
+  useEffect(() => { if (member) doVerify(); /* eslint-disable-next-line */ }, [member, targetId]);
 
   const doVerify = async () => {
     setStep('loading');
     setError(null);
+    // 切換對象時清空上一位的流程狀態
+    setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null);
+    setRentShoes(false); setRentChalk(false);
+    setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
     try {
-      const res = await memberClient.post('/checkin/verify', { identifier: member.phone, gymId });
+      const res = await memberClient.post('/checkin/verify', { identifier: member.phone, gymId, targetMemberId: entrant.id });
       const data = res.data;
       setVerifyResult(data);
       if (!data.allowed) {
@@ -68,7 +87,7 @@ export default function MemberQRPage() {
     setError(null);
     try {
       const payload = {
-        memberId: member.id,
+        memberId: entrant.id,
         gymId,
         entryType: selectedEntry.type,
         rentShoes: shoes,
@@ -134,16 +153,40 @@ export default function MemberQRPage() {
     </div>
   );
 
-  const wrap = (children) => (
+  const wrap = (kids) => (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
-      {children}
+      {kids}
       <NavBar />
     </div>
   );
 
+  // 入場人員選擇器（僅當帳號底下有子會員時顯示）
+  const MemberSelector = () => {
+    if (!member || children.length === 0) return null;
+    return (
+      <div style={{ padding:'14px 20px 0' }}>
+        <div style={{ fontSize:11, color:'#999', marginBottom:6 }}>選擇入場人員</div>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          {[member, ...children].map(m => {
+            const active = entrant?.id === m.id;
+            const isChild = m.id !== member.id;
+            return (
+              <button key={m.id} type="button"
+                onClick={() => { if (!active) setTargetId(isChild ? m.id : null); }}
+                style={{ height:34, padding:'0 14px', borderRadius:18, border:`1.5px solid ${active?'#8B1A1A':'#E8D5D5'}`, background: active?'#8B1A1A':'#fff', color: active?'#fff':'#666', fontSize:13, fontWeight: active?600:400, cursor:'pointer' }}>
+                {m.name}{isChild ? '（子）' : ''}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   if (step === 'loading') return wrap(
     <>
       <Header title="入場 QR Code" onBack={() => navigate('/member/home')} />
+      <MemberSelector />
       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:60, gap:16 }}>
         <div style={{ fontSize:32 }}>⏳</div>
         <div style={{ fontSize:14, color:'#999' }}>驗票中...</div>
@@ -179,6 +222,7 @@ export default function MemberQRPage() {
     return wrap(
       <>
         <Header title="入場 QR Code" onBack={() => navigate('/member/home')} />
+        <MemberSelector />
         <div style={{ padding:20 }}>
           <div style={{ background: isAlreadyIn ? '#E6F4EB' : '#FCEBEB', borderRadius:12, border: `0.5px solid ${isAlreadyIn ? '#B3DEC0' : '#F09595'}`, padding:24, textAlign:'center' }}>
             <div style={{ fontSize:40, marginBottom:12 }}>{isAlreadyIn ? '✅' : pendingParent ? '📧' : '🚫'}</div>
@@ -199,7 +243,7 @@ export default function MemberQRPage() {
             </div>
           </div>
           {needsWaiver ? (
-            <button onClick={() => navigate('/member/waiver')}
+            <button onClick={() => navigate(isChildTarget ? `/member/waiver?forChild=${entrant.id}&childName=${encodeURIComponent(entrant.name)}` : '/member/waiver')}
               style={{ width:'100%', marginTop:16, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
               前往簽署 Waiver
             </button>
@@ -209,7 +253,7 @@ export default function MemberQRPage() {
               查看簽署狀態 / 重新發送連結
             </button>
           ) : (verifyResult?.reason === 'fall_test_required' || verifyResult?.reason === 'fall_test_expired') ? (
-            <button onClick={() => navigate('/member/fall-test')}
+            <button onClick={() => navigate(isChildTarget ? `/member/fall-test?forChild=${entrant.id}&childName=${encodeURIComponent(entrant.name)}` : '/member/fall-test')}
               style={{ width:'100%', marginTop:16, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
               前往墜落測驗同意書
             </button>
@@ -229,6 +273,7 @@ export default function MemberQRPage() {
     return wrap(
       <>
         <Header title="選擇入場方式" onBack={() => navigate('/member/home')} />
+        <MemberSelector />
         <div style={{ padding:20 }}>
           {verifyResult?.member?.isTeamMember && (
             <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'10px 14px', marginBottom:14, fontSize:12, color:'#185FA5' }}>
@@ -282,6 +327,7 @@ export default function MemberQRPage() {
   if (step === 'select_payment') return wrap(
     <>
       <Header title="選擇付款方式" onBack={() => setStep('select_entry')} />
+      <MemberSelector />
       <div style={{ padding:20 }}>
         <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:13 }}>
           <div style={{ color:'#999', marginBottom:4 }}>入場方式</div>
@@ -311,6 +357,7 @@ export default function MemberQRPage() {
         else if (selectedPayment) setStep('select_payment');
         else setStep('select_entry');
       }} />
+      <MemberSelector />
       <div style={{ padding:20 }}>
         <div style={{ background:'#fff', borderRadius:16, border:'0.5px solid #E8D5D5', padding:24 }}>
           <div style={{ fontWeight:600, fontSize:17, marginBottom:20, textAlign:'center' }}>需要租借器材嗎？</div>
@@ -355,12 +402,13 @@ export default function MemberQRPage() {
     return wrap(
       <>
         <Header title="入場 QR Code" onBack={() => navigate('/member/home')} />
+        <MemberSelector />
         <div style={{ padding:20 }}>
           <div style={{ background:'#fff', borderRadius:16, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', boxShadow:'0 4px 20px rgba(0,0,0,.06)' }}>
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:16, color:'#8B1A1A', marginBottom:16 }}>RedRock</div>
             {qrDataUrl && <img src={qrDataUrl} alt="QR Code" style={{ width:220, height:220, borderRadius:10 }} />}
             <div style={{ marginTop:16 }}>
-              <div style={{ fontWeight:600, fontSize:18 }}>{member?.name}</div>
+              <div style={{ fontWeight:600, fontSize:18 }}>{entrant?.name}</div>
               <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{ENTRY_TYPE_LABEL[selectedEntry?.type] || selectedEntry?.type}</div>
             </div>
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>

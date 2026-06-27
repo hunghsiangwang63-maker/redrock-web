@@ -59,7 +59,7 @@ export default function MemberProfilePage() {
         return {
           ...c,
           waiverSigned: waiverRes.status==='fulfilled' ? waiverRes.value.data?.waiverSigned : c.waiverSigned,
-          fallTestPassed: ftRes.status==='fulfilled' ? ftRes.value.data?.status?.passed : false,
+          fallTestPassed: ftRes.status==='fulfilled' ? ftRes.value.data?.status === 'passed' : false,
           fallTestSigned: ftSigRes.status==='fulfilled' ? !!ftSigRes.value.data?.signature : false,
         };
       }));
