@@ -440,7 +440,7 @@ export default function MemberCoursesPage() {
               {selectedCourse.type === 'weekly' && (() => {
                 const alreadyEnrolled = myEnrollments.some(e => e.courseId === selectedCourse.id && e.status !== 'cancelled');
                 const today = dayjs().format('YYYY-MM-DD');
-                const completedCount = sessions.filter(s => s.courseId === selectedCourse.id && s.date < today).length;
+                const completedCount = sessions.filter(s => s.courseId === selectedCourse.id && s.date < today && s.status !== 'cancelled').length;
                 const totalCount = sessions.filter(s => s.courseId === selectedCourse.id && s.status !== 'cancelled').length;
                 const isLateJoin = completedCount > 0;
                 const remainingCount = totalCount - completedCount;

@@ -594,7 +594,7 @@ export default function PassesPage() {
                       </div>
                       <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>
                         {p.startDate} ～ {p.endDate}
-                        {p.credits !== null && ` · 剩餘 ${p.credits} 次`}
+                        {p.credits != null && ` · 剩餘 ${p.credits} 次`}
                       </div>
                       <div style={{ height:4, background:'#EEE', borderRadius:2, overflow:'hidden', marginBottom:10 }}>
                         <div style={{ height:'100%', width:`${pct}%`, background: st.type==='ok'?'#2D7D46':st.type==='warn'?'#EF9F27':'#E24B4A', borderRadius:2 }}/>

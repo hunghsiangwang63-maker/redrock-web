@@ -100,7 +100,7 @@ export default function MemberExperiencePage() {
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'apply',label:'填寫預約'},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:'`'}`}].map(t=>(
+        {[{key:'apply',label:'填寫預約'},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
             {t.label}

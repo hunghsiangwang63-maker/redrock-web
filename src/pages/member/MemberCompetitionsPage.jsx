@@ -115,8 +115,8 @@ export default function MemberCompetitionsPage() {
     const age = registrant?.birthday ? dayjs().diff(dayjs(registrant.birthday), 'year') : 99;
     const isChild = age < childLimit;
     let fee = isChild
-      ? (isEarlyBird ? fees.childEarlyBird : fees.childRegular) || 950
-      : (isEarlyBird ? fees.adultEarlyBird : fees.adultRegular) || 1100;
+      ? (isEarlyBird ? fees.childEarlyBird : fees.childRegular) ?? 950
+      : (isEarlyBird ? fees.adultEarlyBird : fees.adultRegular) ?? 1100;
     return { fee, isEarlyBird, isChild };
   };
 
