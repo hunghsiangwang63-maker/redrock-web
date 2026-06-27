@@ -7,6 +7,16 @@ import dayjs from 'dayjs';
 const DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
 const DAY_LABELS = { mon:'週一', tue:'週二', wed:'週三', thu:'週四', fri:'週五', sat:'週六', sun:'週日' };
 
+// 公告排程發布時間：Firestore Timestamp → datetime-local 字串 / 毫秒
+const tsToLocalInput = (ts) => {
+  if (!ts) return '';
+  const d = ts._seconds ? new Date(ts._seconds * 1000) : new Date(ts);
+  if (isNaN(d.getTime())) return '';
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+const annPublishMs = (ts) => ts ? (ts._seconds ? ts._seconds * 1000 : new Date(ts).getTime()) : 0;
+
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
   const st = s[type]||s.ok;
@@ -21,7 +31,7 @@ export default function GymsPage({ embedded = false }) {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddAnn, setShowAddAnn] = useState(false);
-  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'' });
+  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'' });
   const [annSaving, setAnnSaving] = useState(false);
   const [annMsg, setAnnMsg] = useState('');
   const [editingAnn, setEditingAnn] = useState(null);
@@ -80,7 +90,7 @@ export default function GymsPage({ embedded = false }) {
       }
       setShowAddAnn(false);
       setEditingAnn(null);
-      setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'' });
+      setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'' });
       const aRes = await getAnnouncements();
       setAnnouncements(aRes.data.announcements || []);
     } catch (e) {
@@ -90,7 +100,7 @@ export default function GymsPage({ embedded = false }) {
 
   const openEditAnn = (a) => {
     setEditingAnn(a);
-    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', specialOpen:a.specialOpen||'', specialClose:a.specialClose||'' });
+    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', specialOpen:a.specialOpen||'', specialClose:a.specialClose||'', showOnBanner:!!a.showOnBanner, publishAt:tsToLocalInput(a.publishAt) });
     setAnnMsg('');
     setShowAddAnn(true);
   };
@@ -257,11 +267,13 @@ export default function GymsPage({ embedded = false }) {
               <div style={{ display:'flex', gap:6, marginBottom:5, alignItems:'center' }}>
                 <Tag type={annTypeTag(a.type)}>{annTypeLabel(a.type)}</Tag>
                 {a.showOnBanner && <Tag type="blue">輪播</Tag>}
+                {annPublishMs(a.publishAt) > Date.now() && <Tag type="warn">排程中</Tag>}
                 <span style={{ fontSize:11, color:'#999', marginLeft:'auto' }}>{a.effectiveFrom}</span>
               </div>
               <div style={{ fontSize:13, fontWeight:500 }}>{a.title}</div>
               {a.content && <div style={{ fontSize:12, color:'#6b6b6b', marginTop:3 }}>{a.content}</div>}
               {a.effectiveTo && <div style={{ fontSize:11, color:'#999', marginTop:4 }}>有效至 {a.effectiveTo}</div>}
+              {annPublishMs(a.publishAt) > Date.now() && <div style={{ fontSize:11, color:'#854F0B', marginTop:4 }}>預計發布 {tsToLocalInput(a.publishAt).replace('T',' ')}</div>}
               <div style={{ display:'flex', gap:6, marginTop:8 }}>
                 <button onClick={() => openEditAnn(a)} style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:10, cursor:'pointer' }}>編輯</button>
                 <button onClick={() => handleDeleteAnn(a)} style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:10, cursor:'pointer' }}>下架</button>
@@ -352,6 +364,20 @@ export default function GymsPage({ embedded = false }) {
                 </div>
               </>
             )}
+
+            <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444', marginBottom:14, cursor:'pointer' }}>
+              <input type="checkbox" checked={annForm.showOnBanner} onChange={e => setAnnForm(p => ({...p, showOnBanner: e.target.checked}))} />
+              首頁輪播顯示
+            </label>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>預約發布時間（選填，留空＝立即發布）</label>
+              <input type="datetime-local" value={annForm.publishAt}
+                onChange={e => setAnnForm(p => ({...p, publishAt: e.target.value}))}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:4 }}>設定未來時間後，會員端要到該時間才會看到此公告。</div>
+            </div>
+
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={() => { setShowAddAnn(false); setEditingAnn(null); setAnnMsg(''); }}
                 style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
