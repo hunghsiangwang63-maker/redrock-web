@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getRentalSettings, applyRental, getMyRentals } from '../../api/rentals';
+import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
+import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 
 const ITEM_ICONS = { crashPad:'🪨', helmet:'⛑️', harness:'🔗' };
 const STATUS_LABEL = {
@@ -24,6 +26,7 @@ export default function MemberRentalPage() {
   const [myRentals, setMyRentals] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
+  const [payFor, setPayFor] = useState(null); // { rentalId, total, gymId }
 
   // 申請表單狀態
   const [gymId, setGymId] = useState('gym-hsinchu');
@@ -93,12 +96,15 @@ export default function MemberRentalPage() {
         bankLastFive: payMethod === 'transfer' ? bankLastFive : null,
       });
       showMsg(res.data.message || '申請成功！');
+      const rentalId = res.data.id;
+      const total = (res.data.totalRentalFee || 0) + (res.data.totalDeposit || 0);
       setShowPayModal(false);
       setQuantities({ crashPad: 0, helmet: 0, harness: 0 });
       setPickupDate(''); setReturnDate('');
       const rr = await getMyRentals();
       setMyRentals(rr.data.rentals || []);
       setTab('history');
+      if (ONLINE_PAYMENT_ENABLED && rentalId && total > 0) setPayFor({ rentalId, total, gymId });
     } catch (err) {
       showMsg(err.response?.data?.message || '申請失敗', 'red');
     } finally { setSubmitting(false); }
@@ -126,6 +132,26 @@ export default function MemberRentalPage() {
 
   return (
     <div style={{ minHeight:'100vh', background:'#FBF5F5', paddingBottom:80 }}>
+      {/* 線上付款 Modal（Phase 1：器材租借）*/}
+      {payFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontWeight:600, fontSize:15 }}>完成付款（含押金）</div>
+              <button onClick={()=>{ setPayFor(null); showMsg('申請已保留，可於「租借紀錄」完成付款或改用匯款'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <PaymentFlow
+              client={memberClient}
+              orderType="rental"
+              orderRef={{ rentalId: payFor.rentalId }}
+              amount={payFor.total}
+              gymId={payFor.gymId}
+              onPaid={()=>{ setPayFor(null); showMsg('付款完成，租借已確認！'); getMyRentals().then(rr=>setMyRentals(rr.data.rentals||[])); }}
+              onCancel={()=>{ setPayFor(null); showMsg('申請已保留，可於「租借紀錄」完成付款或改用匯款'); }}
+            />
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate('/member/home')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
