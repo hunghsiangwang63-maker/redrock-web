@@ -46,7 +46,7 @@ export default function CoursesPage({ embedded = false }) {
   const isSuperAdmin = staff?.role === 'super_admin';
   const GYMS = [
     { id: 'gym-hsinchu', name: '新竹館' },
-    { id: 'gym-zhubei',  name: '竹北館' },
+    { id: 'gym-shilin',  name: '士林館' },
   ];
   const [tab, setTab] = useState('courses');
   const [rosterModal, setRosterModal] = useState(null); // { course, enrollments }

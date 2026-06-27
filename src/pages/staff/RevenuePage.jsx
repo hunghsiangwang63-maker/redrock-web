@@ -78,7 +78,7 @@ export default function RevenuePage({ embedded = false }) {
           <select value={selectedGymId} onChange={e => setSelectedGymId(e.target.value)}
             style={{ height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, background:'#fff', marginRight:8 }}>
             <option value="gym-hsinchu">新竹館</option>
-            <option value="gym-zhubei">竹北館</option>
+            <option value="gym-shilin">士林館</option>
           </select>
         )}
         <div style={{ display:'flex', gap:2, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>

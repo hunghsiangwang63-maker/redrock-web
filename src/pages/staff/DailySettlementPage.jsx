@@ -165,7 +165,7 @@ export default function DailySettlementPage() {
         <>
           {/* 日期 + 館別 */}
           <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
-            📅 {dayjs().format('YYYY/MM/DD')} · {gymId === 'gym-hsinchu' ? '新竹館' : '竹北館'}
+            📅 {dayjs().format('YYYY/MM/DD')} · {gymId === 'gym-hsinchu' ? '新竹館' : '士林館'}
           </div>
 
           {/* 五大類收入 */}

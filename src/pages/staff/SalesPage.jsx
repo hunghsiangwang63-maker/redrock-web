@@ -491,11 +491,11 @@ export default function SalesPage({ embedded = false }) {
               {/* 變體列表 */}
               <div style={{ borderTop:'0.5px solid #F5EFEF', paddingTop:10 }}>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 60px 60px 55px 55px 60px 70px', gap:6, fontSize:10, color:'#999', fontWeight:600, marginBottom:6, padding:'0 4px' }}>
-                  <span>尺寸</span><span>顏色</span><span>原價</span><span>促銷價</span><span>新竹館</span><span>竹北館</span><span>倉庫</span><span>促銷</span>
+                  <span>尺寸</span><span>顏色</span><span>原價</span><span>促銷價</span><span>新竹館</span><span>士林館</span><span>倉庫</span><span>促銷</span>
                 </div>
                 {(p.variants||[]).map(v => {
                   const hsinchuStock = v.gymStock?.['gym-hsinchu'] ?? 0;
-                  const zhubeiStock = v.gymStock?.['gym-zhubei'] ?? 0;
+                  const shilinStock = v.gymStock?.['gym-shilin'] ?? 0;
                   const warehouseStock = v.warehouseStock ?? 0;
                   return (
                   <div key={v.id} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 60px 60px 55px 55px 60px 70px', gap:6, fontSize:12, padding:'5px 4px', borderRadius:6, background: v.stock <= p.lowStockAlert ? '#FFF5F5' : 'none', marginBottom:2, alignItems:'center' }}>
@@ -508,8 +508,8 @@ export default function SalesPage({ embedded = false }) {
                     <span style={{ color: hsinchuStock === 0 ? '#A32D2D' : hsinchuStock <= p.lowStockAlert ? '#854F0B' : '#2D7D46', fontWeight:500 }}>
                       {hsinchuStock}
                     </span>
-                    <span style={{ color: zhubeiStock === 0 ? '#A32D2D' : zhubeiStock <= p.lowStockAlert ? '#854F0B' : '#2D7D46', fontWeight:500 }}>
-                      {zhubeiStock}
+                    <span style={{ color: shilinStock === 0 ? '#A32D2D' : shilinStock <= p.lowStockAlert ? '#854F0B' : '#2D7D46', fontWeight:500 }}>
+                      {shilinStock}
                     </span>
                     {editingWarehouse === v.id ? (
                       <div style={{ display:'flex', gap:2 }}>
