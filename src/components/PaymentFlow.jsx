@@ -16,11 +16,15 @@
 import { useState, useRef, useEffect } from 'react';
 
 const ONLINE_METHODS = [
-  { key: 'mock',      label: '測試付款', icon: '🧪', enabled: true },
-  { key: 'linepay',   label: 'LinePay', icon: '💚', enabled: false },
+  // ⚠️ mock 只在本機 dev 開放（會在未實際付款下標記已付）；正式環境一律關閉，避免零元確認
+  { key: 'mock',      label: '測試付款', icon: '🧪', enabled: !!import.meta.env.DEV },
+  { key: 'linepay',   label: 'LinePay', icon: '💚', enabled: false }, // Phase 2 啟用
   { key: 'jkopay',    label: '街口',    icon: '🔵', enabled: false },
   { key: 'taiwanpay', label: '台灣Pay', icon: '🇹🇼', enabled: false },
 ];
+
+// 是否有任何可用的線上付款方式（正式環境在真實 gateway 上線前為 false）
+export const ONLINE_PAYMENT_ENABLED = ONLINE_METHODS.some(m => m.enabled);
 
 const red = '#8B1A1A';
 

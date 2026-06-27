@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration } from '../../api/competitions';
-import PaymentFlow from '../../components/PaymentFlow';
+import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
@@ -199,11 +199,10 @@ export default function MemberCompetitionsPage() {
       const reg = res?.data?.registration;
       setShowModal(false);
       await load();
-      if (reg && reg.registrationFee > 0 && reg.paymentStatus !== 'confirmed') {
-        // 提供立即線上付款（仍可關閉改用匯款）
+      if (ONLINE_PAYMENT_ENABLED && reg && reg.registrationFee > 0 && reg.paymentStatus !== 'confirmed') {
         setPayFor({ registrationId: reg.id, fee: reg.registrationFee, gymId: selectedComp.gymId });
       } else {
-        showMsg('報名成功！');
+        showMsg('報名成功！請完成繳費以確保名額。');
       }
     } catch (err) {
       showMsg(err.response?.data?.message || '報名失敗', 'red');

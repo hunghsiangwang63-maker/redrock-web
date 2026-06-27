@@ -4,7 +4,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
-import PaymentFlow from '../../components/PaymentFlow';
+import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 
 const FALLBACK_COURSE_TYPES = [
   { id:'general',    label:'抱石體驗課程（依人數計費）' },
@@ -76,7 +76,7 @@ export default function MemberExperiencePage() {
       const r = await memberClient.get('/experience-bookings/my');
       setMyBookings(r.data.bookings||[]);
       setTab('my');
-      if (fee > 0) setPayFor({ bookingId, fee, gymId });
+      if (ONLINE_PAYMENT_ENABLED && fee > 0) setPayFor({ bookingId, fee, gymId });
       else showMsg(res.data.message || '預約已送出！');
     } catch(err) { showMsg(err.response?.data?.message||'送出失敗','red'); }
     finally { setSubmitting(false); }

@@ -6,6 +6,7 @@ import { requestCourseRefund, requestCoursePause } from '../../api/courseAdjustm
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
+import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
 
@@ -25,6 +26,7 @@ export default function MemberCoursesPage() {
   const [msgType, setMsgType] = useState('ok');
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollSession, setEnrollSession] = useState(null);
+  const [payFor, setPayFor] = useState(null); // { enrollmentId, fee, gymId }
   const [enrollStep, setEnrollStep] = useState(1); // 1=基本資料 2=付款 3=規則確認 4=肖像授權
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentData, setPaymentData] = useState({ method:'cash', paymentDate:'', bankLastFive:'' });
@@ -195,6 +197,7 @@ export default function MemberCoursesPage() {
     setLoading(true);
     try {
       const extraFields = {
+        deferPayment: ONLINE_PAYMENT_ENABLED, // 線上付款啟用時延後記帳，改由付款 callback 記
         paymentDate: paymentDate || null,
         bankLastFive: (paymentMethod === 'cash' && bankLastFive) ? bankLastFive : null,
         healthNote: healthNote || null,
@@ -225,6 +228,9 @@ export default function MemberCoursesPage() {
         });
       }
       showMsg(res.data.message);
+      const enrInfo = enrollSession.isCourse
+        ? { id: res.data.enrollmentId, fee: res.data.fee }
+        : { id: res.data.enrollment?.id, fee: res.data.enrollment?.enrollmentFee };
       // 如果選擇轉帳且有截圖，上傳截圖
       if (paymentMethod === 'transfer' && screenshot) {
         try {
@@ -246,6 +252,9 @@ export default function MemberCoursesPage() {
       setScreenshot(null);
       await loadMyEnrollments();
       if (selectedCourse) await loadSessions(selectedCourse);
+      if (ONLINE_PAYMENT_ENABLED && enrInfo.id && enrInfo.fee > 0) {
+        setPayFor({ enrollmentId: enrInfo.id, fee: enrInfo.fee, gymId });
+      }
     } catch (err) {
       showMsg(err.response?.data?.message || '報名失敗', 'red');
     } finally { setLoading(false); }
@@ -347,6 +356,26 @@ export default function MemberCoursesPage() {
 
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+      {/* 線上付款 Modal（Phase 1：課程報名）*/}
+      {payFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontWeight:600, fontSize:15 }}>完成繳費</div>
+              <button onClick={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的課程」完成繳費或改用匯款'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <PaymentFlow
+              client={memberClient}
+              orderType="course"
+              orderRef={{ enrollmentId: payFor.enrollmentId }}
+              amount={payFor.fee}
+              gymId={payFor.gymId}
+              onPaid={()=>{ setPayFor(null); showMsg('繳費完成，報名已確認！'); loadMyEnrollments(); }}
+              onCancel={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的課程」完成繳費或改用匯款'); }}
+            />
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
