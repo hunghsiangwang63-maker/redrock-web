@@ -109,7 +109,7 @@ export default function StaffLayout() {
       {/* ── 頂部狀態列 ── */}
       <div style={{ height:isMobile?52:44, background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', justifyContent:'space-between', padding: isMobile?'0 16px':'0 16px', fontSize:13, flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:isMobile?18:16, color:'#8B1A1A' }}>RR</span>
+          <span style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:isMobile?14:13, color:'#8B1A1A', letterSpacing:0.5 }}>RedRock 紅石攀岩館</span>
           {station && (
             <span style={{ fontSize:isMobile?13:12, color:'#185FA5', background:'#E6F1FB', padding:'3px 8px', borderRadius:10 }}>
               {isMobile ? (station.gymName?.replace('紅石攀岩館 ','') || station.gymName) : station.gymName}
