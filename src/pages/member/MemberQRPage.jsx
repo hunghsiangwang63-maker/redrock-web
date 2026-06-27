@@ -15,7 +15,7 @@ const PAYMENT_METHODS = [
 const ENTRY_TYPE_LABEL = {
   pass: '定期票', vip: 'VIP 免費入場', course_access: '課程學員',
   child_free: '兒童入場', student_free: '學生入場',
-  discount_card: '使用優惠折扣券', black_card: '使用黑卡',
+  discount_card: '使用優惠折扣券', black_card: '使用黑卡', bonus: '紅利免費入場',
   single_entry_ticket: '使用單次入場券', single_ticket: '單次購票',
   buy_discount_card: '購買優惠折扣券',
 };
@@ -102,6 +102,7 @@ export default function MemberQRPage() {
         if (selectedEntry.type === 'discount_card') payload.discountCardId = selectedCard;
         if (selectedEntry.type === 'black_card') payload.blackCardId = selectedCard;
         if (selectedEntry.type === 'single_entry_ticket') payload.singleEntryTicketId = selectedCard;
+        if (selectedEntry.type === 'bonus') payload.bonusId = selectedCard;
       }
       if (!selectedEntry.freeEntry) {
         payload.paymentMethod = selectedPayment;
@@ -286,10 +287,11 @@ export default function MemberQRPage() {
               onClick={() => {
                 if (!opt.available) return;
                 setSelectedEntry(opt);
-                const cards = opt.discountCards || opt.blackCards || opt.tickets || [];
-                if (opt.type === 'use_discount_card' || opt.type === 'black_card' || opt.type === 'single_entry_ticket') {
+                const cards = opt.discountCards || opt.blackCards || opt.tickets || opt.bonuses || [];
+                if (opt.type === 'discount_card' || opt.type === 'black_card' || opt.type === 'single_entry_ticket' || opt.type === 'bonus') {
                   setSelectedCard(cards.length === 1 ? cards[0].id : null);
-                  setStep('shoes');
+                  // 折扣券需付八折金額→付款步驟；黑卡/單次券/紅利為免費→直接租借
+                  setStep(opt.requiresPayment ? 'select_payment' : 'shoes');
                 } else if (opt.requiresPayment || opt.type === 'buy_discount_card') {
                   // 動態入場類型（含自訂）一律走付款步驟
                   setStep('select_payment');
