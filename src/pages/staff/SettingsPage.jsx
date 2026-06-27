@@ -23,11 +23,6 @@ const TAB_GROUPS = [
       { key: 'entryTypes',   icon: '🚪', label: '入場類型' },
       { key: 'waiver',       icon: '📄', label: 'Waiver 內容' },
       { key: 'fallTest',     icon: '🧗', label: '墜落測驗' },
-    ],
-  },
-  {
-    group: '課程與費用',
-    items: [
       { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借' },
     ],
   },
