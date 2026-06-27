@@ -48,8 +48,9 @@ export default function MemberFallTestPage() {
     if (!member) return;
     const load = async () => {
       try { const s = await getFallTestSettings(); setSettings(s.data); } catch {}
-      try { const st = await getMyFallTestStatus(member.id); setStatus(st.data); } catch {}
-      try { const sig = await getFallTestSignature(member.id); setSignature(sig.data.signature); } catch {}
+      const targetId = forChildId || member.id;
+      try { const st = await getMyFallTestStatus(targetId); setStatus(st.data); } catch {}
+      try { const sig = await getFallTestSignature(targetId); setSignature(sig.data.signature); } catch {}
       setSignatureLoading(false);
     };
     load();

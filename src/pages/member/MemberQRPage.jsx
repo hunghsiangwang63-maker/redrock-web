@@ -252,8 +252,8 @@ export default function MemberQRPage() {
                 }
               }}
               style={{ background: opt.available ? '#fff' : '#f5f5f5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor: opt.available ? 'pointer' : 'not-allowed', opacity: opt.available ? 1 : 0.5, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div>
-                <div style={{ fontWeight:600, fontSize:14, color: opt.available ? '#1a1a1a' : '#999' }}>{opt.label}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:600, fontSize:14, color: opt.available ? '#1a1a1a' : '#999', textAlign:'left' }}>{opt.label?.trim()}</div>
                 {opt.note && <div style={{ fontSize:11, color:'#999', marginTop:3 }}>{opt.note}</div>}
                 {(opt.discountCards?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>共 {opt.discountCards.length} 張可用</div>}
                 {(opt.blackCards?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>共 {opt.blackCards.length} 張可用</div>}
@@ -366,7 +366,7 @@ export default function MemberQRPage() {
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>入場費</span>
+                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? '折扣優惠券' : '入場費'}</span>
                   <span>NT${entryPrice}</span>
                 </div>
               )}
@@ -374,6 +374,12 @@ export default function MemberQRPage() {
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                   <span style={{ color:'#666' }}>岩鞋租借</span>
                   <span>NT$100</span>
+                </div>
+              )}
+              {rentChalk && (
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                  <span style={{ color:'#666' }}>粉袋租借</span>
+                  <span>NT$50</span>
                 </div>
               )}
               <div style={{ display:'flex', justifyContent:'space-between', fontWeight:700, paddingTop:6, borderTop:'0.5px solid #F5EFEF' }}>

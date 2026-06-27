@@ -9,10 +9,10 @@ import dayjs from 'dayjs';
 const BottomNav = ({ navigate }) => (
   <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:"env(safe-area-inset-bottom)", zIndex:50 }}>
     {[
-      { icon:'🏠', label:'首頁', path:'/member/home' },
-      { icon:'📱', label:'QR Code', path:'/member/qr' },
-      { icon:'🎫', label:'票券', path:'/member/passes' },
-      { icon:'👤', label:'我的', path:'/member/profile' },
+      { icon:'🏠', label:'首頁',     path:'/member/home' },
+      { icon:'📚', label:'課程總覽', path:'/member/courses' },
+      { icon:'🎫', label:'我的票券', path:'/member/passes' },
+      { icon:'👤', label:'我的',     path:'/member/profile' },
     ].map(n => {
       const active = location.pathname === n.path;
       return (
@@ -35,6 +35,8 @@ export default function MemberProfilePage() {
   const [showNotification, setShowNotification] = useState(false);
   const [showCheckinHistory, setShowCheckinHistory] = useState(false);
   const [showFamily, setShowFamily] = useState(false);
+  // 每次開啟家庭成員面板都重新載入（確保簽署後狀態更新）
+  useEffect(() => { if (showFamily) loadChildren(); }, [showFamily]);
   const [children, setChildren] = useState([]);
   const [showAddChild, setShowAddChild] = useState(false);
   const [childName, setChildName] = useState('');
@@ -112,7 +114,8 @@ export default function MemberProfilePage() {
       setWaiverLoading(false);
     }
   };
-  const [editForm, setEditForm] = useState({ name:'', email:'', birthday:'', gender:'' });
+  const [editForm, setEditForm] = useState({ name:'', email:'', birthday:'', gender:'', emergencyContact:'' });
+  const [editOpen, setEditOpen] = useState(false);
   const [pwForm, setPwForm] = useState({ current:'', newPw:'', confirm:'' });
   const [checkinHistory, setCheckinHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -241,7 +244,7 @@ export default function MemberProfilePage() {
         {/* 功能清單 */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:12 }}>
           {[
-            { icon:'✏️', label:'修改個人資料', action: () => setShowEditProfile(true) },
+            { icon:'✏️', label:'修改個人資料', action: () => { setEditForm({ name: member?.name||'', email: member?.email||'', birthday: member?.birthday||'', gender: member?.gender||'', emergencyContact: member?.emergencyContact||'' }); setShowEditProfile(true); } },
             { icon:'🔑', label:'修改密碼', action: () => setShowChangePassword(true) },
             { icon:'🔔', label:'Line 官方通知設定', action: () => setShowNotification(true) },
             { icon:'👨‍👩‍👧‍👦', label:'家庭成員（限兒童及青少年）', action: () => { loadChildren(); setShowFamily(true); } },
@@ -298,7 +301,7 @@ export default function MemberProfilePage() {
                   ) : (
                     <button onClick={() => navigate(`/member/fall-test?forChild=${c.id}&childName=${encodeURIComponent(c.name)}`)}
                       style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
-                      代簽墜落測驗
+                      代簽墜落測驗同意書
                     </button>
                   )}
                 </div>
@@ -373,6 +376,7 @@ export default function MemberProfilePage() {
               { label:'姓名', key:'name', placeholder: member?.name, type:'text' },
               { label:'Email', key:'email', placeholder: member?.email, type:'email' },
               { label:'生日', key:'birthday', placeholder: member?.birthday || 'YYYY-MM-DD', type:'date' },
+              { label:'緊急聯絡人', key:'emergencyContact', placeholder: '姓名 / 關係 / 電話', type:'text' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -398,11 +402,11 @@ export default function MemberProfilePage() {
                 try {
                   const { memberClient } = await import('../../api/client');
                   await memberClient.put('/auth/member/profile', editForm);
+                  updateMember({ name: editForm.name, email: editForm.email, birthday: editForm.birthday, gender: editForm.gender, emergencyContact: editForm.emergencyContact });
                   setMsg('資料已更新');
                   setTimeout(() => { setMsg(''); setShowEditProfile(false); }, 1500);
                 } catch { setMsg('更新失敗，請稍後再試'); }
-              }}
-                style={{ flex:2, height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>儲存</button>
+              }}     style={{ flex:2, height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>儲存</button>
             </div>
           </div>
         </div>
