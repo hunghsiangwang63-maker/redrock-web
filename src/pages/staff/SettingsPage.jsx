@@ -386,9 +386,9 @@ export default function SettingsPage() {
         <div style={s.card}>
           <div style={s.cardHead}>
             <span>入場類型設定</span>
-            <div style={{ display:'flex', gap:8 }}>
-              <button style={s.btn} onClick={addEntryType}>+ 新增</button>
-              {isAdmin && <SaveButton onSave={handleSaveEntryTypes} isDirty={entryDirty} label='儲存入場類型' fullWidth />}
+            <div style={{ display:'flex', gap:8, flex:1, marginLeft:16 }}>
+              <button style={{ ...s.btn, flex:1, height:44, fontSize:14, fontWeight:500, borderRadius:10 }} onClick={addEntryType}>+ 新增</button>
+              {isAdmin && <SaveButton onSave={handleSaveEntryTypes} isDirty={entryDirty} label='儲存入場類型' style={{ flex:1 }} />}
             </div>
           </div>
           <div style={{ padding:16 }}>
