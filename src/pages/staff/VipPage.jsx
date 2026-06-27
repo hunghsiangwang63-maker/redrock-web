@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getVipList, addVip, updateVip, removeVip } from '../../api/vip';
-import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, confirmTeamPayment } from '../../api/team';
+import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, confirmTeamPayment, createTeamMember, updateTeamApplication, deleteTeamApplication, downloadTeamFile } from '../../api/team';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -26,12 +26,25 @@ export default function VipPage({ embedded = false }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  // 攀岩隊員申請名單（會員端「加入攀岩隊」自動彙整）
+  // 攀岩隊員申請名單（會員端「加入攀岩隊」自動彙整 + 管理員手動）
   const [teamMembers, setTeamMembers] = useState([]);
   const [teamLoading, setTeamLoading] = useState(true);
   const [teamYear, setTeamYear] = useState(dayjs().year());
+  const [teamFilter, setTeamFilter] = useState('');
   const [confirmingId, setConfirmingId] = useState(null);
   const [teamError, setTeamError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  // 手動新增
+  const [showAddTeam, setShowAddTeam] = useState(false);
+  const [teamSearchQuery, setTeamSearchQuery] = useState('');
+  const [teamSearchResults, setTeamSearchResults] = useState([]);
+  const [selectedTeamMember, setSelectedTeamMember] = useState(null);
+  const [addForm, setAddForm] = useState({ paymentAmount:'', jerseySize:'', noJersey:false });
+  const [teamSaving, setTeamSaving] = useState(false);
+  // 編輯
+  const [editingApp, setEditingApp] = useState(null);
+  const [editForm, setEditForm] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
 
   // 攀岩隊費設定
   const [teamFees, setTeamFees] = useState({ fullYearFee:3000, midYearFee:2000, lateYearFee:1000, midYearCutoff:'03-15', lateYearCutoff:'09-15', jerseyDiscount:300 });
@@ -69,7 +82,7 @@ export default function VipPage({ embedded = false }) {
   };
 
   const handleConfirmPayment = async (app) => {
-    if (!window.confirm(`確認已收到 ${app.memberName} 的隊費 NT$${app.paymentAmount || app.expectedFee || 0}？`)) return;
+    if (!window.confirm(`確認已收到 ${app.memberName} 的隊費 NT$${app.paymentAmount || app.expectedFee || 0}？確認後將開通九折資格。`)) return;
     setConfirmingId(app.id);
     try {
       await confirmTeamPayment(app.id);
@@ -79,6 +92,78 @@ export default function VipPage({ embedded = false }) {
     } finally {
       setConfirmingId(null);
     }
+  };
+
+  const handleTeamSearch = async (q) => {
+    setTeamSearchQuery(q);
+    if (q.length < 2) { setTeamSearchResults([]); return; }
+    try {
+      const res = await searchMembers(q);
+      setTeamSearchResults(res.data.members || []);
+    } catch (e) {}
+  };
+
+  const openAddTeam = () => {
+    setSelectedTeamMember(null); setTeamSearchQuery(''); setTeamSearchResults([]);
+    setAddForm({ paymentAmount:'', jerseySize:'', noJersey:false });
+    setTeamError(null); setShowAddTeam(true);
+  };
+
+  const handleAddTeamMember = async () => {
+    if (!selectedTeamMember) { setTeamError('請先選擇會員'); return; }
+    setTeamSaving(true); setTeamError(null);
+    try {
+      await createTeamMember({ memberId: selectedTeamMember.id, year: teamYear, ...addForm });
+      setShowAddTeam(false);
+      await loadTeamMembers();
+    } catch (e) {
+      setTeamError(e.response?.data?.message || '新增失敗');
+    } finally { setTeamSaving(false); }
+  };
+
+  const openEdit = (app) => {
+    setEditingApp(app);
+    setEditForm({
+      memberName: app.memberName || '', memberPhone: app.memberPhone || '', primaryGym: app.primaryGym || '',
+      paymentAmount: app.paymentAmount ?? '', paymentDate: app.paymentDate || '', bankLastFive: app.bankLastFive || '',
+      jerseySize: app.jerseySize || '', noJersey: !!app.noJersey,
+      paymentStatus: app.paymentStatus || 'pending', status: app.status || 'pending',
+    });
+  };
+
+  const handleSaveEdit = async () => {
+    setEditSaving(true);
+    try {
+      await updateTeamApplication(editingApp.id, editForm);
+      setEditingApp(null);
+      await loadTeamMembers();
+    } catch (e) {
+      alert(e.response?.data?.message || '更新失敗');
+    } finally { setEditSaving(false); }
+  };
+
+  const handleDeleteTeam = async (app) => {
+    if (!window.confirm(`確定刪除 ${app.memberName} 的隊員資料？將同時撤銷其九折資格。`)) return;
+    try {
+      await deleteTeamApplication(app.id);
+      await loadTeamMembers();
+    } catch (e) {
+      alert(e.response?.data?.message || '刪除失敗');
+    }
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const res = await downloadTeamFile(teamYear);
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url; a.download = `攀岩隊員_${teamYear}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('下載失敗');
+    } finally { setDownloading(false); }
   };
 
   useEffect(() => { loadVips(); }, []);
@@ -300,12 +385,22 @@ export default function VipPage({ embedded = false }) {
           <div style={{ fontSize:20, fontWeight:600, color:'#1a1a1a' }}>攀岩隊員管理</div>
           <div style={{ fontSize:13, color:'#999', marginTop:3 }}>會員「加入攀岩隊」後自動彙整於此，確認收款即為正式隊員</div>
         </div>
-        <select value={teamYear} onChange={e => setTeamYear(Number(e.target.value))}
-          style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', color:'#1a1a1a', cursor:'pointer' }}>
-          {Array.from({ length: 4 }, (_, i) => dayjs().year() - i).map(y => (
-            <option key={y} value={y}>{y} 年度</option>
-          ))}
-        </select>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <select value={teamYear} onChange={e => setTeamYear(Number(e.target.value))}
+            style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', color:'#1a1a1a', cursor:'pointer' }}>
+            {Array.from({ length: 4 }, (_, i) => dayjs().year() - i).map(y => (
+              <option key={y} value={y}>{y} 年度</option>
+            ))}
+          </select>
+          <button onClick={handleDownload} disabled={downloading}
+            style={{ height:40, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:13, cursor: downloading ? 'not-allowed' : 'pointer' }}>
+            {downloading ? '下載中...' : '⬇ 下載 Excel'}
+          </button>
+          <button onClick={openAddTeam}
+            style={{ height:40, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            + 新增隊員
+          </button>
+        </div>
       </div>
 
       {teamError && (
@@ -352,18 +447,21 @@ export default function VipPage({ embedded = false }) {
         )}
       </div>
 
-      {/* 申請名單 */}
+      {/* 名單 */}
       <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontWeight:600, fontSize:13 }}>{teamYear} 年度申請名單</span>
-          <span style={{ fontSize:12, color:'#999' }}>共 {teamMembers.length} 人</span>
+        <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <span style={{ fontWeight:600, fontSize:13 }}>{teamYear} 年度名單（共 {teamMembers.length} 人）</span>
+          <input value={teamFilter} onChange={e => setTeamFilter(e.target.value)} placeholder="搜尋姓名或手機..."
+            style={{ flex:1, minWidth:160, maxWidth:280, height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
         </div>
 
         {teamLoading ? (
           <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>載入中...</div>
-        ) : teamMembers.length === 0 ? (
-          <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>本年度尚無申請</div>
-        ) : (
+        ) : (() => {
+          const q = teamFilter.trim();
+          const ft = teamMembers.filter(a => !q || (a.memberName||'').includes(q) || (a.memberPhone||'').includes(q));
+          if (ft.length === 0) return <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>{q ? '無符合搜尋的隊員' : '本年度尚無名單'}</div>;
+          return (
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
               <tr style={{ background:'#FBF5F5' }}>
@@ -375,7 +473,7 @@ export default function VipPage({ embedded = false }) {
               </tr>
             </thead>
             <tbody>
-              {teamMembers.map(a => {
+              {ft.map(a => {
                 const paid = a.paymentStatus === 'confirmed';
                 const stTag = a.status === 'active'
                   ? { bg:'#E6F4EB', color:'#2D7D46', t:'正式隊員' }
@@ -404,22 +502,116 @@ export default function VipPage({ embedded = false }) {
                       </div>
                     </td>
                     <td style={{ padding:'12px 16px', textAlign:'center' }}>
-                      {a.status !== 'cancelled' && !paid ? (
-                        <button onClick={() => handleConfirmPayment(a)} disabled={confirmingId === a.id}
-                          style={{ height:30, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor: confirmingId === a.id ? 'not-allowed' : 'pointer' }}>
-                          {confirmingId === a.id ? '處理中...' : '確認收款'}
-                        </button>
-                      ) : paid ? (
-                        <span style={{ fontSize:12, color:'#2D7D46' }}>✓ 已確認</span>
-                      ) : <span style={{ color:'#ccc' }}>—</span>}
+                      <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap' }}>
+                        {a.status !== 'cancelled' && !paid && (
+                          <button onClick={() => handleConfirmPayment(a)} disabled={confirmingId === a.id}
+                            style={{ height:30, padding:'0 10px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor: confirmingId === a.id ? 'not-allowed' : 'pointer' }}>
+                            {confirmingId === a.id ? '處理中' : '確認收款'}
+                          </button>
+                        )}
+                        <button onClick={() => openEdit(a)}
+                          style={{ height:30, padding:'0 10px', borderRadius:6, background:'#f5f5f5', border:'0.5px solid #ddd', fontSize:12, cursor:'pointer' }}>編輯</button>
+                        <button onClick={() => handleDeleteTeam(a)}
+                          style={{ height:30, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>刪除</button>
+                      </div>
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
-        )}
+          );
+        })()}
       </div>
+
+      {/* 手動新增隊員 Modal */}
+      {showAddTeam && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:440, maxHeight:'85vh', overflowY:'auto' }}>
+            <div style={{ fontWeight:600, fontSize:16, marginBottom:20 }}>手動新增隊員 — {teamYear} 年度</div>
+            {teamError && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#A32D2D', marginBottom:12 }}>{teamError}</div>}
+            <div style={{ marginBottom:12 }}>
+              <label style={feeLabel}>搜尋會員（姓名或手機）</label>
+              <input value={teamSearchQuery} onChange={e => handleTeamSearch(e.target.value)} placeholder="輸入姓名或手機號碼..." style={feeInput} />
+              {teamSearchResults.length > 0 && !selectedTeamMember && (
+                <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#fff', marginTop:4, overflow:'hidden' }}>
+                  {teamSearchResults.slice(0,5).map(m => (
+                    <div key={m.id} onClick={() => { setSelectedTeamMember(m); setTeamSearchQuery(m.name); setTeamSearchResults([]); }}
+                      style={{ padding:'10px 14px', cursor:'pointer', borderBottom:'0.5px solid #F5EFEF', fontSize:13, display:'flex', justifyContent:'space-between' }}>
+                      <span style={{ fontWeight:500 }}>{m.name}</span><span style={{ color:'#999' }}>{m.phone}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {selectedTeamMember && (
+              <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span>已選擇：<strong>{selectedTeamMember.name}</strong>（{selectedTeamMember.phone}）</span>
+                <span onClick={() => { setSelectedTeamMember(null); setTeamSearchQuery(''); }} style={{ cursor:'pointer', color:'#999', fontSize:16 }}>×</span>
+              </div>
+            )}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+              <div>
+                <label style={feeLabel}>隊費金額（NT$）</label>
+                <input type="number" style={feeInput} value={addForm.paymentAmount} onChange={e => setAddForm(f => ({...f, paymentAmount: e.target.value}))} />
+              </div>
+              <div>
+                <label style={feeLabel}>隊服尺寸</label>
+                <input type="text" style={feeInput} placeholder="如 M / L" value={addForm.jerseySize} onChange={e => setAddForm(f => ({...f, jerseySize: e.target.value}))} disabled={addForm.noJersey} />
+              </div>
+            </div>
+            <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'#666', marginBottom:16, cursor:'pointer' }}>
+              <input type="checkbox" checked={addForm.noJersey} onChange={e => setAddForm(f => ({...f, noJersey: e.target.checked}))} /> 不拿隊服
+            </label>
+            <div style={{ background:'#FBF5F5', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#854F0B', marginBottom:16 }}>新增後即為正式隊員並開通九折資格。</div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setShowAddTeam(false)} style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={handleAddTeamMember} disabled={!selectedTeamMember || teamSaving}
+                style={{ flex:2, height:40, borderRadius:8, background: selectedTeamMember ? '#8B1A1A' : '#ccc', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: selectedTeamMember && !teamSaving ? 'pointer' : 'not-allowed' }}>
+                {teamSaving ? '新增中...' : '確認新增'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 編輯隊員 Modal */}
+      {editingApp && editForm && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:460, maxHeight:'85vh', overflowY:'auto' }}>
+            <div style={{ fontWeight:600, fontSize:16, marginBottom:20 }}>編輯隊員 — {editingApp.memberName}</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <div><label style={feeLabel}>姓名</label><input style={feeInput} value={editForm.memberName} onChange={e=>setEditForm(f=>({...f, memberName:e.target.value}))} /></div>
+              <div><label style={feeLabel}>手機</label><input style={feeInput} value={editForm.memberPhone} onChange={e=>setEditForm(f=>({...f, memberPhone:e.target.value}))} /></div>
+              <div><label style={feeLabel}>主要岩館</label><input style={feeInput} value={editForm.primaryGym} onChange={e=>setEditForm(f=>({...f, primaryGym:e.target.value}))} /></div>
+              <div><label style={feeLabel}>繳費金額（NT$）</label><input type="number" style={feeInput} value={editForm.paymentAmount} onChange={e=>setEditForm(f=>({...f, paymentAmount:e.target.value}))} /></div>
+              <div><label style={feeLabel}>匯款日期</label><input style={feeInput} value={editForm.paymentDate} onChange={e=>setEditForm(f=>({...f, paymentDate:e.target.value}))} placeholder="YYYY-MM-DD" /></div>
+              <div><label style={feeLabel}>匯款末五碼</label><input style={feeInput} value={editForm.bankLastFive} onChange={e=>setEditForm(f=>({...f, bankLastFive:e.target.value}))} /></div>
+              <div><label style={feeLabel}>隊服尺寸</label><input style={feeInput} value={editForm.jerseySize} onChange={e=>setEditForm(f=>({...f, jerseySize:e.target.value}))} disabled={editForm.noJersey} /></div>
+              <div style={{ display:'flex', alignItems:'flex-end' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'#666', height:40, cursor:'pointer' }}>
+                  <input type="checkbox" checked={editForm.noJersey} onChange={e=>setEditForm(f=>({...f, noJersey:e.target.checked}))} /> 不拿隊服
+                </label>
+              </div>
+              <div><label style={feeLabel}>付款狀態</label>
+                <select style={feeInput} value={editForm.paymentStatus} onChange={e=>setEditForm(f=>({...f, paymentStatus:e.target.value}))}>
+                  <option value="pending">待確認</option><option value="confirmed">已確認</option>
+                </select>
+              </div>
+              <div><label style={feeLabel}>隊員狀態</label>
+                <select style={feeInput} value={editForm.status} onChange={e=>setEditForm(f=>({...f, status:e.target.value}))}>
+                  <option value="pending">待審核</option><option value="active">正式隊員</option><option value="cancelled">已退隊</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ background:'#FBF5F5', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#854F0B', margin:'14px 0' }}>狀態設為「正式隊員」會開通九折；設「已退隊」會撤銷。</div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setEditingApp(null)} style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={handleSaveEdit} disabled={editSaving} style={{ flex:2, height:40, borderRadius:8, background: editSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: editSaving?'not-allowed':'pointer' }}>{editSaving ? '儲存中...' : '儲存變更'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       </>
       )}
     </div>
