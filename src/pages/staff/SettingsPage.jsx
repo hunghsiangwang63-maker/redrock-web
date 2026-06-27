@@ -3,7 +3,6 @@ import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import { getGyms, getAllGyms } from '../../api/gyms';
 import { getStaffList, createStaff, updateStaff, resetStaffPassword, toggleStaffActive, deleteStaff } from '../../api/staff';
-import { getTeamFeeSettings, updateTeamFeeSettings } from '../../api/team';
 import SaveButton from '../../components/SaveButton';
 import VipPage from './VipPage';
 import GymsPage from './GymsPage';
@@ -30,7 +29,6 @@ const TAB_GROUPS = [
     group: '課程與費用',
     items: [
       { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借' },
-      { key: 'teamFees',     icon: '💰', label: '攀岩隊費' },
     ],
   },
 ];
@@ -57,14 +55,11 @@ export default function SettingsPage() {
 
   // ─── 員工帳號 ───────────────────────────────────────────────────
   const [staffList, setStaffList] = useState([]);
-  const [teamFees, setTeamFees] = useState({ fullYearFee:3000, midYearFee:2000, lateYearFee:1000, midYearCutoff:'03-15', lateYearCutoff:'09-15', jerseyDiscount:300 });
-  const [teamFeesSaving, setTeamFeesSaving] = useState(false);
   // isDirty 追蹤各區塊是否有未儲存的修改
   const [entryDirty, setEntryDirty] = useState(false);
   const [shoeDirty, setShoeDirty] = useState(false);
   const [waiverDirty, setWaiverDirty] = useState(false);
   const [fallTestDirty, setFallTestDirty] = useState(false);
-  const [teamFeesDirty, setTeamFeesDirty] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false); // 課程設定
   const [gymDirty, setGymDirty] = useState(false);
   const [staffLoading, setStaffLoading] = useState(false);
@@ -88,9 +83,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === 'staffAccounts' && isSuperAdmin) loadStaffList();
     if (activeTab === 'gyms') getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(()=>{});
-    if (activeTab === 'teamFees') {
-      getTeamFeeSettings().then(r => setTeamFees(r.data)).catch(() => {});
-    }
   }, [activeTab]);
 
   const openAddStaff = () => {
@@ -589,50 +581,6 @@ export default function SettingsPage() {
                 style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box', color:'#1a1a1a' }} />
             </div>
           </div>
-        </div>
-      )}
-
-      {activeTab === 'teamFees' && (
-        <div style={s.section}>
-          <div style={{ fontSize:14, fontWeight:600, marginBottom:16 }}>⚡ 攀岩隊年費設定</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
-            {[
-              { label:`全年隊費（${teamFees.midYearCutoff?.replace('-','/')} 前加入）`, key:'fullYearFee' },
-              { label:`中途加入（${teamFees.midYearCutoff?.replace('-','/')}～${teamFees.lateYearCutoff?.replace('-','/')}）`, key:'midYearFee' },
-              { label:`晚加入（${teamFees.lateYearCutoff?.replace('-','/')} 後）`, key:'lateYearFee' },
-              { label:'舊隊員不拿隊服減免金額', key:'jerseyDiscount' },
-            ].map(({ label, key }) => (
-              <div key={key}>
-                <label style={s.label}>{label}（NT$）</label>
-                <input type="number" style={s.input} value={teamFees[key] ?? ''} onChange={e => setTeamFees(f => ({ ...f, [key]: Number(e.target.value) }))}/>
-              </div>
-            ))}
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:20 }}>
-            {[
-              { label:'中途加入截止日（MM-DD）', key:'midYearCutoff' },
-              { label:'晚加入截止日（MM-DD）', key:'lateYearCutoff' },
-            ].map(({ label, key }) => (
-              <div key={key}>
-                <label style={s.label}>{label}</label>
-                <input type="text" style={s.input} placeholder="03-15" value={teamFees[key] ?? ''} onChange={e => setTeamFees(f => ({ ...f, [key]: e.target.value }))}/>
-              </div>
-            ))}
-          </div>
-          <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#666' }}>
-            目前費率：
-            全年 NT${teamFees.fullYearFee} ／
-            {teamFees.midYearCutoff}後 NT${teamFees.midYearFee} ／
-            {teamFees.lateYearCutoff}後 NT${teamFees.lateYearFee}
-            ；不拿隊服減 NT${teamFees.jerseyDiscount}
-          </div>
-          <button disabled={teamFeesSaving} onClick={async () => {
-            setTeamFeesSaving(true);
-            try { await updateTeamFeeSettings(teamFees); alert('已儲存'); }
-            catch { alert('儲存失敗'); } finally { setTeamFeesSaving(false); }
-          }} style={{ height:38, padding:'0 20px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-            {teamFeesSaving ? '儲存中...' : '儲存設定'}
-          </button>
         </div>
       )}
 

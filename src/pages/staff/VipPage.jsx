@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { getVipList, addVip, updateVip, removeVip } from '../../api/vip';
 import { getTeamMembers, setTeamMember, removeTeamMember } from '../../api/teamMembers';
+import { getTeamFeeSettings, updateTeamFeeSettings } from '../../api/team';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+
+const feeLabel = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
+const feeInput = { width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 
 export default function VipPage({ embedded = false }) {
   const { staff } = useAuth();
@@ -35,7 +39,25 @@ export default function VipPage({ embedded = false }) {
   const [teamSaving, setTeamSaving] = useState(false);
   const [teamError, setTeamError] = useState(null);
 
-  useEffect(() => { loadTeamMembers(); }, []);
+  // 攀岩隊費設定
+  const [teamFees, setTeamFees] = useState({ fullYearFee:3000, midYearFee:2000, lateYearFee:1000, midYearCutoff:'03-15', lateYearCutoff:'09-15', jerseyDiscount:300 });
+  const [teamFeesSaving, setTeamFeesSaving] = useState(false);
+
+  useEffect(() => { loadTeamMembers(); loadTeamFees(); }, []);
+
+  const loadTeamFees = async () => {
+    try {
+      const res = await getTeamFeeSettings();
+      if (res.data) setTeamFees(res.data);
+    } catch (e) {}
+  };
+
+  const handleSaveTeamFees = async () => {
+    setTeamFeesSaving(true);
+    try { await updateTeamFeeSettings(teamFees); alert('已儲存'); }
+    catch { alert('儲存失敗'); }
+    finally { setTeamFeesSaving(false); }
+  };
 
   const loadTeamMembers = async () => {
     setTeamLoading(true);
@@ -320,6 +342,44 @@ export default function VipPage({ embedded = false }) {
           {teamError}
         </div>
       )}
+
+      {/* 攀岩隊年費設定 */}
+      <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:20, marginBottom:16 }}>
+        <div style={{ fontWeight:600, fontSize:14, marginBottom:14 }}>⚡ 攀岩隊年費設定</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+          {[
+            { label:`全年隊費（${teamFees.midYearCutoff?.replace('-','/')} 前加入）`, key:'fullYearFee' },
+            { label:`中途加入（${teamFees.midYearCutoff?.replace('-','/')}～${teamFees.lateYearCutoff?.replace('-','/')}）`, key:'midYearFee' },
+            { label:`晚加入（${teamFees.lateYearCutoff?.replace('-','/')} 後）`, key:'lateYearFee' },
+            { label:'舊隊員不拿隊服減免金額', key:'jerseyDiscount' },
+          ].map(({ label, key }) => (
+            <div key={key}>
+              <label style={feeLabel}>{label}（NT$）</label>
+              <input type="number" style={feeInput} value={teamFees[key] ?? ''} onChange={e => setTeamFees(f => ({ ...f, [key]: Number(e.target.value) }))}/>
+            </div>
+          ))}
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+          {[
+            { label:'中途加入截止日（MM-DD）', key:'midYearCutoff' },
+            { label:'晚加入截止日（MM-DD）', key:'lateYearCutoff' },
+          ].map(({ label, key }) => (
+            <div key={key}>
+              <label style={feeLabel}>{label}</label>
+              <input type="text" style={feeInput} placeholder="03-15" value={teamFees[key] ?? ''} onChange={e => setTeamFees(f => ({ ...f, [key]: e.target.value }))}/>
+            </div>
+          ))}
+        </div>
+        <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#666' }}>
+          目前費率：全年 NT${teamFees.fullYearFee} ／ {teamFees.midYearCutoff}後 NT${teamFees.midYearFee} ／ {teamFees.lateYearCutoff}後 NT${teamFees.lateYearFee}；不拿隊服減 NT${teamFees.jerseyDiscount}
+        </div>
+        {isSuperAdmin && (
+          <button disabled={teamFeesSaving} onClick={handleSaveTeamFees}
+            style={{ height:38, padding:'0 20px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: teamFeesSaving ? 'not-allowed' : 'pointer' }}>
+            {teamFeesSaving ? '儲存中...' : '儲存設定'}
+          </button>
+        )}
+      </div>
 
       {/* 新增隊員面板 */}
       {showAddTeam && (
