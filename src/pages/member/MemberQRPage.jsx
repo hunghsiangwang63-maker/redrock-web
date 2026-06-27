@@ -290,7 +290,8 @@ export default function MemberQRPage() {
                 if (opt.type === 'use_discount_card' || opt.type === 'black_card' || opt.type === 'single_entry_ticket') {
                   setSelectedCard(cards.length === 1 ? cards[0].id : null);
                   setStep('shoes');
-                } else if (opt.type === 'single_ticket' || opt.type === 'buy_discount_card') {
+                } else if (opt.requiresPayment || opt.type === 'buy_discount_card') {
+                  // 動態入場類型（含自訂）一律走付款步驟
                   setStep('select_payment');
                 } else {
                   setStep('shoes');
@@ -409,7 +410,7 @@ export default function MemberQRPage() {
             {qrDataUrl && <img src={qrDataUrl} alt="QR Code" style={{ width:220, height:220, borderRadius:10 }} />}
             <div style={{ marginTop:16 }}>
               <div style={{ fontWeight:600, fontSize:18 }}>{entrant?.name}</div>
-              <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{ENTRY_TYPE_LABEL[selectedEntry?.type] || selectedEntry?.type}</div>
+              <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{selectedEntry?.label || ENTRY_TYPE_LABEL[selectedEntry?.type] || selectedEntry?.type}</div>
             </div>
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
