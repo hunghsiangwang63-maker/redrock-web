@@ -281,7 +281,8 @@ export default function MemberCoursesPage() {
       // 查詢同類別同館的未來場次（排除自己請假的那堂課）
       const courseRes = await memberClient.get(`/courses`);
       const sameCategoryCourses = (courseRes.data.courses || []).filter(c =>
-        c.categoryId === makeup.categoryId &&
+        // 補課額度未存 categoryId（舊資料）時不以類別過濾，交由後端核銷時驗證
+        (!makeup.categoryId || c.categoryId === makeup.categoryId) &&
         c.id !== makeup.courseId &&  // 排除自己請假的課程
         (c.gymId === makeup.gymId || !c.gymId || !makeup.gymId)
       );
