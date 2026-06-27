@@ -51,14 +51,16 @@ export default function MemberProfilePage() {
       const list = r.data.children || [];
       // 每位子會員抓 waiver + fallTest 狀態
       const enriched = await Promise.all(list.map(async c => {
-        const [waiverRes, ftRes] = await Promise.allSettled([
+        const [waiverRes, ftRes, ftSigRes] = await Promise.allSettled([
           memberClient.get(`/members/${c.id}/waiver`),
           memberClient.get(`/fall-tests/member/${c.id}`),
+          memberClient.get(`/fall-tests/signature/${c.id}`),
         ]);
         return {
           ...c,
           waiverSigned: waiverRes.status==='fulfilled' ? waiverRes.value.data?.waiverSigned : c.waiverSigned,
           fallTestPassed: ftRes.status==='fulfilled' ? ftRes.value.data?.status?.passed : false,
+          fallTestSigned: ftSigRes.status==='fulfilled' ? !!ftSigRes.value.data?.signature : false,
         };
       }));
       setChildren(enriched);
@@ -295,9 +297,9 @@ export default function MemberProfilePage() {
                       ⚠ 代簽免責聲明
                     </button>
                   )}
-                  {/* 墜落測驗狀態 */}
-                  {c.fallTestPassed ? (
-                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>✓ 墜落測驗已通過</span>
+                  {/* 墜落測驗同意書（代簽）狀態：以「同意書是否已簽」判斷，而非測驗是否通過 */}
+                  {c.fallTestSigned ? (
+                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>✓ 已簽墜測同意書</span>
                   ) : (
                     <button onClick={() => navigate(`/member/fall-test?forChild=${c.id}&childName=${encodeURIComponent(c.name)}`)}
                       style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
