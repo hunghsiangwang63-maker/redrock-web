@@ -33,6 +33,9 @@ export default function SchedulePage() {
   const [staffList, setStaffList] = useState([]);
   const [hoursSummary, setHoursSummary] = useState([]);
   const [showHours, setShowHours] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [standardHours, setStandardHours] = useState({ 0:11, 1:9, 2:9, 3:9, 4:9, 5:9, 6:12 });
+  const [settingsSaving, setSettingsSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
@@ -52,6 +55,17 @@ export default function SchedulePage() {
   const [recurringResult, setRecurringResult] = useState(null);
   const [recurringError, setRecurringError] = useState('');
 
+  const saveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      const { default: client } = await import('../../api/client');
+      await client.put('/schedule/settings/' + targetGymId, { standardHours });
+      showMsg('工時設定已儲存', 'ok');
+      setShowSettings(false);
+    } catch(e) { showMsg('儲存失敗', 'red'); }
+    finally { setSettingsSaving(false); }
+  };
+
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3000); };
 
   useEffect(() => {
@@ -63,6 +77,15 @@ export default function SchedulePage() {
       }).catch(() => {});
     }
   }, [isSuperAdmin]);
+
+  const loadSettings = async () => {
+    if (!targetGymId) return;
+    try {
+      const res = await import('../../api/client').then(m => m.default.get('/schedule/settings/' + targetGymId));
+      const s = res.data?.settings?.standardHours;
+      if (s) setStandardHours(s);
+    } catch(e) {}
+  };
 
   const loadData = async () => {
     if (!targetGymId) return;
@@ -78,7 +101,7 @@ export default function SchedulePage() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadData(); }, [targetGymId, month]);
+  useEffect(() => { loadData(); loadSettings(); }, [targetGymId, month]);
 
   const loadHoursSummary = async () => {
     try {
@@ -228,6 +251,10 @@ export default function SchedulePage() {
               style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:13, cursor:'pointer' }}>
               📊 本月工時統計
             </button>
+            <button onClick={() => setShowSettings(true)}
+              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #854F0B', color:'#854F0B', fontSize:13, cursor:'pointer' }}>
+              ⚙️ 標準工時設定
+            </button>
           </div>
         )}
       </div>
@@ -294,12 +321,16 @@ export default function SchedulePage() {
                         <div key={s.id} onClick={e => { e.stopPropagation(); openEditShift(s); }}
                           style={{
                             fontSize:10, padding:'2px 5px', borderRadius:4, marginBottom:2,
-                            background: staffColor(s.staffId), color:'#fff', cursor: canManage ? 'pointer' : 'default',
+                            background: s.type === 'full_day' ? staffColor(s.staffId) : 'transparent',
+                            color: s.type === 'full_day' ? '#fff' : staffColor(s.staffId),
+                            border: s.type === 'full_day' ? 'none' : `1.5px solid ${staffColor(s.staffId)}`,
+                            cursor: canManage ? 'pointer' : 'default',
                             whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                           }}>
                           {s.staffName} {s.type === 'full_day' ? '全天' : `${s.startTime}-${s.endTime}`}
                         </div>
                       ))}
+                
                     </>
                   )}
                 </div>
@@ -307,6 +338,36 @@ export default function SchedulePage() {
             })}
           </div>
         </div>
+      )}
+
+      {/* 標準工時設定 Modal */}
+      {showSettings && (
+        <Modal title={`標準工時設定 — ${gyms.find(g => g.id === targetGymId)?.name || targetGymId}`} onClose={() => setShowSettings(false)}>
+          <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>設定各星期的全天班標準工時（用於本月工時統計計算）</div>
+          {[
+            { dow:1, label:'週一' }, { dow:2, label:'週二' }, { dow:3, label:'週三' },
+            { dow:4, label:'週四' }, { dow:5, label:'週五' }, { dow:6, label:'週六' }, { dow:0, label:'週日' },
+          ].map(({ dow, label }) => (
+            <div key={dow} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF' }}>
+              <span style={{ fontSize:14, fontWeight:500 }}>{label}</span>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <input type="number" min={1} max={24} step={0.5}
+                  value={standardHours[dow] ?? 9}
+                  onChange={e => setStandardHours(prev => ({ ...prev, [dow]: parseFloat(e.target.value) || 0 }))}
+                  style={{ width:70, height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:14, textAlign:'center', background:'#fff', color:'#1a1a1a' }} />
+                <span style={{ fontSize:13, color:'#666' }}>小時</span>
+              </div>
+            </div>
+          ))}
+          <div style={{ display:'flex', gap:8, marginTop:20 }}>
+            <button onClick={() => setShowSettings(false)}
+              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <button onClick={saveSettings} disabled={settingsSaving}
+              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
+              {settingsSaving ? '儲存中...' : '儲存設定'}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* 新增/編輯排班 Modal */}
