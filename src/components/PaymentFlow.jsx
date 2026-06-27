@@ -1,40 +1,43 @@
 /**
- * 統一線上付款流程元件（Phase 0）
+ * 統一線上付款流程元件
  *
  * 用法：
  *   <PaymentFlow client={memberClient} orderType="course" orderRef={{...}}
  *                amount={1500} gymId="gym-hsinchu"
  *                onPaid={(p)=>...} onCancel={()=>...} />
  *
- * 流程：選付款方式 → POST /payments 建立付款 →
- *   - mock：顯示「模擬付款完成」按鈕 → POST /payments/mock/pay → 輪詢狀態
- *   - 真實 gateway：導轉到 paymentUrl，回來後輪詢 GET /payments/:id
- * 付款成功（status:paid）後呼叫 onPaid。
+ * 「該館有哪些付款方式」由後端 GET /payments/methods?gymId 決定（per-gym + per-gateway）：
+ *   - 全域啟用某 gateway：後端 env PAYMENT_PROVIDERS
+ *   - 啟用某館：填該館 paymentSettings 金鑰
+ *   兩者皆無需改前端程式 → 分段開放 = 改設定。
  *
- * Phase 0：僅 mock 可實際運作；linepay/jkopay/taiwanpay 待後端 adapter 完成。
+ * 流程：選付款方式 → POST /payments 建立 →
+ *   - mock：顯示「模擬付款完成」→ POST /payments/mock/pay → 輪詢
+ *   - 真實 gateway：導轉 paymentUrl，回來後輪詢 GET /payments/:id
  */
 import { useState, useRef, useEffect } from 'react';
 
-const ONLINE_METHODS = [
-  // ⚠️ mock 只在本機 dev 開放（會在未實際付款下標記已付）；正式環境一律關閉，避免零元確認
-  { key: 'mock',      label: '測試付款', icon: '🧪', enabled: !!import.meta.env.DEV },
-  { key: 'linepay',   label: 'LinePay', icon: '💚', enabled: false }, // Phase 2 啟用
-  { key: 'jkopay',    label: '街口',    icon: '🔵', enabled: false },
-  { key: 'taiwanpay', label: '台灣Pay', icon: '🇹🇼', enabled: false },
-];
-
-// 是否有任何可用的線上付款方式（正式環境在真實 gateway 上線前為 false）
-export const ONLINE_PAYMENT_ENABLED = ONLINE_METHODS.some(m => m.enabled);
+// 是否「全域」啟用線上付款入口（控制各頁要不要開付款 Modal）。
+// 實際可用方式仍以後端 /payments/methods 為準（per-gym）。
+// 正式環境預設關閉；要開啟以 VITE_ONLINE_PAYMENT=1 build。dev 預設開（搭配本機後端 mock 測試）。
+export const ONLINE_PAYMENT_ENABLED = !!import.meta.env.DEV || import.meta.env.VITE_ONLINE_PAYMENT === '1';
 
 const red = '#8B1A1A';
 
 export default function PaymentFlow({ client, orderType, orderRef = {}, amount, gymId, onPaid, onCancel }) {
   const [stage, setStage] = useState('select'); // select | creating | awaiting | paid | error
+  const [methods, setMethods] = useState(null);  // null=載入中, []=無, [...]=可用
   const [payment, setPayment] = useState(null);
   const [msg, setMsg] = useState('');
   const pollRef = useRef(null);
 
-  useEffect(() => () => clearInterval(pollRef.current), []);
+  useEffect(() => {
+    let alive = true;
+    client.get('/payments/methods', { params: { gymId } })
+      .then(r => { if (alive) setMethods(r.data.methods || []); })
+      .catch(() => { if (alive) setMethods([]); });
+    return () => { alive = false; clearInterval(pollRef.current); };
+  }, [gymId]);
 
   const poll = (paymentId) => {
     clearInterval(pollRef.current);
@@ -92,22 +95,30 @@ export default function PaymentFlow({ client, orderType, orderRef = {}, amount, 
 
       {stage === 'select' && (
         <>
-          <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>選擇付款方式</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
-            {ONLINE_METHODS.map(m => (
-              <button key={m.key} disabled={!m.enabled} onClick={() => startPayment(m.key)}
-                style={btn({
-                  background: m.enabled ? '#fff' : '#F5F5F5',
-                  border: `1.5px solid ${m.enabled ? '#E8D5D5' : '#EEE'}`,
-                  color: m.enabled ? '#1a1a1a' : '#bbb',
-                  cursor: m.enabled ? 'pointer' : 'not-allowed',
-                })}>
-                {m.icon} {m.label}{!m.enabled ? '（即將推出）' : ''}
-              </button>
-            ))}
-          </div>
-          {onCancel && (
-            <button onClick={cancel} style={btn({ width: '100%', marginTop: 14, background: 'none', border: '0.5px solid #E8D5D5', color: '#666' })}>取消</button>
+          {methods === null && <div style={{ textAlign: 'center', color: '#999', padding: 24 }}>載入付款方式…</div>}
+
+          {methods && methods.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 12 }}>
+              <div style={{ color: '#666', marginBottom: 14, fontSize: 13 }}>此館目前無可用線上付款，請改用匯款。</div>
+              <button onClick={cancel} style={btn({ width: '100%', background: red, color: '#fff' })}>關閉</button>
+            </div>
+          )}
+
+          {methods && methods.length > 0 && (
+            <>
+              <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>選擇付款方式</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+                {methods.map(m => (
+                  <button key={m.key} onClick={() => startPayment(m.key)}
+                    style={btn({ background: '#fff', border: '1.5px solid #E8D5D5', color: '#1a1a1a' })}>
+                    {m.icon} {m.label}
+                  </button>
+                ))}
+              </div>
+              {onCancel && (
+                <button onClick={cancel} style={btn({ width: '100%', marginTop: 14, background: 'none', border: '0.5px solid #E8D5D5', color: '#666' })}>取消</button>
+              )}
+            </>
           )}
         </>
       )}
