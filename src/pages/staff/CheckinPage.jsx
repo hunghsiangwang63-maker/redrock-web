@@ -683,17 +683,28 @@ export default function CheckinPage() {
                     </div>
                   )}
 
-                  {/* 金額小計 */}
+                  {/* 金額小計（反映所選票券：折扣券8折、黑卡/紅利/單次券免費） */}
                   {(() => {
-                    const entryPrice = (entryTypes.find(t => t.id === phoneEntryType)?.price || 0);
+                    const basePrice = (entryTypes.find(t => t.id === phoneEntryType)?.price || 0);
+                    let entryPrice = basePrice;
+                    if (phoneInstrument) {
+                      if (phoneInstrument.kind === 'discountCard') {
+                        const rate = memberEligibility?.instruments?.discountCard?.rate || 0.8;
+                        entryPrice = Math.round(basePrice * rate);
+                      } else {
+                        entryPrice = 0; // 黑卡/紅利/單次券免費
+                      }
+                    }
                     const shoePrice = phoneRentShoes ? (shoeRental?.price || 0) : 0;
                     const chalkPrice = phoneRentChalk ? (chalkRental?.price || 50) : 0;
                     const total = entryPrice + shoePrice + chalkPrice;
-                    if (total === 0) return null;
+                    const freeByInstrument = phoneInstrument && phoneInstrument.kind !== 'discountCard';
+                    if (total === 0 && !freeByInstrument) return null;
                     return (
                       <div style={{ background:'#F5EFEF', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#8B1A1A', fontWeight:500 }}>
                         合計：NT${total}
-                        {shoePrice > 0 && <span style={{ fontSize:11, fontWeight:400, color:'#666' }}> （入場 NT${entryPrice} + 岩鞋 NT${shoePrice}）</span>}
+                        {freeByInstrument && <span style={{ fontSize:11, fontWeight:400, color:'#2D7D46' }}> （票券免費入場{shoePrice>0?`，岩鞋 NT$${shoePrice}`:''}{chalkPrice>0?`，粉袋 NT$${chalkPrice}`:''}）</span>}
+                        {!freeByInstrument && shoePrice > 0 && <span style={{ fontSize:11, fontWeight:400, color:'#666' }}> （入場 NT${entryPrice} + 岩鞋 NT${shoePrice}）</span>}
                       </div>
                     );
                   })()}
