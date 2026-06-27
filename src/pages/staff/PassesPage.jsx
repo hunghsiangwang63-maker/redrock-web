@@ -9,6 +9,7 @@ import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Toolti
 import { getGyms } from '../../api/gyms';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
+import client from '../../api/client';
 import dayjs from 'dayjs';
 import CardsPage from './CardsPage';
 

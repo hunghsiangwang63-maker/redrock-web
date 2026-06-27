@@ -88,7 +88,7 @@ export default function CompetitionsPage() {
       name:c.name, description:c.description||'', gymId:c.gymId||'gym-hsinchu',
       registrationStart:c.registrationStart, registrationEnd:c.registrationEnd,
       earlyBirdDeadline:c.earlyBirdDeadline||'', eventDate:c.eventDate,
-      divisions: c.divisions.length ? c.divisions.map(d=>({ id:d.id, name:d.name, maxParticipants:d.maxParticipants||40, waitlistMax:d.waitlistMax||5 })) : emptyForm().divisions,
+      divisions: c.divisions?.length ? c.divisions.map(d=>({ id:d.id, name:d.name, maxParticipants:d.maxParticipants||40, waitlistMax:d.waitlistMax||5 })) : emptyForm().divisions,
       fees: c.fees || emptyForm().fees,
       refundPolicies: c.refundPolicies || emptyForm().refundPolicies,
       waiverContent: c.waiverContent||{zh:'',en:''},

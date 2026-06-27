@@ -98,9 +98,12 @@ export default function MemberCompetitionsPage() {
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),5000); };
 
+  // 報名對象（本人或選定的家庭成員）——年齡/監護人/費用一律以此人計算
+  const registrant = registerForId ? (familyMembers.find(c => c.id === registerForId) || member) : member;
+
   const isMinor = (() => {
-    if (!member?.birthday) return false;
-    return dayjs().diff(dayjs(member.birthday), 'year') < 18;
+    if (!registrant?.birthday) return false;
+    return dayjs().diff(dayjs(registrant.birthday), 'year') < 18;
   })();
 
   const calcFee = (comp) => {
@@ -109,7 +112,7 @@ export default function MemberCompetitionsPage() {
     const today = dayjs().format('YYYY-MM-DD');
     const isEarlyBird = comp.earlyBirdDeadline && today <= comp.earlyBirdDeadline;
     const childLimit = fees.childAgeLimit || 15;
-    const age = member?.birthday ? dayjs().diff(dayjs(member.birthday), 'year') : 99;
+    const age = registrant?.birthday ? dayjs().diff(dayjs(registrant.birthday), 'year') : 99;
     const isChild = age < childLimit;
     let fee = isChild
       ? (isEarlyBird ? fees.childEarlyBird : fees.childRegular) || 950
@@ -143,6 +146,7 @@ export default function MemberCompetitionsPage() {
 
   const openRegister = async (comp) => {
     setSelectedComp(comp);
+    setRegisterForId(null);
     setStep(1);
     setDivisionId(comp.divisions?.[0]?.id || '');
     setIsHonorary(false);

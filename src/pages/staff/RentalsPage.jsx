@@ -45,6 +45,10 @@ export default function RentalsPage({ embedded = false }) {
   const [actionModal, setActionModal] = useState(null); // { type:'confirm'|'return', rental }
   const [deductNote, setDeductNote] = useState('');
   const [depositReturned, setDepositReturned] = useState(true);
+  // 每次開啟「歸還」Modal 都重置押金/扣款欄位，避免帶入上一筆
+  useEffect(() => {
+    if (actionModal?.type === 'return') { setDepositReturned(true); setDeductNote(''); }
+  }, [actionModal]);
   const [actionSaving, setActionSaving] = useState(false);
   const [settingsModal, setSettingsModal] = useState(false);
   const [rentalSettings, setRentalSettings] = useState(null);

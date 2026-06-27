@@ -176,7 +176,6 @@ export default function MemberCoursesPage() {
   };
 
   const resetEnrollModal = () => {
-    resetEnrollModal();
     setEnrollStep(1);
     setPaymentMethod('cash');
     setPaymentDate('');

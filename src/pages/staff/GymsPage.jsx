@@ -56,7 +56,7 @@ export default function GymsPage({ embedded = false }) {
     if (!annForm.title || !annForm.effectiveFrom) { setAnnMsg('請填寫標題和開始日期'); return; }
     setAnnSaving(true);
     try {
-      const gymPathId = selected?.id || 'all';
+      const gymPathId = editingAnn ? (editingAnn.gymId || 'all') : (selected?.id || 'all');
       if (editingAnn) {
         await updateAnnouncement(gymPathId, editingAnn.id, annForm);
         setAnnMsg('公告已更新');

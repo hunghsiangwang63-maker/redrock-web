@@ -51,7 +51,7 @@ export default function MemberExperiencePage() {
   const updateParticipant = (i, field, val) => setParticipants(p=>p.map((item,idx)=>idx===i?{...item,[field]:val}:item));
 
   const n = participants.length;
-  const unitPrice = courseType==='general' ? getGeneralPrice(n) : COURSE_TYPES.find(c=>c.id===courseType)?.price||0;
+  const unitPrice = courseType==='general' ? getGeneralPrice(n) : (courseSettings?.courseTypes || FALLBACK_COURSE_TYPES).find(c=>c.id===courseType)?.price||0;
   const totalFee = courseType==='general' ? unitPrice * n : unitPrice * n;
 
   const handleSubmit = async () => {
