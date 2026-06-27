@@ -27,7 +27,8 @@ export default function MemberQRPage() {
 
   const [step, setStep] = useState('loading');
   const [verifyResult, setVerifyResult] = useState(null);
-  const [selectedEntry, setSelectedEntry] = useState(null);
+  const [selectedType, setSelectedType] = useState(null);   // 第一段：身分（入場類型）
+  const [selectedEntry, setSelectedEntry] = useState(null); // 第二段：付款/票券方式
   const [selectedCard, setSelectedCard] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [rentShoes, setRentShoes] = useState(false);
@@ -61,7 +62,7 @@ export default function MemberQRPage() {
     setStep('loading');
     setError(null);
     // 切換對象時清空上一位的流程狀態
-    setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null);
+    setSelectedType(null); setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null);
     setRentShoes(false); setRentChalk(false);
     setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
     try {
@@ -90,6 +91,7 @@ export default function MemberQRPage() {
         memberId: entrant.id,
         gymId,
         entryType: selectedEntry.type,
+        baseEntryType: selectedEntry.baseEntryType || null,
         rentShoes: shoes,
         shoesPrice: shoes ? 100 : 0,
         rentChalk: chalk,
@@ -98,18 +100,18 @@ export default function MemberQRPage() {
         originalAmount: 0,
       };
       if (selectedEntry.passId) payload.passId = selectedEntry.passId;
-      if (selectedCard) {
-        if (selectedEntry.type === 'discount_card') payload.discountCardId = selectedCard;
-        if (selectedEntry.type === 'black_card') payload.blackCardId = selectedCard;
-        if (selectedEntry.type === 'single_entry_ticket') payload.singleEntryTicketId = selectedCard;
-        if (selectedEntry.type === 'bonus') payload.bonusId = selectedCard;
+      const cardId = selectedEntry.cardId || selectedCard;
+      if (cardId) {
+        if (selectedEntry.instrumentKind === 'discountCard') payload.discountCardId = cardId;
+        if (selectedEntry.instrumentKind === 'blackCard') payload.blackCardId = cardId;
+        if (selectedEntry.instrumentKind === 'singleEntryTicket') payload.singleEntryTicketId = cardId;
+        if (selectedEntry.instrumentKind === 'bonus') payload.bonusId = cardId;
       }
       if (!selectedEntry.freeEntry) {
         payload.paymentMethod = selectedPayment;
-        const opt = verifyResult.availableOptions?.find(o => o.type === selectedEntry.type);
-        payload.originalAmount = opt?.price || 0;
-        payload.amount = opt?.discountedPrice ?? opt?.price ?? 0;
-        payload.isTeamDiscount = opt?.teamDiscount || false;
+        payload.originalAmount = selectedEntry.price || 0;
+        payload.amount = selectedEntry.discountedPrice ?? selectedEntry.price ?? 0;
+        payload.isTeamDiscount = selectedEntry.teamDiscount || false;
       }
 
       const res = await memberClient.post('/checkin/qr/create', payload);
@@ -269,11 +271,12 @@ export default function MemberQRPage() {
     );
   }
 
+  // 第一段：選身分（入場類型）
   if (step === 'select_entry') {
-    const options = verifyResult?.availableOptions || [];
+    const types = verifyResult?.entryTypeOptions || [];
     return wrap(
       <>
-        <Header title="選擇入場方式" onBack={() => navigate('/member/home')} />
+        <Header title="選擇身分" onBack={() => navigate('/member/home')} />
         <MemberSelector />
         <div style={{ padding:20 }}>
           {verifyResult?.member?.isTeamMember && (
@@ -281,44 +284,81 @@ export default function MemberQRPage() {
               🏅 隊員身份：NT$100 以上消費享九折優惠
             </div>
           )}
-          <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>請選擇本次入場方式</div>
-          {options.map(opt => (
+          <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>請選擇入場身分</div>
+          {types.map(opt => (
             <div key={opt.type}
-              onClick={() => {
-                if (!opt.available) return;
-                setSelectedEntry(opt);
-                const cards = opt.discountCards || opt.blackCards || opt.tickets || opt.bonuses || [];
-                if (opt.type === 'discount_card' || opt.type === 'black_card' || opt.type === 'single_entry_ticket' || opt.type === 'bonus') {
-                  setSelectedCard(cards.length === 1 ? cards[0].id : null);
-                  // 折扣券需付八折金額→付款步驟；黑卡/單次券/紅利為免費→直接租借
-                  setStep(opt.requiresPayment ? 'select_payment' : 'shoes');
-                } else if (opt.requiresPayment || opt.type === 'buy_discount_card') {
-                  // 動態入場類型（含自訂）一律走付款步驟
-                  setStep('select_payment');
-                } else {
-                  setStep('shoes');
-                }
-              }}
-              style={{ background: opt.available ? '#fff' : '#f5f5f5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor: opt.available ? 'pointer' : 'not-allowed', opacity: opt.available ? 1 : 0.5, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:600, fontSize:14, color: opt.available ? '#1a1a1a' : '#999', textAlign:'left' }}>{opt.label?.trim()}</div>
-                {opt.note && <div style={{ fontSize:11, color:'#999', marginTop:3 }}>{opt.note}</div>}
-                {(opt.discountCards?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>共 {opt.discountCards.length} 張可用</div>}
-                {(opt.blackCards?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>共 {opt.blackCards.length} 張可用</div>}
-                {(opt.tickets?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>共 {opt.tickets.length} 張可用</div>}
-              </div>
-              <div style={{ textAlign:'right' }}>
+              onClick={() => { setSelectedType(opt); setStep('select_method'); }}
+              style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{opt.label?.trim()}</div>
+              <div style={{ textAlign:'right', display:'flex', alignItems:'center', gap:8 }}>
                 {opt.discountedPrice !== undefined && opt.discountedPrice < opt.price ? (
                   <div>
                     <div style={{ fontSize:11, color:'#999', textDecoration:'line-through' }}>NT${opt.price}</div>
                     <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${opt.discountedPrice}</div>
                   </div>
-                ) : opt.price > 0 ? (
+                ) : (
                   <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${opt.price}</div>
-                ) : opt.price === 0 && opt.type !== 'buy_discount_card' ? (
-                  <div style={{ fontSize:12, color:'#2D7D46', fontWeight:600 }}>免費</div>
-                ) : null}
-                {opt.available ? <div style={{ fontSize:18, color:'#ccc' }}>›</div> : <div style={{ fontSize:11, color:'#ccc' }}>無可用</div>}
+                )}
+                <div style={{ fontSize:18, color:'#ccc' }}>›</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  // 第二段：選擇付款方式 / 票券（已選身分後）
+  if (step === 'select_method') {
+    const t = selectedType || {};
+    const inst = verifyResult?.instruments || {};
+    const basePrice = t.discountedPrice ?? t.price ?? 0;       // 一般付款（含隊員折扣）
+    const methods = [
+      { kind:'pay', type:t.type, baseEntryType:t.type, label:'一般付款', price:t.price, discountedPrice:basePrice,
+        teamDiscount:t.teamDiscount, freeEntry:false, requiresPayment:true },
+    ];
+    if (inst.discountCard?.available) {
+      const dp = Math.round((t.price || 0) * (inst.discountCard.rate || 0.8));
+      methods.push({ kind:'discountCard', type:'discount_card', baseEntryType:t.type, label:'使用優惠折扣券（原價 8 折）',
+        price:t.price, discountedPrice:dp, freeEntry:false, requiresPayment:true,
+        instrumentKind:'discountCard', cards:inst.discountCard.cards });
+    }
+    if (inst.blackCard?.available) methods.push({ kind:'blackCard', type:'black_card', label:'使用黑卡（免費）', freeEntry:true, instrumentKind:'blackCard', cards:inst.blackCard.cards });
+    if (inst.bonus?.available) methods.push({ kind:'bonus', type:'bonus', label:'使用紅利（免費）', freeEntry:true, instrumentKind:'bonus', cards:inst.bonus.bonuses });
+    if (inst.singleEntryTicket?.available) methods.push({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true, instrumentKind:'singleEntryTicket', cards:inst.singleEntryTicket.tickets });
+    if (inst.buyDiscountCard) methods.push({ kind:'buy', type:'buy_discount_card', label:'購買優惠折扣券入場', note:'含本次入場＋10次八折＋紅利', price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
+    return wrap(
+      <>
+        <Header title="選擇付款方式" onBack={() => setStep('select_entry')} />
+        <MemberSelector />
+        <div style={{ padding:20 }}>
+          <div style={{ fontSize:13, color:'#666', marginBottom:4 }}>身分：<b>{t.label}</b></div>
+          <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>請選擇付款方式或使用票券</div>
+          {methods.map(m => (
+            <div key={m.kind}
+              onClick={() => {
+                const cardId = m.cards && m.cards.length === 1 ? m.cards[0].id : (m.cards && m.cards.length ? m.cards[0].id : null);
+                setSelectedEntry({ ...m, baseEntryType: m.baseEntryType || m.type, cardId });
+                setStep(m.requiresPayment ? 'select_payment' : 'shoes');
+              }}
+              style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a', textAlign:'left' }}>{m.label}</div>
+                {m.note && <div style={{ fontSize:11, color:'#999', marginTop:3 }}>{m.note}</div>}
+                {(m.cards?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>共 {m.cards.length} 張可用</div>}
+              </div>
+              <div style={{ textAlign:'right' }}>
+                {m.freeEntry ? (
+                  <span style={{ fontSize:12, color:'#2D7D46', fontWeight:600 }}>免費</span>
+                ) : m.discountedPrice !== undefined && m.discountedPrice < m.price ? (
+                  <div>
+                    <div style={{ fontSize:11, color:'#999', textDecoration:'line-through' }}>NT${m.price}</div>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${m.discountedPrice}</div>
+                  </div>
+                ) : (
+                  <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${m.discountedPrice ?? m.price}</div>
+                )}
+                <span style={{ fontSize:18, color:'#ccc', marginLeft:8 }}>›</span>
               </div>
             </div>
           ))}
@@ -329,7 +369,7 @@ export default function MemberQRPage() {
 
   if (step === 'select_payment') return wrap(
     <>
-      <Header title="選擇付款方式" onBack={() => setStep('select_entry')} />
+      <Header title="選擇付款方式" onBack={() => setStep('select_method')} />
       <MemberSelector />
       <div style={{ padding:20 }}>
         <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:13 }}>
@@ -356,9 +396,9 @@ export default function MemberQRPage() {
   if (step === 'shoes') return wrap(
     <>
       <Header title="租借器材" onBack={() => {
-        if (selectedEntry?.freeEntry) doVerify();
-        else if (selectedPayment) setStep('select_payment');
-        else setStep('select_entry');
+        if (selectedPayment) setStep('select_payment');
+        else if (selectedType) setStep('select_method');
+        else doVerify();
       }} />
       <MemberSelector />
       <div style={{ padding:20 }}>
@@ -412,7 +452,7 @@ export default function MemberQRPage() {
             {qrDataUrl && <img src={qrDataUrl} alt="QR Code" style={{ width:220, height:220, borderRadius:10 }} />}
             <div style={{ marginTop:16 }}>
               <div style={{ fontWeight:600, fontSize:18 }}>{entrant?.name}</div>
-              <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{selectedEntry?.label || ENTRY_TYPE_LABEL[selectedEntry?.type] || selectedEntry?.type}</div>
+              <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{selectedType?.label ? `${selectedType.label}・${selectedEntry?.label || ''}` : (selectedEntry?.label || ENTRY_TYPE_LABEL[selectedEntry?.type] || selectedEntry?.type)}</div>
             </div>
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (

@@ -103,6 +103,7 @@ export default function CheckinPage() {
   const [phoneCheckedIn, setPhoneCheckedIn] = useState(null);
   const [phoneSelectedMember, setPhoneSelectedMember] = useState(null);
   const [memberEligibility, setMemberEligibility] = useState(null);
+  const [phoneInstrument, setPhoneInstrument] = useState(null); // 票券：null=一般付款
   const [phoneSubMembers, setPhoneSubMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState(null);
@@ -273,23 +274,40 @@ export default function CheckinPage() {
   };
 
   const handlePhoneCheckin = async () => {
-    console.log('[手機入場] handlePhoneCheckin 觸發，phoneSelectedMember =', phoneSelectedMember);
     if (!phoneSelectedMember) {
       setPhoneError('請先選擇入場人員');
       return;
     }
-    // 有定期票時自動使用 pass 入場，不需選入場類型
-    const effectiveEntryType = memberEligibility?.isVip ? 'vip' : memberEligibility?.hasValidPass ? 'pass' : memberEligibility?.hasCourseAccess ? 'course_access' : phoneEntryType;
     setPhoneLoading(true);
     try {
-      const res = await client.post('/checkin/phone', {
-        memberId: phoneSelectedMember.id,
-        gymId: targetGymId,
-        entryType: effectiveEntryType,
-        paymentMethod: phonePayment,
-        rentShoes: phoneRentShoes,
-        rentChalk: phoneRentChalk,
-      });
+      let res;
+      if (phoneInstrument) {
+        // 兩段流程：身分(phoneEntryType) + 票券(instrument)，走 /checkin/direct（重用結算邏輯）
+        res = await client.post('/checkin/direct', {
+          memberId: phoneSelectedMember.id,
+          gymId: targetGymId,
+          entryType: phoneInstrument.type,      // discount_card/black_card/bonus/single_entry_ticket
+          baseEntryType: phoneEntryType,        // 身分（折扣券 8 折基準）
+          discountCardId: phoneInstrument.kind === 'discountCard' ? phoneInstrument.cardId : undefined,
+          blackCardId: phoneInstrument.kind === 'blackCard' ? phoneInstrument.cardId : undefined,
+          bonusId: phoneInstrument.kind === 'bonus' ? phoneInstrument.cardId : undefined,
+          singleEntryTicketId: phoneInstrument.kind === 'singleEntryTicket' ? phoneInstrument.cardId : undefined,
+          paymentMethod: phonePayment,
+          rentShoes: phoneRentShoes,
+          rentChalk: phoneRentChalk,
+        });
+      } else {
+        // 一般付款／免費身分：維持原 /checkin/phone
+        const effectiveEntryType = memberEligibility?.isVip ? 'vip' : memberEligibility?.hasValidPass ? 'pass' : memberEligibility?.hasCourseAccess ? 'course_access' : phoneEntryType;
+        res = await client.post('/checkin/phone', {
+          memberId: phoneSelectedMember.id,
+          gymId: targetGymId,
+          entryType: effectiveEntryType,
+          paymentMethod: phonePayment,
+          rentShoes: phoneRentShoes,
+          rentChalk: phoneRentChalk,
+        });
+      }
       setPhoneCheckedIn({
         ...res.data.checkIn,
         needsPromotion: res.data.needsPromotion || false,
@@ -299,6 +317,7 @@ export default function CheckinPage() {
       setPhoneInput('');
       setPhoneRentShoes(false);
       setPhoneRentChalk(false);
+      setPhoneInstrument(null);
       await loadStats();
     } catch (e) {
       setPhoneError(e.response?.data?.message || '入場失敗');
@@ -528,6 +547,7 @@ export default function CheckinPage() {
                       <button key={m.id || m.name} type="button" onClick={async () => {
                         setPhoneSelectedMember(m);
                         setMemberEligibility(null);
+                        setPhoneInstrument(null);
                         try {
                           const res = await client.get(`/checkin/eligibility/${m.id}`, { params: { gymId: targetGymId } });
                           // 若後端 isVip 未設定，用本地 memberType 補強
@@ -596,6 +616,32 @@ export default function CheckinPage() {
                       </button>
                     ))}
                   </div>
+                  {/* 票券（兩段流程第二段）：選身分後可改用優惠券/黑卡/紅利/單次券 */}
+                  {(() => {
+                    const inst = memberEligibility?.instruments || {};
+                    const basePrice = entryTypes.find(t => t.id === phoneEntryType)?.price || 0;
+                    const opts = [{ key:'pay', kind:null, type:null, label:'一般付款' }];
+                    if (inst.discountCard?.available) opts.push({ key:'discountCard', kind:'discountCard', type:'discount_card', label:`優惠券8折 NT$${Math.round(basePrice*(inst.discountCard.rate||0.8))}`, cardId: inst.discountCard.cards[0]?.id });
+                    if (inst.blackCard?.available) opts.push({ key:'blackCard', kind:'blackCard', type:'black_card', label:'黑卡（免費）', cardId: inst.blackCard.cards[0]?.id });
+                    if (inst.bonus?.available) opts.push({ key:'bonus', kind:'bonus', type:'bonus', label:'紅利（免費）', cardId: inst.bonus.bonuses[0]?.id });
+                    if (inst.singleEntryTicket?.available) opts.push({ key:'ticket', kind:'singleEntryTicket', type:'single_entry_ticket', label:'單次入場券（免費）', cardId: inst.singleEntryTicket.tickets[0]?.id });
+                    if (opts.length === 1) return null;
+                    const cur = phoneInstrument?.kind || null;
+                    return (
+                      <>
+                        <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>使用票券</div>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+                          {opts.map(o => (
+                            <button key={o.key} type="button"
+                              onClick={() => setPhoneInstrument(o.kind ? { kind:o.kind, type:o.type, cardId:o.cardId } : null)}
+                              style={{ height:34, padding:'0 12px', borderRadius:8, border:`0.5px solid ${cur===o.kind?'#8B1A1A':'#E8D5D5'}`, background: cur===o.kind?'#8B1A1A':'#fff', color: cur===o.kind?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
                     </>
                   )}
 
