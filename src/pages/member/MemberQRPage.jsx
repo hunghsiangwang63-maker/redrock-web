@@ -14,7 +14,7 @@ const PAYMENT_METHODS = [
 
 const ENTRY_TYPE_LABEL = {
   pass: '定期票', vip: 'VIP 免費入場', course_access: '課程學員',
-  child_free: '兒童免費入場', student_free: '學生免費入場',
+  child_free: '兒童入場', student_free: '學生入場',
   discount_card: '使用優惠折扣券', black_card: '使用黑卡',
   single_entry_ticket: '使用單次入場券', single_ticket: '單次購票',
   buy_discount_card: '購買優惠折扣券',

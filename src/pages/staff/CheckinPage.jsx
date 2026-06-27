@@ -9,7 +9,7 @@ import dayjs from 'dayjs';
 
 const ENTRY_TYPE_LABEL = {
   pass: '定期票', vip: 'VIP', course_access: '課程學員',
-  child_free: '兒童免費', student_free: '學生免費',
+  child_free: '兒童入場', student_free: '學生入場',
   discount_card: '優惠折扣券', black_card: '黑卡',
   single_entry_ticket: '單次入場券', single_ticket: '單次購票',
   buy_discount_card: '購買優惠折扣券',
@@ -576,8 +576,8 @@ export default function CheckinPage() {
                     {(entryTypes.length > 0 ? entryTypes : [
                       {id:'single_ticket', name:'單次入場', price:200},
                       {id:'course_access', name:'課程學員', price:0},
-                      {id:'child_free', name:'兒童免費', price:0},
-                      {id:'student_free', name:'學生免費', price:0},
+                      {id:'child_free', name:'兒童入場', price:100},
+                      {id:'student_free', name:'學生入場', price:250},
                     ]).filter(t => {
                       if (!t.memberTypes || t.memberTypes.length === 0) return true;
                       if (!memberEligibility) return true;
