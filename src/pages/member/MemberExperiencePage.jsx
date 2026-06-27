@@ -4,6 +4,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
+import PaymentFlow from '../../components/PaymentFlow';
 
 const FALLBACK_COURSE_TYPES = [
   { id:'general',    label:'抱石體驗課程（依人數計費）' },
@@ -26,6 +27,7 @@ export default function MemberExperiencePage() {
   const [tab, setTab] = useState('apply');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
+  const [payFor, setPayFor] = useState(null); // { bookingId, fee, gymId }
 
   const [gymId, setGymId] = useState('gym-hsinchu');
   const [courseType, setCourseType] = useState('general');
@@ -68,12 +70,14 @@ export default function MemberExperiencePage() {
         contactName: member.name, contactEmail: member.email, contactPhone: member.phone, facebookName,
         participants, totalFee, paymentDate: payment.paymentDate, bankLastFive: payment.bankLastFive, paymentMethod: payment.method, notes,
       });
-      showMsg(res.data.message || '預約已送出！');
+      const bookingId = res.data.id; const fee = totalFee;
       setParticipants([{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
       setBookingDate(''); setBookingTime(''); setPayment({ method:'transfer', paymentDate:'', bankLastFive:'' }); setNotes('');
       const r = await memberClient.get('/experience-bookings/my');
       setMyBookings(r.data.bookings||[]);
       setTab('my');
+      if (fee > 0) setPayFor({ bookingId, fee, gymId });
+      else showMsg(res.data.message || '預約已送出！');
     } catch(err) { showMsg(err.response?.data?.message||'送出失敗','red'); }
     finally { setSubmitting(false); }
   };
@@ -92,6 +96,27 @@ export default function MemberExperiencePage() {
 
   return (
     <div style={{ minHeight:'100vh', background:'#FBF5F5', paddingBottom:80 }}>
+      {/* 線上付款 Modal（Phase 1：體驗預約）*/}
+      {payFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontWeight:600, fontSize:15 }}>完成繳費</div>
+              <button onClick={()=>{ setPayFor(null); showMsg('預約已保留，可於「我的預約」完成繳費或改用匯款'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <PaymentFlow
+              client={memberClient}
+              orderType="experience"
+              orderRef={{ bookingId: payFor.bookingId }}
+              amount={payFor.fee}
+              gymId={payFor.gymId}
+              onPaid={()=>{ setPayFor(null); showMsg('繳費完成，預約已確認！'); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])); }}
+              onCancel={()=>{ setPayFor(null); showMsg('預約已保留，可於「我的預約」完成繳費或改用匯款'); }}
+            />
+          </div>
+        </div>
+      )}
+
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={()=>navigate('/member/home')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
         <div style={{ fontSize:18, fontWeight:700 }}>🧗 體驗課程預約</div>
