@@ -70,6 +70,7 @@ export default function MemberProfilePage() {
   const handleAddChild = async () => {
     if (!childName.trim()) { setFamilyMsg('請填寫姓名'); return; }
     if (!childBirthday) { setFamilyMsg('請填寫生日（用於判斷入場資格）'); return; }
+    if (dayjs().diff(dayjs(childBirthday), 'year') >= 18) { setFamilyMsg('家庭成員僅限未滿 18 歲，滿 18 歲請註冊正式會員'); return; }
     setAddingChild(true);
     try {
       const r = await memberClient.post('/members/my/children', {
@@ -162,16 +163,7 @@ export default function MemberProfilePage() {
         {member?.emergencyContact && (
           <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
             <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>緊急聯絡人</div>
-            {[
-              { label:'姓名', value: member.emergencyContact.name },
-              { label:'電話', value: member.emergencyContact.phone },
-              { label:'關係', value: member.emergencyContact.relation },
-            ].map(r => (
-              <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13 }}>
-                <span style={{ color:'#6b6b6b' }}>{r.label}</span>
-                <span style={{ fontWeight:500 }}>{r.value || '—'}</span>
-              </div>
-            ))}
+            <div style={{ fontSize:13, fontWeight:500 }}>{member.emergencyContact}</div>
           </div>
         )}
         {/* Waiver */}

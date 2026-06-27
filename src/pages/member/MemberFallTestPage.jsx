@@ -21,6 +21,7 @@ export default function MemberFallTestPage() {
   const forChildId = searchParams.get('forChild');
   const forChildName = searchParams.get('childName');
   const { member } = useMember();
+  const targetId = forChildId || member?.id; // 代簽子帳號時為子帳號 id，否則為本人
   const navigate = useNavigate();
   const sigRef = useRef(null);
   const guardianSigRef = useRef(null);
@@ -48,7 +49,6 @@ export default function MemberFallTestPage() {
     if (!member) return;
     const load = async () => {
       try { const s = await getFallTestSettings(); setSettings(s.data); } catch {}
-      const targetId = forChildId || member.id;
       try { const st = await getMyFallTestStatus(targetId); setStatus(st.data); } catch {}
       try { const sig = await getFallTestSignature(targetId); setSignature(sig.data.signature); } catch {}
       setSignatureLoading(false);
@@ -131,14 +131,15 @@ export default function MemberFallTestPage() {
     try {
       await signFallTestAgreement({
         memberId: member.id,
+        targetMemberId: forChildId || undefined, // 代簽子帳號時帶子帳號 id，後端據此寫到子帳號
         signatureData: sigRef.current.toDataURL(),
         watchPercent,
         agreedParagraphs: Array.from(agreedParagraphs),
         guardianSignatureData: isUnder12 ? guardianSigRef.current.toDataURL() : null,
       });
       const [st, sig] = await Promise.all([
-        getMyFallTestStatus(member.id),
-        getFallTestSignature(member.id),
+        getMyFallTestStatus(targetId),
+        getFallTestSignature(targetId),
       ]);
       setStatus(st.data);
       setSignature(sig.data.signature);
