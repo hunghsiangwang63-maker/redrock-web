@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { getPassTypes, getMemberPasses, createPass, updatePass, renewPass,
          getMemberSingleEntryTickets, issueSingleEntryTicket,
-         getPendingTickets, approveTicket, rejectTicket,
          createPassType, updatePassType, deactivatePassType } from '../../api/passes';
-import { getPassHistory, editPassWithReason, getAllPassRequests, approvePassRequest, rejectPassRequest, runHolidayBatchExtension, getHolidayHistory } from '../../api/passAdjustments';
-import { getCourseAdjustmentRequests, approveCourseAdjustment, rejectCourseAdjustment, restoreCourseEnrollment } from '../../api/courseAdjustments';
+import { getPassHistory, editPassWithReason, getAllPassRequests, runHolidayBatchExtension, getHolidayHistory } from '../../api/passAdjustments';
+import { getCourseAdjustmentRequests, restoreCourseEnrollment } from '../../api/courseAdjustments';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getGyms } from '../../api/gyms';
 import { searchMembers } from '../../api/members';
@@ -77,11 +76,6 @@ export default function PassesPage() {
   const [pendingRequests, setPendingRequests] = useState([]);
   const [requestsFilter, setRequestsFilter] = useState('pending');
   const [requestsLoading, setRequestsLoading] = useState(false);
-  const [reviewingRequest, setReviewingRequest] = useState(null);
-  const [reviewExtensionMonths, setReviewExtensionMonths] = useState('6');
-  const [reviewHasInvoice, setReviewHasInvoice] = useState(false);
-  const [reviewRejectReason, setReviewRejectReason] = useState('');
-  const [reviewSaving, setReviewSaving] = useState(false);
 
   // 票券統計
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -111,10 +105,6 @@ export default function PassesPage() {
   // 課程退費/暫停申請審核
   const [courseRequests, setCourseRequests] = useState([]);
   const [courseRequestsLoading, setCourseRequestsLoading] = useState(false);
-  const [reviewingCourseRequest, setReviewingCourseRequest] = useState(null);
-  const [courseRefundAmount, setCourseRefundAmount] = useState('');
-  const [courseRejectReason, setCourseRejectReason] = useState('');
-  const [courseReviewSaving, setCourseReviewSaving] = useState(false);
 
   const loadCourseRequests = async () => {
     setCourseRequestsLoading(true);
@@ -122,29 +112,6 @@ export default function PassesPage() {
       const res = await getCourseAdjustmentRequests();
       setCourseRequests(res.data.requests || []);
     } catch (e) {} finally { setCourseRequestsLoading(false); }
-  };
-
-  const handleCourseApprove = async () => {
-    setCourseReviewSaving(true);
-    try {
-      const data = reviewingCourseRequest.type === 'refund' ? { finalRefund: Number(courseRefundAmount) } : {};
-      const res = await approveCourseAdjustment(reviewingCourseRequest.id, data);
-      setReviewingCourseRequest(null);
-      await loadCourseRequests();
-      showBanner(res.data.message || '已核准');
-    } catch (err) { alert(err.response?.data?.message || '操作失敗'); }
-    finally { setCourseReviewSaving(false); }
-  };
-
-  const handleCourseReject = async () => {
-    setCourseReviewSaving(true);
-    try {
-      await rejectCourseAdjustment(reviewingCourseRequest.id, { reason: courseRejectReason });
-      setReviewingCourseRequest(null);
-      await loadCourseRequests();
-      showBanner('已拒絕');
-    } catch (err) { alert(err.response?.data?.message || '操作失敗'); }
-    finally { setCourseReviewSaving(false); }
   };
 
   // 年假批次展延
@@ -174,11 +141,8 @@ export default function PassesPage() {
   const [ticketMemberResults, setTicketMemberResults] = useState([]);
   const [ticketMember, setTicketMember] = useState(null);
   const [memberTickets, setMemberTickets] = useState([]);
-  const [pendingTickets, setPendingTickets] = useState([]);
   const [showIssueTicket, setShowIssueTicket] = useState(false);
   const [ticketNotes, setTicketNotes] = useState('');
-  const [rejectingId, setRejectingId] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
@@ -193,7 +157,6 @@ export default function PassesPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'tickets') loadPendingTickets();
     if (tab === 'requests') loadPendingRequests();
     if (tab === 'holiday') loadGymsForHoliday();
   }, [tab]);
@@ -275,13 +238,6 @@ export default function PassesPage() {
     } catch (err) {
       alert(err.response?.data?.message || '停用失敗');
     }
-  };
-
-  const loadPendingTickets = async () => {
-    try {
-      const res = await getPendingTickets();
-      setPendingTickets(res.data.tickets || []);
-    } catch (e) {}
   };
 
   // ── 定期票 ──
@@ -371,44 +327,6 @@ export default function PassesPage() {
     } finally { setEditPassSaving(false); }
   };
 
-  const openReviewRequest = (request) => {
-    setReviewingRequest(request);
-    setReviewExtensionMonths('6');
-    setReviewHasInvoice(false);
-    setReviewRejectReason('');
-  };
-
-  const handleApproveRequest = async () => {
-    if (reviewingRequest.type === 'refund' && !reviewHasInvoice) {
-      showMsg('退費需先確認會員已提供發票正本', 'red'); return;
-    }
-    setReviewSaving(true);
-    try {
-      const res = await approvePassRequest(reviewingRequest.id, {
-        extensionMonths: reviewExtensionMonths,
-        hasInvoice: reviewHasInvoice,
-      });
-      showMsg(res.data.message);
-      setReviewingRequest(null);
-      await loadPendingRequests();
-    } catch (err) {
-      showMsg(err.response?.data?.message || '核准失敗', 'red');
-    } finally { setReviewSaving(false); }
-  };
-
-  const handleRejectRequest = async () => {
-    if (!reviewRejectReason.trim()) { showMsg('請填寫拒絕原因', 'red'); return; }
-    setReviewSaving(true);
-    try {
-      await rejectPassRequest(reviewingRequest.id, reviewRejectReason);
-      showMsg('已拒絕此申請');
-      setReviewingRequest(null);
-      await loadPendingRequests();
-    } catch (err) {
-      showMsg(err.response?.data?.message || '操作失敗', 'red');
-    } finally { setReviewSaving(false); }
-  };
-
   const toggleHolidayGym = (gymId, field, value) => {
     setHolidayRanges(prev => ({ ...prev, [gymId]: { ...prev[gymId], [field]: value } }));
   };
@@ -465,38 +383,10 @@ export default function PassesPage() {
       setTicketNotes('');
       const res = await getMemberSingleEntryTickets(ticketMember.id);
       setMemberTickets(res.data.tickets || []);
-      await loadPendingTickets();
     } catch (err) {
       showMsg(err.response?.data?.message || '發放失敗', 'red');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleApprove = async (id) => {
-    try {
-      await approveTicket(id);
-      showMsg('審核通過');
-      await loadPendingTickets();
-      if (ticketMember) {
-        const res = await getMemberSingleEntryTickets(ticketMember.id);
-        setMemberTickets(res.data.tickets || []);
-      }
-    } catch (err) {
-      showMsg(err.response?.data?.message || '操作失敗', 'red');
-    }
-  };
-
-  const handleReject = async (id) => {
-    if (!rejectReason.trim()) { showMsg('請填寫拒絕原因', 'red'); return; }
-    try {
-      await rejectTicket(id, rejectReason);
-      showMsg('已拒絕');
-      setRejectingId(null);
-      setRejectReason('');
-      await loadPendingTickets();
-    } catch (err) {
-      showMsg(err.response?.data?.message || '操作失敗', 'red');
     }
   };
 
@@ -516,14 +406,14 @@ export default function PassesPage() {
         { key:'list',    icon:'🎫', label:'定期票' },
         { key:'types',   icon:'📋', label:'票種定義' },
         { key:'cards',   icon:'💳', label:'優惠卡/黑卡' },
-        { key:'tickets', icon:'🎟️', label:'單次發放', badge: pendingTickets.length },
+        { key:'tickets', icon:'🎟️', label:'單次發放' },
       ],
     },
     {
       group: '申請審核',
       items: canManagePass ? [
-        { key:'requests',       icon:'📬', label:'票券申請', badge: pendingRequests.length },
-        { key:'courseRequests', icon:'📚', label:'課程退費', badge: courseRequests.filter(r=>r.status==='pending').length },
+        { key:'requests',       icon:'📬', label:'票券申請' },
+        { key:'courseRequests', icon:'📚', label:'課程退費' },
       ] : [],
     },
     {
@@ -735,10 +625,7 @@ export default function PassesPage() {
                           style={{ fontSize:11, color:'#185FA5' }}>查看證明文件</a>
                       )}
                       {r.status === 'pending' && (
-                        <button onClick={() => openReviewRequest(r)}
-                          style={{ marginLeft:'auto', height:28, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                          審核
-                        </button>
+                        <span style={{ marginLeft:'auto', fontSize:11, color:'#854F0B' }}>待審核（於待辦總覽處理）</span>
                       )}
                       {r.status === 'approved' && (
                         <div style={{ marginLeft:'auto', fontSize:11, color:'#2D7D46' }}>
@@ -791,10 +678,7 @@ export default function PassesPage() {
                         <Tag type={statusTag.type}>{statusTag.label}</Tag>
                       </div>
                       {r.status === 'pending' && (
-                        <button onClick={() => { setReviewingCourseRequest(r); setCourseRefundAmount(r.suggestedRefund?.toString() || '0'); setCourseRejectReason(''); }}
-                          style={{ height:28, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                          審核
-                        </button>
+                        <span style={{ fontSize:11, color:'#854F0B' }}>待審核（於待辦總覽處理）</span>
                       )}
                       {r.status === 'rejected' && r.rejectReason && (
                         <div style={{ fontSize:11, color:'#A32D2D', marginTop:4 }}>拒絕原因：{r.rejectReason}</div>
@@ -806,43 +690,6 @@ export default function PassesPage() {
             )
           )}
         </div>
-      )}
-
-      {/* ── 課程申請審核 Modal ── */}
-      {reviewingCourseRequest && (
-        <Modal title={`審核課程申請 — ${reviewingCourseRequest.memberName}`} onClose={() => setReviewingCourseRequest(null)}>
-          <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:16, fontSize:13 }}>
-            <div>{reviewingCourseRequest.courseName} · {{ refund:'退費', pause:'暫停' }[reviewingCourseRequest.type]}申請</div>
-            <div style={{ color:'#999', fontSize:12, marginTop:4 }}>原因：{reviewingCourseRequest.reason}</div>
-          </div>
-          {reviewingCourseRequest.type === 'refund' && (
-            <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>
-                實際退款金額（建議 NT${reviewingCourseRequest.suggestedRefund}，{reviewingCourseRequest.suggestedPercentage}%）
-              </label>
-              <input type="number" value={courseRefundAmount} onChange={e => setCourseRefundAmount(e.target.value)}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-            </div>
-          )}
-          {reviewingCourseRequest.type === 'pause' && (
-            <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#8B6914' }}>
-              核准後將移除學員課程學員入場資格，並從所有未來場次名單移除
-            </div>
-          )}
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>若拒絕，請填寫原因</label>
-            <input value={courseRejectReason} onChange={e => setCourseRejectReason(e.target.value)} placeholder="拒絕原因（選填）"
-              style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box' }}/>
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={handleCourseReject} disabled={courseReviewSaving}
-              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', fontSize:13, cursor:'pointer' }}>拒絕</button>
-            <button onClick={handleCourseApprove} disabled={courseReviewSaving}
-              style={{ flex:2, height:40, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {courseReviewSaving ? '處理中...' : '核准'}
-            </button>
-          </div>
-        </Modal>
       )}
 
       {/* ── 票券統計 ── */}
@@ -1077,78 +924,14 @@ export default function PassesPage() {
         </div>
       )}
 
-      {/* 審核 Modal */}
-      {reviewingRequest && (
-        <Modal title={`審核申請 — ${reviewingRequest.memberName}`} onClose={() => setReviewingRequest(null)}>
-          <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:16, fontSize:13 }}>
-            <div>{reviewingRequest.passTypeName || '定期票'} · {{ extension:'展延', refund:'退費', transfer:'轉讓', course_practice_deferral:'課程練習期遞延' }[reviewingRequest.type] || reviewingRequest.type}申請</div>
-            {reviewingRequest.type === 'course_practice_deferral' ? (
-              <>
-                <div style={{ color:'#185FA5', fontSize:12, marginTop:6, background:'#E6F1FB', borderRadius:6, padding:'6px 10px' }}>
-                  課程：{reviewingRequest.courseName}<br/>
-                  無限練習期至：{reviewingRequest.practiceEnd}<br/>
-                  定期票剩餘 {reviewingRequest.remainingDays} 天<br/>
-                  到期日：{reviewingRequest.currentEndDate} → <strong>{reviewingRequest.proposedEndDate}</strong>
-                </div>
-              </>
-            ) : (
-              <>
-                <div style={{ color:'#999', fontSize:12, marginTop:4 }}>事由：{reviewingRequest.reasonLabel}</div>
-                {reviewingRequest.reasonDetail && <div style={{ color:'#999', fontSize:12 }}>補充：{reviewingRequest.reasonDetail}</div>}
-                <a href={reviewingRequest.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'#185FA5', display:'inline-block', marginTop:6 }}>查看證明文件 →</a>
-              </>
-            )}
-          </div>
-
-          {reviewingRequest.type === 'extension' && (
-            <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>展延月數（最長6個月）</label>
-              <input type="number" min="1" max="6" value={reviewExtensionMonths} onChange={e => setReviewExtensionMonths(e.target.value)}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-            </div>
-          )}
-
-          {reviewingRequest.type === 'refund' && (
-            <div style={{ marginBottom:16 }}>
-              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer' }}>
-                <input type="checkbox" checked={reviewHasInvoice} onChange={e => setReviewHasInvoice(e.target.checked)} />
-                會員已親自持發票正本至櫃檯辦理
-              </label>
-              <div style={{ fontSize:11, color:'#999', marginTop:6 }}>系統將自動依剩餘天數比例計算退費金額，扣除NT$600手續費後四捨五入。</div>
-            </div>
-          )}
-
-          {reviewingRequest.type === 'transfer' && (
-            <div style={{ marginBottom:16, fontSize:12, color:'#999' }}>
-              將轉讓至電話 {reviewingRequest.transferToPhone} 的會員，需收取NT$300手續費（手續費收取請於櫃檯另行處理）。
-            </div>
-          )}
-
-          <div style={{ marginBottom:16 }}>
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>若拒絕，請填寫原因</label>
-            <input value={reviewRejectReason} onChange={e => setReviewRejectReason(e.target.value)}
-              placeholder="僅拒絕時需填寫"
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-          </div>
-
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={handleRejectRequest} disabled={reviewSaving}
-              style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #A32D2D', background:'none', color:'#A32D2D', fontSize:13, cursor:'pointer' }}>
-              拒絕
-            </button>
-            <button onClick={handleApproveRequest} disabled={reviewSaving}
-              style={{ flex:2, height:42, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {reviewSaving ? '處理中...' : '核准'}
-            </button>
-          </div>
-        </Modal>
-      )}
-
       {/* ── 單次入場券 ── */}
       {tab === 'tickets' && (
-        <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns: isMobile ? undefined : '1fr 1fr', gap:16 }}>
-          {/* 左：會員票券 */}
-          <div style={isMobile ? { marginBottom:16 } : undefined}>
+        <div style={{ maxWidth:560 }}>
+          <div style={{ fontSize:12, color:'#999', marginBottom:12 }}>
+            單次入場券的待審核已移至 🔔 待辦總覽統一處理。此頁可搜尋會員、查看票券狀態並發放新票券。
+          </div>
+          {/* 會員票券 */}
+          <div>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:14 }}>
               <form onSubmit={searchTicketMember} style={{ display:'flex', gap:8 }}>
                 <input value={ticketMemberQuery} onChange={e => setTicketMemberQuery(e.target.value)}
@@ -1205,51 +988,6 @@ export default function PassesPage() {
             )}
           </div>
 
-          {/* 右：待審核清單 */}
-          <div>
-            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-              <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontWeight:600, fontSize:13 }}>待審核</span>
-                <span style={{ fontSize:12, color:'#999' }}>共 {pendingTickets.length} 筆</span>
-              </div>
-              {pendingTickets.length === 0 ? (
-                <div style={{ padding:32, textAlign:'center', color:'#999', fontSize:13 }}>目前無待審核票券</div>
-              ) : pendingTickets.map(t => (
-                <div key={t.id} style={{ padding:'14px 16px', borderBottom:'0.5px solid #F5EFEF' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                    <div>
-                      <div style={{ fontWeight:600, fontSize:14 }}>{t.memberName}</div>
-                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>發放人：{t.soldByStaffName}</div>
-                    </div>
-                    <div style={{ textAlign:'right', fontSize:11, color:'#999' }}>
-                      截止：{t.approvalDeadline?._seconds ? dayjs(t.approvalDeadline._seconds*1000).format('MM/DD HH:mm') : '—'}
-                    </div>
-                  </div>
-                  {t.notes && <div style={{ fontSize:11, color:'#666', marginBottom:8 }}>備註：{t.notes}</div>}
-                  {rejectingId === t.id ? (
-                    <div>
-                      <input value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                        placeholder="請填寫拒絕原因"
-                        style={{ width:'100%', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, boxSizing:'border-box', marginBottom:6, outline:'none' }} />
-                      <div style={{ display:'flex', gap:6 }}>
-                        <button onClick={() => { setRejectingId(null); setRejectReason(''); }}
-                          style={{ flex:1, height:32, borderRadius:6, background:'#f5f5f5', border:'none', cursor:'pointer', fontSize:12 }}>取消</button>
-                        <button onClick={() => handleReject(t.id)}
-                          style={{ flex:1, height:32, borderRadius:6, background:'#A32D2D', color:'#fff', border:'none', cursor:'pointer', fontSize:12 }}>確認拒絕</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display:'flex', gap:6 }}>
-                      <button onClick={() => { setRejectingId(t.id); setRejectReason(''); }}
-                        style={{ flex:1, height:32, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', cursor:'pointer', fontSize:12 }}>拒絕</button>
-                      <button onClick={() => handleApprove(t.id)}
-                        style={{ flex:2, height:32, borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', cursor:'pointer', fontSize:12, fontWeight:600 }}>✓ 審核通過</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 

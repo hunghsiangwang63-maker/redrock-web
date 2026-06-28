@@ -47,16 +47,6 @@ export default function ExperienceBookingsPage() {
 
   useEffect(()=>{ load(); }, [gymFilter]);
 
-  const handleConfirm = async (id) => {
-    try { await client.post(`/experience-bookings/${id}/confirm`); showMsg('已確認收款'); load(); }
-    catch(e) { showMsg('操作失敗','red'); }
-  };
-
-  const handleCancel = async (id) => {
-    if (!window.confirm('確定取消此預約？')) return;
-    try { await client.post(`/experience-bookings/${id}/cancel`,{reason:'館方取消'}); showMsg('已取消'); load(); }
-    catch(e) { showMsg('操作失敗','red'); }
-  };
 
   const getToken = () => token || localStorage.getItem('token') || localStorage.getItem('operatorToken') || '';
 
@@ -158,11 +148,8 @@ export default function ExperienceBookingsPage() {
                         {isExpanded?'收起':'查看名單'}
                       </button>
                     </div>
-                    <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap' }}>
-                      {b.status==='pending' && <>
-                        <button onClick={()=>handleConfirm(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認收款</button>
-                        <button onClick={()=>handleCancel(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>取消</button>
-                      </>}
+                    <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap', alignItems:'center' }}>
+                      {b.status==='pending' && <span style={{ fontSize:11, color:'#854F0B' }}>待確認（於待辦總覽確認/取消）</span>}
                       {b.status!=='cancelled' && <button onClick={()=>downloadInsurance(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>📋 保險名冊</button>}
                     </div>
                   </div>

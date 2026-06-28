@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { getRentals, getRentalStats, confirmRental, returnRental, updateRentalSettings, getRentalSettings } from '../../api/rentals';
+import { getRentals, getRentalStats, updateRentalSettings, getRentalSettings } from '../../api/rentals';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import RentalActionModal from '../../components/review/RentalActionModal';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -43,13 +44,6 @@ export default function RentalsPage({ embedded = false }) {
   const [filterFrom, setFilterFrom] = useState(dayjs().format('YYYY-MM-DD'));
   const [filterTo, setFilterTo] = useState(dayjs().add(14,'day').format('YYYY-MM-DD'));
   const [actionModal, setActionModal] = useState(null); // { type:'confirm'|'return', rental }
-  const [deductNote, setDeductNote] = useState('');
-  const [depositReturned, setDepositReturned] = useState(true);
-  // 每次開啟「歸還」Modal 都重置押金/扣款欄位，避免帶入上一筆
-  useEffect(() => {
-    if (actionModal?.type === 'return') { setDepositReturned(true); setDeductNote(''); }
-  }, [actionModal]);
-  const [actionSaving, setActionSaving] = useState(false);
   const [settingsModal, setSettingsModal] = useState(false);
   const [rentalSettings, setRentalSettings] = useState(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -77,25 +71,6 @@ export default function RentalsPage({ embedded = false }) {
     } catch(e) {}
   };
 
-  const handleConfirm = async () => {
-    setActionSaving(true);
-    try {
-      await confirmRental(actionModal.rental.id);
-      showMsg('已確認取件收款');
-      setActionModal(null); await loadAll();
-    } catch(err) { showMsg(err.response?.data?.message||'操作失敗','red'); }
-    finally { setActionSaving(false); }
-  };
-
-  const handleReturn = async () => {
-    setActionSaving(true);
-    try {
-      await returnRental(actionModal.rental.id, { depositReturned, deductNote });
-      showMsg('歸還已確認');
-      setActionModal(null); await loadAll();
-    } catch(err) { showMsg(err.response?.data?.message||'操作失敗','red'); }
-    finally { setActionSaving(false); }
-  };
 
   const handleSaveSettings = async () => {
     setSettingsSaving(true);
@@ -254,46 +229,14 @@ export default function RentalsPage({ embedded = false }) {
 
       </>)}
 
-      {/* 確認取件/歸還 Modal */}
+      {/* 確認取件/歸還 Modal（共用元件） */}
       {actionModal && (
-        <Modal title={actionModal.type==='confirm'?'確認取件收款':'確認歸還'} onClose={() => setActionModal(null)}>
-          <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:16, fontSize:13 }}>
-            <div style={{ fontWeight:600 }}>{actionModal.rental.memberName}</div>
-            <div style={{ color:'#666', fontSize:12, marginTop:4 }}>
-              {actionModal.rental.gymId==='gym-hsinchu'?'新竹館':'士林館'} ·
-              {actionModal.rental.pickupDate} ～ {actionModal.rental.returnDate}
-            </div>
-            <div style={{ marginTop:6 }}>
-              {actionModal.rental.items?.map(i=>`${i.name}×${i.quantity}`).join('　')}
-            </div>
-            <div style={{ color:'#8B1A1A', fontWeight:600, marginTop:6 }}>
-              租金 NT${actionModal.rental.totalRentalFee}　押金 NT${actionModal.rental.totalDeposit}
-            </div>
-          </div>
-          {actionModal.type === 'return' && (
-            <>
-              <div style={{ marginBottom:14 }}>
-                <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
-                  <input type="checkbox" checked={depositReturned} onChange={e => setDepositReturned(e.target.checked)} style={{ width:16, height:16 }}/>
-                  <span style={{ fontSize:13 }}>退還押金 NT${actionModal.rental.totalDeposit}</span>
-                </label>
-              </div>
-              {!depositReturned && (
-                <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>押金扣除原因</label>
-                  <input style={inp} value={deductNote} onChange={e => setDeductNote(e.target.value)} placeholder="如：器材損壞..."/>
-                </div>
-              )}
-            </>
-          )}
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => setActionModal(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
-            <button onClick={actionModal.type==='confirm'?handleConfirm:handleReturn} disabled={actionSaving}
-              style={{ flex:2, height:40, borderRadius:9, background:actionModal.type==='confirm'?'#2D7D46':'#185FA5', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {actionSaving?'處理中...':actionModal.type==='confirm'?'確認取件收款':'確認歸還'}
-            </button>
-          </div>
-        </Modal>
+        <RentalActionModal
+          action={actionModal.type}
+          rental={actionModal.rental}
+          onClose={() => setActionModal(null)}
+          onDone={(m)=>{ setActionModal(null); showMsg(m); loadAll(); }}
+        />
       )}
 
       {/* 費率設定 Modal */}

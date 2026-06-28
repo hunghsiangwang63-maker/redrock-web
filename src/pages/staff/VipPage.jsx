@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getVipList, addVip, updateVip, removeVip } from '../../api/vip';
-import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, confirmTeamPayment, createTeamMember, updateTeamApplication, deleteTeamApplication, downloadTeamFile } from '../../api/team';
+import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, createTeamMember, updateTeamApplication, deleteTeamApplication, downloadTeamFile } from '../../api/team';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -31,7 +31,6 @@ export default function VipPage({ embedded = false }) {
   const [teamLoading, setTeamLoading] = useState(true);
   const [teamYear, setTeamYear] = useState(dayjs().year());
   const [teamFilter, setTeamFilter] = useState('');
-  const [confirmingId, setConfirmingId] = useState(null);
   const [teamError, setTeamError] = useState(null);
   const [downloading, setDownloading] = useState(false);
   // 手動新增
@@ -81,18 +80,6 @@ export default function VipPage({ embedded = false }) {
     }
   };
 
-  const handleConfirmPayment = async (app) => {
-    if (!window.confirm(`確認已收到 ${app.memberName} 的隊費 NT$${app.paymentAmount || app.expectedFee || 0}？確認後將開通九折資格。`)) return;
-    setConfirmingId(app.id);
-    try {
-      await confirmTeamPayment(app.id);
-      await loadTeamMembers();
-    } catch (e) {
-      alert(e.response?.data?.message || '確認失敗');
-    } finally {
-      setConfirmingId(null);
-    }
-  };
 
   const handleTeamSearch = async (q) => {
     setTeamSearchQuery(q);
@@ -502,12 +489,9 @@ export default function VipPage({ embedded = false }) {
                       </div>
                     </td>
                     <td style={{ padding:'12px 16px', textAlign:'center' }}>
-                      <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap' }}>
+                      <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', alignItems:'center' }}>
                         {a.status !== 'cancelled' && !paid && (
-                          <button onClick={() => handleConfirmPayment(a)} disabled={confirmingId === a.id}
-                            style={{ height:30, padding:'0 10px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor: confirmingId === a.id ? 'not-allowed' : 'pointer' }}>
-                            {confirmingId === a.id ? '處理中' : '確認收款'}
-                          </button>
+                          <span style={{ fontSize:11, color:'#854F0B' }}>待收款（待辦總覽）</span>
                         )}
                         <button onClick={() => openEdit(a)}
                           style={{ height:30, padding:'0 10px', borderRadius:6, background:'#f5f5f5', border:'0.5px solid #ddd', fontSize:12, cursor:'pointer' }}>編輯</button>

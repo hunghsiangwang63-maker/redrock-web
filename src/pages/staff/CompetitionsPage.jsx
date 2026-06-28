@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { getCompetitions, createCompetition, updateCompetition, getCompetitionRegistrations, confirmCompetitionPayment, refundCompetitionRegistration } from '../../api/competitions';
+import { getCompetitions, createCompetition, updateCompetition, getCompetitionRegistrations } from '../../api/competitions';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import CompetitionActionModal from '../../components/review/CompetitionActionModal';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -68,9 +69,6 @@ export default function CompetitionsPage() {
   const [regLoading, setRegLoading] = useState(false);
   const [regTab, setRegTab] = useState('all'); // all | refunds
   const [actionModal, setActionModal] = useState(null); // { type:'pay'|'refund', reg }
-  const [actionAmount, setActionAmount] = useState('');
-  const [actionReason, setActionReason] = useState('');
-  const [actionSaving, setActionSaving] = useState(false);
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
 
@@ -153,27 +151,6 @@ export default function CompetitionsPage() {
     window.open(`${import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app'}/competitions/${c.id}/registrations/download`, '_blank');
   };
 
-  const handleConfirmPayment = async () => {
-    setActionSaving(true);
-    try {
-      await confirmCompetitionPayment(actionModal.reg.id, { amount: Number(actionAmount) });
-      showMsg('已確認收款');
-      setActionModal(null);
-      await openRegistrations(showRegistrations);
-    } catch(err) { showMsg(err.response?.data?.message||'操作失敗','red'); }
-    finally { setActionSaving(false); }
-  };
-
-  const handleRefund = async () => {
-    setActionSaving(true);
-    try {
-      await refundCompetitionRegistration(actionModal.reg.id, { refundAmount: Number(actionAmount), reason: actionReason });
-      showMsg('退費已處理');
-      setActionModal(null);
-      await openRegistrations(showRegistrations);
-    } catch(err) { showMsg(err.response?.data?.message||'操作失敗','red'); }
-    finally { setActionSaving(false); }
-  };
 
   const updateDivision = (idx, patch) => setForm(f=>({ ...f, divisions: f.divisions.map((d,i)=>i===idx?{...d,...patch}:d) }));
   const addDivision = () => setForm(f=>({ ...f, divisions:[...f.divisions,{ id:`d${Date.now()}`, name:'', maxParticipants:40, waitlistMax:5 }] }));
@@ -387,11 +364,10 @@ export default function CompetitionsPage() {
                       </div>
                     </div>
                     {r.paymentStatus==='pending' && (
-                      <div style={{ display:'flex', gap:8, marginTop:10 }}>
-                        <button onClick={()=>{ setActionModal({type:'pay',reg:r}); setActionAmount(r.registrationFee?.toString()||''); }}
-                          style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認收款</button>
-                        <button onClick={()=>{ setActionModal({type:'refund',reg:r}); setActionAmount('0'); setActionReason(''); }}
-                          style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>退費</button>
+                      <div style={{ display:'flex', gap:8, marginTop:10, alignItems:'center' }}>
+                        <span style={{ fontSize:11, color:'#854F0B' }}>待收款（於待辦總覽確認）</span>
+                        <button onClick={()=>setActionModal({type:'refund',reg:r})}
+                          style={{ marginLeft:'auto', height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>退費</button>
                       </div>
                     )}
                     {r.paymentStatus==='confirmed' && (
@@ -407,47 +383,14 @@ export default function CompetitionsPage() {
         </Modal>
       )}
 
-      {/* 收款/退費 Modal */}
+      {/* 收款/退費 Modal（共用元件） */}
       {actionModal && (
-        <Modal title={actionModal.type==='pay'?'確認收款':'處理退費'} onClose={()=>setActionModal(null)} width={400}>
-          <div style={{ marginBottom:12, fontSize:13, color:'#666' }}>
-            {actionModal.reg.memberName} — {actionModal.reg.divisionName}
-          </div>
-          {/* 付款資訊 */}
-          {actionModal.type==='pay' && (
-            <div style={{ background:'#FBF5F5', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
-              <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:8 }}>付款資訊</div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, fontSize:12, color:'#444' }}>
-                <div><span style={{ color:'#999' }}>付款方式：</span>
-                  { actionModal.reg.paymentMethod==='transfer' ? '銀行轉帳'
-                  : actionModal.reg.paymentMethod==='linepay' ? 'Line Pay'
-                  : actionModal.reg.paymentMethod==='cash' ? '臨櫃現金'
-                  : actionModal.reg.paymentMethod || '—'}
-                </div>
-                <div><span style={{ color:'#999' }}>匯款末五碼：</span>{actionModal.reg.bankLastFive || '—'}</div>
-                <div><span style={{ color:'#999' }}>匯款日期：</span>{actionModal.reg.paymentDate || '—'}</div>
-                <div><span style={{ color:'#999' }}>報名費：</span>NT${actionModal.reg.registrationFee || '—'}</div>
-              </div>
-            </div>
-          )}
-          <div style={{ marginBottom:14 }}>
-            <label style={lbl}>{actionModal.type==='pay'?'收款金額':'退款金額'} (NT$)</label>
-            <input type="number" style={inp} value={actionAmount} onChange={e=>setActionAmount(e.target.value)}/>
-          </div>
-          {actionModal.type==='refund' && (
-            <div style={{ marginBottom:14 }}>
-              <label style={lbl}>退費原因</label>
-              <input style={inp} value={actionReason} onChange={e=>setActionReason(e.target.value)}/>
-            </div>
-          )}
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={()=>setActionModal(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
-            <button onClick={actionModal.type==='pay'?handleConfirmPayment:handleRefund} disabled={actionSaving}
-              style={{ flex:2, height:40, borderRadius:9, background:actionModal.type==='pay'?'#2D7D46':'#A32D2D', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {actionSaving ? '處理中...' : actionModal.type==='pay' ? '確認收款' : '確認退費'}
-            </button>
-          </div>
-        </Modal>
+        <CompetitionActionModal
+          action={actionModal.type}
+          reg={actionModal.reg}
+          onClose={()=>setActionModal(null)}
+          onDone={(m)=>{ setActionModal(null); showMsg(m); openRegistrations(showRegistrations); }}
+        />
       )}
     </div>
   );

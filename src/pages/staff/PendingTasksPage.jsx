@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import CourseAdjustmentReviewModal from '../../components/review/CourseAdjustmentReviewModal';
+import PassRequestReviewModal from '../../components/review/PassRequestReviewModal';
+import CompetitionActionModal from '../../components/review/CompetitionActionModal';
+import RentalActionModal from '../../components/review/RentalActionModal';
+import ReasonModal from '../../components/review/ReasonModal';
+import { confirmTeamPayment } from '../../api/team';
+import { approveTicket, rejectTicket } from '../../api/passes';
 
 const TYPE_CONFIG = {
   rental:             { icon:'👟', color:'#854F0B', bg:'#FAEEDA', label:'器材租借' },
@@ -25,13 +32,27 @@ const REG_CONFIG = {
 };
 
 export default function PendingTasksPage() {
-  const { staff } = useAuth();
+  const { staff, operator, station } = useAuth();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gymFilter, setGymFilter] = useState('');
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
+
+  // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
+  const isManager = isAdmin;                          // super_admin / gym_manager
+  const isOpStation = !!operator || !!station;        // 值班人員 / 站台電腦帳號
+  const perm = {
+    rental:              true,                         // 全部員工（後端僅 authenticate）
+    rental_return:       true,
+    experience:          true,
+    course_adjustment:   isManager || isOpStation,     // requireManagerOrStation
+    pass_adjustment:     isManager || isOpStation,
+    team_member:         isManager || isOpStation,
+    competition_payment: isManager,                    // checkPermission('competitions.manage')
+    ticket_approval:     isManager,                    // checkPermission('passes.approve')
+  };
   const today = dayjs().format('YYYY-MM-DD');
   const yesterday = dayjs().subtract(1,'day').format('YYYY-MM-DD');
   const weekAgo = dayjs().subtract(7,'day').format('YYYY-MM-DD');
@@ -48,6 +69,61 @@ export default function PendingTasksPage() {
   }, [gymFilter, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── 內嵌審核動作 ──────────────────────────────────────────────
+  const [modal, setModal] = useState(null);   // { kind, record?, action?, props? }
+  const [busyId, setBusyId] = useState(null);
+  const [toast, setToast] = useState('');
+  const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
+  const afterDone = (msg) => { setModal(null); showToast(msg); load(); };
+
+  // 一鍵動作（確認收款 / 核准）
+  const oneClick = async (id, fn, okMsg) => {
+    setBusyId(id);
+    try { await fn(); showToast(okMsg); await load(); }
+    catch (e) { showToast(e.response?.data?.message || '操作失敗'); }
+    finally { setBusyId(null); }
+  };
+
+  const primaryBtn = (bg) => ({ height:34, padding:'0 14px', borderRadius:8, background:bg, color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 });
+  const ghostBtn = { height:34, padding:'0 10px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#888', fontSize:12, cursor:'pointer', flexShrink:0 };
+  const dangerBtn = { height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer', flexShrink:0 };
+  const goLink = (task) => <button onClick={() => navigate(task.link)} style={ghostBtn}>前往</button>;
+
+  const renderActions = (task) => {
+    const busy = busyId === task.targetId;
+    // 權限分隔：無權限的審核類動作不顯示操作鈕，僅淡化提示
+    if (perm[task.type] === false) {
+      return <span style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>需主管審核</span>;
+    }
+    switch (task.type) {
+      case 'rental':
+        return <>{task.record && <button onClick={() => setModal({ kind:'rental', action:'confirm', record:task.record })} style={primaryBtn('#2D7D46')}>確認取件收款</button>}{goLink(task)}</>;
+      case 'rental_return':
+        return <>{task.record && <button onClick={() => setModal({ kind:'rental', action:'return', record:task.record })} style={primaryBtn('#185FA5')}>確認歸還</button>}{goLink(task)}</>;
+      case 'course_adjustment':
+        return <>{task.record && <button onClick={() => setModal({ kind:'course', record:task.record })} style={primaryBtn('#2D7D46')}>審核</button>}{goLink(task)}</>;
+      case 'pass_adjustment':
+        return <>{task.record && <button onClick={() => setModal({ kind:'pass', record:task.record })} style={primaryBtn('#2D7D46')}>審核</button>}{goLink(task)}</>;
+      case 'competition_payment':
+        return <>{task.record && <button onClick={() => setModal({ kind:'competition', record:task.record })} style={primaryBtn('#2D7D46')}>確認收款</button>}{goLink(task)}</>;
+      case 'team_member':
+        return <><button disabled={busy} onClick={() => oneClick(task.targetId, () => confirmTeamPayment(task.targetId), '已確認收款')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認收款'}</button>{goLink(task)}</>;
+      case 'experience':
+        return <>
+          <button disabled={busy} onClick={() => oneClick(task.targetId, () => client.post(`/experience-bookings/${task.targetId}/confirm`), '已確認')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認'}</button>
+          <button onClick={() => setModal({ kind:'reason', props:{ title:'取消體驗預約', label:'取消原因', placeholder:'預設「館方取消」', confirmText:'確認取消', required:false, onSubmit: async (reason) => { await client.post(`/experience-bookings/${task.targetId}/cancel`, { reason: reason || '館方取消' }); afterDone('已取消預約'); } } })} style={dangerBtn}>取消</button>
+        </>;
+      case 'ticket_approval':
+        return <>
+          <button disabled={busy} onClick={() => oneClick(task.targetId, () => approveTicket(task.targetId), '審核通過')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '核准'}</button>
+          <button onClick={() => setModal({ kind:'reason', props:{ title:'拒絕單次入場券', label:'拒絕原因', placeholder:'請填寫拒絕原因', confirmText:'確認拒絕', required:true, onSubmit: async (reason) => { await rejectTicket(task.targetId, reason); afterDone('已拒絕'); } } })} style={dangerBtn}>拒絕</button>
+        </>;
+      default:
+        // rental_pickup（取件提醒）、transfer_payment、experience_transfer：維持前往處理
+        return <button onClick={() => navigate(task.link)} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 }}>前往處理</button>;
+    }
+  };
 
   // 分組
   const groups = [
@@ -135,11 +211,10 @@ export default function PendingTasksPage() {
                       {task.date}
                     </div>
                   </div>
-                  {/* 前往按鈕 */}
-                  <button onClick={() => navigate(task.link)}
-                    style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 }}>
-                    前往處理
-                  </button>
+                  {/* 內嵌動作 */}
+                  <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
+                    {renderActions(task)}
+                  </div>
                 </div>
               );
             })}
@@ -181,6 +256,20 @@ export default function PendingTasksPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 內嵌審核彈窗 */}
+      {modal?.kind === 'course' && <CourseAdjustmentReviewModal request={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'pass' && <PassRequestReviewModal request={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'competition' && <CompetitionActionModal action="pay" reg={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'rental' && <RentalActionModal action={modal.action} rental={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'reason' && <ReasonModal {...modal.props} onClose={() => setModal(null)} />}
+
+      {/* 操作結果提示 */}
+      {toast && (
+        <div style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', background:'#1a1a1a', color:'#fff', padding:'10px 20px', borderRadius:10, fontSize:13, zIndex:300, boxShadow:'0 4px 16px rgba(0,0,0,.2)' }}>
+          {toast}
         </div>
       )}
     </div>
