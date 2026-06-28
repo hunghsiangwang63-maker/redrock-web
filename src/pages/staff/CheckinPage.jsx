@@ -1,8 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
 import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents } from '../../api/checkin';
-import { getNotifications, markAllAsRead } from '../../api/notifications';
-import { getPendingTickets, approveTicket, rejectTicket } from '../../api/passes';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -89,8 +87,6 @@ export default function CheckinPage() {
   const [todayCheckIns, setTodayCheckIns] = useState([]);
   const [todayLoading, setTodayLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
-  const [transfers, setTransfers] = useState([]);
-  const [transferCount, setTransferCount] = useState(0); // scan | pending | notifications
   const [qrInput, setQrInput] = useState('');
   const [scanResult, setScanResult] = useState(null);
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
@@ -114,10 +110,6 @@ export default function CheckinPage() {
   const [phoneRentShoes, setPhoneRentShoes] = useState(false);
   const [phoneRentChalk, setPhoneRentChalk] = useState(false);
   const [log, setLog] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [pendingTickets, setPendingTickets] = useState([]);
-  const [rejectReason, setRejectReason] = useState('');
-  const [rejectingId, setRejectingId] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => { loadStats(); loadEntryTypes(); }, []); // 待審核/轉帳確認/通知 已移至待辦頁
@@ -126,30 +118,6 @@ export default function CheckinPage() {
     if (tab === 'today') loadTodayCheckIns();
   }, [tab]);
   useEffect(() => { if (tab === 'scan' && confirmedCheckIn) setTimeout(() => inputRef.current?.focus(), 300); }, [confirmedCheckIn]);
-
-  const loadTransfers = async () => {
-    try {
-      const res = await client.get('/transfers/pending');
-      const list = res.data.transfers || [];
-      setTransfers(list);
-      setTransferCount(list.length);
-    } catch (e) { console.error('loadTransfers', e); }
-  };
-
-  const handleConfirmTransfer = async (id) => {
-    try {
-      await client.put(`/transfers/${id}/confirm`, {});
-      await loadTransfers();
-    } catch (e) {}
-  };
-
-  const handleRejectTransfer = async (id) => {
-    const reason = window.prompt('拒絕原因（選填）') || '';
-    try {
-      await client.put(`/transfers/${id}/reject`, { reason });
-      await loadTransfers();
-    } catch (e) {}
-  };
 
   const loadStats = async () => {
     try {
@@ -171,20 +139,6 @@ export default function CheckinPage() {
     try {
       const res = await client.get('/settings/chalk-rental');
       setChalkRental(res.data);
-    } catch (e) {}
-  };
-
-  const loadNotifications = async () => {
-    try {
-      const res = await getNotifications();
-      setNotifications(res.data.notifications || []);
-    } catch (e) {}
-  };
-
-  const loadPendingTickets = async () => {
-    try {
-      const res = await getPendingTickets();
-      setPendingTickets(res.data.tickets || []);
     } catch (e) {}
   };
 
@@ -341,33 +295,6 @@ export default function CheckinPage() {
       alert(err.response?.data?.message || '取消失敗');
     }
   };
-
-  const handleApprove = async (id) => {
-    try {
-      await approveTicket(id);
-      await loadPendingTickets();
-      await loadNotifications();
-      alert('審核通過');
-    } catch (err) {
-      alert(err.response?.data?.message || '操作失敗');
-    }
-  };
-
-  const handleReject = async (id) => {
-    if (!rejectReason.trim()) { alert('請填寫拒絕原因'); return; }
-    try {
-      await rejectTicket(id, rejectReason);
-      setRejectingId(null);
-      setRejectReason('');
-      await loadPendingTickets();
-      await loadNotifications();
-    } catch (err) {
-      alert(err.response?.data?.message || '操作失敗');
-    }
-  };
-
-  const unreadCount = notifications.length;
-  const pendingCount = pendingTickets.length;
 
   return (
     <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns: isMobile ? undefined : '1fr 300px', gap:16, padding: isMobile ? 12 : 20, minHeight:'100vh', background:'#F7F3F3', boxSizing:'border-box' }}>
