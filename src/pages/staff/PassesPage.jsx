@@ -3,7 +3,6 @@ import { getPassTypes, getMemberPasses, createPass, updatePass, renewPass,
          getMemberSingleEntryTickets, issueSingleEntryTicket,
          createPassType, updatePassType, deactivatePassType } from '../../api/passes';
 import { getPassHistory, editPassWithReason, getAllPassRequests, runHolidayBatchExtension, getHolidayHistory } from '../../api/passAdjustments';
-import { getCourseAdjustmentRequests, restoreCourseEnrollment } from '../../api/courseAdjustments';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getGyms } from '../../api/gyms';
 import { searchMembers } from '../../api/members';
@@ -100,18 +99,6 @@ export default function PassesPage() {
       a.download = `${type}_${new Date().toISOString().slice(0,10)}.csv`;
       a.click(); URL.revokeObjectURL(url);
     });
-  };
-
-  // 課程退費/暫停申請審核
-  const [courseRequests, setCourseRequests] = useState([]);
-  const [courseRequestsLoading, setCourseRequestsLoading] = useState(false);
-
-  const loadCourseRequests = async () => {
-    setCourseRequestsLoading(true);
-    try {
-      const res = await getCourseAdjustmentRequests();
-      setCourseRequests(res.data.requests || []);
-    } catch (e) {} finally { setCourseRequestsLoading(false); }
   };
 
   // 年假批次展延
@@ -413,7 +400,6 @@ export default function PassesPage() {
       group: '申請審核',
       items: canManagePass ? [
         { key:'requests',       icon:'📬', label:'票券申請' },
-        { key:'courseRequests', icon:'📚', label:'課程退費' },
       ] : [],
     },
     {
@@ -443,7 +429,7 @@ export default function PassesPage() {
                 {group.items.map(t => {
                   const active = tab === t.key;
                   return (
-                    <button key={t.key} onClick={() => { setTab(t.key); if (t.key==='courseRequests') loadCourseRequests(); if (t.key==='analytics') loadAnalytics(); }}
+                    <button key={t.key} onClick={() => { setTab(t.key); if (t.key==='analytics') loadAnalytics(); }}
                       style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:10, border:`1.5px solid ${active?'#8B1A1A':'#EDE5E5'}`, background:active?'#8B1A1A':'#fff', color:active?'#fff':'#444', fontSize:12, fontWeight:active?600:400, cursor:'pointer', textAlign:'left', position:'relative', transition:'all .15s' }}>
                       <span style={{ fontSize:16, lineHeight:1 }}>{t.icon}</span>
                       <span>{t.label}</span>
@@ -643,51 +629,6 @@ export default function PassesPage() {
                 );
               })}
             </div>
-          )}
-        </div>
-      )}
-
-      {/* ── 課程退費/暫停申請審核 ── */}
-      {tab === 'courseRequests' && (
-        <div style={{ padding:16 }}>
-          {courseRequestsLoading ? <div style={{ textAlign:'center', color:'#999', padding:20 }}>載入中...</div> : (
-            courseRequests.length === 0 ? (
-              <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有課程申請</div>
-            ) : (
-              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-                {courseRequests.map(r => {
-                  const typeLabel = { refund:'退費', pause:'暫停' }[r.type] || r.type;
-                  const statusTag = r.status === 'pending' ? { type:'warn', label:'待審核' } : r.status === 'approved' ? { type:'ok', label:'已核准' } : { type:'red', label:'已拒絕' };
-                  return (
-                    <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
-                        <div>
-                          <div style={{ fontWeight:600, fontSize:14 }}>{r.memberName} — {r.courseName}</div>
-                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            申請類型：{typeLabel} · 原因：{r.reason}
-                          </div>
-                          {r.type === 'refund' && r.suggestedRefund !== undefined && (
-                            <div style={{ fontSize:11, color:'#185FA5', marginTop:4 }}>
-                              建議退款：NT${r.suggestedRefund}　{r.refundNote && <span style={{ color:'#999' }}>（{r.refundNote}）</span>}
-                            </div>
-                          )}
-                          {r.status === 'approved' && r.type === 'refund' && (
-                            <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>已退款 NT${r.finalRefund}</div>
-                          )}
-                        </div>
-                        <Tag type={statusTag.type}>{statusTag.label}</Tag>
-                      </div>
-                      {r.status === 'pending' && (
-                        <span style={{ fontSize:11, color:'#854F0B' }}>待審核（於待辦總覽處理）</span>
-                      )}
-                      {r.status === 'rejected' && r.rejectReason && (
-                        <div style={{ fontSize:11, color:'#A32D2D', marginTop:4 }}>拒絕原因：{r.rejectReason}</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )
           )}
         </div>
       )}

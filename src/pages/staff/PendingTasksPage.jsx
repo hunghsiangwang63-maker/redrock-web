@@ -10,6 +10,7 @@ import RentalActionModal from '../../components/review/RentalActionModal';
 import ReasonModal from '../../components/review/ReasonModal';
 import { confirmTeamPayment } from '../../api/team';
 import { approveTicket, rejectTicket } from '../../api/passes';
+import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
 
 const TYPE_CONFIG = {
   rental:             { icon:'👟', color:'#854F0B', bg:'#FAEEDA', label:'器材租借' },
@@ -39,6 +40,11 @@ export default function PendingTasksPage() {
   const [loading, setLoading] = useState(true);
   const [gymFilter, setGymFilter] = useState('');
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
+
+  // ── 已完成任務查詢（課程退費/暫停：已核准 / 已拒絕）──
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [completed, setCompleted] = useState(null); // null=未載入
+  const [completedLoading, setCompletedLoading] = useState(false);
 
   // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
   const isManager = isAdmin;                          // super_admin / gym_manager
@@ -75,7 +81,21 @@ export default function PendingTasksPage() {
   const [busyId, setBusyId] = useState(null);
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
-  const afterDone = (msg) => { setModal(null); showToast(msg); load(); };
+  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (showCompleted) loadCompleted(); };
+
+  // 載入已完成（已核准/已拒絕）的課程退費/暫停申請
+  const loadCompleted = async () => {
+    setCompletedLoading(true);
+    try {
+      const res = await getCourseAdjustmentRequests(); // 後端依角色授權（主管/站台）
+      setCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
+    } catch (e) { setCompleted([]); } finally { setCompletedLoading(false); }
+  };
+  const toggleCompleted = () => {
+    const next = !showCompleted;
+    setShowCompleted(next);
+    if (next && completed === null) loadCompleted();
+  };
 
   // 一鍵動作（確認收款 / 核准）
   const oneClick = async (id, fn, okMsg) => {
@@ -152,6 +172,12 @@ export default function PendingTasksPage() {
               <option value="gym-hsinchu">新竹館</option>
               <option value="gym-shilin">士林館</option>
             </select>
+          )}
+          {perm.course_adjustment && (
+            <button onClick={toggleCompleted}
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: showCompleted ? '#5B2D8B' : '#fff', color: showCompleted ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer' }}>
+              已完成任務
+            </button>
           )}
           <button onClick={load} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
             重新整理
@@ -256,6 +282,52 @@ export default function PendingTasksPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 已完成任務查詢（課程退費/暫停：已核准 / 已拒絕） */}
+      {showCompleted && (
+        <div style={{ marginTop:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>✅ 已完成任務 · 課程退費／暫停</div>
+            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{completed ? `${completed.length} 項` : ''}</div>
+          </div>
+          {completedLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+          {!completedLoading && completed && completed.length === 0 && (
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
+              尚無已完成的課程退費／暫停申請
+            </div>
+          )}
+          {!completedLoading && completed && completed.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {completed.map(r => {
+                const typeLabel = { refund:'退費', pause:'暫停' }[r.type] || r.type;
+                const approved = r.status === 'approved';
+                const badge = approved ? { bg:'#E6F4EB', color:'#2D7D46', label:'已核准' } : { bg:'#FCEBEB', color:'#A32D2D', label:'已拒絕' };
+                const ts = (approved ? r.approvedAt : r.rejectedAt) || r.createdAt;
+                const dateStr = ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD') : '';
+                return (
+                  <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{r.memberName} — {r.courseName}</div>
+                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{typeLabel} · 原因：{r.reason || '—'}</div>
+                        {approved && r.type === 'refund' && r.finalRefund !== undefined && (
+                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:3 }}>已退款 NT${r.finalRefund}</div>
+                        )}
+                        {!approved && r.rejectReason && (
+                          <div style={{ fontSize:11, color:'#A32D2D', marginTop:3 }}>拒絕原因：{r.rejectReason}</div>
+                        )}
+                        {dateStr && <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>{dateStr}</div>}
+                      </div>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
