@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
-import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents } from '../../api/checkin';
+import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -110,13 +110,19 @@ export default function CheckinPage() {
   const [phoneRentShoes, setPhoneRentShoes] = useState(false);
   const [phoneRentChalk, setPhoneRentChalk] = useState(false);
   const [log, setLog] = useState([]);
+  // 歷史入場（按日期、全館逐筆）
+  const [historyDate, setHistoryDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [historyCheckIns, setHistoryCheckIns] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const inputRef = useRef(null);
 
   useEffect(() => { loadStats(); loadEntryTypes(); }, []); // 待審核/轉帳確認/通知 已移至待辦頁
   useEffect(() => {
     if (tab === 'scan') inputRef.current?.focus();
     if (tab === 'today') loadTodayCheckIns();
+    if (tab === 'history') loadHistory();
   }, [tab]);
+  useEffect(() => { if (tab === 'history') loadHistory(); /* eslint-disable-next-line */ }, [historyDate, targetGymId]);
   useEffect(() => { if (tab === 'scan' && confirmedCheckIn) setTimeout(() => inputRef.current?.focus(), 300); }, [confirmedCheckIn]);
 
   const loadStats = async () => {
@@ -152,6 +158,40 @@ export default function CheckinPage() {
     finally { setTodayLoading(false); }
   };
 
+  // 歷史入場：指定日期（台灣時間整日）全館逐筆
+  const loadHistory = async () => {
+    if (!targetGymId && !isSuperAdmin) return;
+    setHistoryLoading(true);
+    try {
+      const res = await getCheckInHistory({
+        gymId: targetGymId || undefined,
+        dateFrom: `${historyDate}T00:00:00+08:00`,
+        dateTo: `${historyDate}T23:59:59+08:00`,
+        limit: 500,
+      });
+      setHistoryCheckIns((res.data.checkIns || []).filter(c => !c.isCancelled));
+    } catch (e) { setHistoryCheckIns([]); }
+    finally { setHistoryLoading(false); }
+  };
+
+  const exportHistoryCsv = () => {
+    const rows = [['日期時間', '會員', '館別', '入場資格', '金額']];
+    historyCheckIns.forEach(c => {
+      const t = c.checkedInAt?._seconds ? new Date(c.checkedInAt._seconds * 1000) : new Date(c.checkedInAt);
+      rows.push([
+        dayjs(t).format('YYYY-MM-DD HH:mm'),
+        c.memberName || '',
+        c.gymId === 'gym-hsinchu' ? '新竹館' : c.gymId === 'gym-shilin' ? '士林館' : c.gymId || '',
+        ENTRY_TYPE_LABEL[c.entryType] || c.entryType || '',
+        c.amountPaid || 0,
+      ]);
+    });
+    const csv = '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `入場紀錄_${historyDate}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
+
   const handleCancelCheckin = async (checkInId, force = false) => {
     const msg = force ? '確定要強制取消這筆入場紀錄？（超管限定）' : '確定要取消這筆入場紀錄？';
     if (!window.confirm(msg)) return;
@@ -159,6 +199,8 @@ export default function CheckinPage() {
     try {
       await client.post('/checkin/cancel', { checkInId, force });
       setTodayCheckIns(prev => prev.filter(c => c.id !== checkInId));
+      setHistoryCheckIns(prev => prev.filter(c => c.id !== checkInId));
+      await loadStats();
     } catch(err) {
       alert(err.response?.data?.message || '取消失敗');
     } finally { setCancellingId(null); }
@@ -325,6 +367,7 @@ export default function CheckinPage() {
               { key:'scan', label:'掃描入場' },
               { key:'courseStudents', label:`今日課程學員 ${courseStudents.length > 0 ? `(${courseStudents.length})` : ''}` },
               { key:'today', label:'今日入場' },
+              { key:'history', label:'歷史入場' },
             ].map(t => (
               <div key={t.key} onClick={() => setTab(t.key)}
                 style={{ flex:1, padding:'10px 0', textAlign:'center', fontSize:13, fontWeight: tab === t.key ? 600 : 400,
@@ -751,6 +794,51 @@ export default function CheckinPage() {
                     </button>
                   )}
                   {!canCancel && isSuperAdmin && (
+                    <button onClick={() => handleCancelCheckin(c.id, true)} disabled={cancellingId === c.id}
+                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                      {cancellingId === c.id ? '取消中...' : '強制取消'}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── 歷史入場 tab ── */}
+        {tab === 'history' && (
+          <div style={{ padding:16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:12, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:14, fontWeight:600 }}>歷史入場</span>
+                <input type="date" value={historyDate} max={dayjs().format('YYYY-MM-DD')}
+                  onChange={e => setHistoryDate(e.target.value)}
+                  style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, color:'#1a1a1a' }} />
+                <span style={{ fontSize:12, color:'#999' }}>共 {historyCheckIns.length} 筆</span>
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={loadHistory} style={{ height:34, padding:'0 12px', borderRadius:8, background:'#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color:'#8B1A1A' }}>重新整理</button>
+                <button onClick={exportHistoryCsv} disabled={!historyCheckIns.length}
+                  style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:12, cursor: historyCheckIns.length?'pointer':'default', color:'#6b6b6b', opacity: historyCheckIns.length?1:.5 }}>↓ 匯出 CSV</button>
+              </div>
+            </div>
+            {historyLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+            {!historyLoading && historyCheckIns.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:24 }}>{dayjs(historyDate).format('MM/DD')} 無入場紀錄</div>}
+            {!historyLoading && historyCheckIns.map(c => {
+              const t = c.checkedInAt?._seconds ? new Date(c.checkedInAt._seconds * 1000) : new Date(c.checkedInAt);
+              return (
+                <div key={c.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                      {c.gymId === 'gym-hsinchu' ? '新竹館' : c.gymId === 'gym-shilin' ? '士林館' : ''} · {ENTRY_TYPE_LABEL[c.entryType] || c.entryType}
+                      {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
+                    </div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                      {dayjs(t).format('YYYY-MM-DD HH:mm')}{c.amountPaid > 0 ? ` · NT$${c.amountPaid}` : ''}
+                    </div>
+                  </div>
+                  {isSuperAdmin && (
                     <button onClick={() => handleCancelCheckin(c.id, true)} disabled={cancellingId === c.id}
                       style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
                       {cancellingId === c.id ? '取消中...' : '強制取消'}
