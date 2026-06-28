@@ -509,15 +509,30 @@ export default function PassesPage() {
     return { type:'gray', label:t.status };
   };
 
-  const PASSES_TABS = [
-    { key:'list',         icon:'🎫', label:'定期票' },
-    { key:'types',        icon:'📋', label:'票種定義' },
-    { key:'cards',        icon:'💳', label:'優惠卡/黑卡' },
-    { key:'tickets',      icon:'🎟️', label:'單次發放', badge: pendingTickets.length },
-    ...(canManagePass ? [{ key:'requests',      icon:'📬', label:'票券申請',   badge: pendingRequests.length }] : []),
-    ...(canManagePass ? [{ key:'courseRequests',icon:'📚', label:'課程退費',   badge: courseRequests.filter(r=>r.status==='pending').length }] : []),
-    ...(canManagePass ? [{ key:'holiday',       icon:'📅', label:'年假展延' }] : []),
-    ...(canManagePass ? [{ key:'analytics',     icon:'📊', label:'票券統計' }] : []),
+  const PASSES_TAB_GROUPS = [
+    {
+      group: '票券管理',
+      items: [
+        { key:'list',    icon:'🎫', label:'定期票' },
+        { key:'types',   icon:'📋', label:'票種定義' },
+        { key:'cards',   icon:'💳', label:'優惠卡/黑卡' },
+        { key:'tickets', icon:'🎟️', label:'單次發放', badge: pendingTickets.length },
+      ],
+    },
+    {
+      group: '申請審核',
+      items: canManagePass ? [
+        { key:'requests',       icon:'📬', label:'票券申請', badge: pendingRequests.length },
+        { key:'courseRequests', icon:'📚', label:'課程退費', badge: courseRequests.filter(r=>r.status==='pending').length },
+      ] : [],
+    },
+    {
+      group: '其他',
+      items: canManagePass ? [
+        { key:'holiday',   icon:'📅', label:'年假展延' },
+        { key:'analytics', icon:'📊', label:'票券統計' },
+      ] : [],
+    },
   ];
 
   return (
@@ -528,16 +543,26 @@ export default function PassesPage() {
         </div>
       )}
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(100px, 1fr))', gap:6, marginBottom:20 }}>
-        {PASSES_TABS.map(t => {
-          const active = tab === t.key;
+      <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
+        {PASSES_TAB_GROUPS.map(group => {
+          if (!group.items.length) return null;
           return (
-            <button key={t.key} onClick={() => { setTab(t.key); if (t.key==='courseRequests') loadCourseRequests(); if (t.key==='analytics') loadAnalytics(); }}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'9px 12px', borderRadius:10, border:`1.5px solid ${active?'#8B1A1A':'#EDE5E5'}`, background:active?'#8B1A1A':'#fff', color:active?'#fff':'#444', fontSize:12, fontWeight:active?600:400, cursor:'pointer', position:'relative' }}>
-              <span style={{ fontSize:15 }}>{t.icon}</span>
-              <span>{t.label}</span>
-              {t.badge > 0 && <span style={{ position:'absolute', top:4, right:4, background:'#A32D2D', color:'#fff', borderRadius:8, fontSize:9, fontWeight:700, minWidth:14, height:14, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px' }}>{t.badge}</span>}
-            </button>
+            <div key={group.group}>
+              <div style={{ fontSize:10, fontWeight:700, color:'#999', letterSpacing:1, textTransform:'uppercase', marginBottom:6, textAlign:'left' }}>{group.group}</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:6 }}>
+                {group.items.map(t => {
+                  const active = tab === t.key;
+                  return (
+                    <button key={t.key} onClick={() => { setTab(t.key); if (t.key==='courseRequests') loadCourseRequests(); if (t.key==='analytics') loadAnalytics(); }}
+                      style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:10, border:`1.5px solid ${active?'#8B1A1A':'#EDE5E5'}`, background:active?'#8B1A1A':'#fff', color:active?'#fff':'#444', fontSize:12, fontWeight:active?600:400, cursor:'pointer', textAlign:'left', position:'relative', transition:'all .15s' }}>
+                      <span style={{ fontSize:16, lineHeight:1 }}>{t.icon}</span>
+                      <span>{t.label}</span>
+                      {t.badge > 0 && <span style={{ position:'absolute', top:4, right:4, background:'#A32D2D', color:'#fff', borderRadius:8, fontSize:9, fontWeight:700, minWidth:14, height:14, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px' }}>{t.badge}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </div>
