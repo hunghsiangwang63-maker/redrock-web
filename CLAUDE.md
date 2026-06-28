@@ -42,6 +42,7 @@ RedRock 紅石攀岩館管理系統，服務兩個場館：新竹館（`gym-hsin
 - ✅ **「今日」時區修正**：`checkin.js` 三處 `new Date()+setHours(0,0,0,0)`＝伺服器 UTC 午夜＝台灣 08:00，導致台灣 00:00–08:00 仍把前一日晚間入場算進今日。改為 `台灣日期T00:00:00+08:00`：`/checkin/today`（今日統計/紀錄）、`/checkin/phone`（同日重複入場擋重，原會誤擋當天合法入場）、`/today-course-students`（今日已入場標記）。`checkinService` 的同日檢查/`getTodayStats` 本就用台灣時間未動。`/health` `1.3.2-today-tz-fix`。順手移除 CORS 白名單殘留的 Vercel 來源（已淘汰，前端走 Firebase Hosting）
 - ✅ **入場頁「歷史入場」分頁**：`CheckinPage` 新增分頁，選日期 → 列出當日全館逐筆入場（會員/館別/資格/時間/金額），可匯出 CSV、超管強制取消（同步刷新今日統計）。接既有 `GET /checkin/history`（日期用台灣整日界線）。順修該端點：原 `gymId 等值 + checkedInAt 範圍` 需複合索引，缺索引時 500 → 前端吞錯顯示 0；改為查詢端只放單一條件（有日期→範圍；否則→memberId/gymId 等值），其餘記憶體過濾，避開索引需求
 - ✅ **營業時間顯示未來一週調整**：原本只反映今日公告，未來的休館/特殊時段不顯示。`MemberGymsPage` 營業時間分頁新增「📅 近期營業時間調整（未來一週）」，逐日列出 MM/DD（星期）+ 休館/特殊營業標示 + 事由 + 時段。純前端（公告 `/gyms/announcements/all` 本就含未來 `effectiveFrom`，從 `gymAnns` 算未來 7 天）
+- ✅ **VIP／攀岩隊員 移到會員頁 + 名單報表**：`MembersPage` 加分頁（會員查詢｜VIP／攀岩隊員〔內嵌 `VipPage`，新增仍限 super_admin / 管理員〕｜定期票有效〔分票種〕｜課程效期〔分課程〕）；`SettingsPage` 移除 VIP 分頁。後端新增 `GET /members/reports/active-passes`（status=active & endDate>=today，分票種）與 `GET /members/reports/active-course-students`（未取消、今天在練習期間的課程之 confirmed/未暫停學員，分課程），皆 gym-scoped、避複合索引。`/health` `1.4.0-member-lists`
 - 🟡 **線上金流串接（進行中）**：統一付款元件 `src/components/PaymentFlow.jsx`（接 `client` prop，會員/員工通用；匯出 `ONLINE_PAYMENT_ENABLED`，正式環境 gateway 上線前為 false → 不顯示付款入口、fallback 匯款）
   - 已接會員自助：競賽 / 體驗 / 課程 / 租借（MemberCompetitions/Experience/Courses/Rental Page）
   - 後端 rail 與設計：見 `redrock-api/docs/payment-integration-plan.md`
