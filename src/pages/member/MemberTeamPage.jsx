@@ -76,7 +76,8 @@ export default function MemberTeamPage() {
     if (!agreedPrivacy) { showMsg('請同意個資使用聲明', 'red'); return; }
     setSubmitting(true);
     try {
-      await applyTeam({
+      const amount = noJersey ? expectedFee : Number(paymentAmount);
+      const res = await applyTeam({
         memberId: member.id,
         memberName: member.name,
         memberPhone: member.phone,
@@ -86,11 +87,22 @@ export default function MemberTeamPage() {
         idNumber, address, primaryGym, lineId,
         joinReasons, trainingContent, wishActivities,
         currentGrade, weeklyFrequency,
-        paymentAmount: noJersey ? expectedFee : Number(paymentAmount),
+        paymentAmount: amount,
         paymentDate, bankLastFive,
         noJersey, jerseySize: noJersey ? '' : jerseySize,
         otherSuggestions, agreedPrivacy,
       });
+      // 隊費一律轉帳：建立 transferRecords → 待辦頁確認收款（確認時自動開通隊員資格）
+      if (res?.data?.id) {
+        try {
+          const { submitTransferRecord } = await import('../../api/transfers');
+          await submitTransferRecord({
+            memberId: member.id, memberName: member.name, gymId: primaryGym,
+            orderType: 'team_member', refId: res.data.id, orderName: `攀岩隊年費（${year}）`,
+            amount, bankLastFive, paymentDate,
+          });
+        } catch (e) { /* 不阻斷申請 */ }
+      }
       showMsg(`申請已送出！年費 NT$${noJersey ? expectedFee : paymentAmount}，請完成匯款後等待確認`);
       setShowPayModal(false);
       setTab('my');

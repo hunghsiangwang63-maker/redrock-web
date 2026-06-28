@@ -197,6 +197,17 @@ export default function MemberCompetitionsPage() {
         guardianSignature: guardianSig || null,
       });
       const reg = res?.data?.registration;
+      // 轉帳：建立 transferRecords → 待辦頁確認收款（確認時自動確認此報名付款）
+      if (paymentMethod === 'transfer' && reg?.id) {
+        try {
+          const { submitTransferRecord } = await import('../../api/transfers');
+          await submitTransferRecord({
+            memberId: targetId, memberName: targetName, gymId: selectedComp.gymId,
+            orderType: 'competition', refId: reg.id, orderName: selectedComp.name || '比賽報名',
+            amount: reg.registrationFee, bankLastFive, paymentDate,
+          });
+        } catch (e) { /* 不阻斷報名 */ }
+      }
       setShowModal(false);
       await load();
       if (ONLINE_PAYMENT_ENABLED && reg && reg.registrationFee > 0 && reg.paymentStatus !== 'confirmed') {

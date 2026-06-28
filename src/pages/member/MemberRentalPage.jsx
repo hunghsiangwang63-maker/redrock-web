@@ -98,6 +98,17 @@ export default function MemberRentalPage() {
       showMsg(res.data.message || '申請成功！');
       const rentalId = res.data.id;
       const total = (res.data.totalRentalFee || 0) + (res.data.totalDeposit || 0);
+      // 轉帳：建立 transferRecords → 待辦頁確認收款（確認時自動確認付款+取件啟用）
+      if (payMethod === 'transfer' && rentalId) {
+        try {
+          const { submitTransferRecord } = await import('../../api/transfers');
+          await submitTransferRecord({
+            memberId: member.id, memberName: member.name, gymId,
+            orderType: 'rental', refId: rentalId, orderName: '器材租借',
+            amount: total, bankLastFive, paymentDate: payDate,
+          });
+        } catch (e) { /* 不阻斷申請 */ }
+      }
       setShowPayModal(false);
       setQuantities({ crashPad: 0, helmet: 0, harness: 0 });
       setPickupDate(''); setReturnDate('');
