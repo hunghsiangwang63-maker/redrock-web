@@ -120,7 +120,7 @@ export default function CheckinPage() {
   const [rejectingId, setRejectingId] = useState(null);
   const inputRef = useRef(null);
 
-  useEffect(() => { loadStats(); loadNotifications(); loadPendingTickets(); loadTransfers(); loadEntryTypes(); }, []);
+  useEffect(() => { loadStats(); loadEntryTypes(); }, []); // 待審核/轉帳確認/通知 已移至待辦頁
   useEffect(() => {
     if (tab === 'scan') inputRef.current?.focus();
     if (tab === 'today') loadTodayCheckIns();
@@ -397,9 +397,6 @@ export default function CheckinPage() {
             {[
               { key:'scan', label:'掃描入場' },
               { key:'courseStudents', label:`今日課程學員 ${courseStudents.length > 0 ? `(${courseStudents.length})` : ''}` },
-              { key:'pending', label:`待審核 ${pendingCount > 0 ? `(${pendingCount})` : ''}` },
-              { key:'notifications', label:`通知 ${unreadCount > 0 ? `(${unreadCount})` : ''}` },
-              { key:'transfers', label:`轉帳確認 ${transferCount > 0 ? `(${transferCount})` : ''}` },
               { key:'today', label:'今日入場' },
             ].map(t => (
               <div key={t.key} onClick={() => setTab(t.key)}
@@ -793,54 +790,7 @@ export default function CheckinPage() {
           </div>
         )}
 
-        {/* ── 待審核 tab ── */}
-        {tab === 'pending' && (
-          <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-            <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>單次入場券待審核清單</div>
-            {pendingTickets.length === 0 ? (
-              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>目前無待審核票券</div>
-            ) : pendingTickets.map(t => (
-              <div key={t.id} style={{ border:'0.5px solid #E8D5D5', borderRadius:10, padding:14, marginBottom:10 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                  <div>
-                    <div style={{ fontWeight:600, fontSize:14 }}>{t.memberName}</div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>發放人：{t.soldByStaffName}</div>
-                    <div style={{ fontSize:11, color:'#999' }}>發放時間：{dayjs(t.createdAt?._seconds * 1000).format('MM/DD HH:mm')}</div>
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', padding:'2px 8px', borderRadius:10 }}>待審核</div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:4 }}>
-                      截止：{dayjs(t.approvalDeadline?._seconds * 1000).format('MM/DD HH:mm')}
-                    </div>
-                  </div>
-                </div>
-
-                {rejectingId === t.id ? (
-                  <div>
-                    <input value={rejectReason} onChange={e => setRejectReason(e.target.value)}
-                      placeholder="請填寫拒絕原因"
-                      style={{ width:'100%', height:36, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:8 }} />
-                    <div style={{ display:'flex', gap:8 }}>
-                      <button onClick={() => { setRejectingId(null); setRejectReason(''); }}
-                        style={{ flex:1, height:36, borderRadius:6, background:'#f5f5f5', border:'none', cursor:'pointer', fontSize:13 }}>取消</button>
-                      <button onClick={() => handleReject(t.id)}
-                        style={{ flex:1, height:36, borderRadius:6, background:'#A32D2D', color:'#fff', border:'none', cursor:'pointer', fontSize:13 }}>確認拒絕</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ display:'flex', gap:8 }}>
-                    <button onClick={() => { setRejectingId(t.id); setRejectReason(''); }}
-                      style={{ flex:1, height:36, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', cursor:'pointer', fontSize:13 }}>拒絕</button>
-                    <button onClick={() => handleApprove(t.id)}
-                      style={{ flex:2, height:36, borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', cursor:'pointer', fontSize:13, fontWeight:600 }}>✓ 審核通過</button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── 轉帳確認 tab ── */}
+        {/* ── 今日入場 tab ── */}
         {tab === 'today' && (
           <div style={{ padding:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
@@ -885,64 +835,6 @@ export default function CheckinPage() {
           </div>
         )}
 
-                {tab === 'transfers' && (
-          <div style={{ padding:16 }}>
-            <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>待確認轉帳截圖</div>
-            {transfers.length === 0 ? (
-              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>目前無待確認轉帳</div>
-            ) : transfers.map(t => (
-              <div key={t.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                  <div style={{ fontWeight:600, fontSize:14 }}>{t.memberName || t.memberId}</div>
-                  <span style={{ fontSize:11, background:'#FAEEDA', color:'#854F0B', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>待確認</span>
-                </div>
-                <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>
-                  {t.courseName && <div>課程：{t.courseName}</div>}
-                  {t.amount > 0 && <div>金額：NT${t.amount.toLocaleString()}</div>}
-                  <div style={{ color:'#999', marginTop:2 }}>{t.submittedAt ? new Date(t.submittedAt._seconds ? t.submittedAt._seconds*1000 : t.submittedAt).toLocaleString('zh-TW') : ''}</div>
-                </div>
-                {t.screenshotUrl && (
-                  <a href={t.screenshotUrl} target="_blank" rel="noreferrer"
-                    style={{ display:'block', marginBottom:10 }}>
-                    <img src={t.screenshotUrl} alt="截圖" style={{ width:'100%', borderRadius:8, maxHeight:200, objectFit:'cover' }}/>
-                  </a>
-                )}
-                <div style={{ display:'flex', gap:8 }}>
-                  <button onClick={() => handleRejectTransfer(t.id)}
-                    style={{ flex:1, height:36, borderRadius:8, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:13, cursor:'pointer' }}>
-                    拒絕
-                  </button>
-                  <button onClick={() => handleConfirmTransfer(t.id)}
-                    style={{ flex:2, height:36, borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                    ✓ 確認收款
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* ── 通知 tab ── */}
-        {tab === 'notifications' && (
-          <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-              <div style={{ fontSize:13, color:'#666' }}>系統通知</div>
-              {notifications.length > 0 && (
-                <button onClick={async () => { await markAllAsRead(); loadNotifications(); }}
-                  style={{ fontSize:12, color:'#8B1A1A', background:'none', border:'none', cursor:'pointer' }}>全部已讀</button>
-              )}
-            </div>
-            {notifications.length === 0 ? (
-              <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>目前無未讀通知</div>
-            ) : notifications.map(n => (
-              <div key={n.id} style={{ border:'0.5px solid #E8D5D5', borderRadius:10, padding:12, marginBottom:8, background: n.isRead ? '#fff' : '#FBF5F5' }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>{n.title}</div>
-                <div style={{ fontSize:12, color:'#666' }}>{n.body}</div>
-                <div style={{ fontSize:11, color:'#999', marginTop:6 }}>{dayjs(n.createdAt?._seconds * 1000).format('MM/DD HH:mm')}</div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* 右側統計 */}

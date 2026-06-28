@@ -12,6 +12,21 @@ import { confirmTeamPayment } from '../../api/team';
 import { approveTicket, rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
 import { getAllPassRequests } from '../../api/passAdjustments';
+import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
+
+// 通知 type → 類別（待辦頁通知面板過濾用）
+const NOTIF_CAT = {
+  transfer_payment:'transfer', experience_transfer:'transfer', transfer:'transfer', transfer_confirm:'transfer',
+  single_entry_ticket_approved:'ticket', single_entry_ticket_rejected:'ticket',
+  ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
+  competition_payment:'competition',
+  cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
+};
+const NOTIF_CATS = [
+  { key:'', label:'全部' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
+  { key:'competition', label:'比賽' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
+];
+const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
 
 const TYPE_CONFIG = {
   rental:             { icon:'👟', color:'#854F0B', bg:'#FAEEDA', label:'器材租借' },
@@ -36,7 +51,7 @@ const REG_CONFIG = {
 
 // 待辦總覽：依「內容」分段（每段含對應的 task type）
 const CATEGORIES = [
-  { key:'transfer',    label:'🏦 轉帳確認', color:'#185FA5', types:['transfer_confirm','transfer_payment','experience_transfer'] },
+  { key:'transfer',    label:'🏦 轉帳確認', color:'#185FA5', types:['transfer_confirm'] },
   { key:'ticket',      label:'🎫 票券',   color:'#5B2D8B', types:['pass_adjustment','ticket_approval'] },
   { key:'competition', label:'🏆 比賽',   color:'#185FA5', types:['competition_payment'] },
   { key:'team',        label:'⚡ 攀岩隊', color:'#2D7D46', types:['team_member'] },
@@ -61,6 +76,9 @@ export default function PendingTasksPage() {
   const [passReqs, setPassReqs] = useState(null);            // 票券審核：依狀態查詢
   const [passFilter, setPassFilter] = useState('pending');   // pending|approved|rejected|''(全部)
   const [passLoading, setPassLoading] = useState(false);
+  const [notifs, setNotifs] = useState(null);                // 通知（系統未讀）
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifCat, setNotifCat] = useState('');              // 類別過濾
 
   // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
   const isManager = isAdmin;                          // super_admin / gym_manager
@@ -112,12 +130,21 @@ export default function PendingTasksPage() {
       setPassReqs(res.data.requests || []);
     } catch (e) { setPassReqs([]); } finally { setPassLoading(false); }
   };
+  // 通知：載入系統未讀通知
+  const loadNotifs = async () => {
+    setNotifLoading(true);
+    try {
+      const res = await getNotifications();
+      setNotifs(res.data.notifications || []);
+    } catch (e) { setNotifs([]); } finally { setNotifLoading(false); }
+  };
   // 追蹤面板切換（互斥；再點一次收合）
   const openTrack = (view) => {
     const next = trackView === view ? null : view;
     setTrackView(next);
     if (next === 'course' && completed === null) loadCompleted();
     if (next === 'pass' && passReqs === null) loadPassReqs();
+    if (next === 'notif' && notifs === null) loadNotifs();
   };
   // 票券審核狀態篩選變更時重載
   useEffect(() => { if (trackView === 'pass') loadPassReqs(); /* eslint-disable-next-line */ }, [passFilter]);
@@ -214,6 +241,10 @@ export default function PendingTasksPage() {
               課程已完成
             </button>
           )}
+          <button onClick={() => openTrack('notif')}
+            style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='notif' ? '#854F0B' : '#fff', color: trackView==='notif' ? '#fff' : '#854F0B', border:'0.5px solid #854F0B', fontSize:12, cursor:'pointer' }}>
+            🔔 通知
+          </button>
           <button onClick={load} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
             重新整理
           </button>
@@ -434,6 +465,53 @@ export default function PendingTasksPage() {
           )}
         </div>
       )}
+
+      {/* 通知（系統未讀）+ 類別過濾 */}
+      {trackView === 'notif' && (() => {
+        const list = (notifs || []).filter(n => !notifCat || notifCatOf(n.type) === notifCat);
+        return (
+          <div style={{ marginTop:8 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
+              <div style={{ fontSize:14, fontWeight:700 }}>🔔 通知</div>
+              <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+              {notifs && notifs.length > 0 && (
+                <button onClick={async () => { await markAllAsRead(); loadNotifs(); }}
+                  style={{ height:28, padding:'0 10px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>全部已讀</button>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
+              {NOTIF_CATS.map(c => (
+                <button key={c.key} onClick={() => setNotifCat(c.key)}
+                  style={{ height:30, padding:'0 12px', borderRadius:8, border: notifCat===c.key?'none':'0.5px solid #E8D5D5', background: notifCat===c.key?'#854F0B':'#fff', color: notifCat===c.key?'#fff':'#666', fontSize:12, fontWeight:500, cursor:'pointer' }}>{c.label}</button>
+              ))}
+            </div>
+            {notifLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+            {!notifLoading && list.length === 0 && (
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
+                {notifCat ? '此類別目前無未讀通知' : '目前無未讀通知'}
+              </div>
+            )}
+            {!notifLoading && list.length > 0 && (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {list.map(n => (
+                  <div key={n.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', alignItems:'flex-start', gap:10 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{n.title || '通知'}</div>
+                      {n.message && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{n.message}</div>}
+                      <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
+                        {NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統'}
+                        {n.createdAt?._seconds ? ` · ${dayjs(n.createdAt._seconds*1000).format('MM/DD HH:mm')}` : ''}
+                      </div>
+                    </div>
+                    {n.link && <button onClick={() => navigate(n.link)} style={ghostBtn}>前往</button>}
+                    <button onClick={async () => { await markAsRead(n.id); loadNotifs(); }} style={{ ...ghostBtn, color:'#854F0B' }}>已讀</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 內嵌審核彈窗 */}
       {modal?.kind === 'course' && <CourseAdjustmentReviewModal request={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}

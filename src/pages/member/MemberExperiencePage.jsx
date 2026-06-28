@@ -71,6 +71,22 @@ export default function MemberExperiencePage() {
         participants, totalFee, paymentDate: payment.paymentDate, bankLastFive: payment.bankLastFive, paymentMethod: payment.method, notes,
       });
       const bookingId = res.data.id; const fee = totalFee;
+      // 轉帳：建立 transferRecords（填末五碼）→ 待辦頁確認收款（確認時自動確認此預約）
+      if (payment.method === 'transfer' && bookingId) {
+        try {
+          const fd = new FormData();
+          fd.append('memberId', member.id);
+          fd.append('memberName', member.name || '');
+          fd.append('gymId', gymId);
+          fd.append('orderType', 'experience');
+          fd.append('refId', bookingId);
+          fd.append('orderName', '體驗課程');
+          fd.append('amount', totalFee || 0);
+          fd.append('bankLastFive', payment.bankLastFive || '');
+          fd.append('paymentDate', payment.paymentDate || '');
+          await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        } catch (e) { /* 不阻斷預約 */ }
+      }
       setParticipants([{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
       setBookingDate(''); setBookingTime(''); setPayment({ method:'transfer', paymentDate:'', bankLastFive:'' }); setNotes('');
       const r = await memberClient.get('/experience-bookings/my');

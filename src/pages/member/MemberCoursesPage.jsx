@@ -231,21 +231,25 @@ export default function MemberCoursesPage() {
       const enrInfo = enrollSession.isCourse
         ? { id: res.data.enrollmentId, fee: res.data.fee }
         : { id: res.data.enrollment?.id, fee: res.data.enrollment?.enrollmentFee };
-      // 如果選擇轉帳且有截圖，上傳截圖
-      if (paymentMethod === 'transfer' && screenshot) {
+      // 轉帳付款：一律建立 transferRecords（截圖或填末五碼皆可）→ 待辦頁確認收款
+      if (paymentMethod === 'transfer' && enrInfo.id) {
         try {
           const formData = new FormData();
-          formData.append('screenshot', screenshot);
+          if (screenshot) formData.append('screenshot', screenshot);
           formData.append('memberId', member.id);
           formData.append('memberName', member.name || '');
           formData.append('gymId', gymId);
+          formData.append('orderType', 'course');
+          formData.append('refId', enrInfo.id);
+          formData.append('orderName', selectedCourse?.name || '');
           formData.append('courseName', selectedCourse?.name || '');
-          formData.append('amount', enrollSession?.fee || selectedCourse?.price || 0);
-          formData.append('paymentMethod', 'transfer');
+          formData.append('amount', enrInfo.fee || selectedCourse?.price || 0);
+          if (bankLastFive) formData.append('bankLastFive', bankLastFive);
+          if (paymentDate) formData.append('paymentDate', paymentDate);
           await memberClient.post('/transfers/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-          showMsg('截圖已上傳，等待工作人員確認');
+          showMsg('轉帳資料已提交，等待工作人員確認收款');
         } catch (uploadErr) {
-          showMsg('報名成功，但截圖上傳失敗，請稍後重試');
+          showMsg('報名成功，但轉帳資料提交失敗，請至付款紀錄補交');
         }
       }
       resetEnrollModal();
