@@ -404,10 +404,6 @@ export default function MembersPage() {
               style={{ height:40, padding:'0 18px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
               {loading ? '搜尋中...' : '搜尋'}
             </button>
-            <button type="button"
-              style={{ height:40, padding:'0 16px', borderRadius:8, background:'none', border:'1px solid #E8D5D5', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>
-              ＋ 新增會員
-            </button>
           </form>
         </div>
 
