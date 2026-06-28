@@ -354,7 +354,7 @@ export default function CoursesPage({ embedded = false }) {
       const res = await generateWeeklySessions(courseId, { confirm: true });
       showMsg(res.data.message);
       setOrphanConfirm(null);
-      await loadSessions();
+      await Promise.all([loadSessions(), loadCourses()]); // 同步刷新場次與課程卡（堂數）
     } catch (err) {
       showMsg(err.response?.data?.message || '產生場次失敗', 'red');
     } finally { setOrphanBusy(false); }
