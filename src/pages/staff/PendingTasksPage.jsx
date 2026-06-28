@@ -15,12 +15,20 @@ const TYPE_CONFIG = {
   experience:         { icon:'🧗', color:'#8B1A1A', bg:'#FBF5F5', label:'體驗課程' },
   transfer_payment:   { icon:'🏦', color:'#185FA5', bg:'#E6F1FB', label:'課程轉帳待確認' },
   experience_transfer:{ icon:'💳', color:'#185FA5', bg:'#E6F1FB', label:'體驗轉帳待確認' },
+  ticket_approval:    { icon:'🎟️', color:'#5B2D8B', bg:'#F3EEF9', label:'票券審核' },
+};
+
+const REG_CONFIG = {
+  course:      { icon:'📚', color:'#8B1A1A', bg:'#FBF5F5', label:'課程報名' },
+  competition: { icon:'🏆', color:'#185FA5', bg:'#E6F1FB', label:'比賽報名' },
+  experience:  { icon:'🧗', color:'#2D7D46', bg:'#E6F4EB', label:'體驗報名' },
 };
 
 export default function PendingTasksPage() {
   const { staff } = useAuth();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [gymFilter, setGymFilter] = useState('');
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
@@ -35,7 +43,8 @@ export default function PendingTasksPage() {
         params: isAdmin && gymFilter ? { gymId: gymFilter } : {}
       });
       setTasks(res.data.tasks || []);
-    } catch(e) { setTasks([]); } finally { setLoading(false); }
+      setRegistrations(res.data.registrations || []);
+    } catch(e) { setTasks([]); setRegistrations([]); } finally { setLoading(false); }
   }, [gymFilter, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
@@ -74,15 +83,20 @@ export default function PendingTasksPage() {
         </div>
       </div>
       <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>
-        上次更新：{dayjs().format('HH:mm')}　·　涵蓋項目：器材租借、課程退費/暫停、票券調整、比賽收款、攀岩隊申請
+        上次更新：{dayjs().format('HH:mm')}　·　審核：票券審核、轉帳確認、課程退費/暫停、票券調整、比賽收款、攀岩隊、器材、體驗　·　另含近 7 天新報名通知
       </div>
 
       {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
-      {!loading && total === 0 && (
+      {!loading && total === 0 && registrations.length === 0 && (
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center' }}>
           <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
           <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46' }}>目前沒有待處理事項</div>
           <div style={{ fontSize:13, color:'#999', marginTop:4 }}>所有申請均已處理完畢</div>
+        </div>
+      )}
+      {!loading && total === 0 && registrations.length > 0 && (
+        <div style={{ background:'#E6F4EB', borderRadius:12, border:'0.5px solid #B3DEC0', padding:'12px 16px', marginBottom:16, fontSize:13, color:'#2D7D46' }}>
+          ✅ 目前沒有待審核事項。以下為近 7 天新報名通知。
         </div>
       )}
 
@@ -132,6 +146,43 @@ export default function PendingTasksPage() {
           </div>
         </div>
       ))}
+
+      {/* 新報名通知（近 7 天，分項） */}
+      {!loading && registrations.length > 0 && (
+        <div style={{ marginTop:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>🆕 新報名通知（近 7 天）</div>
+            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{registrations.length} 項</div>
+          </div>
+          {['course','competition','experience'].map(rt => {
+            const items = registrations.filter(r => r.regType === rt);
+            if (!items.length) return null;
+            const cfg = REG_CONFIG[rt];
+            return (
+              <div key={rt} style={{ marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:cfg.color, marginBottom:6 }}>{cfg.icon} {cfg.label}（{items.length}）</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {items.map(r => (
+                    <div key={r.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'10px 12px', display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:34, height:34, borderRadius:8, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>{cfg.icon}</div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.memberName} <span style={{ fontWeight:400, color:'#666' }}>報名 {r.name}</span></div>
+                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                          {r.detail}{r.detail && r.dateStr ? ' · ' : ''}{r.dateStr}
+                          {r.gymId==='gym-hsinchu' ? ' · 新竹館' : r.gymId==='gym-shilin' ? ' · 士林館' : ''}
+                        </div>
+                      </div>
+                      <button onClick={() => navigate(r.link)}
+                        style={{ height:30, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer', flexShrink:0 }}>查看</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
