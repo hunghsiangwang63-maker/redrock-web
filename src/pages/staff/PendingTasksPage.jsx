@@ -24,6 +24,7 @@ const TYPE_CONFIG = {
   experience:         { icon:'🧗', color:'#8B1A1A', bg:'#FBF5F5', label:'體驗課程' },
   transfer_payment:   { icon:'🏦', color:'#185FA5', bg:'#E6F1FB', label:'課程轉帳待確認' },
   experience_transfer:{ icon:'💳', color:'#185FA5', bg:'#E6F1FB', label:'體驗轉帳待確認' },
+  transfer_confirm:   { icon:'🏦', color:'#185FA5', bg:'#E6F1FB', label:'轉帳確認' },
   ticket_approval:    { icon:'🎟️', color:'#5B2D8B', bg:'#F3EEF9', label:'票券審核' },
 };
 
@@ -35,11 +36,12 @@ const REG_CONFIG = {
 
 // 待辦總覽：依「內容」分段（每段含對應的 task type）
 const CATEGORIES = [
+  { key:'transfer',    label:'🏦 轉帳確認', color:'#185FA5', types:['transfer_confirm','transfer_payment','experience_transfer'] },
   { key:'ticket',      label:'🎫 票券',   color:'#5B2D8B', types:['pass_adjustment','ticket_approval'] },
   { key:'competition', label:'🏆 比賽',   color:'#185FA5', types:['competition_payment'] },
   { key:'team',        label:'⚡ 攀岩隊', color:'#2D7D46', types:['team_member'] },
-  { key:'experience',  label:'🧗 體驗',   color:'#8B1A1A', types:['experience','experience_transfer'] },
-  { key:'course',      label:'📚 課程',   color:'#8B1A1A', types:['course_adjustment','transfer_payment'] },
+  { key:'experience',  label:'🧗 體驗',   color:'#8B1A1A', types:['experience'] },
+  { key:'course',      label:'📚 課程',   color:'#8B1A1A', types:['course_adjustment'] },
   { key:'equipment',   label:'👟 器材',   color:'#854F0B', types:['rental','rental_pickup','rental_return'] },
 ];
 
@@ -67,6 +69,7 @@ export default function PendingTasksPage() {
     rental:              true,                         // 全部員工（後端僅 authenticate）
     rental_return:       true,
     experience:          true,
+    transfer_confirm:    true,                          // 轉帳確認：後端 authenticate（全員工）
     course_adjustment:   isManager || isOpStation,     // requireManagerOrStation
     pass_adjustment:     isManager || isOpStation,
     team_member:         isManager || isOpStation,
@@ -149,6 +152,12 @@ export default function PendingTasksPage() {
         return <>{task.record && <button onClick={() => setModal({ kind:'pass', record:task.record })} style={primaryBtn('#2D7D46')}>審核</button>}{goLink(task)}</>;
       case 'competition_payment':
         return <>{task.record && <button onClick={() => setModal({ kind:'competition', record:task.record })} style={primaryBtn('#2D7D46')}>確認收款</button>}{goLink(task)}</>;
+      case 'transfer_confirm':
+        return <>
+          {task.record?.screenshotUrl && <a href={task.record.screenshotUrl} target="_blank" rel="noreferrer" style={ghostBtn}>查看截圖</a>}
+          <button disabled={busy} onClick={() => oneClick(task.targetId, () => client.put(`/transfers/${task.targetId}/confirm`), '已確認收款')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認收款'}</button>
+          <button onClick={() => setModal({ kind:'reason', props:{ title:'退回轉帳', label:'退回原因', placeholder:'請填寫退回原因', confirmText:'確認退回', required:true, onSubmit: async (reason) => { await client.put(`/transfers/${task.targetId}/reject`, { reason }); afterDone('已退回'); } } })} style={dangerBtn}>退回</button>
+        </>;
       case 'team_member':
         return <><button disabled={busy} onClick={() => oneClick(task.targetId, () => confirmTeamPayment(task.targetId), '已確認收款')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認收款'}</button>{goLink(task)}</>;
       case 'experience':
