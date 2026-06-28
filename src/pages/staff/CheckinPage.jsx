@@ -256,7 +256,11 @@ export default function CheckinPage() {
     try {
       const res = await client.get('/members', { params: { q: phoneInput.trim() } });
       const members = res.data.members || [];
-      const found = members.find(m => m.phone === phoneInput.trim() || m.phone === phoneInput.trim().replace(/-/g,''));
+      const target = phoneInput.trim();
+      const matches = members.filter(m => m.phone === target || m.phone === target.replace(/-/g,''));
+      // 親子共用電話：子帳號繼承家長電話，且搜尋依建立時間新→舊（子帳號常較晚建立排在前）。
+      // 優先解析為「家長帳號」（非子帳號），再由家長 children 清單選子會員，避免只看到子帳號。
+      const found = matches.find(m => !m.isChildAccount && !m.parentMemberId) || matches[0];
       if (found) {
         setPhoneMember(found);
         try {
