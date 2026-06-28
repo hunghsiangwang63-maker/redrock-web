@@ -62,8 +62,8 @@ export const memberGetMakeupRights = (memberId) =>
 export const memberUseMakeupRight = (makeupId, data) =>
   memberClient.post(`/courses/makeup/${makeupId}/use`, data);
 
-export const generateWeeklySessions = (courseId) =>
-  client.post(`/courses/${courseId}/generate-sessions`);
+export const generateWeeklySessions = (courseId, { confirm = false } = {}) =>
+  client.post(`/courses/${courseId}/generate-sessions`, { confirm });
 
 export const updateSession = (sessionId, data) =>
   client.put(`/courses/sessions/${sessionId}`, data);

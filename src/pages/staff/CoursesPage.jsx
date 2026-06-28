@@ -68,6 +68,9 @@ export default function CoursesPage({ embedded = false }) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
+  // 改課表重產：孤兒場次確認 Modal { courseId, orphans, willCreate, willDelete }
+  const [orphanConfirm, setOrphanConfirm] = useState(null);
+  const [orphanBusy, setOrphanBusy] = useState(false);
 
   // 新增課程
   const [showAddCourse, setShowAddCourse] = useState(false);
@@ -235,7 +238,7 @@ export default function CoursesPage({ embedded = false }) {
       // 週課自動產生場次
       if (courseForm.type === 'weekly' && courseForm.weekdays.length > 0 &&
           courseForm.startDate && courseForm.endDate) {
-        await generateWeeklySessions(res.data.course?.id);
+        await generateWeeklySessions(res.data.course?.id, { confirm: true });
         showMsg('課程建立成功，場次已自動產生');
       } else {
         showMsg('課程建立成功');
@@ -275,6 +278,15 @@ export default function CoursesPage({ embedded = false }) {
 
   const handleUpdateCourse = async () => {
     setLoading(true);
+    // 課表（上課星期 / 起訖日）是否有變動 → 需重新產生場次
+    const norm = (arr) => [...(arr || [])].map(Number).sort((a, b) => a - b).join(',');
+    const courseId = editingCourse.id;
+    const scheduleChanged =
+      norm(editForm.weekdays) !== norm(editingCourse.weekdays) ||
+      editForm.startDate !== editingCourse.startDate ||
+      editForm.endDate !== editingCourse.endDate;
+    const needRegen = editingCourse.type === 'weekly' && scheduleChanged &&
+      editForm.weekdays?.length > 0 && editForm.startDate && editForm.endDate;
     try {
       const { updateCourse } = await import('../../api/courses');
       await updateCourse(editingCourse.id, {
@@ -289,9 +301,11 @@ export default function CoursesPage({ embedded = false }) {
         perSessionDeduction: parseInt(editForm.perSessionDeduction) || 850,
         handlingFeeRate: (parseFloat(editForm.handlingFeeRate) || 5) / 100,
       });
-      showMsg('課程已更新');
+      showMsg(needRegen ? '課程已更新，正在依新課表重排場次…' : '課程已更新');
       setEditingCourse(null);
       await loadCourses();
+      // 改課表 → 重新產生場次（孤兒場次走確認/轉移流程）
+      if (needRegen) await handleGenerateSessions(courseId);
     } catch (err) {
       showMsg(err.response?.data?.message || '更新失敗', 'red');
     } finally { setLoading(false); }
@@ -322,12 +336,28 @@ export default function CoursesPage({ embedded = false }) {
 
   const handleGenerateSessions = async (courseId) => {
     try {
-      const res = await generateWeeklySessions(courseId);
-      showMsg(res.data.message);
-      await loadSessions();
+      // 先預覽：偵測孤兒場次（有學員、但不在新課表的舊場次）
+      const res = await generateWeeklySessions(courseId, { confirm: false });
+      if ((res.data.orphans || []).length > 0) {
+        setOrphanConfirm({ courseId, ...res.data }); // 跳確認 Modal
+        return;
+      }
+      await runGenerateSessions(courseId); // 無孤兒 → 直接產生
     } catch (err) {
       showMsg(err.response?.data?.message || '產生場次失敗', 'red');
     }
+  };
+
+  const runGenerateSessions = async (courseId) => {
+    setOrphanBusy(true);
+    try {
+      const res = await generateWeeklySessions(courseId, { confirm: true });
+      showMsg(res.data.message);
+      setOrphanConfirm(null);
+      await loadSessions();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '產生場次失敗', 'red');
+    } finally { setOrphanBusy(false); }
   };
 
   const handleUpdateSession = async (sessionId, data) => {
@@ -607,6 +637,55 @@ export default function CoursesPage({ embedded = false }) {
       )}
 
       {/* 月曆名單 Modal */}
+      {/* 改課表重產：孤兒場次轉移確認 */}
+      {orphanConfirm && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+          onClick={() => !orphanBusy && setOrphanConfirm(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:20, width:460, maxWidth:'95vw', maxHeight:'82vh', overflowY:'auto', border:'0.5px solid #E8D5D5' }}>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:6 }}>重新產生場次</div>
+            <div style={{ fontSize:12, color:'#666', lineHeight:1.6, marginBottom:14 }}>
+              以下 {orphanConfirm.orphans.length} 個場次已有學員、但不在新課表內。
+              確認後將把報名轉移到「最接近的新場次」（同週優先），目標額滿者會保留在原日期。
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:16 }}>
+              {orphanConfirm.orphans.map(o => (
+                <div key={o.sessionId} style={{ background:'#FBF5F5', borderRadius:10, border:'0.5px solid #F0E0E0', padding:'10px 12px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontSize:13, fontWeight:600 }}>
+                      {dayjs(o.date).format('MM/DD')}（{WEEKDAYS[dayjs(o.date).day()]}）{o.startTime}
+                    </div>
+                    <div style={{ fontSize:12, color: o.willTransfer ? '#2D7D46' : '#A32D2D', fontWeight:600 }}>
+                      {o.willTransfer
+                        ? `→ ${dayjs(o.targetDate).format('MM/DD')}（${WEEKDAYS[dayjs(o.targetDate).day()]}）`
+                        : `保留原場次`}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:11, color:'#999', marginTop:4 }}>
+                    報名 {o.confirmedCount} 人
+                    {o.waitlistCount > 0 && ` · 候補 ${o.waitlistCount}`}
+                    {o.leaveCount > 0 && ` · 請假 ${o.leaveCount}`}
+                    {o.members.length > 0 && `：${o.members.join('、')}`}
+                  </div>
+                  {!o.willTransfer && o.reason && (
+                    <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>⚠️ {o.reason}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => !orphanBusy && setOrphanConfirm(null)} disabled={orphanBusy}
+                style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', fontSize:14, cursor: orphanBusy ? 'default' : 'pointer' }}>
+                取消
+              </button>
+              <button onClick={() => runGenerateSessions(orphanConfirm.courseId)} disabled={orphanBusy}
+                style={{ flex:2, height:44, borderRadius:10, border:'none', background:'#8B1A1A', color:'#fff', fontSize:14, fontWeight:600, cursor: orphanBusy ? 'default' : 'pointer', opacity: orphanBusy ? .6 : 1 }}>
+                {orphanBusy ? '處理中…' : '確認轉移並產生場次'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {rosterSession && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
           onClick={() => setRosterSession(null)}>
