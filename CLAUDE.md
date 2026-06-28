@@ -33,6 +33,7 @@ RedRock 紅石攀岩館管理系統，服務兩個場館：新竹館（`gym-hsin
   - 孤兒＝有學員但日期已不在新課表的場次；轉移到「最接近的新場次」（同週優先，其次最近日，平手取較早），confirmed 超過 `maxStudents` 則**保留原場次不超賣**
   - 轉移同步 `sessionId/date/時間/gymAccessStart/End`，**不動費用/付款**；前端確認 Modal 列出受影響會員與轉入日期
   - 純函式 `planRegenerate`/`pickNearestDate` 供預覽與執行共用（一致）；`/health` version 標記 `1.1.0-orphan-transfer`
+- ✅ **入場扣點改「確認才扣」**（`checkinService`）：黑卡/單次券原本在產生 QR 時就預扣，未入場不回補→漏次數/鎖券；改為 `confirmCheckIn` 才扣（黑卡 `useBlackCard`、券標 used），扣點移到寫入場紀錄前；黑卡集合錯位根治改用 `legacyBlackCards`（與資格查詢同源）；取消還原（`checkinService` + `cancelCheckin` 路由共用 `restoreEntryCredits`）涵蓋黑卡/單次券/折扣卡/紅利。紅利原即「確認才扣＋防重複」未動。`/health` `1.2.0-deferred-deduction`
 - 🟡 **線上金流串接（進行中）**：統一付款元件 `src/components/PaymentFlow.jsx`（接 `client` prop，會員/員工通用；匯出 `ONLINE_PAYMENT_ENABLED`，正式環境 gateway 上線前為 false → 不顯示付款入口、fallback 匯款）
   - 已接會員自助：競賽 / 體驗 / 課程 / 租借（MemberCompetitions/Experience/Courses/Rental Page）
   - 後端 rail 與設計：見 `redrock-api/docs/payment-integration-plan.md`
