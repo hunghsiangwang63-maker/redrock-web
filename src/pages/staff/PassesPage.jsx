@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getPassTypes, getMemberPasses, createPass, updatePass, renewPass,
          getMemberSingleEntryTickets, issueSingleEntryTicket,
          createPassType, updatePassType, deactivatePassType } from '../../api/passes';
-import { getPassHistory, editPassWithReason, getAllPassRequests, runHolidayBatchExtension, getHolidayHistory } from '../../api/passAdjustments';
+import { getPassHistory, editPassWithReason, runHolidayBatchExtension, getHolidayHistory } from '../../api/passAdjustments';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getGyms } from '../../api/gyms';
 import { searchMembers } from '../../api/members';
@@ -70,11 +70,6 @@ export default function PassesPage() {
   const [editPassSaving, setEditPassSaving] = useState(false);
   const [passHistory, setPassHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-
-  // 展延/退費/轉讓申請審核
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [requestsFilter, setRequestsFilter] = useState('pending');
-  const [requestsLoading, setRequestsLoading] = useState(false);
 
   // 票券統計
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -144,22 +139,8 @@ export default function PassesPage() {
   }, []);
 
   useEffect(() => {
-    if (tab === 'requests') loadPendingRequests();
     if (tab === 'holiday') loadGymsForHoliday();
   }, [tab]);
-
-  const loadPendingRequests = async () => {
-    setRequestsLoading(true);
-    try {
-      const res = await getAllPassRequests(requestsFilter || undefined);
-      setPendingRequests(res.data.requests || []);
-    } catch (e) { setPendingRequests([]); }
-    finally { setRequestsLoading(false); }
-  };
-
-  useEffect(() => {
-    if (tab === 'requests') loadPendingRequests();
-  }, [requestsFilter]);
 
   const loadGymsForHoliday = async () => {
     try {
@@ -397,12 +378,6 @@ export default function PassesPage() {
       ],
     },
     {
-      group: '申請審核',
-      items: canManagePass ? [
-        { key:'requests',       icon:'📬', label:'票券申請' },
-      ] : [],
-    },
-    {
       group: '其他',
       items: canManagePass ? [
         { key:'holiday',   icon:'📅', label:'年假展延' },
@@ -559,77 +534,6 @@ export default function PassesPage() {
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {/* ── 展延/退費/轉讓申請審核 ── */}
-      {tab === 'requests' && (
-        <div>
-          <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-            {[{key:'pending',label:'待審核'},{key:'approved',label:'已核准'},{key:'rejected',label:'已拒絕'},{key:'',label:'全部'}].map(f => (
-              <button key={f.key} onClick={() => setRequestsFilter(f.key)}
-                style={{ height:32, padding:'0 14px', borderRadius:8, border: requestsFilter===f.key?'none':'0.5px solid #E8D5D5', background: requestsFilter===f.key?'#8B1A1A':'#fff', color: requestsFilter===f.key?'#fff':'#666', fontSize:12, fontWeight:500, cursor:'pointer' }}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-
-          {requestsLoading ? (
-            <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>載入中...</div>
-          ) : pendingRequests.length === 0 ? (
-            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-              目前沒有申請紀錄
-            </div>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {pendingRequests.map(r => {
-                const typeLabel = { extension:'展延', refund:'退費', transfer:'轉讓', course_practice_deferral:'課程練習期遞延' }[r.type] || r.type;
-                const statusTag = r.status === 'pending' ? { type:'warn', label:'待審核' } : r.status === 'approved' ? { type:'ok', label:'已核准' } : { type:'red', label:'已拒絕' };
-                return (
-                  <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
-                      <div>
-                        <div style={{ fontWeight:600, fontSize:14 }}>{r.memberName} — {r.passTypeName || '定期票'}</div>
-                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                          申請類型：{typeLabel}
-                          {r.type === 'course_practice_deferral' && ` · 課程：${r.courseName} · 練習期至：${r.practiceEnd}`}
-                          {r.type !== 'course_practice_deferral' && ` · 事由：${r.reasonLabel}`}
-                          {r.type === 'transfer' && r.transferToPhone && ` · 轉讓予：${r.transferToPhone}`}
-                        </div>
-                        {r.type === 'course_practice_deferral' && (
-                          <div style={{ fontSize:11, color:'#185FA5', marginTop:4, background:'#E6F1FB', borderRadius:6, padding:'4px 8px', display:'inline-block' }}>
-                            定期票剩餘 {r.remainingDays} 天｜{r.currentEndDate} → {r.proposedEndDate}
-                          </div>
-                        )}
-                        {r.reasonDetail && r.type !== 'course_practice_deferral' && <div style={{ fontSize:11, color:'#999', marginTop:2 }}>補充說明：{r.reasonDetail}</div>}
-                      </div>
-                      <Tag type={statusTag.type}>{statusTag.label}</Tag>
-                    </div>
-                    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                      {r.type !== 'course_practice_deferral' && (
-                        <a href={r.evidenceUrl} target="_blank" rel="noreferrer"
-                          style={{ fontSize:11, color:'#185FA5' }}>查看證明文件</a>
-                      )}
-                      {r.status === 'pending' && (
-                        <span style={{ marginLeft:'auto', fontSize:11, color:'#854F0B' }}>待審核（於待辦總覽處理）</span>
-                      )}
-                      {r.status === 'approved' && (
-                        <div style={{ marginLeft:'auto', fontSize:11, color:'#2D7D46' }}>
-                          {r.type === 'extension' && `已展延至 ${r.result?.newEndDate}`}
-                          {r.type === 'refund' && `退費 NT$${r.result?.netRefund?.toLocaleString()}（已扣手續費NT$${r.result?.fee}）`}
-                          {r.type === 'transfer' && `已轉讓予 ${r.result?.newOwnerName}`}
-                          {r.type === 'course_practice_deferral' && `已遞延至 ${r.proposedEndDate}`}
-                        </div>
-                      )}
-                      {r.status === 'rejected' && r.rejectReason && (
-                        <div style={{ marginLeft:'auto', fontSize:11, color:'#A32D2D' }}>拒絕原因：{r.rejectReason}</div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
       )}
 

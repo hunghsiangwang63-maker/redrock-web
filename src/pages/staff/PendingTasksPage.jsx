@@ -11,6 +11,7 @@ import ReasonModal from '../../components/review/ReasonModal';
 import { confirmTeamPayment } from '../../api/team';
 import { approveTicket, rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
+import { getAllPassRequests } from '../../api/passAdjustments';
 
 const TYPE_CONFIG = {
   rental:             { icon:'👟', color:'#854F0B', bg:'#FAEEDA', label:'器材租借' },
@@ -32,6 +33,16 @@ const REG_CONFIG = {
   experience:  { icon:'🧗', color:'#2D7D46', bg:'#E6F4EB', label:'體驗報名' },
 };
 
+// 待辦總覽：依「內容」分段（每段含對應的 task type）
+const CATEGORIES = [
+  { key:'ticket',      label:'🎫 票券',   color:'#5B2D8B', types:['pass_adjustment','ticket_approval'] },
+  { key:'competition', label:'🏆 比賽',   color:'#185FA5', types:['competition_payment'] },
+  { key:'team',        label:'⚡ 攀岩隊', color:'#2D7D46', types:['team_member'] },
+  { key:'experience',  label:'🧗 體驗',   color:'#8B1A1A', types:['experience','experience_transfer'] },
+  { key:'course',      label:'📚 課程',   color:'#8B1A1A', types:['course_adjustment','transfer_payment'] },
+  { key:'equipment',   label:'👟 器材',   color:'#854F0B', types:['rental','rental_pickup','rental_return'] },
+];
+
 export default function PendingTasksPage() {
   const { staff, operator, station } = useAuth();
   const navigate = useNavigate();
@@ -41,10 +52,13 @@ export default function PendingTasksPage() {
   const [gymFilter, setGymFilter] = useState('');
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
 
-  // ── 已完成任務查詢（課程退費/暫停：已核准 / 已拒絕）──
-  const [showCompleted, setShowCompleted] = useState(false);
-  const [completed, setCompleted] = useState(null); // null=未載入
+  // ── 追蹤查詢面板（顯示於待辦總覽下方）：'course'=課程已完成 | 'pass'=票券審核 ──
+  const [trackView, setTrackView] = useState(null);
+  const [completed, setCompleted] = useState(null);          // 課程：已核准/已拒絕
   const [completedLoading, setCompletedLoading] = useState(false);
+  const [passReqs, setPassReqs] = useState(null);            // 票券審核：依狀態查詢
+  const [passFilter, setPassFilter] = useState('pending');   // pending|approved|rejected|''(全部)
+  const [passLoading, setPassLoading] = useState(false);
 
   // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
   const isManager = isAdmin;                          // super_admin / gym_manager
@@ -59,10 +73,6 @@ export default function PendingTasksPage() {
     competition_payment: isManager,                    // checkPermission('competitions.manage')
     ticket_approval:     isManager,                    // checkPermission('passes.approve')
   };
-  const today = dayjs().format('YYYY-MM-DD');
-  const yesterday = dayjs().subtract(1,'day').format('YYYY-MM-DD');
-  const weekAgo = dayjs().subtract(7,'day').format('YYYY-MM-DD');
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -81,9 +91,9 @@ export default function PendingTasksPage() {
   const [busyId, setBusyId] = useState(null);
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
-  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (showCompleted) loadCompleted(); };
+  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassReqs(); };
 
-  // 載入已完成（已核准/已拒絕）的課程退費/暫停申請
+  // 課程：已完成（已核准/已拒絕）退費/暫停
   const loadCompleted = async () => {
     setCompletedLoading(true);
     try {
@@ -91,11 +101,23 @@ export default function PendingTasksPage() {
       setCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
     } catch (e) { setCompleted([]); } finally { setCompletedLoading(false); }
   };
-  const toggleCompleted = () => {
-    const next = !showCompleted;
-    setShowCompleted(next);
-    if (next && completed === null) loadCompleted();
+  // 票券審核：依狀態查詢（待審核/已核准/已拒絕/全部）
+  const loadPassReqs = async () => {
+    setPassLoading(true);
+    try {
+      const res = await getAllPassRequests(passFilter || undefined);
+      setPassReqs(res.data.requests || []);
+    } catch (e) { setPassReqs([]); } finally { setPassLoading(false); }
   };
+  // 追蹤面板切換（互斥；再點一次收合）
+  const openTrack = (view) => {
+    const next = trackView === view ? null : view;
+    setTrackView(next);
+    if (next === 'course' && completed === null) loadCompleted();
+    if (next === 'pass' && passReqs === null) loadPassReqs();
+  };
+  // 票券審核狀態篩選變更時重載
+  useEffect(() => { if (trackView === 'pass') loadPassReqs(); /* eslint-disable-next-line */ }, [passFilter]);
 
   // 一鍵動作（確認收款 / 核准）
   const oneClick = async (id, fn, okMsg) => {
@@ -145,13 +167,11 @@ export default function PendingTasksPage() {
     }
   };
 
-  // 分組
-  const groups = [
-    { key:'today',    label:'今日', tasks: tasks.filter(t => t.date >= today) },
-    { key:'yesterday',label:'昨日', tasks: tasks.filter(t => t.date === yesterday) },
-    { key:'week',     label:'近7天', tasks: tasks.filter(t => t.date < yesterday && t.date >= weekAgo) },
-    { key:'older',    label:'更早', tasks: tasks.filter(t => t.date < weekAgo) },
-  ].filter(g => g.tasks.length > 0);
+  // 分組：依「內容」分段（票券/比賽/攀岩隊/體驗/課程/器材），段內依日期新→舊
+  const groups = CATEGORIES.map(c => ({
+    ...c,
+    tasks: tasks.filter(t => c.types.includes(t.type)).sort((a, b) => (a.date < b.date ? 1 : -1)),
+  })).filter(g => g.tasks.length > 0);
 
   const total = tasks.length;
 
@@ -173,10 +193,16 @@ export default function PendingTasksPage() {
               <option value="gym-shilin">士林館</option>
             </select>
           )}
+          {perm.pass_adjustment && (
+            <button onClick={() => openTrack('pass')}
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='pass' ? '#5B2D8B' : '#fff', color: trackView==='pass' ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer' }}>
+              票券審核
+            </button>
+          )}
           {perm.course_adjustment && (
-            <button onClick={toggleCompleted}
-              style={{ height:32, padding:'0 14px', borderRadius:8, background: showCompleted ? '#5B2D8B' : '#fff', color: showCompleted ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer' }}>
-              已完成任務
+            <button onClick={() => openTrack('course')}
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='course' ? '#8B1A1A' : '#fff', color: trackView==='course' ? '#fff' : '#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>
+              課程已完成
             </button>
           )}
           <button onClick={load} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
@@ -204,13 +230,9 @@ export default function PendingTasksPage() {
 
       {!loading && groups.map(group => (
         <div key={group.key} style={{ marginBottom:20 }}>
-          {/* 日期標題 */}
+          {/* 內容分段標題 */}
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:'#1a1a1a' }}>
-              {group.key === 'today' ? '📅 今日' :
-               group.key === 'yesterday' ? '📅 昨日' :
-               group.key === 'week' ? '📅 近 7 天' : '📅 更早'}
-            </div>
+            <div style={{ fontSize:13, fontWeight:700, color:group.color }}>{group.label}</div>
             <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
             <div style={{ fontSize:12, color:'#999' }}>{group.tasks.length} 項</div>
           </div>
@@ -285,11 +307,11 @@ export default function PendingTasksPage() {
         </div>
       )}
 
-      {/* 已完成任務查詢（課程退費/暫停：已核准 / 已拒絕） */}
-      {showCompleted && (
+      {/* 課程已完成查詢（退費/暫停：已核准 / 已拒絕） */}
+      {trackView === 'course' && (
         <div style={{ marginTop:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
-            <div style={{ fontSize:14, fontWeight:700 }}>✅ 已完成任務 · 課程退費／暫停</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>📚 課程已完成 · 退費／暫停</div>
             <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
             <div style={{ fontSize:12, color:'#999' }}>{completed ? `${completed.length} 項` : ''}</div>
           </div>
@@ -320,6 +342,79 @@ export default function PendingTasksPage() {
                           <div style={{ fontSize:11, color:'#A32D2D', marginTop:3 }}>拒絕原因：{r.rejectReason}</div>
                         )}
                         {dateStr && <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>{dateStr}</div>}
+                      </div>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 票券審核追蹤查詢（展延/退費/轉讓/課程練習期遞延 · 待審核/已核准/已拒絕/全部） */}
+      {trackView === 'pass' && (
+        <div style={{ marginTop:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>🎫 票券審核</div>
+            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{passReqs ? `${passReqs.length} 項` : ''}</div>
+          </div>
+          <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+            {[{key:'pending',label:'待審核'},{key:'approved',label:'已核准'},{key:'rejected',label:'已拒絕'},{key:'',label:'全部'}].map(f => (
+              <button key={f.key} onClick={() => setPassFilter(f.key)}
+                style={{ height:30, padding:'0 12px', borderRadius:8, border: passFilter===f.key?'none':'0.5px solid #E8D5D5', background: passFilter===f.key?'#5B2D8B':'#fff', color: passFilter===f.key?'#fff':'#666', fontSize:12, fontWeight:500, cursor:'pointer' }}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {passLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+          {!passLoading && passReqs && passReqs.length === 0 && (
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
+              目前沒有符合的票券申請
+            </div>
+          )}
+          {!passLoading && passReqs && passReqs.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {passReqs.map(r => {
+                const typeLabel = { extension:'展延', refund:'退費', transfer:'轉讓', course_practice_deferral:'課程練習期遞延' }[r.type] || r.type;
+                const badge = r.status === 'pending' ? { bg:'#FAEEDA', color:'#854F0B', label:'待審核' }
+                  : r.status === 'approved' ? { bg:'#E6F4EB', color:'#2D7D46', label:'已核准' }
+                  : { bg:'#FCEBEB', color:'#A32D2D', label:'已拒絕' };
+                return (
+                  <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{r.memberName} — {r.passTypeName || '定期票'}</div>
+                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                          {typeLabel}
+                          {r.type === 'course_practice_deferral' ? ` · 課程：${r.courseName} · 練習期至：${r.practiceEnd}` : ` · 事由：${r.reasonLabel || '—'}`}
+                          {r.type === 'transfer' && r.transferToPhone && ` · 轉讓予：${r.transferToPhone}`}
+                        </div>
+                        {r.type === 'course_practice_deferral' && (
+                          <div style={{ fontSize:11, color:'#185FA5', marginTop:4 }}>定期票剩餘 {r.remainingDays} 天｜{r.currentEndDate} → {r.proposedEndDate}</div>
+                        )}
+                        {r.reasonDetail && r.type !== 'course_practice_deferral' && (
+                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>補充：{r.reasonDetail}</div>
+                        )}
+                        {r.status === 'approved' && (
+                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:3 }}>
+                            {r.type === 'extension' && `已展延至 ${r.result?.newEndDate}`}
+                            {r.type === 'refund' && `退費 NT$${r.result?.netRefund?.toLocaleString?.() ?? r.result?.netRefund}（扣手續費 NT$${r.result?.fee}）`}
+                            {r.type === 'transfer' && `已轉讓予 ${r.result?.newOwnerName}`}
+                            {r.type === 'course_practice_deferral' && `已遞延至 ${r.proposedEndDate}`}
+                          </div>
+                        )}
+                        {r.status === 'rejected' && r.rejectReason && (
+                          <div style={{ fontSize:11, color:'#A32D2D', marginTop:3 }}>拒絕原因：{r.rejectReason}</div>
+                        )}
+                        {r.type !== 'course_practice_deferral' && r.evidenceUrl && (
+                          <a href={r.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize:11, color:'#185FA5', marginTop:3, display:'inline-block' }}>查看證明文件</a>
+                        )}
+                        {r.status === 'pending' && (
+                          <div style={{ fontSize:11, color:'#854F0B', marginTop:3 }}>待審核（於上方票券分段處理）</div>
+                        )}
                       </div>
                       <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
                     </div>
