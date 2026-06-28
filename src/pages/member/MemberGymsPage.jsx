@@ -74,6 +74,22 @@ export default function MemberGymsPage() {
     (a.effectiveTo === null || a.effectiveTo >= todayDate)
   );
 
+  // 未來一週內的營業時間調整（休館 / 特殊時段），逐日含日期標示
+  const _DOW = ['日','一','二','三','四','五','六'];
+  const upcomingAdjustments = (() => {
+    const out = [];
+    for (let i = 1; i <= 7; i++) {
+      const dt = dayjs().add(i, 'day');
+      const ds = dt.format('YYYY-MM-DD');
+      const inRange = a => a.effectiveFrom <= ds && (a.effectiveTo === null || a.effectiveTo >= ds);
+      const closure = gymAnns.find(a => a.type === 'closure' && inRange(a));
+      if (closure) { out.push({ date: ds, mmdd: dt.format('MM/DD'), dow: _DOW[dt.day()], kind: 'closure', note: closure.title, hours: null }); continue; }
+      const special = gymAnns.find(a => a.type === 'special_hours' && inRange(a));
+      if (special) { out.push({ date: ds, mmdd: dt.format('MM/DD'), dow: _DOW[dt.day()], kind: 'special', note: special.title, hours: (special.specialOpen && special.specialClose) ? `${special.specialOpen} - ${special.specialClose}` : null }); }
+    }
+    return out;
+  })();
+
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
@@ -182,6 +198,27 @@ export default function MemberGymsPage() {
                       </div>
                       <div style={{ fontSize:11, opacity:.8, marginTop:2 }}>{todaySpecial.title}</div>
                     </div>
+                  </div>
+                )}
+
+                {/* 近期營業時間調整（未來一週） */}
+                {upcomingAdjustments.length > 0 && (
+                  <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:12 }}>
+                    <div style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', fontSize:12, fontWeight:600, color:'#8B1A1A' }}>📅 近期營業時間調整（未來一週）</div>
+                    {upcomingAdjustments.map((u, i) => (
+                      <div key={u.date} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                          <span style={{ fontSize:13, fontWeight:600, flexShrink:0 }}>{u.mmdd}（{u.dow}）</span>
+                          <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, flexShrink:0, background: u.kind==='closure'?'#FCEBEB':'#FAEEDA', color: u.kind==='closure'?'#A32D2D':'#854F0B' }}>
+                            {u.kind==='closure' ? '休館' : '特殊營業'}
+                          </span>
+                          {u.note && <span style={{ fontSize:11, color:'#999', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.note}</span>}
+                        </div>
+                        <span style={{ fontSize:13, fontWeight:600, flexShrink:0, color: u.kind==='closure'?'#A32D2D':'#854F0B' }}>
+                          {u.kind==='closure' ? '休館' : (u.hours || '特殊時段')}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 )}
 
