@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver } from '../../api/members';
+import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import VipPage from './VipPage';
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(3px)' }}>
@@ -122,6 +123,31 @@ function MemberRecords({ records }) {
   );
 }
 
+// 名單（分組）顯示：定期票有效 / 課程效期 共用
+const GroupedMemberList = ({ loading, groups }) => {
+  if (loading) return <div style={{ textAlign:'center', color:'#999', padding:40, fontSize:13 }}>載入中...</div>;
+  if (!groups || groups.length === 0)
+    return <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>目前無符合的名單</div>;
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+      {groups.map(g => (
+        <div key={g.key} style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', overflow:'hidden' }}>
+          <div style={{ padding:'10px 16px', background:'#FBF5F5', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
+            <span style={{ fontSize:14, fontWeight:600, color:'#8B1A1A' }}>{g.title}</span>
+            <span style={{ fontSize:12, color:'#999', flexShrink:0 }}>{g.count} 人{g.sub ? ` · ${g.sub}` : ''}</span>
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, padding:12 }}>
+            {g.members.map((m, i) => (
+              <span key={m.memberId || i} style={{ fontSize:12, padding:'4px 10px', borderRadius:14, background:'#F5EFEF', color:'#444' }}>
+                {m.memberName || m.memberId}{m.endDate ? `（至 ${dayjs(m.endDate).format('MM/DD')}）` : ''}
+              </span>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 export default function MembersPage() {
   const { staff, activeGymId, station, operator } = useAuth();
@@ -139,6 +165,25 @@ export default function MembersPage() {
   const [promoteForm, setPromoteForm] = useState({ phone:'', email:'', password:'' });
   const [promoteMsg, setPromoteMsg] = useState('');
   const [promoteLoading, setPromoteLoading] = useState(false);
+  // 分頁：search=會員查詢 | vipteam=VIP/攀岩隊員 | passes=定期票有效 | courses=課程效期
+  const [view, setView] = useState('search');
+  const [passList, setPassList] = useState(null);
+  const [courseList, setCourseList] = useState(null);
+  const [listLoading, setListLoading] = useState(false);
+
+  const switchView = (v) => {
+    setView(v);
+    if (v === 'passes' && passList === null) {
+      setListLoading(true);
+      getActivePasses(staff?.role === 'super_admin' ? undefined : targetGymId)
+        .then(r => setPassList(r.data.passTypes || [])).catch(() => setPassList([])).finally(() => setListLoading(false));
+    }
+    if (v === 'courses' && courseList === null) {
+      setListLoading(true);
+      getActiveCourseStudents(staff?.role === 'super_admin' ? undefined : targetGymId)
+        .then(r => setCourseList(r.data.courses || [])).catch(() => setCourseList([])).finally(() => setListLoading(false));
+    }
+  };
 
   const handlePromote = async () => {
     setPromoteMsg(''); setPromoteLoading(true);
@@ -389,7 +434,35 @@ export default function MembersPage() {
   };
 
   return (
-    <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns:'1fr 420px', gap:16, padding: isMobile ? 12 : 20, minHeight:'100vh', background:'#F7F3F3', boxSizing:'border-box' }}>
+    <div style={{ padding: isMobile ? 12 : 20, minHeight:'100vh', background:'#F7F3F3', boxSizing:'border-box' }}>
+
+      {/* 分頁 */}
+      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+        {[
+          { key:'search',  label:'會員查詢' },
+          { key:'vipteam', label:'VIP／攀岩隊員' },
+          { key:'passes',  label:'定期票有效' },
+          { key:'courses', label:'課程效期' },
+        ].map(t => (
+          <button key={t.key} onClick={() => switchView(t.key)}
+            style={{ height:36, padding:'0 16px', borderRadius:8, border:`1.5px solid ${view===t.key?'#8B1A1A':'#EDE5E5'}`, background: view===t.key?'#8B1A1A':'#fff', color: view===t.key?'#fff':'#444', fontSize:13, fontWeight: view===t.key?600:400, cursor:'pointer' }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'vipteam' && <VipPage embedded />}
+      {view === 'passes' && (
+        <GroupedMemberList loading={listLoading}
+          groups={(passList || []).map(g => ({ key: g.passTypeId || g.passTypeName, title: g.passTypeName, count: g.count, members: g.members }))} />
+      )}
+      {view === 'courses' && (
+        <GroupedMemberList loading={listLoading}
+          groups={(courseList || []).map(g => ({ key: g.courseId, title: g.courseName, count: g.count, sub: g.practiceEnd ? `效期至 ${dayjs(g.practiceEnd).format('MM/DD')}` : '', members: g.members }))} />
+      )}
+
+      {view === 'search' && (
+      <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns:'1fr 420px', gap:16, boxSizing:'border-box' }}>
 
       {/* 左側：搜尋 + 列表 */}
       <div>
@@ -936,6 +1009,8 @@ export default function MembersPage() {
             </button>
           </div>
         </Modal>
+      )}
+      </div>
       )}
     </div>
   );

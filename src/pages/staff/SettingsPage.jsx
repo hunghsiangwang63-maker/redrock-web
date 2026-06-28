@@ -4,7 +4,6 @@ import { useAuth } from '../../store/authStore';
 import { getGyms, getAllGyms } from '../../api/gyms';
 import { getStaffList, createStaff, updateStaff, resetStaffPassword, toggleStaffActive, deleteStaff } from '../../api/staff';
 import SaveButton from '../../components/SaveButton';
-import VipPage from './VipPage';
 import GymsPage from './GymsPage';
 
 const TAB_GROUPS = [
@@ -13,7 +12,6 @@ const TAB_GROUPS = [
     items: [
       { key: 'gyms',         icon: '🏠', label: '場館設置',   superAdminOnly: true },
       { key: 'staffAccounts',icon: '👤', label: '員工帳號',   superAdminOnly: true },
-      { key: 'vipSettings',  icon: '👑', label: 'VIP / 攀岩隊員', superAdminOnly: true },
       { key: 'devices',      icon: '📱', label: '裝置審核',   adminOnly: true },
     ],
   },
@@ -832,10 +830,6 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* ── VIP 管理 ── */}
-      {activeTab === 'vipSettings' && isSuperAdmin && (
-        <VipPage embedded />
-      )}
     </div>
   );
 }
