@@ -1,3 +1,25 @@
 
 # 本機機密（測試帳號等）
 CLAUDE.local.md
+
+# 相依套件
+node_modules/
+
+# build 產物（本機 build 後 firebase deploy）
+dist/
+dist-staff/
+dist-member/
+
+# Firebase 部署快取
+.firebase/
+
+# 環境變數
+.env
+.env.local
+*.local
+
+# 系統
+.DS_Store
+
+# log
+*.log
