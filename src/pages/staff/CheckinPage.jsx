@@ -338,10 +338,10 @@ export default function CheckinPage() {
 
         {/* ── 掃描 tab ── */}
         {tab === 'scan' && (
-          <div style={{ display: isMobile ? 'block' : 'grid', gridTemplateColumns: isMobile ? undefined : '1fr 1fr', gap:12, marginBottom:12 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:12 }}>
 
-            {/* 左：QR Code 掃描 */}
-            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom: isMobile ? 12 : 0 }}>
+            {/* 上：QR Code 掃描 */}
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
               <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:12 }} onClick={() => inputRef.current?.focus()}>📷 掃描 QR Code</div>
               <div style={{ fontSize:11, color:'#999', marginBottom:8 }}>定期票、優惠卡、黑卡、紅利入場</div>
               <div style={{ fontSize:11, color:'#185FA5', marginBottom:12, cursor:'pointer' }} onClick={() => inputRef.current?.focus()}>💡 掃描前請先點擊下方輸入框確認游標在內</div>
@@ -445,7 +445,7 @@ export default function CheckinPage() {
             )}
             </div>
 
-            {/* 右：手機號碼查詢 */}
+            {/* 下：手機號碼查詢 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
               <div style={{ fontSize:13, fontWeight:600, color:'#185FA5', marginBottom:12 }}>📱 手機號碼入場</div>
               <div style={{ fontSize:11, color:'#999', marginBottom:12 }}>單次、兒童、學生票現場購買</div>
