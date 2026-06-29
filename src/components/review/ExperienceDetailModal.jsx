@@ -74,7 +74,7 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
 
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onClose} disabled={busy}
-            style={{ flex: 1, height: 42, borderRadius: 8, background: '#f5f5f5', border: 'none', fontSize: 14, cursor: 'pointer' }}>關閉</button>
+            style={{ flex: 1, height: 42, borderRadius: 8, background: '#f5f5f5', border: 'none', color: '#444', fontSize: 14, cursor: 'pointer' }}>關閉</button>
           <button onClick={confirm} disabled={busy}
             style={{ flex: 2, height: 42, borderRadius: 8, background: busy ? '#9CB9A6' : '#2D7D46', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
             {busy ? '處理中…' : '確認預約'}
