@@ -42,6 +42,7 @@ export default function ExperienceBookingsPage() {
     try {
       const r = await client.post(`/experience-bookings/${b.id}/issue-tickets`);
       showMsg('🎟️ ' + (r.data.message || '已發放'));
+      load();
     } catch (e) { showMsg(e.response?.data?.message || '發放失敗', 'red'); }
     finally { setIssuingId(null); }
   };
@@ -219,7 +220,14 @@ export default function ExperienceBookingsPage() {
                       )}
                       {b.status!=='cancelled' && !ctNeedsInsurance(b.courseType) && <span style={{ fontSize:11, color:'#999' }}>此課程免保險</span>}
                       {b.status==='confirmed' && (
-                        <button disabled={issuingId===b.id} onClick={()=>issueTickets(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:issuingId===b.id?'#C9A24A':'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{issuingId===b.id?'發放中…':'🎟️ 發放入場券'}</button>
+                        <button disabled={issuingId===b.id} onClick={()=>issueTickets(b)}
+                          title={b.ticketsIssued>0 ? '已發放；如有增加參加者可再按補發' : ''}
+                          style={{ height:28, padding:'0 12px', borderRadius:6,
+                            background: b.ticketsIssued>0 ? '#fff' : (issuingId===b.id?'#C9A24A':'#854F0B'),
+                            color: b.ticketsIssued>0 ? '#2D7D46' : '#fff',
+                            border: b.ticketsIssued>0 ? '0.5px solid #2D7D46' : 'none', fontSize:12, cursor:'pointer' }}>
+                          {issuingId===b.id ? '發放中…' : (b.ticketsIssued>0 ? `✅ 已發放入場券（${b.ticketsIssued} 張）` : '🎟️ 發放入場券')}
+                        </button>
                       )}
                       {b.status!=='cancelled' && (
                         <button onClick={()=>openEditParticipants(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>✏️ 編輯參加者</button>
