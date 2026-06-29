@@ -19,6 +19,7 @@ export default function DailySettlementPage() {
   const { staff, activeGymId, operator, isStationMode } = useAuth();
   const gymId = activeGymId || staff?.gymId;
   const isOperatorMode = isStationMode && !!operator;
+  const isAdmin = ['super_admin', 'gym_manager'].includes(operator?.role || staff?.role);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settlement, setSettlement] = useState(null);
@@ -114,9 +115,9 @@ export default function DailySettlementPage() {
         <div style={{ background: msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F09595'}`, borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, color: msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>
       )}
 
-      {/* Tab */}
+      {/* Tab（歷史紀錄僅管理員可見）*/}
       <div style={{ display:'flex', gap:2, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3, marginBottom:16 }}>
-        {[{ key:'today', label:'今日結帳' }, { key:'history', label:'歷史紀錄' }].map(t => (
+        {[{ key:'today', label:'今日結帳' }, ...(isAdmin ? [{ key:'history', label:'歷史紀錄' }] : [])].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ flex:1, height:32, borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:13, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
             {t.label}
@@ -124,7 +125,7 @@ export default function DailySettlementPage() {
         ))}
       </div>
 
-      {tab === 'history' ? (
+      {tab === 'history' && isAdmin ? (
         <div>
           {history.length === 0 ? (
             <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>尚無結帳紀錄</div>
@@ -172,15 +173,23 @@ export default function DailySettlementPage() {
           <div style={s.card}>
             <div style={s.cardHead}>今日收入（系統自動帶入）</div>
             {[
-              { label:'入場收入', value: settlement?.income?.entry || 0 },
+              { label:'入場收入', value: settlement?.income?.entry || 0, sub: settlement?.income?.entryItems },
               { label:'岩鞋租借', value: settlement?.income?.shoeRental || 0 },
               { label:'商品銷售', value: settlement?.income?.product || 0 },
               { label:'課程收入', value: settlement?.income?.course || 0 },
-              { label:'定期票', value: settlement?.income?.pass || 0 },
+              { label:'定期票', value: settlement?.income?.pass || 0, sub: settlement?.income?.passItems },
             ].map((item, i) => (
-              <div key={i} style={s.row}>
-                <span style={s.label}>{item.label}</span>
-                <span style={s.value}>NT${item.value.toLocaleString()}</span>
+              <div key={i}>
+                <div style={s.row}>
+                  <span style={s.label}>{item.label}</span>
+                  <span style={s.value}>NT${item.value.toLocaleString()}</span>
+                </div>
+                {Array.isArray(item.sub) && item.sub.length > 0 && item.sub.map((x, j) => (
+                  <div key={j} style={{ ...s.row, padding:'4px 0 4px 22px' }}>
+                    <span style={{ ...s.label, fontSize:12, color:'#999' }}>· {x.label}</span>
+                    <span style={{ ...s.value, fontSize:12, color:'#999' }}>NT${(x.value||0).toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
             ))}
             <div style={{ ...s.row, background:'#FBF5F5' }}>

@@ -37,6 +37,8 @@ function useIsMobile() {
 
 export default function StaffLayout() {
   const { logout, logoutStation, staff, station, operator, isStationMode, isOperational, clockIn, clockOut } = useAuth();
+  // 管理員＝super_admin / gym_manager（依當前操作身份：值班 operator 優先，其次個人 staff）
+  const isAdmin = ['super_admin', 'gym_manager'].includes(operator?.role || staff?.role);
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -153,7 +155,7 @@ export default function StaffLayout() {
         {/* 桌機：左側導覽 */}
         {!isMobile && (
           <div style={{ width:56, background:'#fff', borderRight:'0.5px solid #E8D5D5', display:'flex', flexDirection:'column', alignItems:'center', padding:'12px 0', gap:4, flexShrink:0 }}>
-            {NAV.filter(n => n.path !== '/staff/settlement' || (isStationMode && operator)).map(n => {
+            {NAV.filter(n => (n.path !== '/staff/settlement' || (isStationMode && operator)) && (n.path !== '/staff/finance' || isAdmin)).map(n => {
               const active = n.path === '/staff/activities'
                 ? location.pathname === '/staff/activities'
                 : location.pathname === n.path;
@@ -247,7 +249,7 @@ export default function StaffLayout() {
                 { path:'/staff/pending-tasks', icon:'ti-bell',         label:'待辦總覽' },
                 { path:'/staff/shop',          icon:'ti-shopping-cart', label:'商品/租借' },
                 { path:'/staff/passes',        icon:'ti-ticket',       label:'票券管理' },
-                { path:'/staff/finance',       icon:'ti-chart-bar',    label:'財務' },
+                ...(isAdmin ? [{ path:'/staff/finance', icon:'ti-chart-bar', label:'財務' }] : []),
                 { path:'/staff/settlement',    icon:'ti-calculator',   label:'每日結算' },
                 { path:'/staff/schedule',      icon:'ti-calendar-time',label:'排班表' },
                 { path:'/staff/settings',      icon:'ti-settings',     label:'系統設定' },

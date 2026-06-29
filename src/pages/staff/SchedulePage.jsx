@@ -111,9 +111,13 @@ export default function SchedulePage() {
     } catch (e) { showMsg('載入工時統計失敗', 'red'); }
   };
 
+  // 依 staffId 全字串雜湊取色，確保「每個人」在任何登入模式（館別電腦/員工）都有穩定且不同的顏色
+  // （原本 staffList 為空時只取首字元 charCode 易撞色；改用全字串雜湊）
   const staffColor = (staffId) => {
-    const idx = staffList.findIndex(s => s.id === staffId);
-    return STAFF_COLORS[(idx >= 0 ? idx : staffId.charCodeAt(0)) % STAFF_COLORS.length];
+    if (!staffId) return STAFF_COLORS[0];
+    let h = 0;
+    for (let i = 0; i < staffId.length; i++) h = (h * 31 + staffId.charCodeAt(i)) >>> 0;
+    return STAFF_COLORS[h % STAFF_COLORS.length];
   };
 
   // 建立月曆格子
