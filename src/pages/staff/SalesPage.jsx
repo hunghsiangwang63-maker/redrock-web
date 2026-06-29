@@ -4,6 +4,7 @@ import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
 import client from '../../api/client';
+import SegmentedTabs from '../../components/SegmentedTabs';
 
 const PAY_METHODS = [
   { key:'cash', label:'現金' },
@@ -319,14 +320,7 @@ export default function SalesPage({ embedded = false }) {
       )}
 
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap: isMobile ? 'wrap' : 'nowrap', gap: isMobile ? 10 : 0 }}>
-        <div style={{ display:'flex', gap:2, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              style={{ height:36, padding:`0 ${isMobile?20:16}px`, borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize: isMobile?14:12, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
         {tab === 'inventory' && (
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
             <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={handleImport}/>

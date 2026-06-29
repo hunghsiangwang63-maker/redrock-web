@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import SaveButton from '../../components/SaveButton';
+import SegmentedTabs from '../../components/SegmentedTabs';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 
@@ -152,14 +153,11 @@ export default function ExperienceBookingsPage() {
       {msg && <div style={{ background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'8px 14px', marginBottom:14, fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:0, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3, marginBottom:16, width:'fit-content' }}>
-        {[{key:'bookings',label:'預約管理'},{key:'history',label:'📁 歷史名冊'},{key:'settings',label:'⚙ 課程設定'}].map(t=>(
-          <button key={t.key} onClick={()=>{ setTab(t.key); if(t.key==='settings') loadSettings(); if(t.key==='history') loadHistory(); }}
-            style={{ height:32, padding:'0 16px', borderRadius:6, border:tab===t.key?'0.5px solid #E8D5D5':'none', background:tab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color:tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        tabs={[{key:'bookings',label:'預約管理'},{key:'history',label:'📁 歷史名冊'},{key:'settings',label:'⚙ 課程設定'}]}
+        value={tab}
+        onChange={k=>{ setTab(k); if(k==='settings') loadSettings(); if(k==='history') loadHistory(); }}
+        style={{ marginBottom:16 }} />
 
       {/* ── 預約管理 ── */}
       {tab==='bookings' && (

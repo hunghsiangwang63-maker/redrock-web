@@ -4,6 +4,7 @@ import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
+import SegmentedTabs from '../../components/SegmentedTabs';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -316,14 +317,10 @@ export default function CompetitionsPage() {
       {showRegistrations && (
         <Modal title={`報名名單 — ${showRegistrations.name}`} onClose={()=>setShowRegistrations(null)} width={760}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-            <div style={{ display:'flex', gap:6 }}>
-              <button onClick={()=>setRegTab('all')} style={{ height:30, padding:'0 12px', borderRadius:6, border:'none', background:regTab==='all'?'#8B1A1A':'#F0EDED', color:regTab==='all'?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
-                全部 ({registrations.length})
-              </button>
-              <button onClick={()=>setRegTab('refunds')} style={{ height:30, padding:'0 12px', borderRadius:6, border:'none', background:regTab==='refunds'?'#A32D2D':'#F0EDED', color:regTab==='refunds'?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
-                退費申請 ({registrations.filter(r=>r.refundRequested||r.status==='cancelled').length})
-              </button>
-            </div>
+            <SegmentedTabs value={regTab} onChange={setRegTab} tabs={[
+              { key:'all',     label:`全部 (${registrations.length})` },
+              { key:'refunds', label:`退費申請 (${registrations.filter(r=>r.refundRequested||r.status==='cancelled').length})` },
+            ]} />
             <div style={{ display:'flex', gap:6 }}>
               <button onClick={()=>handleDownloadCSV(showRegistrations)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ 名單</button>
               <button onClick={()=>handleDownloadRefundCSV(showRegistrations)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#A32D2D', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ 退費清單</button>

@@ -5,6 +5,7 @@ import { getCourses, createCourse, getSessions, createSession,
          generateWeeklySessions, updateSession, deleteCourse, permanentDeleteCourse } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
+import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 
 const Tag = ({ type='ok', children }) => {
@@ -476,18 +477,7 @@ export default function CoursesPage({ embedded = false }) {
       )}
 
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-        <div style={{ display:'flex', gap:6 }}>
-          {COURSE_TABS.map(t => {
-            const active = tab===t.key;
-            return (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:10, border:`1.5px solid ${active?'#8B1A1A':'#EDE5E5'}`, background:active?'#8B1A1A':'#fff', color:active?'#fff':'#444', fontSize:12, fontWeight:active?600:400, cursor:'pointer' }}>
-              <span style={{ fontSize:14 }}>{t.icon}</span>
-              <span>{t.label}</span>
-            </button>
-            );
-          })}
-        </div>
+        <SegmentedTabs tabs={COURSE_TABS} value={tab} onChange={setTab} />
         {tab === 'courses' && (
           <button onClick={() => setShowAddCourse(true)}
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>

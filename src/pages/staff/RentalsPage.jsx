@@ -3,6 +3,7 @@ import { getRentals, getRentalStats, updateRentalSettings, getRentalSettings } f
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
+import SegmentedTabs from '../../components/SegmentedTabs';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -113,18 +114,15 @@ export default function RentalsPage({ embedded = false }) {
       </div>
 
       {/* Tabs */}
-      <div style={{ display:'flex', gap:0, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3, marginBottom:16, width:'fit-content' }}>
-        {[
+      <SegmentedTabs
+        tabs={[
           { key:'notify', label:`通知${(pendingRentals.length+todayPickup.length+todayReturn.length)>0?` (${pendingRentals.length+todayPickup.length+todayReturn.length})`:''}` },
           { key:'stats', label:'備貨統計' },
           { key:'all', label:'全部申請' },
-        ].map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); if(t.key==='stats') loadStats(); }}
-            style={{ height:32, padding:'0 16px', borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+        ]}
+        value={tab}
+        onChange={k => { setTab(k); if(k==='stats') loadStats(); }}
+        style={{ marginBottom:16 }} />
 
       {loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : (<>
 

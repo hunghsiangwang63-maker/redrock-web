@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore.jsx';
 import dayjs from 'dayjs';
+import SegmentedTabs from '../../components/SegmentedTabs';
 
 const DENOMINATIONS = [
   { key:'d1000', label:'NT$1,000', value:1000 },
@@ -116,14 +117,9 @@ export default function DailySettlementPage() {
       )}
 
       {/* Tab（歷史紀錄僅管理員可見）*/}
-      <div style={{ display:'flex', gap:2, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3, marginBottom:16 }}>
-        {[{ key:'today', label:'今日結帳' }, ...(isAdmin ? [{ key:'history', label:'歷史紀錄' }] : [])].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ flex:1, height:32, borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:13, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs
+        tabs={[{ key:'today', label:'今日結帳' }, ...(isAdmin ? [{ key:'history', label:'歷史紀錄' }] : [])]}
+        value={tab} onChange={setTab} style={{ marginBottom:16 }} />
 
       {tab === 'history' && isAdmin ? (
         <div>

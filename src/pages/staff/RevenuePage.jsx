@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { getRevenueSummary, getDailyReport, getCheckinStats, exportCheckinCsv } from '../../api/revenue';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import SegmentedTabs from '../../components/SegmentedTabs';
 
 const ENTRY_LABEL = {
   pass: '定期票', vip: 'VIP', course_access: '課程學員',
@@ -81,14 +82,7 @@ export default function RevenuePage({ embedded = false }) {
             <option value="gym-shilin">士林館</option>
           </select>
         )}
-        <div style={{ display:'flex', gap:2, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>
-          {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)}
-              style={{ height:32, padding:'0 16px', borderRadius:6, border: tab===t.key ? '0.5px solid #E8D5D5' : 'none', background: tab===t.key ? '#fff' : 'none', fontSize:12, fontWeight:500, color: tab===t.key ? '#1a1a1a' : '#999', cursor:'pointer' }}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           {[7, 14, 30].map(d => (
             <button key={d} onClick={() => setDays(d)}

@@ -5,6 +5,7 @@ import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import VipPage from './VipPage';
+import SegmentedTabs from '../../components/SegmentedTabs';
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(3px)' }}>
@@ -458,20 +459,13 @@ export default function MembersPage() {
     <div style={{ padding: isMobile ? 12 : 20, minHeight:'100vh', background:'#F7F3F3', boxSizing:'border-box' }}>
 
       {/* 分頁 */}
-      <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
-        {[
-          { key:'search',  label:'會員查詢' },
-          { key:'vip',     label:'VIP' },
-          { key:'team',    label:'紅石隊員' },
-          { key:'passes',  label:'定期票' },
-          { key:'courses', label:'課程學員' },
-        ].map(t => (
-          <button key={t.key} onClick={() => switchView(t.key)}
-            style={{ height:36, padding:'0 16px', borderRadius:8, border:`1.5px solid ${view===t.key?'#8B1A1A':'#EDE5E5'}`, background: view===t.key?'#8B1A1A':'#fff', color: view===t.key?'#fff':'#444', fontSize:13, fontWeight: view===t.key?600:400, cursor:'pointer' }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedTabs value={view} onChange={switchView} style={{ marginBottom:14 }} tabs={[
+        { key:'search',  label:'會員查詢' },
+        { key:'vip',     label:'VIP' },
+        { key:'team',    label:'紅石隊員' },
+        { key:'passes',  label:'定期票' },
+        { key:'courses', label:'課程學員' },
+      ]} />
 
       {view === 'vip' && <VipPage embedded section="vip" />}
       {view === 'team' && <VipPage embedded section="team" />}

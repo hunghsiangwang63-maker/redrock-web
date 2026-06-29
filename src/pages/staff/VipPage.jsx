@@ -3,6 +3,7 @@ import { getVipList, addVip, updateVip, removeVip } from '../../api/vip';
 import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, createTeamMember, updateTeamApplication, deleteTeamApplication, downloadTeamFile } from '../../api/team';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
+import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 
 const feeLabel = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
@@ -228,16 +229,10 @@ export default function VipPage({ embedded = false, section = null }) {
     <div style={{ padding: embedded ? 0 : 24, maxWidth:800, margin:'0 auto' }}>
       {/* Tab 切換（section 指定時隱藏，由會員頁的分頁控制）*/}
       {!section && (
-      <div style={{ display:'flex', gap:8, marginBottom:20 }}>
-        <button onClick={() => setTab('vip')}
-          style={{ height:36, padding:'0 16px', borderRadius:8, border: tab==='vip' ? 'none' : '0.5px solid #E8D5D5', background: tab==='vip' ? '#8B1A1A' : '#fff', color: tab==='vip' ? '#fff' : '#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-          VIP 名單
-        </button>
-        <button onClick={() => setTab('team')}
-          style={{ height:36, padding:'0 16px', borderRadius:8, border: tab==='team' ? 'none' : '0.5px solid #E8D5D5', background: tab==='team' ? '#8B1A1A' : '#fff', color: tab==='team' ? '#fff' : '#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-          🏔️ 攀岩隊員
-        </button>
-      </div>
+      <SegmentedTabs value={tab} onChange={setTab} style={{ marginBottom:20 }} tabs={[
+        { key:'vip',  label:'VIP 名單' },
+        { key:'team', icon:'🏔️', label:'攀岩隊員' },
+      ]} />
       )}
 
       {tab === 'vip' && (

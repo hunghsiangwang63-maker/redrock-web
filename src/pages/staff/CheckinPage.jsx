@@ -3,6 +3,7 @@ import client from '../../api/client';
 import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
+import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 
 const ENTRY_TYPE_LABEL = {
@@ -362,21 +363,17 @@ export default function CheckinPage() {
           )}
 
           {/* Tabs */}
-          <div style={{ display:'flex', borderBottom:'0.5px solid #E8D5D5' }}>
-            {[
+          <SegmentedTabs
+            tabs={[
               { key:'scan', label:'掃描入場' },
               { key:'courseStudents', label:`今日課程學員 ${courseStudents.length > 0 ? `(${courseStudents.length})` : ''}` },
               { key:'today', label:'今日入場' },
               { key:'history', label:'歷史入場' },
-            ].map(t => (
-              <div key={t.key} onClick={() => setTab(t.key)}
-                style={{ flex:1, padding:'10px 0', textAlign:'center', fontSize:13, fontWeight: tab === t.key ? 600 : 400,
-                  color: tab === t.key ? '#8B1A1A' : '#999',
-                  borderBottom: tab === t.key ? '2px solid #8B1A1A' : 'none', cursor:'pointer' }}>
-                {t.label}
-              </div>
-            ))}
-          </div>
+            ]}
+            value={tab}
+            onChange={setTab}
+            style={{ margin:'12px 16px' }}
+          />
         </div>
 
         {/* ── 掃描 tab ── */}

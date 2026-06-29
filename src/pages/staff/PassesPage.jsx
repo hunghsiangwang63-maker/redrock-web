@@ -9,6 +9,7 @@ import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import client from '../../api/client';
 import dayjs from 'dayjs';
+import SegmentedTabs from '../../components/SegmentedTabs';
 import CardsPage from './CardsPage';
 
 const Tag = ({ type='ok', children }) => {
@@ -394,29 +395,12 @@ export default function PassesPage() {
         </div>
       )}
 
-      <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
-        {PASSES_TAB_GROUPS.map(group => {
-          if (!group.items.length) return null;
-          return (
-            <div key={group.group}>
-              <div style={{ fontSize:10, fontWeight:700, color:'#999', letterSpacing:1, textTransform:'uppercase', marginBottom:6, textAlign:'left' }}>{group.group}</div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(120px, 1fr))', gap:6 }}>
-                {group.items.map(t => {
-                  const active = tab === t.key;
-                  return (
-                    <button key={t.key} onClick={() => { setTab(t.key); if (t.key==='analytics') loadAnalytics(); }}
-                      style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 12px', borderRadius:10, border:`1.5px solid ${active?'#8B1A1A':'#EDE5E5'}`, background:active?'#8B1A1A':'#fff', color:active?'#fff':'#444', fontSize:12, fontWeight:active?600:400, cursor:'pointer', textAlign:'left', position:'relative', transition:'all .15s' }}>
-                      <span style={{ fontSize:16, lineHeight:1 }}>{t.icon}</span>
-                      <span>{t.label}</span>
-                      {t.badge > 0 && <span style={{ position:'absolute', top:4, right:4, background:'#A32D2D', color:'#fff', borderRadius:8, fontSize:9, fontWeight:700, minWidth:14, height:14, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 3px' }}>{t.badge}</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      <SegmentedTabs
+        value={tab}
+        onChange={(k) => { setTab(k); if (k==='analytics') loadAnalytics(); }}
+        style={{ marginBottom:20 }}
+        tabs={PASSES_TAB_GROUPS.flatMap(g => g.items)}
+      />
 
       {/* ── 會員定期票 ── */}
       {tab === 'list' && (
