@@ -153,7 +153,7 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名' }) 
                 <span style={{ fontSize:12, color:'#999', flexShrink:0 }}>{g.members.length} 人{g.range ? ` · 效期 ${g.range}` : ''}</span>
               </div>
               {g.members.map((m, i) => (
-                <div key={m.memberId || i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
                   <span style={{ fontSize:13, fontWeight:500 }}>{m.memberName || m.memberId}</span>
                   {(m.startDate || m.endDate) && (
                     <span style={{ fontSize:12, color:'#666', fontFamily:'monospace', flexShrink:0 }}>
