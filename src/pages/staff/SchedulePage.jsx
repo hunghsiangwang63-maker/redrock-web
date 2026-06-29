@@ -115,6 +115,9 @@ export default function SchedulePage() {
   // （原本 staffList 為空時只取首字元 charCode 易撞色；改用全字串雜湊）
   const staffColor = (staffId) => {
     if (!staffId) return STAFF_COLORS[0];
+    // 有 staffList(管理員)→用索引保證不撞色；無 staffList(館別電腦/員工)→用全字串雜湊穩定取色
+    const idx = staffList.findIndex(s => s.id === staffId);
+    if (idx >= 0) return STAFF_COLORS[idx % STAFF_COLORS.length];
     let h = 0;
     for (let i = 0; i < staffId.length; i++) h = (h * 31 + staffId.charCodeAt(i)) >>> 0;
     return STAFF_COLORS[h % STAFF_COLORS.length];
@@ -287,9 +290,9 @@ export default function SchedulePage() {
 
       {canManage && staffList.length > 0 && (
         <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:14 }}>
-          {staffList.map((s, i) => (
+          {staffList.map((s) => (
             <div key={s.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#666' }}>
-              <span style={{ width:10, height:10, borderRadius:5, background: STAFF_COLORS[i % STAFF_COLORS.length] }} />
+              <span style={{ width:10, height:10, borderRadius:5, background: staffColor(s.id) }} />
               {s.name}
             </div>
           ))}
