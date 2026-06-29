@@ -53,14 +53,16 @@ export default function MemberExperiencePage() {
   const updateParticipant = (i, field, val) => setParticipants(p=>p.map((item,idx)=>idx===i?{...item,[field]:val}:item));
 
   const n = participants.length;
+  const currentCT = (courseSettings?.courseTypes || FALLBACK_COURSE_TYPES).find(c=>c.id===courseType);
+  const needsIns = currentCT ? currentCT.needsInsurance !== false : true; // 該課程是否需保險（決定是否填身分證/國籍）
   const unitPrice = courseType==='general' ? getGeneralPrice(n) : (courseSettings?.courseTypes || FALLBACK_COURSE_TYPES).find(c=>c.id===courseType)?.price||0;
   const totalFee = courseType==='general' ? unitPrice * n : unitPrice * n;
 
   const handleSubmit = async () => {
     if (!bookingDate) { showMsg('請填寫預約體驗日期','red'); return; }
     if (!bookingTime) { showMsg('請填寫預約時間','red'); return; }
-    const invalid = participants.find(p => !p.name.trim() || !p.idNumber.trim() || !p.birthday.trim());
-    if (invalid) { showMsg('請填寫所有參加者的姓名、身分證字號、生日','red'); return; }
+    const invalid = participants.find(p => !p.name.trim() || (needsIns && (!p.idNumber.trim() || !p.birthday.trim())));
+    if (invalid) { showMsg(needsIns ? '請填寫所有參加者的姓名、身分證字號、生日' : '請填寫所有參加者的姓名','red'); return; }
     if (payment.method==='transfer' && !payment.paymentDate) { showMsg('請填寫匯款日期','red'); return; }
     if (payment.method==='transfer' && !payment.bankLastFive) { showMsg('請填寫匯款末五碼','red'); return; }
     setSubmitting(true);
@@ -211,7 +213,7 @@ export default function MemberExperiencePage() {
             {/* 參加者名單 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                <div style={{ fontSize:13, fontWeight:600 }}>參加者資料（保險用）</div>
+                <div style={{ fontSize:13, fontWeight:600 }}>參加者資料{needsIns ? '（保險用）' : ''}</div>
                 <button onClick={addParticipant}
                   style={{ height:30, padding:'0 12px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>+ 新增人員</button>
               </div>
@@ -229,6 +231,7 @@ export default function MemberExperiencePage() {
                       <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>姓名 *</label>
                       <input value={p.name} onChange={e=>updateParticipant(i,'name',e.target.value)} placeholder="請填寫真實姓名" style={{ ...inp, background:'#fff' }}/>
                     </div>
+                    {needsIns && (<>
                     <div style={{ gridColumn:'1/-1' }}>
                       <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>身分證字號 / 居留證號 *</label>
                       <input value={p.idNumber} onChange={e=>updateParticipant(i,'idNumber',e.target.value)} placeholder="A123456789" style={{ ...inp, background:'#fff', fontFamily:'monospace', letterSpacing:1 }}/>
@@ -251,6 +254,7 @@ export default function MemberExperiencePage() {
                           placeholder="請填寫國籍" style={{ ...inp, background:'#fff', marginTop:6 }}/>
                       )}
                     </div>
+                    </>)}
                   </div>
                 </div>
               ))}

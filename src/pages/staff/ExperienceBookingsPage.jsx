@@ -29,6 +29,13 @@ export default function ExperienceBookingsPage() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
+  const [history, setHistory] = useState(null);
+  const [sendingId, setSendingId] = useState(null);
+
+  const ctNeedsInsurance = (courseType) => {
+    const ct = settings?.courseTypes?.find(c => c.id === courseType);
+    return ct ? ct.needsInsurance !== false : true; // 找不到設定時預設需要（保守）
+  };
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
 
@@ -46,6 +53,27 @@ export default function ExperienceBookingsPage() {
   };
 
   useEffect(()=>{ load(); }, [gymFilter]);
+  useEffect(()=>{ loadSettings(); }, []); // 需 needsInsurance 設定判斷是否顯示寄送鈕
+
+  const sendInsurance = async (b) => {
+    const to = (settings?.insuranceRecipientEmail||'').trim();
+    if (!to) { showMsg('尚未設定保險名冊收件人 email（請至「⚙ 課程設定」填寫）','red'); return; }
+    if (!window.confirm(`確定寄送此預約的保險名冊至 ${to}？\n（${b.contactName} · ${b.bookingDate} · ${b.numParticipants}人）`)) return;
+    setSendingId(b.id);
+    try {
+      const r = await client.post(`/experience-bookings/${b.id}/send-insurance-email`);
+      showMsg('📧 ' + (r.data.message || '已寄送'));
+      if (tab==='history') loadHistory();
+    } catch(e) { showMsg(e.response?.data?.message || '寄送失敗','red'); }
+    finally { setSendingId(null); }
+  };
+
+  const loadHistory = async (g) => {
+    setHistory(null);
+    const gid = g !== undefined ? g : gymFilter;
+    try { const r = await client.get('/experience-bookings/insurance-history', { params:{ gymId: gid||undefined } }); setHistory(r.data.records||[]); }
+    catch(e) { setHistory([]); }
+  };
 
 
   const getToken = () => token || localStorage.getItem('token') || localStorage.getItem('operatorToken') || '';
@@ -91,8 +119,8 @@ export default function ExperienceBookingsPage() {
 
       {/* Tabs */}
       <div style={{ display:'flex', gap:0, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3, marginBottom:16, width:'fit-content' }}>
-        {[{key:'bookings',label:'預約管理'},{key:'settings',label:'⚙ 課程設定'}].map(t=>(
-          <button key={t.key} onClick={()=>{ setTab(t.key); if(t.key==='settings') loadSettings(); }}
+        {[{key:'bookings',label:'預約管理'},{key:'history',label:'📁 歷史名冊'},{key:'settings',label:'⚙ 課程設定'}].map(t=>(
+          <button key={t.key} onClick={()=>{ setTab(t.key); if(t.key==='settings') loadSettings(); if(t.key==='history') loadHistory(); }}
             style={{ height:32, padding:'0 16px', borderRadius:6, border:tab===t.key?'0.5px solid #E8D5D5':'none', background:tab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color:tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
             {t.label}
           </button>
@@ -150,7 +178,13 @@ export default function ExperienceBookingsPage() {
                     </div>
                     <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap', alignItems:'center' }}>
                       {b.status==='pending' && <span style={{ fontSize:11, color:'#854F0B' }}>待確認（於待辦總覽確認/取消）</span>}
-                      {b.status!=='cancelled' && <button onClick={()=>downloadInsurance(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>📋 保險名冊</button>}
+                      {b.status!=='cancelled' && ctNeedsInsurance(b.courseType) && (
+                        <button onClick={()=>downloadInsurance(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>📋 保險名冊</button>
+                      )}
+                      {b.status!=='cancelled' && ctNeedsInsurance(b.courseType) && (
+                        <button disabled={sendingId===b.id} onClick={()=>sendInsurance(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:sendingId===b.id?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{sendingId===b.id?'寄送中…':'📧 寄送保險'}</button>
+                      )}
+                      {b.status!=='cancelled' && !ctNeedsInsurance(b.courseType) && <span style={{ fontSize:11, color:'#999' }}>此課程免保險</span>}
                     </div>
                   </div>
                   {isExpanded && (
@@ -183,6 +217,41 @@ export default function ExperienceBookingsPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* ── 歷史名冊（分館） ── */}
+      {tab==='history' && (
+        <div>
+          <div style={{ display:'flex', gap:10, marginBottom:16, alignItems:'center', flexWrap:'wrap' }}>
+            {isAdmin && <select value={gymFilter} onChange={e=>{ setGymFilter(e.target.value); loadHistory(e.target.value); }} style={inp}>
+              <option value="">全部館別</option><option value="gym-hsinchu">新竹館</option><option value="gym-shilin">士林館</option>
+            </select>}
+            <button onClick={()=>loadHistory()} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>重新整理</button>
+            <span style={{ fontSize:12, color:'#999' }}>已寄送的保險名冊紀錄，可重新下載</span>
+          </div>
+          {history===null && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
+          {history!==null && history.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無已寄送的保險名冊</div>}
+          {history!==null && history.length>0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {history.map(h=>{
+                const ts = h.createdAt?._seconds ? dayjs(h.createdAt._seconds*1000).format('YYYY-MM-DD HH:mm') : '';
+                return (
+                  <div key={h.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis' }}>{h.title}</div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:3 }}>
+                        {h.gymId==='gym-hsinchu'?'新竹館':h.gymId==='gym-shilin'?'士林館':''} · 收件人 {h.recipient||'—'} · 寄送 {ts}{h.skipped?' · ⚠ 未實際寄出':''}
+                      </div>
+                    </div>
+                    {h.fileUrl
+                      ? <a href={h.fileUrl} target="_blank" rel="noreferrer" style={{ height:30, padding:'0 12px', borderRadius:7, background:'#185FA5', color:'#fff', fontSize:12, textDecoration:'none', display:'inline-flex', alignItems:'center', flexShrink:0 }}>⬇ 下載</a>
+                      : <span style={{ fontSize:11, color:'#bbb', flexShrink:0 }}>無檔案</span>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -236,9 +305,14 @@ export default function ExperienceBookingsPage() {
                   <div key={ct.id} style={{ background:'#FBF5F5', borderRadius:10, padding:14, marginBottom:12, border:'0.5px solid #E8D5D5' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                       <div style={{ fontWeight:600, fontSize:13, color:'#8B1A1A' }}>{ct.id}</div>
-                      <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12 }}>
-                        <input type="checkbox" checked={ct.active!==false} onChange={e=>updateCT(ctIdx,'active',e.target.checked)} style={{ accentColor:'#8B1A1A' }}/>開放報名
-                      </label>
+                      <div style={{ display:'flex', gap:14, alignItems:'center' }}>
+                        <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12 }}>
+                          <input type="checkbox" checked={ct.active!==false} onChange={e=>updateCT(ctIdx,'active',e.target.checked)} style={{ accentColor:'#8B1A1A' }}/>開放報名
+                        </label>
+                        <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12, color:ct.needsInsurance!==false?'#185FA5':'#999' }}>
+                          <input type="checkbox" checked={ct.needsInsurance!==false} onChange={e=>updateCT(ctIdx,'needsInsurance',e.target.checked)} style={{ accentColor:'#185FA5' }}/>需保險
+                        </label>
+                      </div>
                     </div>
                     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
                       <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>課程名稱</label><input value={ct.label||''} onChange={e=>updateCT(ctIdx,'label',e.target.value)} style={tinp}/></div>
@@ -266,6 +340,25 @@ export default function ExperienceBookingsPage() {
                     )}
                   </div>
                 ))}
+              </div>
+              {/* 保險名冊寄送設定 */}
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
+                <div style={{ fontSize:14, fontWeight:600, marginBottom:12 }}>📧 保險名冊寄送設定</div>
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>收件人 Email（全館共用）</label>
+                  <input value={settings.insuranceRecipientEmail||''} onChange={e=>{ setSettingsDirty(true); setSettings(s=>({...s,insuranceRecipientEmail:e.target.value})); }}
+                    placeholder="insurance@example.com" style={tinp}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>信件內容公版</label>
+                  <textarea rows={3} value={settings.insuranceEmailTemplate||''} onChange={e=>{ setSettingsDirty(true); setSettings(s=>({...s,insuranceEmailTemplate:e.target.value})); }}
+                    placeholder="{title}"
+                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, resize:'vertical', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>
+                    可用佔位符：{'{title}'}（完整標題）、{'{gym}'}（館別）、{'{date}'}（日期）、{'{name}'}（首位姓名）、{'{count}'}（人數）。留空＝同標題。<br/>
+                    標題固定格式：紅石攀岩XX館XXXX年XX月XX日XXX等X人保險名冊
+                  </div>
+                </div>
               </div>
               <SaveButton onSave={saveSettings} isDirty={settingsDirty} label='✓ 儲存設定' fullWidth />
             </div>
