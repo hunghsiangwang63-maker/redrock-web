@@ -31,8 +31,8 @@ const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
 
 const TYPE_CONFIG = {
   rental:             { icon:'👟', color:'#854F0B', bg:'#FAEEDA', label:'器材租借' },
-  rental_pickup:      { icon:'📦', color:'#185FA5', bg:'#E6F1FB', label:'今日取件' },
-  rental_return:      { icon:'✅', color:'#2D7D46', bg:'#E6F4EB', label:'今日歸還' },
+  rental_pickup:      { icon:'📦', color:'#185FA5', bg:'#E6F1FB', label:'器材取件' },
+  rental_return:      { icon:'✅', color:'#2D7D46', bg:'#E6F4EB', label:'器材歸還' },
   course_adjustment:  { icon:'📚', color:'#8B1A1A', bg:'#FBF5F5', label:'課程申請' },
   pass_adjustment:    { icon:'🎫', color:'#5B2D8B', bg:'#F3EEF9', label:'票券申請' },
   competition_payment:{ icon:'🏆', color:'#185FA5', bg:'#E6F1FB', label:'比賽收款' },
@@ -164,6 +164,8 @@ export default function PendingTasksPage() {
       case 'team_member':
         return <><button disabled={busy} onClick={() => oneClick(task.targetId, () => confirmTeamPayment(task.targetId), '已確認收款')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認收款'}</button>{goLink(task)}</>;
       case 'experience':
+        // 已確認＝僅提醒（不再顯示確認/取消）；待確認＝可確認/取消
+        if (task.confirmed) return <><span style={{ fontSize:11, color:'#2D7D46', whiteSpace:'nowrap' }}>已確認</span>{goLink(task)}</>;
         return <>
           <button disabled={busy} onClick={() => oneClick(task.targetId, () => client.post(`/experience-bookings/${task.targetId}/confirm`), '已確認')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認'}</button>
           <button onClick={() => setModal({ kind:'reason', props:{ title:'取消體驗預約', label:'取消原因', placeholder:'預設「館方取消」', confirmText:'確認取消', required:false, onSubmit: async (reason) => { await client.post(`/experience-bookings/${task.targetId}/cancel`, { reason: reason || '館方取消' }); afterDone('已取消預約'); } } })} style={dangerBtn}>取消</button>
