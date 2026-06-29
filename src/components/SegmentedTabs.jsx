@@ -1,11 +1,13 @@
 // 統一分頁按鍵：灰底膠囊分段控制（全站員工/會員頁共用）
 // 用法：<SegmentedTabs tabs={[{key,label,icon?}]} value={tab} onChange={setTab} />
 // 條件分頁由呼叫端組 tabs 陣列（例：[{...}, ...(isAdmin?[{...}]:[])]）
-export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md' }) {
+// wrap：分頁較多時（如會員/票券）允許換行，空間不夠自動分多行（每格最小 minTabWidth）
+export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md', wrap = false, minTabWidth = 120 }) {
   const h = size === 'sm' ? 30 : 34;
   return (
     <div style={{
-      display: 'flex', gap: 2, background: '#FBF5F5', border: '0.5px solid #E8D5D5',
+      display: 'flex', flexWrap: wrap ? 'wrap' : 'nowrap', gap: wrap ? 4 : 2,
+      background: '#FBF5F5', border: '0.5px solid #E8D5D5',
       borderRadius: 8, padding: 3, ...style,
     }}>
       {(tabs || []).filter(Boolean).map(t => {
@@ -14,8 +16,8 @@ export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md
           <button key={t.key} type="button" onClick={() => onChange(t.key)}
             title={typeof t.label === 'string' ? t.label : undefined}
             style={{
-              // flex:1 → 滿寬容器時平均分佈；min-width 取內容寬 → 並排(space-between)容器時不壓縮/不截字
-              flex: 1, height: h, borderRadius: 6, padding: '0 14px',
+              // wrap 時每格至少 minTabWidth，超出容器寬就換行；否則 flex:1 單行平均分佈
+              flex: wrap ? `1 1 ${minTabWidth}px` : 1, height: h, borderRadius: 6, padding: '0 14px',
               border: active ? '0.5px solid #E8D5D5' : 'none',
               background: active ? '#fff' : 'transparent',
               fontSize: size === 'sm' ? 12 : 13, fontWeight: active ? 600 : 500,

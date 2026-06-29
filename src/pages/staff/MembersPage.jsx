@@ -459,7 +459,7 @@ export default function MembersPage() {
     <div style={{ padding: isMobile ? 12 : 20, minHeight:'100vh', background:'#F7F3F3', boxSizing:'border-box' }}>
 
       {/* 分頁 */}
-      <SegmentedTabs value={view} onChange={switchView} style={{ marginBottom:14 }} tabs={[
+      <SegmentedTabs wrap value={view} onChange={switchView} style={{ marginBottom:14 }} tabs={[
         { key:'search',  label:'會員查詢' },
         { key:'vip',     label:'VIP' },
         { key:'team',    label:'紅石隊員' },

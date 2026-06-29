@@ -396,6 +396,7 @@ export default function PassesPage() {
       )}
 
       <SegmentedTabs
+        wrap
         value={tab}
         onChange={(k) => { setTab(k); if (k==='analytics') loadAnalytics(); }}
         style={{ marginBottom:20 }}
