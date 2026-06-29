@@ -5,8 +5,10 @@ const BASE = 'https://redrock-api-production.up.railway.app';
 // 工作人員 client — 優先用 operatorToken，其次 stationToken，最後 token
 const client = axios.create({ baseURL: BASE, timeout: 10000 });
 client.interceptors.request.use(config => {
+  // 優先 operatorToken（已打卡值班）→ token（個人帳號登入）→ stationToken（館別電腦，未打卡）
   const token = localStorage.getItem('operatorToken')
-    || localStorage.getItem('token');
+    || localStorage.getItem('token')
+    || localStorage.getItem('stationToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -17,18 +19,22 @@ client.interceptors.response.use(res => res, err => {
     || err.config?.url?.includes('/auth/member/login')
     || err.config?.url?.includes('/stations/login');
   if (err.response?.status === 401 && !isLoginEndpoint) {
-    // operator token 過期 → 清除 operator，保留 station
+    // operator token 過期 → 清除 operator，保留 station，重新載入
     if (localStorage.getItem('operatorToken')) {
       localStorage.removeItem('operatorToken');
       localStorage.removeItem('operator');
       window.location.reload();
       return Promise.reject(err);
     }
-    localStorage.removeItem('token');
-    localStorage.removeItem('staff');
-    localStorage.removeItem('stationToken');
-    localStorage.removeItem('station');
-    window.location.href = '/login';
+    // 個人帳號登入(staff token) 過期 → 登出重導
+    if (localStorage.getItem('token')) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('staff');
+      window.location.href = '/login';
+      return Promise.reject(err);
+    }
+    // 館別電腦模式（僅 stationToken、尚未打卡值班）：個別 staff 端點 401 屬正常
+    // （該 API 需打卡轉為 operator 身份），不應因此登出站台、重導登入頁。
   }
   return Promise.reject(err);
 });

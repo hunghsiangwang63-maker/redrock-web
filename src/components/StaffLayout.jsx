@@ -43,8 +43,9 @@ export default function StaffLayout() {
   const [tooltip, setTooltip] = useState(null); // { label, top }
   const [pendingCount, setPendingCount] = useState(0);
 
-  // 每 30 秒自動抓取待辦數量
+  // 每 30 秒自動抓取待辦數量（需已打卡值班或個人登入；純站台模式不打 staff 端點，避免 401 把站台登出）
   useEffect(() => {
+    if (!isOperational) { setPendingCount(0); return; }
     const fetchCount = () => {
       client.get('/pending-tasks').then(r => {
         setPendingCount(r.data?.total || 0);
@@ -53,7 +54,7 @@ export default function StaffLayout() {
     fetchCount(); // 立即執行一次
     const timer = setInterval(fetchCount, 30000);
     return () => clearInterval(timer);
-  }, []);
+  }, [isOperational]);
 
   const [showClockIn, setShowClockIn] = useState(false);
   const [clockInEmail, setClockInEmail] = useState('');
