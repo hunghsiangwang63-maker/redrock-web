@@ -8,10 +8,10 @@ import PassRequestReviewModal from '../../components/review/PassRequestReviewMod
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
 import RentalActionModal from '../../components/review/RentalActionModal';
 import ReasonModal from '../../components/review/ReasonModal';
+import TransferConfirmModal from '../../components/review/TransferConfirmModal';
 import { confirmTeamPayment } from '../../api/team';
 import { approveTicket, rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
-import { getAllPassRequests } from '../../api/passAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
 
 // 通知 type → 類別（待辦頁通知面板過濾用）
@@ -24,8 +24,9 @@ const NOTIF_CAT = {
 };
 const NOTIF_CATS = [
   { key:'', label:'全部' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
-  { key:'competition', label:'比賽' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
+  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
 ];
+const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名' };
 const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
 
 const TYPE_CONFIG = {
@@ -41,12 +42,6 @@ const TYPE_CONFIG = {
   experience_transfer:{ icon:'💳', color:'#185FA5', bg:'#E6F1FB', label:'體驗轉帳待確認' },
   transfer_confirm:   { icon:'🏦', color:'#185FA5', bg:'#E6F1FB', label:'轉帳確認' },
   ticket_approval:    { icon:'🎟️', color:'#5B2D8B', bg:'#F3EEF9', label:'票券審核' },
-};
-
-const REG_CONFIG = {
-  course:      { icon:'📚', color:'#8B1A1A', bg:'#FBF5F5', label:'課程報名' },
-  competition: { icon:'🏆', color:'#185FA5', bg:'#E6F1FB', label:'比賽報名' },
-  experience:  { icon:'🧗', color:'#2D7D46', bg:'#E6F4EB', label:'體驗報名' },
 };
 
 // 待辦總覽：依「內容」分段（每段含對應的 task type）
@@ -69,13 +64,10 @@ export default function PendingTasksPage() {
   const [gymFilter, setGymFilter] = useState('');
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
 
-  // ── 追蹤查詢面板（顯示於待辦總覽下方）：'course'=課程已完成 | 'pass'=票券審核 ──
+  // ── 追蹤查詢面板（顯示於待辦總覽下方）：'course'=課程相關 | 'notif'=通知（近7天統一動態）──
   const [trackView, setTrackView] = useState(null);
   const [completed, setCompleted] = useState(null);          // 課程：已核准/已拒絕
   const [completedLoading, setCompletedLoading] = useState(false);
-  const [passReqs, setPassReqs] = useState(null);            // 票券審核：依狀態查詢
-  const [passFilter, setPassFilter] = useState('pending');   // pending|approved|rejected|''(全部)
-  const [passLoading, setPassLoading] = useState(false);
   const [notifs, setNotifs] = useState(null);                // 通知（系統未讀）
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifCat, setNotifCat] = useState('');              // 類別過濾
@@ -112,7 +104,7 @@ export default function PendingTasksPage() {
   const [busyId, setBusyId] = useState(null);
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
-  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassReqs(); };
+  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'notif') loadNotifs(); };
 
   // 課程：已完成（已核准/已拒絕）退費/暫停
   const loadCompleted = async () => {
@@ -121,14 +113,6 @@ export default function PendingTasksPage() {
       const res = await getCourseAdjustmentRequests(); // 後端依角色授權（主管/站台）
       setCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
     } catch (e) { setCompleted([]); } finally { setCompletedLoading(false); }
-  };
-  // 票券審核：依狀態查詢（待審核/已核准/已拒絕/全部）
-  const loadPassReqs = async () => {
-    setPassLoading(true);
-    try {
-      const res = await getAllPassRequests(passFilter || undefined);
-      setPassReqs(res.data.requests || []);
-    } catch (e) { setPassReqs([]); } finally { setPassLoading(false); }
   };
   // 通知：載入系統未讀通知
   const loadNotifs = async () => {
@@ -143,11 +127,8 @@ export default function PendingTasksPage() {
     const next = trackView === view ? null : view;
     setTrackView(next);
     if (next === 'course' && completed === null) loadCompleted();
-    if (next === 'pass' && passReqs === null) loadPassReqs();
     if (next === 'notif' && notifs === null) loadNotifs();
   };
-  // 票券審核狀態篩選變更時重載
-  useEffect(() => { if (trackView === 'pass') loadPassReqs(); /* eslint-disable-next-line */ }, [passFilter]);
 
   // 一鍵動作（確認收款 / 核准）
   const oneClick = async (id, fn, okMsg) => {
@@ -181,8 +162,7 @@ export default function PendingTasksPage() {
         return <>{task.record && <button onClick={() => setModal({ kind:'competition', record:task.record })} style={primaryBtn('#2D7D46')}>確認收款</button>}{goLink(task)}</>;
       case 'transfer_confirm':
         return <>
-          {task.record?.screenshotUrl && <a href={task.record.screenshotUrl} target="_blank" rel="noreferrer" style={ghostBtn}>查看截圖</a>}
-          <button disabled={busy} onClick={() => oneClick(task.targetId, () => client.put(`/transfers/${task.targetId}/confirm`), '已確認收款')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認收款'}</button>
+          <button onClick={() => setModal({ kind:'transfer', record: task.record })} style={primaryBtn('#2D7D46')}>確認收款</button>
           <button onClick={() => setModal({ kind:'reason', props:{ title:'退回轉帳', label:'退回原因', placeholder:'請填寫退回原因', confirmText:'確認退回', required:true, onSubmit: async (reason) => { await client.put(`/transfers/${task.targetId}/reject`, { reason }); afterDone('已退回'); } } })} style={dangerBtn}>退回</button>
         </>;
       case 'team_member':
@@ -229,16 +209,10 @@ export default function PendingTasksPage() {
               <option value="gym-shilin">士林館</option>
             </select>
           )}
-          {perm.pass_adjustment && (
-            <button onClick={() => openTrack('pass')}
-              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='pass' ? '#5B2D8B' : '#fff', color: trackView==='pass' ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer' }}>
-              票券審核
-            </button>
-          )}
           {perm.course_adjustment && (
             <button onClick={() => openTrack('course')}
               style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='course' ? '#8B1A1A' : '#fff', color: trackView==='course' ? '#fff' : '#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>
-              課程已完成
+              課程相關
             </button>
           )}
           <button onClick={() => openTrack('notif')}
@@ -251,20 +225,15 @@ export default function PendingTasksPage() {
         </div>
       </div>
       <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>
-        上次更新：{dayjs().format('HH:mm')}　·　審核：票券審核、轉帳確認、課程退費/暫停、票券調整、比賽收款、攀岩隊、器材、體驗　·　另含近 7 天新報名通知
+        上次更新：{dayjs().format('HH:mm')}　·　待處理：轉帳確認、票券、比賽、攀岩隊、體驗、課程、器材　·　近 7 天報名／轉帳／票券／系統動態請看「🔔 通知」
       </div>
 
       {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
-      {!loading && total === 0 && registrations.length === 0 && (
+      {!loading && total === 0 && (
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center' }}>
           <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
           <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46' }}>目前沒有待處理事項</div>
-          <div style={{ fontSize:13, color:'#999', marginTop:4 }}>所有申請均已處理完畢</div>
-        </div>
-      )}
-      {!loading && total === 0 && registrations.length > 0 && (
-        <div style={{ background:'#E6F4EB', borderRadius:12, border:'0.5px solid #B3DEC0', padding:'12px 16px', marginBottom:16, fontSize:13, color:'#2D7D46' }}>
-          ✅ 目前沒有待審核事項。以下為近 7 天新報名通知。
+          <div style={{ fontSize:13, color:'#999', marginTop:4 }}>近 7 天報名與通知請點右上「🔔 通知」</div>
         </div>
       )}
 
@@ -310,48 +279,11 @@ export default function PendingTasksPage() {
         </div>
       ))}
 
-      {/* 新報名通知（近 7 天，分項） */}
-      {!loading && registrations.length > 0 && (
-        <div style={{ marginTop:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
-            <div style={{ fontSize:14, fontWeight:700 }}>🆕 新報名通知（近 7 天）</div>
-            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
-            <div style={{ fontSize:12, color:'#999' }}>{registrations.length} 項</div>
-          </div>
-          {['course','competition','experience'].map(rt => {
-            const items = registrations.filter(r => r.regType === rt);
-            if (!items.length) return null;
-            const cfg = REG_CONFIG[rt];
-            return (
-              <div key={rt} style={{ marginBottom:14 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:cfg.color, marginBottom:6 }}>{cfg.icon} {cfg.label}（{items.length}）</div>
-                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                  {items.map(r => (
-                    <div key={r.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'10px 12px', display:'flex', alignItems:'center', gap:10 }}>
-                      <div style={{ width:34, height:34, borderRadius:8, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, flexShrink:0 }}>{cfg.icon}</div>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.memberName} <span style={{ fontWeight:400, color:'#666' }}>報名 {r.name}</span></div>
-                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                          {r.detail}{r.detail && r.dateStr ? ' · ' : ''}{r.dateStr}
-                          {r.gymId==='gym-hsinchu' ? ' · 新竹館' : r.gymId==='gym-shilin' ? ' · 士林館' : ''}
-                        </div>
-                      </div>
-                      <button onClick={() => navigate(r.link)}
-                        style={{ height:30, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer', flexShrink:0 }}>查看</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* 課程已完成查詢（退費/暫停：已核准 / 已拒絕） */}
+      {/* 課程相關查詢（退費/暫停：已核准 / 已拒絕） */}
       {trackView === 'course' && (
         <div style={{ marginTop:8 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
-            <div style={{ fontSize:14, fontWeight:700 }}>📚 課程已完成 · 退費／暫停</div>
+            <div style={{ fontSize:14, fontWeight:700 }}>📚 課程相關 · 退費／暫停（已核准／已拒絕）</div>
             <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
             <div style={{ fontSize:12, color:'#999' }}>{completed ? `${completed.length} 項` : ''}</div>
           </div>
@@ -393,86 +325,19 @@ export default function PendingTasksPage() {
         </div>
       )}
 
-      {/* 票券審核追蹤查詢（展延/退費/轉讓/課程練習期遞延 · 待審核/已核准/已拒絕/全部） */}
-      {trackView === 'pass' && (
-        <div style={{ marginTop:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
-            <div style={{ fontSize:14, fontWeight:700 }}>🎫 票券審核</div>
-            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
-            <div style={{ fontSize:12, color:'#999' }}>{passReqs ? `${passReqs.length} 項` : ''}</div>
-          </div>
-          <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-            {[{key:'pending',label:'待審核'},{key:'approved',label:'已核准'},{key:'rejected',label:'已拒絕'},{key:'',label:'全部'}].map(f => (
-              <button key={f.key} onClick={() => setPassFilter(f.key)}
-                style={{ height:30, padding:'0 12px', borderRadius:8, border: passFilter===f.key?'none':'0.5px solid #E8D5D5', background: passFilter===f.key?'#5B2D8B':'#fff', color: passFilter===f.key?'#fff':'#666', fontSize:12, fontWeight:500, cursor:'pointer' }}>
-                {f.label}
-              </button>
-            ))}
-          </div>
-          {passLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
-          {!passLoading && passReqs && passReqs.length === 0 && (
-            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
-              目前沒有符合的票券申請
-            </div>
-          )}
-          {!passLoading && passReqs && passReqs.length > 0 && (
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {passReqs.map(r => {
-                const typeLabel = { extension:'展延', refund:'退費', transfer:'轉讓', course_practice_deferral:'課程練習期遞延' }[r.type] || r.type;
-                const badge = r.status === 'pending' ? { bg:'#FAEEDA', color:'#854F0B', label:'待審核' }
-                  : r.status === 'approved' ? { bg:'#E6F4EB', color:'#2D7D46', label:'已核准' }
-                  : { bg:'#FCEBEB', color:'#A32D2D', label:'已拒絕' };
-                return (
-                  <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
-                      <div style={{ minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{r.memberName} — {r.passTypeName || '定期票'}</div>
-                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                          {typeLabel}
-                          {r.type === 'course_practice_deferral' ? ` · 課程：${r.courseName} · 練習期至：${r.practiceEnd}` : ` · 事由：${r.reasonLabel || '—'}`}
-                          {r.type === 'transfer' && r.transferToPhone && ` · 轉讓予：${r.transferToPhone}`}
-                        </div>
-                        {r.type === 'course_practice_deferral' && (
-                          <div style={{ fontSize:11, color:'#185FA5', marginTop:4 }}>定期票剩餘 {r.remainingDays} 天｜{r.currentEndDate} → {r.proposedEndDate}</div>
-                        )}
-                        {r.reasonDetail && r.type !== 'course_practice_deferral' && (
-                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>補充：{r.reasonDetail}</div>
-                        )}
-                        {r.status === 'approved' && (
-                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:3 }}>
-                            {r.type === 'extension' && `已展延至 ${r.result?.newEndDate}`}
-                            {r.type === 'refund' && `退費 NT$${r.result?.netRefund?.toLocaleString?.() ?? r.result?.netRefund}（扣手續費 NT$${r.result?.fee}）`}
-                            {r.type === 'transfer' && `已轉讓予 ${r.result?.newOwnerName}`}
-                            {r.type === 'course_practice_deferral' && `已遞延至 ${r.proposedEndDate}`}
-                          </div>
-                        )}
-                        {r.status === 'rejected' && r.rejectReason && (
-                          <div style={{ fontSize:11, color:'#A32D2D', marginTop:3 }}>拒絕原因：{r.rejectReason}</div>
-                        )}
-                        {r.type !== 'course_practice_deferral' && r.evidenceUrl && (
-                          <a href={r.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize:11, color:'#185FA5', marginTop:3, display:'inline-block' }}>查看證明文件</a>
-                        )}
-                        {r.status === 'pending' && (
-                          <div style={{ fontSize:11, color:'#854F0B', marginTop:3 }}>待審核（於上方票券分段處理）</div>
-                        )}
-                      </div>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* 通知（系統未讀）+ 類別過濾 */}
+      {/* 通知 = 近 7 天統一動態（系統未讀通知 + 近 7 天報名）+ 類別過濾 */}
       {trackView === 'notif' && (() => {
-        const list = (notifs || []).filter(n => !notifCat || notifCatOf(n.type) === notifCat);
+        const cutoff = Date.now() / 1000 - 7 * 24 * 3600;
+        const notifItems = (notifs || [])
+          .filter(n => !n.createdAt?._seconds || n.createdAt._seconds >= cutoff)
+          .map(n => ({ key: 'n_' + n.id, notifId: n.id, cat: notifCatOf(n.type), title: n.title || '通知', message: n.message, ts: n.createdAt?._seconds || 0, link: n.link, catLabel: NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統', canRead: true }));
+        const regItems = (registrations || []).map(r => ({ key: 'r_' + r.id, cat: 'report', title: `${r.memberName} 報名 ${r.name}`, message: [r.detail, REG_CAT[r.regType]].filter(Boolean).join(' · ') + (r.gymId === 'gym-hsinchu' ? ' · 新竹館' : r.gymId === 'gym-shilin' ? ' · 士林館' : ''), ts: r.createdAt || 0, link: r.link, catLabel: '報名', canRead: false }));
+        const feed = [...notifItems, ...regItems].filter(i => !notifCat || i.cat === notifCat).sort((a, b) => b.ts - a.ts);
         return (
           <div style={{ marginTop:8 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
-              <div style={{ fontSize:14, fontWeight:700 }}>🔔 通知</div>
+              <div style={{ fontSize:14, fontWeight:700 }}>🔔 通知 · 近 7 天動態</div>
               <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
               {notifs && notifs.length > 0 && (
                 <button onClick={async () => { await markAllAsRead(); loadNotifs(); }}
@@ -486,25 +351,25 @@ export default function PendingTasksPage() {
               ))}
             </div>
             {notifLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
-            {!notifLoading && list.length === 0 && (
+            {!notifLoading && feed.length === 0 && (
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
-                {notifCat ? '此類別目前無未讀通知' : '目前無未讀通知'}
+                {notifCat ? '此類別近 7 天無動態' : '近 7 天無通知／報名'}
               </div>
             )}
-            {!notifLoading && list.length > 0 && (
+            {!notifLoading && feed.length > 0 && (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {list.map(n => (
-                  <div key={n.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', alignItems:'flex-start', gap:10 }}>
+                {feed.map(i => (
+                  <div key={i.key} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', alignItems:'flex-start', gap:10 }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{n.title || '通知'}</div>
-                      {n.message && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{n.message}</div>}
+                      <div style={{ fontSize:13, fontWeight:600 }}>{i.title}</div>
+                      {i.message && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{i.message}</div>}
                       <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
-                        {NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統'}
-                        {n.createdAt?._seconds ? ` · ${dayjs(n.createdAt._seconds*1000).format('MM/DD HH:mm')}` : ''}
+                        {i.catLabel}
+                        {i.ts ? ` · ${dayjs(i.ts*1000).format('MM/DD HH:mm')}` : ''}
                       </div>
                     </div>
-                    {n.link && <button onClick={() => navigate(n.link)} style={ghostBtn}>前往</button>}
-                    <button onClick={async () => { await markAsRead(n.id); loadNotifs(); }} style={{ ...ghostBtn, color:'#854F0B' }}>已讀</button>
+                    {i.link && <button onClick={() => navigate(i.link)} style={ghostBtn}>{i.canRead ? '前往' : '查看'}</button>}
+                    {i.canRead && <button onClick={async () => { await markAsRead(i.notifId); loadNotifs(); }} style={{ ...ghostBtn, color:'#854F0B' }}>已讀</button>}
                   </div>
                 ))}
               </div>
@@ -519,6 +384,7 @@ export default function PendingTasksPage() {
       {modal?.kind === 'competition' && <CompetitionActionModal action="pay" reg={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'rental' && <RentalActionModal action={modal.action} rental={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'reason' && <ReasonModal {...modal.props} onClose={() => setModal(null)} />}
+      {modal?.kind === 'transfer' && <TransferConfirmModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
 
       {/* 操作結果提示 */}
       {toast && (
