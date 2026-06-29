@@ -4,9 +4,13 @@
 // wrap：分頁較多時（如會員/票券）允許換行，空間不夠自動分多行（每格最小 minTabWidth）
 export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md', wrap = false, minTabWidth = 120 }) {
   const h = size === 'sm' ? 30 : 34;
+  // wrap：用 grid auto-fit，分頁多時自動換行成等寬多列（如會員/票券）；否則單行 flex 平均分佈
+  const container = wrap
+    ? { display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${minTabWidth}px, 1fr))`, gap: 4 }
+    : { display: 'flex', gap: 2 };
   return (
     <div style={{
-      display: 'flex', flexWrap: wrap ? 'wrap' : 'nowrap', gap: wrap ? 4 : 2,
+      ...container,
       background: '#FBF5F5', border: '0.5px solid #E8D5D5',
       borderRadius: 8, padding: 3, ...style,
     }}>
@@ -16,8 +20,9 @@ export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md
           <button key={t.key} type="button" onClick={() => onChange(t.key)}
             title={typeof t.label === 'string' ? t.label : undefined}
             style={{
-              // wrap 時每格至少 minTabWidth，超出容器寬就換行；否則 flex:1 單行平均分佈
-              flex: wrap ? `1 1 ${minTabWidth}px` : 1, height: h, borderRadius: 6, padding: '0 14px',
+              // 單行模式 flex:1 平均分佈；wrap(grid) 模式按鈕自動填滿格子
+              flex: wrap ? undefined : 1, width: wrap ? '100%' : undefined,
+              height: h, borderRadius: 6, padding: '0 14px',
               border: active ? '0.5px solid #E8D5D5' : 'none',
               background: active ? '#fff' : 'transparent',
               fontSize: size === 'sm' ? 12 : 13, fontWeight: active ? 600 : 500,
