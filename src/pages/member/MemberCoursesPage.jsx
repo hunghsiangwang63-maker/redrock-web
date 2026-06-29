@@ -244,8 +244,10 @@ export default function MemberCoursesPage() {
           formData.append('orderName', selectedCourse?.name || '');
           formData.append('courseName', selectedCourse?.name || '');
           formData.append('amount', enrInfo.fee || selectedCourse?.price || 0);
-          if (bankLastFive) formData.append('bankLastFive', bankLastFive);
-          if (paymentDate) formData.append('paymentDate', paymentDate);
+          // 轉帳模式下匯款資訊來自 PaymentSection 的 paymentData（含銀行名稱/末五碼/日期）
+          if (paymentData.bankLastFive) formData.append('bankLastFive', paymentData.bankLastFive);
+          if (paymentData.bankName) formData.append('bankName', paymentData.bankName);
+          if (paymentData.paymentDate) formData.append('paymentDate', paymentData.paymentDate);
           await memberClient.post('/transfers/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
           showMsg('轉帳資料已提交，等待工作人員確認收款');
         } catch (uploadErr) {

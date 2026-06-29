@@ -38,6 +38,7 @@ export default function MemberTeamPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
+  const [bankName, setBankName] = useState('');
   const [otherSuggestions, setOtherSuggestions] = useState('');
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
@@ -99,7 +100,7 @@ export default function MemberTeamPage() {
           await submitTransferRecord({
             memberId: member.id, memberName: member.name, gymId: primaryGym,
             orderType: 'team_member', refId: res.data.id, orderName: `攀岩隊年費（${year}）`,
-            amount, bankLastFive, paymentDate,
+            amount, bankLastFive, bankName, paymentDate,
           });
         } catch (e) { /* 不阻斷申請 */ }
       }
@@ -390,6 +391,11 @@ export default function MemberTeamPage() {
                 匯款至：台新銀行(812) 21000100211430<br/>戶名：紅石攀岩有限公司<br/>
                 <span style={{ color:'#A32D2D' }}>※ 恕不接受電子支付</span>
               </div>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款銀行名稱</label>
+              <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} placeholder="例：國泰世華、台新…"
+                style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
               <div>

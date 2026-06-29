@@ -25,7 +25,7 @@ const inp = {
 };
 
 export default function PaymentSection({ value = {}, onChange, bankInfo, amount, showNote = false }) {
-  const { method = 'cash', paymentDate = '', bankLastFive = '', note = '' } = value;
+  const { method = 'cash', paymentDate = '', bankLastFive = '', bankName = '', note = '' } = value;
 
   const set = (patch) => onChange({ ...value, ...patch });
 
@@ -67,6 +67,11 @@ export default function PaymentSection({ value = {}, onChange, bankInfo, amount,
               <div>戶名：{bankInfo.accountName}</div>
             </div>
           )}
+          <div style={{ marginBottom:8 }}>
+            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>匯款銀行名稱</label>
+            <input value={bankName} onChange={e => set({ bankName: e.target.value })}
+              placeholder="例：國泰世華、台新…" style={inp}/>
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             <div>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>匯款日期</label>

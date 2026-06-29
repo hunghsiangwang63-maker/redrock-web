@@ -9,6 +9,7 @@ import CompetitionActionModal from '../../components/review/CompetitionActionMod
 import RentalActionModal from '../../components/review/RentalActionModal';
 import ReasonModal from '../../components/review/ReasonModal';
 import TransferConfirmModal from '../../components/review/TransferConfirmModal';
+import ExperienceDetailModal from '../../components/review/ExperienceDetailModal';
 import { confirmTeamPayment } from '../../api/team';
 import { approveTicket, rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
@@ -167,7 +168,7 @@ export default function PendingTasksPage() {
         // 已確認＝僅提醒（不再顯示確認/取消）；待確認＝可確認/取消
         if (task.confirmed) return <><span style={{ fontSize:11, color:'#2D7D46', whiteSpace:'nowrap' }}>已確認</span>{goLink(task)}</>;
         return <>
-          <button disabled={busy} onClick={() => oneClick(task.targetId, () => client.post(`/experience-bookings/${task.targetId}/confirm`), '已確認')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認'}</button>
+          <button onClick={() => setModal({ kind:'experience', record: task.record })} style={primaryBtn('#2D7D46')}>確認</button>
           <button onClick={() => setModal({ kind:'reason', props:{ title:'取消體驗預約', label:'取消原因', placeholder:'預設「館方取消」', confirmText:'確認取消', required:false, onSubmit: async (reason) => { await client.post(`/experience-bookings/${task.targetId}/cancel`, { reason: reason || '館方取消' }); afterDone('已取消預約'); } } })} style={dangerBtn}>取消</button>
         </>;
       case 'ticket_approval':
@@ -384,6 +385,7 @@ export default function PendingTasksPage() {
       {modal?.kind === 'rental' && <RentalActionModal action={modal.action} rental={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'reason' && <ReasonModal {...modal.props} onClose={() => setModal(null)} />}
       {modal?.kind === 'transfer' && <TransferConfirmModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'experience' && <ExperienceDetailModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
 
       {/* 操作結果提示 */}
       {toast && (

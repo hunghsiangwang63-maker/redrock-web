@@ -38,6 +38,7 @@ export default function MemberRentalPage() {
   const [payMethod, setPayMethod] = useState('transfer');
   const [payDate, setPayDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
+  const [bankName, setBankName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),5000); };
@@ -105,7 +106,7 @@ export default function MemberRentalPage() {
           await submitTransferRecord({
             memberId: member.id, memberName: member.name, gymId,
             orderType: 'rental', refId: rentalId, orderName: '器材租借',
-            amount: total, bankLastFive, paymentDate: payDate,
+            amount: total, bankLastFive, bankName, paymentDate: payDate,
           });
         } catch (e) { /* 不阻斷申請 */ }
       }
@@ -371,7 +372,12 @@ export default function MemberRentalPage() {
                 <div style={{ fontSize:11, color:'#999', marginBottom:4 }}>轉帳帳號</div>
                 <div style={{ fontSize:13, fontWeight:600 }}>台新銀行(812) 關東橋分行</div>
                 <div style={{ fontSize:16, fontFamily:'monospace', letterSpacing:2, color:'#8B1A1A', margin:'6px 0' }}>21000100211430</div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10 }}>
+                <div style={{ marginTop:10 }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款銀行名稱</label>
+                  <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} placeholder="例：國泰世華、台新…"
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
                   <div>
                     <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款日期</label>
                     <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}

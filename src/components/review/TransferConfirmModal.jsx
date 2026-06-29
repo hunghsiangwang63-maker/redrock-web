@@ -47,6 +47,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
             {record.orderType && <span style={{ marginLeft: 6, fontSize: 11, color: '#185FA5', background: '#E6F1FB', padding: '1px 7px', borderRadius: 6 }}>{ORDER_TYPE_LABEL[record.orderType] || record.orderType}</span>}
           </Row>
           <Row label="金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
+          <Row label="匯款銀行">{record.bankName || <span style={{ color: '#bbb' }}>—</span>}</Row>
           <Row label="匯款末五碼">{record.bankLastFive ? <strong>{record.bankLastFive}</strong> : <span style={{ color: '#bbb' }}>未填（僅附截圖）</span>}</Row>
           <Row label="匯款日期">{record.paymentDate || '—'}</Row>
           <Row label="館別">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>

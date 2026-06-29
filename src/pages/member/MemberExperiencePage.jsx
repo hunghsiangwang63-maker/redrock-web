@@ -83,6 +83,7 @@ export default function MemberExperiencePage() {
           fd.append('orderName', '體驗課程');
           fd.append('amount', totalFee || 0);
           fd.append('bankLastFive', payment.bankLastFive || '');
+          fd.append('bankName', payment.bankName || '');
           fd.append('paymentDate', payment.paymentDate || '');
           await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         } catch (e) { /* 不阻斷預約 */ }

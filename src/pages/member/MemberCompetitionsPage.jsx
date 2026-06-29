@@ -65,6 +65,7 @@ export default function MemberCompetitionsPage() {
   const [paymentMethod, setPaymentMethod] = useState('transfer');
   const [paymentDate, setPaymentDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
+  const [bankName, setBankName] = useState('');
   // Step 3 — agreement
   const [agreedWaiver, setAgreedWaiver] = useState(false);
   const [agreedPhoto, setAgreedPhoto] = useState(false);
@@ -204,7 +205,7 @@ export default function MemberCompetitionsPage() {
           await submitTransferRecord({
             memberId: targetId, memberName: targetName, gymId: selectedComp.gymId,
             orderType: 'competition', refId: reg.id, orderName: selectedComp.name || '比賽報名',
-            amount: reg.registrationFee, bankLastFive, paymentDate,
+            amount: reg.registrationFee, bankLastFive, bankName, paymentDate,
           });
         } catch (e) { /* 不阻斷報名 */ }
       }
@@ -469,6 +470,11 @@ export default function MemberCompetitionsPage() {
                     <div style={{ fontSize:13, fontWeight:600 }}>台新銀行(812) 關東橋分行</div>
                     <div style={{ fontSize:16, fontFamily:'monospace', letterSpacing:2, color:'#8B1A1A', margin:'6px 0' }}>21000100211430</div>
                     <div style={{ fontSize:13 }}>戶名：紅石攀岩有限公司</div>
+                  </div>
+                  <div style={{ marginBottom:10 }}>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>匯款銀行名稱</label>
+                    <input type="text" value={bankName} onChange={e=>setBankName(e.target.value)} placeholder="例：國泰世華、台新…"
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                     <div>
