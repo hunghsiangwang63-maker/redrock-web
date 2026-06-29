@@ -789,6 +789,8 @@ export default function MemberCoursesPage() {
               const future = confirmed.filter(s => s.date >= today).sort((a,b) => a.date.localeCompare(b.date));
               const past = confirmed.filter(s => s.date < today).sort((a,b) => b.date.localeCompare(a.date));
               const next = future[0];
+              const leaveLimit = group.sessions.find(s => s.leaveLimit != null)?.leaveLimit ?? 2;
+              const leaveRemaining = group.sessions.find(s => s.leaveRemaining != null)?.leaveRemaining ?? Math.max(0, leaveLimit - onLeave.length);
               const isExpanded = expandedCourseId === group.courseId;
               const attendedLabel = (s) => {
                 if (s.attendanceStatus === 'present') return { text:'已出席', color:'#2D7D46', bg:'#E6F4EB' };
@@ -806,7 +808,7 @@ export default function MemberCoursesPage() {
                   </div>
                   <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
                     onClick={() => setExpandedCourseId(isExpanded ? null : group.courseId)}>
-                    共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂
+                    共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span>
                     <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
                   </div>
 

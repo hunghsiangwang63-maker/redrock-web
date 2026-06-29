@@ -50,6 +50,8 @@ export default function CoursesPage({ embedded = false }) {
   ];
   const [tab, setTab] = useState('courses');
   const [rosterModal, setRosterModal] = useState(null); // { course, enrollments }
+  const [editLeave, setEditLeave] = useState(null); // { memberId, value }
+  const [savingLeave, setSavingLeave] = useState(false);
   const [rosterLoading, setRosterLoading] = useState(false);
   const [courses, setCourses] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -433,6 +435,18 @@ export default function CoursesPage({ embedded = false }) {
       setRosterModal({ course, enrollments });
     } catch(e) { setRosterModal({ course, enrollments: [] }); }
     finally { setRosterLoading(false); }
+  };
+
+  // 管理員為（插班）學員個別填寫可請假次數（空＝回課程整期預設）
+  const saveLeaveAllowance = async (courseId, memberId, raw) => {
+    setSavingLeave(true);
+    try {
+      const res = await client.put(`/courses/${courseId}/members/${memberId}/max-leaves`, { maxLeavesAllowed: raw === '' ? null : parseInt(raw, 10) });
+      setRosterModal(rm => rm ? { ...rm, enrollments: rm.enrollments.map(e => e.memberId === memberId ? { ...e, maxLeavesAllowed: res.data.maxLeavesAllowed } : e) } : rm);
+      setEditLeave(null);
+      showMsg(res.data.message || '已更新');
+    } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'red'); }
+    finally { setSavingLeave(false); }
   };
 
   const courseTypeLabel = (t) => t === 'weekly' ? '週課' : '工作坊';
@@ -1078,7 +1092,7 @@ export default function CoursesPage({ embedded = false }) {
               { label:'最多人數', key:'maxStudents', type:'number' },
               { label:'入館有效天數', key:'gymAccessDays', type:'number' },
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
-              { label:'最多請假次數', key:'maxLeaves', type:'number' },
+              { label:'整期可請假次數（插班於名單個別填寫）', key:'maxLeaves', type:'number' },
               { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
@@ -1291,7 +1305,7 @@ export default function CoursesPage({ embedded = false }) {
               { label:'教練', key:'instructor', type:'text', colSpan:2 },
               { label:'插班加成', key:'midpointSurcharge', type:'number' },
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
-              { label:'最多請假次數', key:'maxLeaves', type:'number' },
+              { label:'整期可請假次數（插班於名單個別填寫）', key:'maxLeaves', type:'number' },
               { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
               { label:'退費-開課後每堂扣除金額（NT$）', key:'perSessionDeduction', type:'number' },
               { label:'退費-開課前手續費率（%）', key:'handlingFeeRate', type:'number' },
@@ -1383,36 +1397,68 @@ export default function CoursesPage({ embedded = false }) {
               {!rosterLoading && rosterModal.enrollments?.length === 0 && (
                 <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>目前沒有報名學員</div>
               )}
-              {!rosterLoading && rosterModal.enrollments?.length > 0 && (
+              {!rosterLoading && rosterModal.enrollments?.length > 0 && (() => {
+                const courseMax = rosterModal.course?.maxLeaves ?? 2;
+                const byMember = {};
+                rosterModal.enrollments.forEach(e => {
+                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, count:0, leaveUsed:0, override:null });
+                  m.count++;
+                  if (e.status==='leave') m.leaveUsed++;
+                  if (e.maxLeavesAllowed != null) m.override = e.maxLeavesAllowed;
+                });
+                const members = Object.values(byMember);
+                return (
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
                     <tr style={{ background:'#FBF5F5' }}>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>學員</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>電話</th>
+                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>報名堂數</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>付款方式</th>
-                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>狀態</th>
+                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>可請假（已用/上限）</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rosterModal.enrollments.map((e, i) => (
+                    {members.map((m, i) => {
+                      const limit = m.override ?? courseMax;
+                      const isEditing = editLeave?.memberId === m.memberId;
+                      return (
                       <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
-                        <td style={{ padding:'10px 12px', fontWeight:500 }}>{e.memberName}</td>
-                        <td style={{ padding:'10px 12px', color:'#666', fontFamily:'monospace', fontSize:12 }}>{e.memberPhone}</td>
+                        <td style={{ padding:'10px 12px', fontWeight:500 }}>{m.memberName}</td>
+                        <td style={{ padding:'10px 12px', color:'#666', fontFamily:'monospace', fontSize:12 }}>{m.memberPhone}</td>
+                        <td style={{ padding:'10px 12px', color:'#666' }}>{m.count} 堂</td>
                         <td style={{ padding:'10px 12px', color:'#666', fontSize:12 }}>
-                          {e.paymentMethod === 'transfer' ? `轉帳${e.bankLastFive ? ` (末五碼 ${e.bankLastFive})` : ''}` : e.paymentMethod || '—'}
+                          {m.paymentMethod === 'transfer' ? `轉帳${m.bankLastFive ? ` (末五碼 ${m.bankLastFive})` : ''}` : m.paymentMethod || '—'}
                         </td>
                         <td style={{ padding:'10px 12px' }}>
-                          <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6,
-                            background: e.status==='confirmed'?'#E6F4EB':e.status==='leave'?'#F0EDED':e.status==='course_cancelled'?'#FCEBEB':'#FAEEDA',
-                            color: e.status==='confirmed'?'#2D7D46':e.status==='leave'?'#999':e.status==='course_cancelled'?'#A32D2D':'#854F0B' }}>
-                            {e.status==='confirmed'?'已報名':e.status==='leave'?'已請假':e.status==='course_cancelled'?'課程取消':e.status}
-                          </span>
+                          {isEditing ? (
+                            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                              <input type="number" min="0" autoFocus value={editLeave.value}
+                                onChange={ev => setEditLeave({ memberId:m.memberId, value:ev.target.value })}
+                                placeholder={`預設 ${courseMax}`}
+                                style={{ width:64, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13 }} />
+                              <button disabled={savingLeave} onClick={()=>saveLeaveAllowance(rosterModal.course.id, m.memberId, editLeave.value)}
+                                style={{ height:30, padding:'0 10px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>儲存</button>
+                              <button disabled={savingLeave} onClick={()=>saveLeaveAllowance(rosterModal.course.id, m.memberId, '')}
+                                style={{ height:30, padding:'0 8px', borderRadius:6, background:'#fff', color:'#999', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>清除</button>
+                              <button onClick={()=>setEditLeave(null)} style={{ background:'none', border:'none', color:'#999', cursor:'pointer' }}>✕</button>
+                            </span>
+                          ) : (
+                            <span style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+                              <span style={{ color: m.leaveUsed>=limit?'#A32D2D':'#1a1a1a' }}>請假 {m.leaveUsed}/{limit}</span>
+                              {m.override != null && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:5, background:'#FAEEDA', color:'#854F0B' }}>插班</span>}
+                              <button onClick={()=>setEditLeave({ memberId:m.memberId, value: m.override ?? '' })}
+                                style={{ height:26, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:11, cursor:'pointer' }}>✏️ 填寫</button>
+                            </span>
+                          )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
-              )}
+                );
+              })()}
             </div>
           </div>
         </div>
