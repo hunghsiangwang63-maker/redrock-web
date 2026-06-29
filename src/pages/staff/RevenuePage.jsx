@@ -121,6 +121,17 @@ export default function RevenuePage({ embedded = false }) {
                 ))}
               </div>
 
+              {/* 預收貨款（課程/比賽已收款但尚未認列營收） */}
+              {summary?.deferred > 0 && (
+                <div style={{ background:'#FFF8E6', border:'0.5px solid #F0D68A', borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#854F0B' }}>📦 預收貨款（已收未認列）</div>
+                    <div style={{ fontSize:11, color:'#9A7B3A', marginTop:2 }}>課程／比賽已收款，營收於完成日（最後一堂課／比賽前一天）才認列</div>
+                  </div>
+                  <div style={{ fontSize:20, fontWeight:700, color:'#854F0B', fontFamily:'monospace', flexShrink:0 }}>{NT(summary.deferred)}</div>
+                </div>
+              )}
+
               {/* 付款方式分佈 */}
               {summary?.today?.byPayment && Object.keys(summary.today.byPayment).length > 0 && (
                 <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:16 }}>
