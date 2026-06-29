@@ -167,7 +167,7 @@ export default function PendingTasksPage() {
         return <><button disabled={busy} onClick={() => oneClick(task.targetId, () => confirmTeamPayment(task.targetId), '已確認收款')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認收款'}</button>{goLink(task)}</>;
       case 'experience':
         // 已確認＝僅提醒（不再顯示確認/取消）；待確認＝可確認/取消
-        if (task.confirmed) return <><span style={{ fontSize:11, color:'#2D7D46', whiteSpace:'nowrap' }}>已確認</span>{goLink(task)}</>;
+        if (task.confirmed) return <><span style={{ fontSize:11, color:'#2D7D46', whiteSpace:'nowrap' }}>已確認{task.ticketsIssued > 0 ? '·已發放入場券' : ''}</span>{goLink(task)}</>;
         return <>
           <button onClick={() => setModal({ kind:'experience', record: task.record })} style={primaryBtn('#2D7D46')}>確認</button>
           <button onClick={() => setModal({ kind:'reason', props:{ title:'取消體驗預約', label:'取消原因', placeholder:'預設「館方取消」', confirmText:'確認取消', required:false, onSubmit: async (reason) => { await client.post(`/experience-bookings/${task.targetId}/cancel`, { reason: reason || '館方取消' }); afterDone('已取消預約'); } } })} style={dangerBtn}>取消</button>
