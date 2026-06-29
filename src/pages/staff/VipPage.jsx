@@ -8,13 +8,17 @@ import dayjs from 'dayjs';
 const feeLabel = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 const feeInput = { width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 
-export default function VipPage({ embedded = false }) {
+export default function VipPage({ embedded = false, section = null }) {
   const { staff } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
 
-  const [tab, setTab] = useState('vip'); // vip | team
+  // section 指定時（會員頁拆成獨立分頁）固定顯示該段並隱藏子分頁列
+  const [internalTab, setInternalTab] = useState('vip'); // vip | team
+  const tab = section || internalTab;
+  const setTab = setInternalTab;
 
   const [vips, setVips] = useState([]);
+  const [vipFilter, setVipFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -215,9 +219,15 @@ export default function VipPage({ embedded = false }) {
     }
   };
 
+  const filteredVips = vips.filter(v => {
+    const q = vipFilter.trim();
+    return !q || (v.memberName || '').includes(q) || (v.note || '').includes(q);
+  });
+
   return (
     <div style={{ padding: embedded ? 0 : 24, maxWidth:800, margin:'0 auto' }}>
-      {/* Tab 切換 */}
+      {/* Tab 切換（section 指定時隱藏，由會員頁的分頁控制）*/}
+      {!section && (
       <div style={{ display:'flex', gap:8, marginBottom:20 }}>
         <button onClick={() => setTab('vip')}
           style={{ height:36, padding:'0 16px', borderRadius:8, border: tab==='vip' ? 'none' : '0.5px solid #E8D5D5', background: tab==='vip' ? '#8B1A1A' : '#fff', color: tab==='vip' ? '#fff' : '#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
@@ -228,6 +238,7 @@ export default function VipPage({ embedded = false }) {
           🏔️ 攀岩隊員
         </button>
       </div>
+      )}
 
       {tab === 'vip' && (
       <>
@@ -302,15 +313,19 @@ export default function VipPage({ embedded = false }) {
 
       {/* VIP 列表 */}
       <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap' }}>
           <span style={{ fontWeight:600, fontSize:13 }}>VIP 名單</span>
-          <span style={{ fontSize:12, color:'#999' }}>共 {vips.length} 人</span>
+          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+            <input value={vipFilter} onChange={e => setVipFilter(e.target.value)} placeholder="搜尋姓名／備註"
+              style={{ height:30, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }} />
+            <span style={{ fontSize:12, color:'#999' }}>共 {filteredVips.length} 人</span>
+          </div>
         </div>
 
         {loading ? (
           <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>載入中...</div>
-        ) : vips.length === 0 ? (
-          <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>目前無 VIP 會員</div>
+        ) : filteredVips.length === 0 ? (
+          <div style={{ padding:40, textAlign:'center', color:'#999', fontSize:13 }}>{vipFilter.trim() ? '無符合的 VIP' : '目前無 VIP 會員'}</div>
         ) : (
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
             <thead>
@@ -322,7 +337,7 @@ export default function VipPage({ embedded = false }) {
               </tr>
             </thead>
             <tbody>
-              {vips.map(v => (
+              {filteredVips.map(v => (
                 <tr key={v.id} style={{ borderTop:'0.5px solid #F5EFEF' }}>
                   <td style={{ padding:'12px 16px' }}>
                     <div style={{ fontWeight:600 }}>{v.memberName}</div>

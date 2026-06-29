@@ -123,28 +123,49 @@ function MemberRecords({ records }) {
   );
 }
 
-// 名單（分組）顯示：定期票有效 / 課程效期 共用
-const GroupedMemberList = ({ loading, groups }) => {
+// 名單（分組、條列式、可搜尋、顯示有效起訖）：定期票 / 課程學員 共用
+const fmtDate = (d) => d ? dayjs(d).format('YYYY/MM/DD') : '';
+const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名' }) => {
+  const [q, setQ] = useState('');
   if (loading) return <div style={{ textAlign:'center', color:'#999', padding:40, fontSize:13 }}>載入中...</div>;
-  if (!groups || groups.length === 0)
-    return <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>目前無符合的名單</div>;
+  const kw = q.trim();
+  const shown = (groups || [])
+    .map(g => ({ ...g, members: kw ? g.members.filter(m => (m.memberName || m.memberId || '').includes(kw)) : g.members }))
+    .filter(g => g.members.length > 0);
+  const total = shown.reduce((s, g) => s + g.members.length, 0);
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      {groups.map(g => (
-        <div key={g.key} style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', overflow:'hidden' }}>
-          <div style={{ padding:'10px 16px', background:'#FBF5F5', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
-            <span style={{ fontSize:14, fontWeight:600, color:'#8B1A1A' }}>{g.title}</span>
-            <span style={{ fontSize:12, color:'#999', flexShrink:0 }}>{g.count} 人{g.sub ? ` · ${g.sub}` : ''}</span>
-          </div>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6, padding:12 }}>
-            {g.members.map((m, i) => (
-              <span key={m.memberId || i} style={{ fontSize:12, padding:'4px 10px', borderRadius:14, background:'#F5EFEF', color:'#444' }}>
-                {m.memberName || m.memberId}{m.endDate ? `（至 ${dayjs(m.endDate).format('MM/DD')}）` : ''}
-              </span>
-            ))}
-          </div>
+    <div>
+      <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:12 }}>
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder={searchPlaceholder}
+          style={{ flex:1, maxWidth:320, height:38, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 14px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }} />
+        <span style={{ fontSize:12, color:'#999' }}>共 {total} 人</span>
+      </div>
+      {(!groups || shown.length === 0) ? (
+        <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
+          {kw ? '無符合的名單' : '目前無符合的名單'}
         </div>
-      ))}
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+          {shown.map(g => (
+            <div key={g.key} style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', overflow:'hidden' }}>
+              <div style={{ padding:'10px 16px', background:'#FBF5F5', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:14, fontWeight:600, color:'#8B1A1A' }}>{g.title}</span>
+                <span style={{ fontSize:12, color:'#999', flexShrink:0 }}>{g.members.length} 人{g.range ? ` · 效期 ${g.range}` : ''}</span>
+              </div>
+              {g.members.map((m, i) => (
+                <div key={m.memberId || i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
+                  <span style={{ fontSize:13, fontWeight:500 }}>{m.memberName || m.memberId}</span>
+                  {(m.startDate || m.endDate) && (
+                    <span style={{ fontSize:12, color:'#666', fontFamily:'monospace', flexShrink:0 }}>
+                      {fmtDate(m.startDate)} ~ {fmtDate(m.endDate)}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -440,9 +461,10 @@ export default function MembersPage() {
       <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
         {[
           { key:'search',  label:'會員查詢' },
-          { key:'vipteam', label:'VIP／攀岩隊員' },
-          { key:'passes',  label:'定期票有效' },
-          { key:'courses', label:'課程效期' },
+          { key:'vip',     label:'VIP' },
+          { key:'team',    label:'紅石隊員' },
+          { key:'passes',  label:'定期票' },
+          { key:'courses', label:'課程學員' },
         ].map(t => (
           <button key={t.key} onClick={() => switchView(t.key)}
             style={{ height:36, padding:'0 16px', borderRadius:8, border:`1.5px solid ${view===t.key?'#8B1A1A':'#EDE5E5'}`, background: view===t.key?'#8B1A1A':'#fff', color: view===t.key?'#fff':'#444', fontSize:13, fontWeight: view===t.key?600:400, cursor:'pointer' }}>
@@ -451,14 +473,18 @@ export default function MembersPage() {
         ))}
       </div>
 
-      {view === 'vipteam' && <VipPage embedded />}
+      {view === 'vip' && <VipPage embedded section="vip" />}
+      {view === 'team' && <VipPage embedded section="team" />}
       {view === 'passes' && (
-        <GroupedMemberList loading={listLoading}
-          groups={(passList || []).map(g => ({ key: g.passTypeId || g.passTypeName, title: g.passTypeName, count: g.count, members: g.members }))} />
+        <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名"
+          groups={(passList || []).map(g => ({ key: g.passTypeId || g.passTypeName, title: g.passTypeName, members: g.members }))} />
       )}
       {view === 'courses' && (
-        <GroupedMemberList loading={listLoading}
-          groups={(courseList || []).map(g => ({ key: g.courseId, title: g.courseName, count: g.count, sub: g.practiceEnd ? `效期至 ${dayjs(g.practiceEnd).format('MM/DD')}` : '', members: g.members }))} />
+        <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名"
+          groups={(courseList || []).map(g => ({
+            key: g.courseId, title: g.courseName, members: g.members,
+            range: g.practiceStart && g.practiceEnd ? `${dayjs(g.practiceStart).format('MM/DD')}–${dayjs(g.practiceEnd).format('MM/DD')}` : (g.practiceEnd ? `至 ${dayjs(g.practiceEnd).format('MM/DD')}` : ''),
+          }))} />
       )}
 
       {view === 'search' && (
