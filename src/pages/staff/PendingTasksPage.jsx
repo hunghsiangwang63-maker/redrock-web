@@ -10,8 +10,9 @@ import RentalActionModal from '../../components/review/RentalActionModal';
 import ReasonModal from '../../components/review/ReasonModal';
 import TransferConfirmModal from '../../components/review/TransferConfirmModal';
 import ExperienceDetailModal from '../../components/review/ExperienceDetailModal';
+import TicketApprovalModal from '../../components/review/TicketApprovalModal';
 import { confirmTeamPayment } from '../../api/team';
-import { approveTicket, rejectTicket } from '../../api/passes';
+import { rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
 
@@ -173,7 +174,7 @@ export default function PendingTasksPage() {
         </>;
       case 'ticket_approval':
         return <>
-          <button disabled={busy} onClick={() => oneClick(task.targetId, () => approveTicket(task.targetId), '審核通過')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '核准'}</button>
+          <button onClick={() => setModal({ kind:'ticket', record: task.record })} style={primaryBtn('#2D7D46')}>核准</button>
           <button onClick={() => setModal({ kind:'reason', props:{ title:'拒絕單次入場券', label:'拒絕原因', placeholder:'請填寫拒絕原因', confirmText:'確認拒絕', required:true, onSubmit: async (reason) => { await rejectTicket(task.targetId, reason); afterDone('已拒絕'); } } })} style={dangerBtn}>拒絕</button>
         </>;
       default:
@@ -386,6 +387,7 @@ export default function PendingTasksPage() {
       {modal?.kind === 'reason' && <ReasonModal {...modal.props} onClose={() => setModal(null)} />}
       {modal?.kind === 'transfer' && <TransferConfirmModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'experience' && <ExperienceDetailModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'ticket' && <TicketApprovalModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
 
       {/* 操作結果提示 */}
       {toast && (
