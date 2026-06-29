@@ -226,57 +226,6 @@ export default function PendingTasksPage() {
         上次更新：{dayjs().format('HH:mm')}　·　🔔 今日提醒（器材取件·歸還／體驗）　🔍 需審核（課程／票券／單次券）　💰 待收款（轉帳／比賽／攀岩隊／器材）　·　近 7 天動態請看「🔔 通知」
       </div>
 
-      {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
-      {!loading && total === 0 && (
-        <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center' }}>
-          <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
-          <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46' }}>目前沒有待處理事項</div>
-          <div style={{ fontSize:13, color:'#999', marginTop:4 }}>近 7 天報名與通知請點右上「🔔 通知」</div>
-        </div>
-      )}
-
-      {!loading && groups.map(group => (
-        <div key={group.key} style={{ marginBottom:20 }}>
-          {/* 內容分段標題 */}
-          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:group.color }}>{group.label}</div>
-            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
-            <div style={{ fontSize:12, color:'#999' }}>{group.tasks.length} 項</div>
-          </div>
-
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {group.tasks.map(task => {
-              const cfg = TYPE_CONFIG[task.type] || TYPE_CONFIG.rental;
-              return (
-                <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
-                  {/* 圖示 */}
-                  <div style={{ width:40, height:40, borderRadius:10, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                    {cfg.icon}
-                  </div>
-                  {/* 內容 */}
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color }}>{cfg.label}</span>
-                      <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
-                    </div>
-                    <div style={{ fontSize:12, color:'#666', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{task.desc}</div>
-                    <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
-                      {task.gymId === 'gym-hsinchu' ? '新竹館' : task.gymId === 'gym-shilin' ? '士林館' : ''}
-                      {task.gymId && task.date ? ' · ' : ''}
-                      {task.date}
-                    </div>
-                  </div>
-                  {/* 內嵌動作 */}
-                  <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
-                    {renderActions(task)}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-
       {/* 課程相關查詢（退費/暫停：已核准 / 已拒絕） */}
       {trackView === 'course' && (
         <div style={{ marginTop:8 }}>
@@ -375,6 +324,58 @@ export default function PendingTasksPage() {
           </div>
         );
       })()}
+
+      {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
+      {!loading && total === 0 && (
+        <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center' }}>
+          <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
+          <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46' }}>目前沒有待處理事項</div>
+          <div style={{ fontSize:13, color:'#999', marginTop:4 }}>近 7 天報名與通知請點右上「🔔 通知」</div>
+        </div>
+      )}
+
+      {!loading && groups.map(group => (
+        <div key={group.key} style={{ marginBottom:20 }}>
+          {/* 內容分段標題 */}
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:group.color }}>{group.label}</div>
+            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{group.tasks.length} 項</div>
+          </div>
+
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {group.tasks.map(task => {
+              const cfg = TYPE_CONFIG[task.type] || TYPE_CONFIG.rental;
+              return (
+                <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
+                  {/* 圖示 */}
+                  <div style={{ width:40, height:40, borderRadius:10, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
+                    {cfg.icon}
+                  </div>
+                  {/* 內容 */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color }}>{cfg.label}</span>
+                      <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'#666', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{task.desc}</div>
+                    <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
+                      {task.gymId === 'gym-hsinchu' ? '新竹館' : task.gymId === 'gym-shilin' ? '士林館' : ''}
+                      {task.gymId && task.date ? ' · ' : ''}
+                      {task.date}
+                    </div>
+                  </div>
+                  {/* 內嵌動作 */}
+                  <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
+                    {renderActions(task)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
 
       {/* 內嵌審核彈窗 */}
       {modal?.kind === 'course' && <CourseAdjustmentReviewModal request={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
