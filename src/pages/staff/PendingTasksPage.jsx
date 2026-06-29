@@ -44,15 +44,11 @@ const TYPE_CONFIG = {
   ticket_approval:    { icon:'🎟️', color:'#5B2D8B', bg:'#F3EEF9', label:'票券審核' },
 };
 
-// 待辦總覽：依「內容」分段（每段含對應的 task type）
+// 待辦總覽：依「性質」分段（今日提醒／需審核／待收款）
 const CATEGORIES = [
-  { key:'transfer',    label:'🏦 轉帳確認', color:'#185FA5', types:['transfer_confirm'] },
-  { key:'ticket',      label:'🎫 票券',   color:'#5B2D8B', types:['pass_adjustment','ticket_approval'] },
-  { key:'competition', label:'🏆 比賽',   color:'#185FA5', types:['competition_payment'] },
-  { key:'team',        label:'⚡ 攀岩隊', color:'#2D7D46', types:['team_member'] },
-  { key:'experience',  label:'🧗 體驗',   color:'#8B1A1A', types:['experience'] },
-  { key:'course',      label:'📚 課程',   color:'#8B1A1A', types:['course_adjustment'] },
-  { key:'equipment',   label:'👟 器材',   color:'#854F0B', types:['rental','rental_pickup','rental_return'] },
+  { key:'remind',  label:'🔔 今日提醒／預約', color:'#854F0B', types:['rental_pickup','rental_return','experience'] },
+  { key:'review',  label:'🔍 需審核（核准／拒絕）', color:'#5B2D8B', types:['course_adjustment','pass_adjustment','ticket_approval'] },
+  { key:'payment', label:'💰 待收款（核對後確認）', color:'#185FA5', types:['transfer_confirm','competition_payment','team_member','rental'] },
 ];
 
 export default function PendingTasksPage() {
@@ -225,7 +221,7 @@ export default function PendingTasksPage() {
         </div>
       </div>
       <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>
-        上次更新：{dayjs().format('HH:mm')}　·　待處理：轉帳確認、票券、比賽、攀岩隊、體驗、課程、器材　·　近 7 天報名／轉帳／票券／系統動態請看「🔔 通知」
+        上次更新：{dayjs().format('HH:mm')}　·　🔔 今日提醒（器材取件·歸還／體驗）　🔍 需審核（課程／票券／單次券）　💰 待收款（轉帳／比賽／攀岩隊／器材）　·　近 7 天動態請看「🔔 通知」
       </div>
 
       {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
