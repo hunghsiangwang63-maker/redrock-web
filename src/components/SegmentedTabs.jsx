@@ -14,17 +14,18 @@ export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md
           <button key={t.key} type="button" onClick={() => onChange(t.key)}
             title={typeof t.label === 'string' ? t.label : undefined}
             style={{
-              flex: 1, minWidth: 0, height: h, borderRadius: 6,
+              // flex:1 → 滿寬容器時平均分佈；min-width 取內容寬 → 並排(space-between)容器時不壓縮/不截字
+              flex: 1, height: h, borderRadius: 6, padding: '0 14px',
               border: active ? '0.5px solid #E8D5D5' : 'none',
               background: active ? '#fff' : 'transparent',
               fontSize: size === 'sm' ? 12 : 13, fontWeight: active ? 600 : 500,
               color: active ? '#1a1a1a' : '#999', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
               boxShadow: active ? '0 1px 2px rgba(0,0,0,.04)' : 'none', transition: 'all .12s',
             }}>
             {t.icon && <span style={{ flexShrink: 0 }}>{t.icon}</span>}
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label}</span>
+            <span>{t.label}</span>
           </button>
         );
       })}
