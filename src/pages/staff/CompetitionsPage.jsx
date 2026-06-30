@@ -160,8 +160,18 @@ export default function CompetitionsPage() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const handleDownloadCSV = (c) => {
-    window.open(`${import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app'}/competitions/${c.id}/registrations/download`, '_blank');
+  const handleDownloadCSV = async (c) => {
+    try {
+      const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
+      const r = await fetch(`${API}/competitions/${c.id}/registrations/download`, { headers: { Authorization: `Bearer ${tok}` } });
+      if (!r.ok) { const t = await r.text().catch(()=>''); throw new Error(r.status === 403 ? '權限不足' : `${r.status} ${t.slice(0,120)}`); }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `${c.name}_報名名單_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
 
 
