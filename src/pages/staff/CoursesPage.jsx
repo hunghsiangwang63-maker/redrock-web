@@ -476,8 +476,8 @@ export default function CoursesPage({ embedded = false }) {
         </div>
       )}
 
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-        <SegmentedTabs tabs={COURSE_TABS} value={tab} onChange={setTab} />
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:16 }}>
+        <SegmentedTabs wrap tabs={COURSE_TABS} value={tab} onChange={setTab} style={{ flex:'1 1 300px', minWidth:0 }} />
         {tab === 'courses' && (
           <button onClick={() => setShowAddCourse(true)}
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
