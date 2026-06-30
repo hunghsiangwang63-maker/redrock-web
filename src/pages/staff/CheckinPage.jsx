@@ -5,6 +5,7 @@ import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
+import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const ENTRY_TYPE_LABEL = {
   pass: '定期票', vip: 'VIP', course_access: '課程學員',
@@ -43,6 +44,12 @@ export default function CheckinPage() {
       }).catch(() => {});
     }
   }, [isSuperAdmin, activeGymId]);
+
+  const [trend, setTrend] = useState(null);   // 每日入場數折線（本月 vs 上月）
+  useEffect(() => {
+    client.get('/checkin/monthly-daily-counts', { params: { gymId: targetGymId || undefined } })
+      .then(r => setTrend(r.data)).catch(() => setTrend({ data: [] }));
+  }, [targetGymId]);
 
   const [courseStudents, setCourseStudents] = useState([]);
   const [courseStudentsLoading, setCourseStudentsLoading] = useState(false);
@@ -925,9 +932,31 @@ export default function CheckinPage() {
           {log.length === 0 && <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>今日尚無紀錄</div>}
         </div>
 
-        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-          <div style={{ fontSize:22, fontWeight:600, color:'#1a1a1a' }}>{dayjs().format('MM/DD')}</div>
-          <div style={{ fontSize:13, color:'#999', marginTop:3 }}>{dayjs().format('dddd')}</div>
+        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 12px 8px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+            <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>每日入場數</span>
+            <span style={{ fontSize:12, color:'#1a1a1a', fontWeight:600 }}>{dayjs().format('MM/DD')}（{dayjs().format('ddd')}）</span>
+          </div>
+          {trend?.data?.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={150}>
+                <LineChart data={trend.data} margin={{ top:4, right:6, left:-24, bottom:0 }}>
+                  <CartesianGrid strokeDasharray="2 2" stroke="#F2EEEE" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize:9, fill:'#bbb' }} interval={4} tickLine={false} axisLine={{ stroke:'#E8D5D5' }} />
+                  <YAxis tick={{ fontSize:9, fill:'#bbb' }} width={26} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip contentStyle={{ fontSize:11, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'4px 8px' }} labelFormatter={d => `${d} 日`} />
+                  <Line type="monotone" dataKey="previous" name={trend.prevLabel} stroke="#C9BFBF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
+                  <Line type="monotone" dataKey="current" name={trend.curLabel} stroke="#8B1A1A" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+                </LineChart>
+              </ResponsiveContainer>
+              <div style={{ display:'flex', gap:14, justifyContent:'center', fontSize:10, color:'#777', marginTop:2 }}>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#8B1A1A', display:'inline-block' }} />本月（{trend.curLabel}）</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#C9BFBF', display:'inline-block' }} />上月（{trend.prevLabel}）</span>
+              </div>
+            </>
+          ) : (
+            <div style={{ textAlign:'center', color:'#999', fontSize:12, padding:'24px 0' }}>{trend ? '本月與上月暫無入場資料' : '載入中…'}</div>
+          )}
         </div>
       </div>
     </div>
