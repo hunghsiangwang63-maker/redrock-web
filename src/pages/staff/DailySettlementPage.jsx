@@ -15,7 +15,7 @@ const DENOMINATIONS = [
   { key:'d1',    label:'NT$1',    value:1    },
 ];
 
-const DEDUCTION_TYPES = ['教練費','定線費','現金領取','其他退款'];
+const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','其他退款','其他'];
 
 export default function DailySettlementPage() {
   const { staff, activeGymId, operator, isStationMode } = useAuth();
@@ -95,11 +95,12 @@ export default function DailySettlementPage() {
 
   // 計算實際現金
   const actualCash = DENOMINATIONS.reduce((sum, d) => sum + (denominations[d.key]||0) * d.value, 0);
-  const totalDeductions = deductions.reduce((sum, d) => sum + (Number(d.amount)||0), 0);
-  const expectedCash = (settlement?.prevCashBalance || 0) + (settlement?.payment?.cash || 0) - totalDeductions;
+  // 加減項：sign '+' ＝加入抽屜（預期上升）、'-' ＝取出（預期下降）；舊資料無 sign 視為 '-'（減）
+  const netAdjust = deductions.reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount)||0)), 0);
+  const expectedCash = (settlement?.prevCashBalance || 0) + (settlement?.payment?.cash || 0) + netAdjust;
   const difference = actualCash - expectedCash;
 
-  const addDeduction = () => setDeductions(prev => [...prev, { type: DEDUCTION_TYPES[0], amount: '', note: '' }]);
+  const addDeduction = () => setDeductions(prev => [...prev, { sign: '-', type: DEDUCTION_TYPES[0], amount: '', note: '' }]);
   const removeDeduction = (i) => setDeductions(prev => prev.filter((_, idx) => idx !== i));
 
   const handleSettle = async () => {
@@ -307,18 +308,23 @@ export default function DailySettlementPage() {
             </div>
           </div>
 
-          {/* 減項 */}
+          {/* 加減項（可加可減）*/}
           <div style={s.card}>
             <div style={{ ...s.cardHead, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <span>減項</span>
+              <span>加減項</span>
               <button onClick={addDeduction}
-                style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增減項</button>
+                style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增加減項</button>
             </div>
             {deductions.length === 0 ? (
-              <div style={{ padding:'12px 16px', fontSize:13, color:'#ccc' }}>尚無減項</div>
+              <div style={{ padding:'12px 16px', fontSize:13, color:'#ccc' }}>尚無加減項</div>
             ) : deductions.map((d, i) => (
               <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF' }}>
                 <div style={{ display:'flex', gap:8, marginBottom:6 }}>
+                  <select value={d.sign || '-'} onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, sign: e.target.value} : x))}
+                    style={{ ...s.input, width:72, color: (d.sign==='+') ? '#2D7D46' : '#A32D2D', fontWeight:600 }}>
+                    <option value="-">－減</option>
+                    <option value="+">＋加</option>
+                  </select>
                   <select value={d.type} onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, type: e.target.value} : x))}
                     style={{ ...s.input, flex:1 }}>
                     {DEDUCTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
@@ -336,8 +342,8 @@ export default function DailySettlementPage() {
             ))}
             {deductions.length > 0 && (
               <div style={{ ...s.row, background:'#FBF5F5' }}>
-                <span style={s.label}>減項合計</span>
-                <span style={{ ...s.value, color:'#A32D2D' }}>-NT${totalDeductions.toLocaleString()}</span>
+                <span style={s.label}>加減項合計</span>
+                <span style={{ ...s.value, color: netAdjust >= 0 ? '#2D7D46' : '#A32D2D' }}>{netAdjust >= 0 ? '+' : '-'}NT${Math.abs(netAdjust).toLocaleString()}</span>
               </div>
             )}
           </div>

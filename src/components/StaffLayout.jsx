@@ -39,6 +39,7 @@ export default function StaffLayout() {
   const { logout, logoutStation, staff, station, operator, isStationMode, isOperational, clockIn, clockOut } = useAuth();
   // 管理員＝super_admin / gym_manager（依當前操作身份：值班 operator 優先，其次個人 staff）
   const isAdmin = ['super_admin', 'gym_manager'].includes(operator?.role || staff?.role);
+  const isSuperAdmin = (operator?.role || staff?.role) === 'super_admin';
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -155,7 +156,7 @@ export default function StaffLayout() {
         {/* 桌機：左側導覽 */}
         {!isMobile && (
           <div style={{ width:56, background:'#fff', borderRight:'0.5px solid #E8D5D5', display:'flex', flexDirection:'column', alignItems:'center', padding:'12px 0', gap:4, flexShrink:0 }}>
-            {NAV.filter(n => (n.path !== '/staff/settlement' || (isStationMode && operator)) && (n.path !== '/staff/finance' || isAdmin)).map(n => {
+            {NAV.filter(n => (n.path !== '/staff/settlement' || (isStationMode && operator) || isSuperAdmin) && (n.path !== '/staff/finance' || isAdmin)).map(n => {
               const active = n.path === '/staff/activities'
                 ? location.pathname === '/staff/activities'
                 : location.pathname === n.path;
