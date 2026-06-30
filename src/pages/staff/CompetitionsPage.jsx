@@ -49,8 +49,7 @@ const emptyForm = () => ({
     { deadline: dayjs().add(12,'day').format('YYYY-MM-DD'), rule:'half_minus_admin', adminFee:100 },
   ],
   waiverContent: { zh:'', en:'' },
-  scoringSystem:'rating_system',
-  webhookUrl:'',
+  scoringSystem:'competition_management_v2',  // 固定紅石賽事管理 V2（直寫計分系統 Firestore）
   status:'draft',
 });
 
@@ -101,7 +100,7 @@ export default function CompetitionsPage() {
     if (form.divisions.some(d=>!d.name.trim())) { showMsg('請填寫所有組別名稱','red'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, webhookUrl:form.webhookUrl||null };
+      const payload = { ...form, scoringSystem:'competition_management_v2', webhookUrl:null };
       editingId ? await updateCompetition(editingId, payload) : await createCompetition(payload);
       showMsg(editingId ? '賽事已更新' : '賽事已建立');
       setShowForm(false); await loadCompetitions();
@@ -259,12 +258,6 @@ export default function CompetitionsPage() {
             <div><label style={lbl}>報名開始</label><input type="date" style={inp} value={form.registrationStart} onChange={e=>setForm(f=>({...f,registrationStart:e.target.value}))}/></div>
             <div><label style={lbl}>報名截止</label><input type="date" style={inp} value={form.registrationEnd} onChange={e=>setForm(f=>({...f,registrationEnd:e.target.value}))}/></div>
             <div><label style={lbl}>早鳥截止日</label><input type="date" style={inp} value={form.earlyBirdDeadline} onChange={e=>setForm(f=>({...f,earlyBirdDeadline:e.target.value}))}/></div>
-            <div><label style={lbl}>計分系統</label>
-              <select style={inp} value={form.scoringSystem} onChange={e=>setForm(f=>({...f,scoringSystem:e.target.value}))}>
-                <option value="rating_system">Rating System</option>
-                <option value="competition_management_v2">紅石賽事管理 V2</option>
-              </select>
-            </div>
           </div>
 
           {/* 組別設定 */}
@@ -326,7 +319,6 @@ export default function CompetitionsPage() {
 
           {/* Webhook & waiver */}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
-            <div><label style={lbl}>Webhook URL（計分系統）</label><input style={inp} value={form.webhookUrl} onChange={e=>setForm(f=>({...f,webhookUrl:e.target.value}))}/></div>
             <div><label style={lbl}>狀態</label>
               <select style={inp} value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))}>
                 <option value="draft">草稿</option>
