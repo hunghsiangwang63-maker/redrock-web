@@ -203,7 +203,7 @@ export default function PendingTasksPage() {
   const total = tasks.length;
 
   return (
-    <div style={{ padding: isMobile ? 14 : 24, maxWidth:800, margin:'0 auto' }}>
+    <div style={{ padding: isMobile ? 14 : 24, maxWidth:800, margin:'0 auto', textAlign:'left' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:6 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{ fontSize:20, fontWeight:700 }}>🔔 待辦總覽</div>
