@@ -2,7 +2,7 @@
 // 用法：<SegmentedTabs tabs={[{key,label,icon?}]} value={tab} onChange={setTab} />
 // 條件分頁由呼叫端組 tabs 陣列（例：[{...}, ...(isAdmin?[{...}]:[])]）
 // wrap：分頁較多時（如會員/票券）允許換行，空間不夠自動分多行（每格最小 minTabWidth）
-export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md', wrap = false, minTabWidth = 120 }) {
+export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md', wrap = false, minTabWidth = 150 }) {
   const h = size === 'sm' ? 30 : 34;
   // wrap：用 grid auto-fit，分頁多時自動換行成等寬多列（如會員/票券）；否則單行 flex 平均分佈
   const container = wrap
