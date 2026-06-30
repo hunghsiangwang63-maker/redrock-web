@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore.jsx';
+import { getGyms } from '../../api/gyms';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
 
@@ -18,7 +19,10 @@ const DEDUCTION_TYPES = ['教練費','定線費','現金領取','其他退款'];
 
 export default function DailySettlementPage() {
   const { staff, activeGymId, operator, isStationMode } = useAuth();
-  const gymId = activeGymId || staff?.gymId;
+  const isSuperAdmin = (operator?.role || staff?.role) === 'super_admin';
+  const [selectedGymId, setSelectedGymId] = useState('');
+  const [gyms, setGyms] = useState([]);
+  const gymId = activeGymId || staff?.gymId || (isSuperAdmin ? selectedGymId : '');
   const isOperatorMode = isStationMode && !!operator;
   const isAdmin = ['super_admin', 'gym_manager'].includes(operator?.role || staff?.role);
   const [loading, setLoading] = useState(true);
@@ -39,7 +43,22 @@ export default function DailySettlementPage() {
   const [history, setHistory] = useState([]);
   const [tab, setTab] = useState('today');
 
-  useEffect(() => { if (isOperatorMode) { loadToday(); loadHistory(); } else { setLoading(false); } }, []);
+  useEffect(() => {
+    if (isOperatorMode) { loadToday(); loadHistory(); return; }
+    if (isSuperAdmin) {
+      getGyms().then(res => {
+        const list = res.data.gyms || [];
+        setGyms(list);
+        if (!selectedGymId && list.length > 0) setSelectedGymId(list[0].id);
+      }).catch(() => {});
+    }
+    setLoading(false);
+  }, []);
+
+  // 系統管理員選定館別後載入該館今日結算
+  useEffect(() => {
+    if (!isOperatorMode && isSuperAdmin && selectedGymId) { loadToday(); loadHistory(); }
+  }, [selectedGymId]);
 
   const loadToday = async () => {
     setLoading(true);
@@ -115,7 +134,7 @@ export default function DailySettlementPage() {
 
   if (loading) return <div style={{ padding:40, textAlign:'center', color:'#999' }}>載入中...</div>;
 
-  if (!isOperatorMode) {
+  if (!isOperatorMode && !isSuperAdmin) {
     return (
       <div style={{ padding:16, background:'#F7F3F3', minHeight:'100vh' }}>
         <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:32, textAlign:'center', maxWidth:480, margin:'40px auto' }}>
@@ -134,6 +153,20 @@ export default function DailySettlementPage() {
     <div style={{ padding:16, background:'#F7F3F3', minHeight:'100vh' }}>
       {msg && (
         <div style={{ background: msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F09595'}`, borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, color: msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>
+      )}
+
+      {/* 系統管理員非站台：選館遠端操作結算 */}
+      {!isOperatorMode && isSuperAdmin && (
+        <div style={{ background:'#FFF8E6', border:'0.5px solid #F0D98C', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+          <span style={{ color:'#854F0B', fontWeight:600 }}>🖥️ 系統管理員遠端結算</span>
+          <span style={{ color:'#854F0B' }}>操作館別：</span>
+          <select value={selectedGymId} onChange={e => setSelectedGymId(e.target.value)}
+            style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff' }}>
+            {gyms.length === 0 && <option value="">載入中…</option>}
+            {gyms.map(g => <option key={g.id} value={g.id}>{g.name || (g.id==='gym-hsinchu'?'新竹館':g.id==='gym-shilin'?'士林館':g.id)}</option>)}
+          </select>
+          <span style={{ fontSize:11, color:'#A98B3B' }}>不需在本館電腦登入即可結算</span>
+        </div>
       )}
 
       {/* Tab（歷史紀錄僅管理員可見）*/}
