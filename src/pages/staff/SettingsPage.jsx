@@ -13,6 +13,7 @@ const TAB_GROUPS = [
       { key: 'gyms',         icon: '🏠', label: '場館設置',   superAdminOnly: true },
       { key: 'staffAccounts',icon: '👤', label: '員工帳號',   superAdminOnly: true },
       { key: 'devices',      icon: '📱', label: '裝置審核',   adminOnly: true },
+      { key: 'transition',   icon: '🔄', label: '系統轉換',   adminOnly: true },
     ],
   },
   {
@@ -207,6 +208,18 @@ export default function SettingsPage() {
     finally { setLoading(false); }
   };
 
+  // ─── 系統轉換期設定 ─────────────────────────────────────────────
+  const [transition, setTransition] = useState({ settlementManualInput: false, settlementShowCardNumbers: true, checkinAlreadyPaid: false });
+  const loadTransition = async () => {
+    try { const res = await client.get('/settings/transition'); setTransition(res.data); } catch (e) {}
+  };
+  const handleSaveTransition = async () => {
+    setLoading(true);
+    try { await client.put('/settings/transition', transition); showMsg('系統轉換設定已儲存'); }
+    catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+
   // ─── 岩鞋及粉袋租借 ─────────────────────────────────────────────
   const [shoeRental, setShoeRental] = useState({ price: 100, active: true });
   const [chalkRental, setChalkRental] = useState({ price: 50, active: true });
@@ -301,7 +314,7 @@ export default function SettingsPage() {
     loadWaiver();
     loadShoeRental();
     loadFallTest();
-    if (isAdmin) loadPendingDevices();
+    if (isAdmin) { loadPendingDevices(); loadTransition(); }
   }, []);
 
   // ─── 墜落測驗設定 ───────────────────────────────────────────────
@@ -447,6 +460,46 @@ export default function SettingsPage() {
 
       {/* ── Waiver 內容 ── */}
       {/* ── 岩鞋及粉袋租借 ── */}
+      {activeTab === 'transition' && isAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🔄 系統轉換期設定</span>
+            <button onClick={handleSaveTransition} disabled={loading}
+              style={{ height:32, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>儲存</button>
+          </div>
+          <div style={{ padding:16, display:'flex', flexDirection:'column', gap:18 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6 }}>新舊系統轉換期間的暫時選項，轉換完成後可關閉／移除。</div>
+            <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
+              <input type="checkbox" checked={!!transition.settlementManualInput}
+                onChange={e => setTransition(p => ({...p, settlementManualInput: e.target.checked}))}
+                style={{ width:16, height:16, marginTop:2 }} />
+              <span>
+                <div style={{ fontWeight:600 }}>結帳：手動輸入與系統值並列</div>
+                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>結帳頁每個收入項與付款方式都多一欄手動輸入；系統值與手動值都會存檔。</div>
+              </span>
+            </label>
+            <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
+              <input type="checkbox" checked={!!transition.settlementShowCardNumbers}
+                onChange={e => setTransition(p => ({...p, settlementShowCardNumbers: e.target.checked}))}
+                style={{ width:16, height:16, marginTop:2 }} />
+              <span>
+                <div style={{ fontWeight:600 }}>結帳：顯示優惠卡／全票最前號碼</div>
+                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>關閉後結帳頁隱藏這兩個欄位（轉換完成後預計拿掉）。</div>
+              </span>
+            </label>
+            <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
+              <input type="checkbox" checked={!!transition.checkinAlreadyPaid}
+                onChange={e => setTransition(p => ({...p, checkinAlreadyPaid: e.target.checked}))}
+                style={{ width:16, height:16, marginTop:2 }} />
+              <span>
+                <div style={{ fontWeight:600 }}>入場：電話搜尋顯示「已付費」放行</div>
+                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>會員於舊系統已付者，員工電話搜尋後可直接放行入場（記 NT$0、付款方式「已付費」）。仍須完成 Waiver／墜測。</div>
+              </span>
+            </label>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'shoeRental' && (
         <div style={s.card}>
           <div style={s.cardHead}>

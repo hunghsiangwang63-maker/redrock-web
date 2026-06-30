@@ -12,7 +12,7 @@ const ENTRY_TYPE_LABEL = {
   child_free: '兒童入場', student_free: '學生入場',
   discount_card: '優惠折扣券', black_card: '黑卡',
   single_entry_ticket: '單次入場券', single_ticket: '單次購票',
-  buy_discount_card: '購買優惠折扣券',
+  buy_discount_card: '購買優惠折扣券', already_paid: '已付費（舊系統）',
 };
 
 const PAYMENT_LABEL = { cash:'現金', linepay:'Line Pay', jkopay:'街口支付', taiwanpay:'台灣 Pay' };
@@ -114,6 +114,7 @@ export default function CheckinPage() {
   const [statsGymTab, setStatsGymTab] = useState(0);
   const [entryTypes, setEntryTypes] = useState([]);
   const [shoeRental, setShoeRental] = useState({ price: 100, active: true });
+  const [checkinAlreadyPaid, setCheckinAlreadyPaid] = useState(false); // 轉換期：電話搜尋顯示「已付費」放行
   const [chalkRental, setChalkRental] = useState({ price: 50, active: true });
   const [phoneRentShoes, setPhoneRentShoes] = useState(false);
   const [phoneRentChalk, setPhoneRentChalk] = useState(false);
@@ -125,6 +126,7 @@ export default function CheckinPage() {
   const inputRef = useRef(null);
 
   useEffect(() => { loadStats(); loadEntryTypes(); }, []); // 待審核/轉帳確認/通知 已移至待辦頁
+  useEffect(() => { client.get('/settings/transition').then(r => setCheckinAlreadyPaid(!!r.data.checkinAlreadyPaid)).catch(() => {}); }, []);
   useEffect(() => {
     if (tab === 'scan') inputRef.current?.focus();
     if (tab === 'today') loadTodayCheckIns();
@@ -332,6 +334,23 @@ export default function CheckinPage() {
     } finally {
       setPhoneLoading(false);
     }
+  };
+
+  // 轉換期「已付費」放行：會員於舊系統已付，直接入場（記 NT$0、付款『已付費』）。仍須 Waiver/墜測（後端硬擋）
+  const handlePhoneAlreadyPaid = async () => {
+    if (!phoneSelectedMember) { setPhoneError('請先選擇入場人員'); return; }
+    setPhoneLoading(true);
+    try {
+      const res = await client.post('/checkin/phone', {
+        memberId: phoneSelectedMember.id,
+        gymId: targetGymId,
+        alreadyPaid: true,
+      });
+      setPhoneCheckedIn({ ...res.data.checkIn, needsPromotion: res.data.needsPromotion || false, promotionMessage: res.data.promotionMessage });
+      setPhoneMember(null); setPhoneInput(''); setPhoneRentShoes(false); setPhoneRentChalk(false); setPhoneInstrument(null);
+      await loadStats();
+    } catch (e) { setPhoneError(e.response?.data?.message || '入場失敗'); }
+    finally { setPhoneLoading(false); }
   };
 
   const handleCancel = async (checkInId) => {
@@ -689,11 +708,20 @@ export default function CheckinPage() {
                     const noFallTest = memberEligibility && memberEligibility.fallTestPassed === false;
                     const blocked = noWaiver || noFallTest;
                     return (
+                  <>
                   <button type="button" onClick={handlePhoneCheckin}
                     disabled={phoneLoading || blocked}
                     style={{ width:'100%', height:44, borderRadius:8, background: blocked ? '#ccc' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: blocked ? 'not-allowed' : 'pointer' }}>
                     {phoneLoading ? '...' : noWaiver ? '⚠ Waiver 未簽署，無法入場' : noFallTest ? '⚠ 未通過墜落測驗，無法入場' : memberEligibility?.isVip ? '✓ VIP 入場' : memberEligibility?.hasValidPass ? '✓ 定期票入場' : memberEligibility?.hasCourseAccess ? '✓ 課程學員入場' : '✓ 確認入場'}
                   </button>
+                  {checkinAlreadyPaid && !blocked && (
+                    <button type="button" onClick={handlePhoneAlreadyPaid} disabled={phoneLoading}
+                      title="會員於舊系統已付費，直接放行入場（記 NT$0）"
+                      style={{ width:'100%', height:40, borderRadius:8, background:'#fff', color:'#854F0B', border:'0.5px solid #E0C067', fontSize:13, fontWeight:600, cursor:'pointer', marginTop:8 }}>
+                      💳 已付費入場（舊系統已付，免費放行）
+                    </button>
+                  )}
+                  </>
                     );
                   })()}
                 </div>

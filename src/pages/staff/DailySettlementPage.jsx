@@ -36,6 +36,10 @@ export default function DailySettlementPage() {
   const [invoiceVoidNumbers, setInvoiceVoidNumbers] = useState('');
   const [cardOrangeFirst, setCardOrangeFirst] = useState('');
   const [cardFullFirst, setCardFullFirst] = useState('');
+  // 系統轉換期：手動輸入並列 + 卡號顯示開關
+  const [transition, setTransition] = useState({ settlementManualInput: false, settlementShowCardNumbers: true });
+  const [incomeManual, setIncomeManual] = useState({});
+  const [paymentManual, setPaymentManual] = useState({});
   const [exportMonth, setExportMonth] = useState(dayjs().format('YYYY-MM'));
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState('');
@@ -60,6 +64,9 @@ export default function DailySettlementPage() {
     if (!isOperatorMode && isSuperAdmin && selectedGymId) { loadToday(); loadHistory(); }
   }, [selectedGymId]);
 
+  // 系統轉換期設定（手動輸入並列 / 卡號顯示）
+  useEffect(() => { client.get('/settings/transition').then(r => setTransition(r.data)).catch(() => {}); }, []);
+
   const loadToday = async () => {
     setLoading(true);
     try {
@@ -68,6 +75,8 @@ export default function DailySettlementPage() {
       setAlreadySettled(res.data.alreadySettled);
       if (res.data.settlement?.denominations) setDenominations(res.data.settlement.denominations);
       if (res.data.settlement?.invoiceLastNumber) setInvoiceLastNumber(res.data.settlement.invoiceLastNumber);
+      // 發票起始號＝前一天最後一張+1（帶入，可改）
+      if (res.data.settlement?.suggestedInvoiceStart) setInvoiceStartNumber(prev => prev || res.data.settlement.suggestedInvoiceStart);
     } catch (e) { showMsg('載入失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -102,6 +111,7 @@ export default function DailySettlementPage() {
         deductions, denominations, invoiceLastNumber, notes,
         invoiceStartNumber, invoiceVoidNumbers, cardOrangeFirst, cardFullFirst,
         checkinCount: settlement?.checkinCount ?? null,
+        ...(transition.settlementManualInput ? { incomeManual, paymentManual } : {}),
       });
       showMsg(Math.abs(difference) > 200 ? `結帳完成，差異 NT$${difference} 已通知管理員` : '結帳完成！');
       await loadToday();
@@ -229,18 +239,25 @@ export default function DailySettlementPage() {
 
           {/* 五大類收入 */}
           <div style={s.card}>
-            <div style={s.cardHead}>今日收入（系統自動帶入）</div>
+            <div style={s.cardHead}>今日收入{transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : '（系統自動帶入）'}</div>
             {[
-              { label:'入場收入', value: settlement?.income?.entry || 0, sub: settlement?.income?.entryItems },
-              { label:'岩鞋租借', value: settlement?.income?.shoeRental || 0 },
-              { label:'商品銷售', value: settlement?.income?.product || 0 },
-              { label:'課程收入', value: settlement?.income?.course || 0 },
-              { label:'定期票', value: settlement?.income?.pass || 0, sub: settlement?.income?.passItems },
+              { key:'entry', label:'入場收入', value: settlement?.income?.entry || 0, sub: settlement?.income?.entryItems },
+              { key:'shoeRental', label:'岩鞋租借', value: settlement?.income?.shoeRental || 0 },
+              { key:'product', label:'商品銷售', value: settlement?.income?.product || 0 },
+              { key:'course', label:'課程收入', value: settlement?.income?.course || 0 },
+              { key:'pass', label:'定期票', value: settlement?.income?.pass || 0, sub: settlement?.income?.passItems },
             ].map((item, i) => (
               <div key={i}>
                 <div style={s.row}>
                   <span style={s.label}>{item.label}</span>
-                  <span style={s.value}>NT${item.value.toLocaleString()}</span>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    {transition.settlementManualInput && (
+                      <input type="number" value={incomeManual[item.key] ?? ''} placeholder="手動"
+                        onChange={e => setIncomeManual(p => ({ ...p, [item.key]: e.target.value }))}
+                        style={{ width:88, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
+                    )}
+                    <span style={{ ...s.value, color: transition.settlementManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>NT${item.value.toLocaleString()}</span>
+                  </div>
                 </div>
                 {Array.isArray(item.sub) && item.sub.length > 0 && item.sub.map((x, j) => (
                   <div key={j} style={{ ...s.row, padding:'4px 0 4px 22px' }}>
@@ -258,16 +275,23 @@ export default function DailySettlementPage() {
 
           {/* 付款方式 */}
           <div style={s.card}>
-            <div style={s.cardHead}>付款方式統計</div>
+            <div style={s.cardHead}>付款方式統計{transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : ''}</div>
             {[
-              { label:'現金', value: settlement?.payment?.cash || 0 },
-              { label:'Line Pay', value: settlement?.payment?.linePay || 0 },
-              { label:'街口支付', value: settlement?.payment?.jko || 0 },
-              { label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
+              { key:'cash', label:'現金', value: settlement?.payment?.cash || 0 },
+              { key:'linePay', label:'Line Pay', value: settlement?.payment?.linePay || 0 },
+              { key:'jko', label:'街口支付', value: settlement?.payment?.jko || 0 },
+              { key:'taiwanPay', label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
             ].map((item, i) => (
               <div key={i} style={s.row}>
                 <span style={s.label}>{item.label}</span>
-                <span style={s.value}>NT${item.value.toLocaleString()}</span>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  {transition.settlementManualInput && (
+                    <input type="number" value={paymentManual[item.key] ?? ''} placeholder="手動"
+                      onChange={e => setPaymentManual(p => ({ ...p, [item.key]: e.target.value }))}
+                      style={{ width:88, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
+                  )}
+                  <span style={{ ...s.value, color: transition.settlementManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>NT${item.value.toLocaleString()}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -373,16 +397,20 @@ export default function DailySettlementPage() {
               <span style={s.label}>今日 check-in 人數</span>
               <span style={s.value}>{settlement?.checkinCount ?? '—'} 人（自動）</span>
             </div>
-            <div style={s.row}>
-              <span style={s.label}>優惠卡最前號碼</span>
-              <input value={cardOrangeFirst} onChange={e => setCardOrangeFirst(e.target.value)}
-                placeholder="例：1726" style={{ ...s.input, width:160 }} />
-            </div>
-            <div style={s.row}>
-              <span style={s.label}>全票最前號碼</span>
-              <input value={cardFullFirst} onChange={e => setCardFullFirst(e.target.value)}
-                placeholder="例：9582" style={{ ...s.input, width:160 }} />
-            </div>
+            {transition.settlementShowCardNumbers && (
+              <>
+                <div style={s.row}>
+                  <span style={s.label}>優惠卡最前號碼</span>
+                  <input value={cardOrangeFirst} onChange={e => setCardOrangeFirst(e.target.value)}
+                    placeholder="例：1726" style={{ ...s.input, width:160 }} />
+                </div>
+                <div style={s.row}>
+                  <span style={s.label}>全票最前號碼</span>
+                  <input value={cardFullFirst} onChange={e => setCardFullFirst(e.target.value)}
+                    placeholder="例：9582" style={{ ...s.input, width:160 }} />
+                </div>
+              </>
+            )}
           </div>
 
           {/* 備註 */}
