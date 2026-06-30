@@ -28,6 +28,11 @@ export default function DailySettlementPage() {
   const [denominations, setDenominations] = useState({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
   const [deductions, setDeductions] = useState([]);
   const [invoiceLastNumber, setInvoiceLastNumber] = useState('');
+  const [invoiceStartNumber, setInvoiceStartNumber] = useState('');
+  const [invoiceVoidNumbers, setInvoiceVoidNumbers] = useState('');
+  const [cardOrangeFirst, setCardOrangeFirst] = useState('');
+  const [cardFullFirst, setCardFullFirst] = useState('');
+  const [exportMonth, setExportMonth] = useState(dayjs().format('YYYY-MM'));
   const [notes, setNotes] = useState('');
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
@@ -76,12 +81,23 @@ export default function DailySettlementPage() {
       await client.post('/daily-settlements', {
         gymId, income: settlement?.income, payment: settlement?.payment,
         deductions, denominations, invoiceLastNumber, notes,
+        invoiceStartNumber, invoiceVoidNumbers, cardOrangeFirst, cardFullFirst,
+        checkinCount: settlement?.checkinCount ?? null,
       });
       showMsg(Math.abs(difference) > 200 ? `結帳完成，差異 NT$${difference} 已通知管理員` : '結帳完成！');
       await loadToday();
       await loadHistory();
     } catch (e) { showMsg(e.response?.data?.message || '結帳失敗', 'err'); }
     finally { setSaving(false); }
+  };
+
+  const downloadMonthly = async () => {
+    try {
+      const res = await client.get('/daily-settlements/monthly-export', { params: { month: exportMonth, gymId }, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `月銷售紀錄_${exportMonth}.xlsx`; a.click(); URL.revokeObjectURL(url);
+    } catch (e) { showMsg('下載失敗', 'err'); }
   };
 
   const s = {
@@ -123,6 +139,15 @@ export default function DailySettlementPage() {
 
       {tab === 'history' && isAdmin ? (
         <div>
+          {/* 月銷售紀錄下載 */}
+          <div style={{ ...s.card, padding:'12px 16px', display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+            <span style={{ fontSize:13, fontWeight:600 }}>📥 月銷售紀錄</span>
+            <input type="month" value={exportMonth} onChange={e => setExportMonth(e.target.value)}
+              style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5' }} />
+            <button onClick={downloadMonthly}
+              style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>下載 Excel</button>
+            <span style={{ fontSize:11, color:'#999' }}>整月每日一欄，自動帶入結帳資料</span>
+          </div>
           {history.length === 0 ? (
             <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>尚無結帳紀錄</div>
           ) : history.map(h => (
@@ -287,12 +312,40 @@ export default function DailySettlementPage() {
           <div style={s.card}>
             <div style={s.cardHead}>發票管理</div>
             <div style={s.row}>
+              <span style={s.label}>發票起始號碼</span>
+              <input value={invoiceStartNumber} onChange={e => setInvoiceStartNumber(e.target.value)}
+                placeholder="例：35371459" style={{ ...s.input, width:160 }} />
+            </div>
+            <div style={s.row}>
               <span style={s.label}>最後一張發票號碼</span>
               <input value={invoiceLastNumber} onChange={e => setInvoiceLastNumber(e.target.value)}
-                placeholder="例：AB12345678"
-                style={{ ...s.input, width:160 }} />
+                placeholder="例：35371479" style={{ ...s.input, width:160 }} />
             </div>
-            <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>隔天系統自動帶入下一張號碼</div>
+            <div style={s.row}>
+              <span style={s.label}>作廢發票號碼</span>
+              <input value={invoiceVoidNumbers} onChange={e => setInvoiceVoidNumbers(e.target.value)}
+                placeholder="無則留空" style={{ ...s.input, width:160 }} />
+            </div>
+            <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>起訖／作廢號碼會帶入月銷售紀錄</div>
+          </div>
+
+          {/* 票卡資訊 + check-in（月銷售紀錄用） */}
+          <div style={s.card}>
+            <div style={s.cardHead}>票卡資訊 / 人數</div>
+            <div style={s.row}>
+              <span style={s.label}>今日 check-in 人數</span>
+              <span style={s.value}>{settlement?.checkinCount ?? '—'} 人（自動）</span>
+            </div>
+            <div style={s.row}>
+              <span style={s.label}>優惠卡最前號碼</span>
+              <input value={cardOrangeFirst} onChange={e => setCardOrangeFirst(e.target.value)}
+                placeholder="例：1726" style={{ ...s.input, width:160 }} />
+            </div>
+            <div style={s.row}>
+              <span style={s.label}>全票最前號碼</span>
+              <input value={cardFullFirst} onChange={e => setCardFullFirst(e.target.value)}
+                placeholder="例：9582" style={{ ...s.input, width:160 }} />
+            </div>
           </div>
 
           {/* 備註 */}
