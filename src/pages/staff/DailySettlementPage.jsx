@@ -93,11 +93,15 @@ export default function DailySettlementPage() {
 
   const downloadMonthly = async () => {
     try {
-      const res = await client.get('/daily-settlements/monthly-export', { params: { month: exportMonth, gymId }, responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
+      const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
+      const r = await fetch(`${API}/daily-settlements/monthly-export?month=${exportMonth}&gymId=${gymId}`, { headers: { Authorization: `Bearer ${tok}` } });
+      if (!r.ok) throw new Error(`${r.status}`);
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
       a.download = `月銷售紀錄_${exportMonth}.xlsx`; a.click(); URL.revokeObjectURL(url);
-    } catch (e) { showMsg('下載失敗', 'err'); }
+    } catch (e) { showMsg('下載失敗 ' + e.message, 'err'); }
   };
 
   const s = {

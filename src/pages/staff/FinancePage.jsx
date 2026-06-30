@@ -28,12 +28,16 @@ export default function FinancePage() {
   const downloadMonthly = async () => {
     setBusy(true); setErr('');
     try {
-      const res = await client.get('/daily-settlements/monthly-export', { params: { month, gymId: gym }, responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
+      const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
+      const r = await fetch(`${API}/daily-settlements/monthly-export?month=${month}&gymId=${gym}`, { headers: { Authorization: `Bearer ${tok}` } });
+      if (!r.ok) { throw new Error(r.status === 403 ? '僅管理員可下載' : `伺服器錯誤 ${r.status}`); }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
       a.download = `月銷售紀錄_${gym === 'gym-hsinchu' ? '新竹' : '士林'}_${month}.xlsx`; a.click();
       URL.revokeObjectURL(url);
-    } catch (e) { setErr('下載失敗，請稍後再試'); }
+    } catch (e) { setErr('下載失敗：' + e.message); }
     finally { setBusy(false); }
   };
 
