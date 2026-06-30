@@ -53,7 +53,18 @@ const CATEGORIES = [
   { key:'payment', label:'💰 待收款（核對後確認）', color:'#185FA5', types:['transfer_confirm','competition_payment','team_member','rental'] },
 ];
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 export default function PendingTasksPage() {
+  const isMobile = useIsMobile();
   const { staff, operator, station } = useAuth();
   const navigate = useNavigate();
   const [tasks, setTasks] = useState([]);
@@ -192,8 +203,8 @@ export default function PendingTasksPage() {
   const total = tasks.length;
 
   return (
-    <div style={{ padding:24, maxWidth:800, margin:'0 auto' }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+    <div style={{ padding: isMobile ? 14 : 24, maxWidth:800, margin:'0 auto' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:6 }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{ fontSize:20, fontWeight:700 }}>🔔 待辦總覽</div>
           {total > 0 && (
@@ -308,17 +319,19 @@ export default function PendingTasksPage() {
             {!notifLoading && feed.length > 0 && (
               <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                 {feed.map(i => (
-                  <div key={i.key} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', alignItems:'flex-start', gap:10 }}>
+                  <div key={i.key} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-start', gap:10 }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{i.title}</div>
-                      {i.message && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{i.message}</div>}
+                      <div style={{ fontSize:13, fontWeight:600, wordBreak:'break-word' }}>{i.title}</div>
+                      {i.message && <div style={{ fontSize:12, color:'#666', marginTop:2, wordBreak:'break-word', lineHeight:1.5 }}>{i.message}</div>}
                       <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
                         {i.catLabel}
                         {i.ts ? ` · ${dayjs(i.ts*1000).format('MM/DD HH:mm')}` : ''}
                       </div>
                     </div>
-                    {i.link && <button onClick={() => navigate(i.link)} style={ghostBtn}>{i.canRead ? '前往' : '查看'}</button>}
-                    {i.canRead && <button onClick={async () => { await markAsRead(i.notifId); loadNotifs(); }} style={{ ...ghostBtn, color:'#854F0B' }}>已讀</button>}
+                    <div style={{ display:'flex', gap:6, flexShrink:0, justifyContent: isMobile ? 'flex-end' : 'flex-start' }}>
+                      {i.link && <button onClick={() => navigate(i.link)} style={ghostBtn}>{i.canRead ? '前往' : '查看'}</button>}
+                      {i.canRead && <button onClick={async () => { await markAsRead(i.notifId); loadNotifs(); }} style={{ ...ghostBtn, color:'#854F0B' }}>已讀</button>}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -349,26 +362,28 @@ export default function PendingTasksPage() {
             {group.tasks.map(task => {
               const cfg = TYPE_CONFIG[task.type] || TYPE_CONFIG.rental;
               return (
-                <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', alignItems:'center', gap:12 }}>
-                  {/* 圖示 */}
-                  <div style={{ width:40, height:40, borderRadius:10, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                    {cfg.icon}
-                  </div>
-                  {/* 內容 */}
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color }}>{cfg.label}</span>
-                      <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
+                <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12 }}>
+                  <div style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, minWidth:0 }}>
+                    {/* 圖示 */}
+                    <div style={{ width:40, height:40, borderRadius:10, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
+                      {cfg.icon}
                     </div>
-                    <div style={{ fontSize:12, color:'#666', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{task.desc}</div>
-                    <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
-                      {task.gymId === 'gym-hsinchu' ? '新竹館' : task.gymId === 'gym-shilin' ? '士林館' : ''}
-                      {task.gymId && task.date ? ' · ' : ''}
-                      {task.date}
+                    {/* 內容 */}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color, flexShrink:0 }}>{cfg.label}</span>
+                        <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
+                      </div>
+                      <div style={{ fontSize:12, color:'#666', ...(isMobile ? { lineHeight:1.5, wordBreak:'break-word' } : { overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }) }}>{task.desc}</div>
+                      <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
+                        {task.gymId === 'gym-hsinchu' ? '新竹館' : task.gymId === 'gym-shilin' ? '士林館' : ''}
+                        {task.gymId && task.date ? ' · ' : ''}
+                        {task.date}
+                      </div>
                     </div>
                   </div>
                   {/* 內嵌動作 */}
-                  <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
+                  <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0, flexWrap:'wrap', justifyContent: isMobile ? 'flex-end' : 'flex-start', ...(isMobile ? { borderTop:'0.5px solid #F5EFEF', paddingTop:10 } : {}) }}>
                     {renderActions(task)}
                   </div>
                 </div>
