@@ -302,13 +302,13 @@ export default function SchedulePage() {
       {loading ? (
         <div style={{ textAlign:'center', padding:60, color:'#999', fontSize:13 }}>載入中...</div>
       ) : (
-        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', background:'#FBF5F5' }}>
+        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflowX:'auto', WebkitOverflowScrolling:'touch' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', background:'#FBF5F5', minWidth:640 }}>
             {WEEKDAYS.map(d => (
               <div key={d} style={{ padding:'8px 0', textAlign:'center', fontSize:11, color:'#999', fontWeight:600 }}>{d}</div>
             ))}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', minWidth:640 }}>
             {calendarCells.map((date, idx) => {
               const dayShifts = date ? shiftsForDate(date) : [];
               const isToday = date === dayjs().format('YYYY-MM-DD');
