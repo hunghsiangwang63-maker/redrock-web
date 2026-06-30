@@ -1082,7 +1082,7 @@ export default function CoursesPage({ embedded = false }) {
               { label:'最多人數', key:'maxStudents', type:'number' },
               { label:'入館有效天數', key:'gymAccessDays', type:'number' },
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
-              { label:'整期可請假次數（插班於名單個別填寫）', key:'maxLeaves', type:'number' },
+              { label:'整期可請假/補課次數', key:'maxLeaves', type:'number', hint:'此為整期學員共用；插班學員請於該課程「查看名單」個別設定' },
               { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
@@ -1098,6 +1098,7 @@ export default function CoursesPage({ embedded = false }) {
                 <input type={f.type} value={courseForm[f.key]}
                   onChange={e => setCourseForm({...courseForm, [f.key]: e.target.value})}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
               </div>
             ))}
             <div>
@@ -1295,7 +1296,7 @@ export default function CoursesPage({ embedded = false }) {
               { label:'教練', key:'instructor', type:'text', colSpan:2 },
               { label:'插班加成', key:'midpointSurcharge', type:'number' },
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
-              { label:'整期可請假次數（插班於名單個別填寫）', key:'maxLeaves', type:'number' },
+              { label:'整期可請假/補課次數', key:'maxLeaves', type:'number', hint:'此為整期學員共用；插班學員請於該課程「查看名單」個別設定' },
               { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
               { label:'退費-開課後每堂扣除金額（NT$）', key:'perSessionDeduction', type:'number' },
               { label:'退費-開課前手續費率（%）', key:'handlingFeeRate', type:'number' },
@@ -1305,6 +1306,7 @@ export default function CoursesPage({ embedded = false }) {
                 <input type={f.type} value={editForm[f.key] || ''}
                   onChange={e => setEditForm({...editForm, [f.key]: e.target.value})}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
               </div>
             ))}
             <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
