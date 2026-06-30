@@ -114,6 +114,18 @@ export default function CompetitionsPage() {
     catch(err) { showMsg('更新失敗','red'); }
   };
 
+  const [syncingId, setSyncingId] = useState(null);
+  const startScoring = async (c) => {
+    if (!c.scoringSyncEnabled && !window.confirm(`開始與計分系統對接「${c.name}」？\n會在計分系統建立此賽事，並把目前所有正取報名推送過去。之後新報名也會即時同步。`)) return;
+    setSyncingId(c.id);
+    try {
+      const r = await client.post(`/competitions/${c.id}/sync-scoring`);
+      showMsg(r.data.message || '已開始對接');
+      await loadCompetitions();
+    } catch(e){ showMsg(e.response?.data?.message || '對接失敗','red'); }
+    finally { setSyncingId(null); }
+  };
+
   const handleDelete = async (c) => {
     if (!window.confirm(`確定要刪除「${c.name}」？此動作無法復原。`)) return;
     try {
@@ -202,6 +214,16 @@ export default function CompetitionsPage() {
                     {c.status==='open'   && <button onClick={()=>handleStatusChange(c,'closed')} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C4C4', fontSize:12, cursor:'pointer' }}>關閉報名</button>}
                     {c.status==='closed' && <button onClick={()=>handleStatusChange(c,'open')} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46', border:'0.5px solid #B3DEC0', fontSize:12, cursor:'pointer' }}>重新開放</button>}
                     <button onClick={()=>openRegistrations(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F1FB', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>查看名單</button>
+                    {c.scoringSystem==='competition_management_v2' && (
+                      <button onClick={()=>startScoring(c)} disabled={syncingId===c.id}
+                        title={c.scoringSyncEnabled ? '已對接，可重新推送目前名單' : '在計分系統建立此賽事並推送目前正取名單'}
+                        style={{ height:30, padding:'0 12px', borderRadius:6,
+                          background: c.scoringSyncEnabled ? '#fff' : '#8B1A1A',
+                          color: c.scoringSyncEnabled ? '#2D7D46' : '#fff',
+                          border: c.scoringSyncEnabled ? '0.5px solid #2D7D46' : 'none', fontSize:12, cursor:'pointer' }}>
+                        {syncingId===c.id ? '對接中…' : c.scoringSyncEnabled ? '✅ 已對接·重新推送' : '🔗 開始與計分系統對接'}
+                      </button>
+                    )}
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
                     <button onClick={()=>handleDelete(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C4C4', fontSize:12, cursor:'pointer' }}>🗑 刪除</button>
                   </>}
