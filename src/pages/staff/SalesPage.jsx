@@ -396,7 +396,7 @@ export default function SalesPage({ embedded = false }) {
                       </div>
                       <div style={{ textAlign:'right', flexShrink:0 }}>
                         <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{getProductPriceRange(p)}</div>
-                        <div style={{ fontSize:11, color: low ? '#A32D2D' : '#999' }}>
+                        <div style={{ fontSize:13, fontWeight:600, color: low ? '#A32D2D' : '#555' }}>
                           庫存 {totalStock}{low && totalStock > 0 ? ' ⚠️' : ''}{totalStock === 0 ? ' 已售完' : ''} · {p.variants?.length || 0} 變體
                         </div>
                       </div>
