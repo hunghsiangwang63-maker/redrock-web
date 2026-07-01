@@ -206,7 +206,7 @@ export default function InstallmentsPage({ embedded = false }) {
         </div>
       </div>
       <div style={{ fontSize:11, color:'#999', marginBottom:14, lineHeight:1.6 }}>
-        ⓘ 到期前14天會發送站內通知給管理員（鈴鐺通知）、到期前3天發Email提醒會員、逾期後發Email通知會員並暫停入場。目前為手動觸發，尚未串接自動排程，建議每日由值班人員點擊上方按鈕執行一次，未來可改接外部排程服務（如 Railway Cron）自動執行。
+        ⓘ 到期前14天會發送站內通知給管理員（鈴鐺通知）、到期前3天發Email提醒會員、逾期後發Email通知會員並暫停入場。系統每日台灣時間 09:00 自動執行逾期檢查與提醒；上方按鈕可隨時手動補跑。
       </div>
 
       {loading ? (
