@@ -48,7 +48,9 @@ export default function InstallmentsPage({ embedded = false }) {
   const [memberQuery, setMemberQuery] = useState('');
   const [memberResults, setMemberResults] = useState([]);
   const [selectedMember, setSelectedMember] = useState(null);
-  const [planForm, setPlanForm] = useState({ relatedType:'course', itemName:'', relatedId:'' });
+  const [planForm, setPlanForm] = useState({ relatedType:'course', itemName:'', relatedId:'', gymId: staff?.gymId || '', recognitionDate:'', firstPaymentMethod:'cash' });
+  const [gyms, setGyms] = useState([]);
+  useEffect(() => { import('../../api/gyms').then(m => m.getGyms()).then(r => setGyms(r.data.gyms || [])).catch(() => {}); }, []);
   const [installmentRows, setInstallmentRows] = useState([
     { amount:'', dueDate: dayjs().add(7,'day').format('YYYY-MM-DD') },
     { amount:'', dueDate: dayjs().add(37,'day').format('YYYY-MM-DD') },
@@ -98,7 +100,7 @@ export default function InstallmentsPage({ embedded = false }) {
 
   const resetCreateForm = () => {
     setSelectedMember(null); setMemberQuery(''); setMemberResults([]);
-    setPlanForm({ relatedType:'course', itemName:'', relatedId:'' });
+    setPlanForm({ relatedType:'course', itemName:'', relatedId:'', gymId: staff?.gymId || '', recognitionDate:'', firstPaymentMethod:'cash' });
     setInstallmentRows([
       { amount:'', dueDate: dayjs().add(7,'day').format('YYYY-MM-DD') },
       { amount:'', dueDate: dayjs().add(37,'day').format('YYYY-MM-DD') },
@@ -113,12 +115,17 @@ export default function InstallmentsPage({ embedded = false }) {
     }
     setCreating(true);
     try {
+      if (!planForm.gymId) { showMsg('請選擇館別', 'red'); setCreating(false); return; }
+      if (planForm.relatedType === 'course' && !planForm.recognitionDate) { showMsg('課程分期請填「課程最後一堂（認列日）」', 'red'); setCreating(false); return; }
       await createInstallmentPlan({
         memberId: selectedMember.id,
         memberName: selectedMember.name,
+        gymId: planForm.gymId,
         relatedType: planForm.relatedType,
         relatedId: planForm.relatedId || `manual-${Date.now()}`,
         itemName: planForm.itemName,
+        recognitionDate: planForm.relatedType === 'course' ? planForm.recognitionDate : null,
+        firstPaymentMethod: planForm.firstPaymentMethod || 'cash',
         installments: installmentRows.map(r => ({ amount: parseInt(r.amount), dueDate: r.dueDate })),
       });
       showMsg('分期付款計畫已建立');
@@ -301,6 +308,32 @@ export default function InstallmentsPage({ embedded = false }) {
                 placeholder="例如：成人攀岩season課程"
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
+          </div>
+
+          <div style={{ display:'flex', gap:8, marginBottom:14, flexWrap:'wrap' }}>
+            <div style={{ flex:1, minWidth:120 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>館別</label>
+              <select value={planForm.gymId} onChange={e => setPlanForm({...planForm, gymId:e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                <option value="">請選擇</option>
+                {gyms.map(g => <option key={g.id} value={g.id}>{g.name || g.id}</option>)}
+              </select>
+            </div>
+            <div style={{ flex:1, minWidth:150 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>頭款收款方式（第一期自動收）</label>
+              <select value={planForm.firstPaymentMethod} onChange={e => setPlanForm({...planForm, firstPaymentMethod:e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                {PAY_METHODS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                <option value="">不自動收（各期手動）</option>
+              </select>
+            </div>
+            {planForm.relatedType === 'course' && (
+              <div style={{ flex:1, minWidth:140 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>課程最後一堂（認列日）</label>
+                <input type="date" value={planForm.recognitionDate} onChange={e => setPlanForm({...planForm, recognitionDate:e.target.value})}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              </div>
+            )}
           </div>
 
           <div style={{ marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
