@@ -196,10 +196,11 @@ export default function SalesPage({ embedded = false }) {
   const handleCreateProduct = async () => {
     setLoading(true);
     try {
-      await createProduct({ ...productForm,
-        variants: productForm.variants.map(v => ({
-          ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: parseInt(v.stock)||0
-        }))
+      await createProduct({ ...productForm, gymId: targetGymId,
+        variants: productForm.variants.map(v => {
+          const stockNum = parseInt(v.stock)||0;
+          return { ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: stockNum, gymStock: { [targetGymId]: stockNum } };
+        })
       });
       showMsg('商品已建立'); setShowAddProduct(false);
       setProductForm({ brand:'', name:'', description:'', category:'裝備', lowStockAlert:5, variants:[] });
@@ -211,7 +212,14 @@ export default function SalesPage({ embedded = false }) {
   const handleUpdateProduct = async () => {
     setLoading(true);
     try {
-      await updateProduct(editingProduct.id, productForm);
+      // 編輯的 stock 對應「目前操作館別」的 gymStock，並重算跨館總量，避免每館庫存與 stock 不同步（顯示 0 的成因）
+      const variants = (productForm.variants || []).map(v => {
+        const stockNum = parseInt(v.stock) || 0;
+        const gymStock = { ...(v.gymStock || {}), [targetGymId]: stockNum };
+        const total = Object.values(gymStock).reduce((s, n) => s + (Number(n) || 0), 0);
+        return { ...v, price: parseInt(v.price) || 0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: total, gymStock };
+      });
+      await updateProduct(editingProduct.id, { ...productForm, variants });
       showMsg('商品已更新'); setEditingProduct(null); await loadProducts();
     } catch (err) { showMsg('更新失敗', 'red'); }
     finally { setLoading(false); }
@@ -313,6 +321,11 @@ export default function SalesPage({ embedded = false }) {
   };
 
   const getTotalStock = (product) => product.variants?.reduce((s, v) => s + (Number(v.stock) || 0), 0) || 0;
+
+  // 變體依尺寸排序（取尺寸字串中的數字大小；無數字者〔S/M/L〕排後面依字母）
+  const sizeNum = (s) => { const m = String(s || '').match(/\d+(\.\d+)?/); return m ? parseFloat(m[0]) : Infinity; };
+  const bySize = (a, b) => (sizeNum(a.size) - sizeNum(b.size)) || String(a.size || '').localeCompare(String(b.size || ''), 'zh-Hant');
+  const sortedVariants = (product) => [...(product.variants || [])].sort(bySize);
 
   // 分類清單（含各類數量）+ 搜尋/分類過濾
   const productCategories = (() => {
@@ -595,7 +608,7 @@ export default function SalesPage({ embedded = false }) {
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 60px 60px 55px 55px 60px 70px', gap:6, fontSize:10, color:'#999', fontWeight:600, marginBottom:6, padding:'0 4px' }}>
                   <span>尺寸</span><span>顏色</span><span>原價</span><span>促銷價</span><span>新竹館</span><span>士林館</span><span>倉庫</span><span>促銷</span>
                 </div>
-                {(p.variants||[]).map(v => {
+                {sortedVariants(p).map(v => {
                   const hsinchuStock = v.gymStock?.['gym-hsinchu'] ?? 0;
                   const shilinStock = v.gymStock?.['gym-shilin'] ?? 0;
                   const warehouseStock = v.warehouseStock ?? 0;
@@ -649,7 +662,7 @@ export default function SalesPage({ embedded = false }) {
       {selectedProduct && (
         <Modal title={`選擇規格 — ${selectedProduct.name}`} onClose={() => setSelectedProduct(null)} width={400}>
           {selectedProduct.brand && <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{selectedProduct.brand}</div>}
-          {(selectedProduct.variants||[]).map(v => {
+          {sortedVariants(selectedProduct).map(v => {
             const unitPrice = (v.promoActive && v.promoPrice) ? v.promoPrice : v.price;
             const inCart = cart.find(c => c.variantId === v.id);
             return (
