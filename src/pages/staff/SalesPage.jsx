@@ -312,7 +312,7 @@ export default function SalesPage({ embedded = false }) {
     return min === max ? `NT$${min}` : `NT$${min}～${max}`;
   };
 
-  const getTotalStock = (product) => product.variants?.reduce((s, v) => s + (v.stock||0), 0) || 0;
+  const getTotalStock = (product) => product.variants?.reduce((s, v) => s + (Number(v.stock) || 0), 0) || 0;
 
   // 分類清單（含各類數量）+ 搜尋/分類過濾
   const productCategories = (() => {
