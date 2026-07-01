@@ -166,7 +166,15 @@ export default function SalesPage({ embedded = false }) {
     if (qty > item?.maxStock) { showMsg('超過庫存', 'red'); return; }
     setCart(cart.map(c => c.key === key ? {...c, quantity: qty} : c));
   };
-  const totalAmount = cart.reduce((sum, c) => sum + c.unitPrice * c.quantity, 0);
+  // 攀岩隊員 9 折預覽（與後端一致：有效隊員 + 每項 ≥ NT$100 才折；後端結帳時為權威計算）
+  const _today = new Date(Date.now() + 8 * 3600000).toISOString().slice(0, 10);
+  const teamActive = !!(selectedMember?.isTeamMember && selectedMember?.teamMemberUntil
+    && (selectedMember?.teamMemberSince || '') <= _today && _today <= selectedMember.teamMemberUntil);
+  const itemGross = (c) => c.unitPrice * c.quantity;
+  const itemNet = (c) => { const g = itemGross(c); return (teamActive && g >= 100) ? Math.round(g * 0.9) : g; };
+  const cartGross = cart.reduce((sum, c) => sum + itemGross(c), 0);
+  const totalAmount = cart.reduce((sum, c) => sum + itemNet(c), 0);   // 折後總額
+  const cartDiscount = cartGross - totalAmount;
 
   const handleSell = async () => {
     if (!cart.length) { showMsg('請先加入商品', 'red'); return; }
@@ -477,7 +485,7 @@ export default function SalesPage({ embedded = false }) {
               )}
               {selectedMember && (
                 <div style={{ background:'#E6F4EB', borderRadius:6, padding:'6px 10px', marginTop:4, fontSize:12, display:'flex', justifyContent:'space-between' }}>
-                  <span>{selectedMember.name}</span>
+                  <span>{selectedMember.name}{teamActive && <span style={{ marginLeft:6, color:'#2D7D46', fontWeight:700 }}>🏅攀岩隊員 9 折</span>}</span>
                   <span onClick={() => { setSelectedMember(null); setMemberQuery(''); }} style={{ cursor:'pointer', color:'#999' }}>×</span>
                 </div>
               )}
@@ -495,7 +503,15 @@ export default function SalesPage({ embedded = false }) {
                         <span style={{ color:'#A32D2D', marginLeft:4 }}>促銷 NT${item.promoPrice}</span>
                       )}
                     </div>
-                    <div style={{ fontSize:11, color:'#666' }}>NT${item.unitPrice} × {item.quantity} = NT${(item.unitPrice*item.quantity).toLocaleString()}</div>
+                    <div style={{ fontSize:11, color:'#666' }}>
+                      NT${item.unitPrice} × {item.quantity} = {teamActive && itemGross(item) >= 100 ? (
+                        <>
+                          <span style={{ textDecoration:'line-through', color:'#bbb' }}>NT${itemGross(item).toLocaleString()}</span>
+                          <span style={{ color:'#2D7D46', fontWeight:600, marginLeft:4 }}>NT${itemNet(item).toLocaleString()}</span>
+                          <span style={{ color:'#2D7D46', marginLeft:2 }}>(9折)</span>
+                        </>
+                      ) : <>NT${itemGross(item).toLocaleString()}</>}
+                    </div>
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                     <button onClick={() => updateQty(item.key, item.quantity-1)}
@@ -522,8 +538,13 @@ export default function SalesPage({ embedded = false }) {
                     ))}
                   </div>
                 </div>
-                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:12, display:'flex', justifyContent:'space-between' }}>
-                  <span style={{ fontSize:13, color:'#666' }}>總計</span>
+                {teamActive && cartDiscount > 0 && (
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#2D7D46', marginBottom:6, padding:'0 4px' }}>
+                    <span>攀岩隊員 9 折折扣</span><span style={{ fontWeight:600 }}>−NT${cartDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:12, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontSize:13, color:'#666' }}>總計{teamActive && cartDiscount > 0 && <span style={{ fontSize:11, color:'#999', textDecoration:'line-through', marginLeft:6 }}>NT${cartGross.toLocaleString()}</span>}</span>
                   <span style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>NT${totalAmount.toLocaleString()}</span>
                 </div>
                 <button onClick={handleSell} disabled={loading}
