@@ -6,6 +6,8 @@ import { getCourses, createCourse, getSessions, createSession,
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
+import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import dayjs from 'dayjs';
 
 const Tag = ({ type='ok', children }) => {
@@ -88,6 +90,7 @@ export default function CoursesPage({ embedded = false }) {
     maxLeaves: 2, allowMakeup: true, makeupDeadlineDays: 60, midpointSurcharge: 1.05,
     unlimitedPracticeStart: '', unlimitedPracticeEnd: '',
     perSessionDeduction: 850, handlingFeeRate: 5,
+    installment: { enabled: false, periods: [] },
   });
 
   // 新增場次
@@ -132,6 +135,7 @@ export default function CoursesPage({ embedded = false }) {
   const [enrollResults, setEnrollResults] = useState([]);
   const [enrollMember, setEnrollMember] = useState(null);
   const [enrollPayment, setEnrollPayment] = useState('cash');
+  const [enrollPaymentPlan, setEnrollPaymentPlan] = useState('full');
 
   const showMsg = (text, type='ok') => {
     setMsg(text); setMsgType(type);
@@ -275,6 +279,7 @@ export default function CoursesPage({ embedded = false }) {
       allowMakeup: course.allowMakeup !== false,
       unlimitedPracticeStart: course.unlimitedPracticeStart || course.startDate || '',
       unlimitedPracticeEnd: course.unlimitedPracticeEnd || course.endDate || '',
+      installment: course.installment || { enabled: false, periods: [] },
     });
     setEditingCourse(course);
   };
@@ -399,6 +404,7 @@ export default function CoursesPage({ embedded = false }) {
       await enrollCourse(selectedSession.id, {
         memberId: enrollMember.id,
         paymentMethod: enrollPayment,
+        paymentPlan: enrollPaymentPlan,
       });
       showMsg(`${enrollMember.name} 報名成功`);
       setShowEnroll(false);
@@ -1152,6 +1158,11 @@ export default function CoursesPage({ embedded = false }) {
               </div>
             )}
           </div>
+          <div style={{ marginTop:16 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>分期付款規則</label>
+            <InstallmentRuleEditor value={courseForm.installment} price={courseForm.price}
+              onChange={v => setCourseForm({...courseForm, installment: v})} />
+          </div>
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
             <button onClick={() => setShowAddCourse(false)}
               style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
@@ -1259,15 +1270,16 @@ export default function CoursesPage({ embedded = false }) {
             </div>
           </div>
 
-          <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:13 }}>
+          <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:12, fontSize:13 }}>
             <div style={{ display:'flex', justifyContent:'space-between' }}>
               <span style={{ color:'#666' }}>課程費用</span>
               <span style={{ fontWeight:700, color:'#8B1A1A' }}>NT${(selectedCourse?.price||0).toLocaleString()}</span>
             </div>
-            {selectedCourse?.price > 0 && selectedCourse?.price > 4*350 && (
-              <div style={{ fontSize:11, color:'#854F0B', marginTop:4 }}>超過一個月將分兩期付款</div>
-            )}
           </div>
+
+          <PaymentPlanChoice installment={selectedCourse?.installment} price={selectedCourse?.price}
+            plan={enrollPaymentPlan} paymentMethod={enrollPayment}
+            onChange={({ plan, paymentMethod }) => { setEnrollPaymentPlan(plan); if (paymentMethod) setEnrollPayment(paymentMethod); }} />
 
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setShowEnroll(false)}
@@ -1357,6 +1369,11 @@ export default function CoursesPage({ embedded = false }) {
                 </div>
               </div>
             </div>
+          </div>
+          <div style={{ marginTop:16 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>分期付款規則</label>
+            <InstallmentRuleEditor value={editForm.installment} price={editForm.price}
+              onChange={v => setEditForm({...editForm, installment: v})} />
           </div>
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
             <button onClick={() => setEditingCourse(null)}

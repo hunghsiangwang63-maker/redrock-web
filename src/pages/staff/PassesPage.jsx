@@ -8,6 +8,8 @@ import { getGyms } from '../../api/gyms';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import client from '../../api/client';
+import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
+import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import CardsPage from './CardsPage';
@@ -65,7 +67,7 @@ export default function PassesPage() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberPasses, setMemberPasses] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'' });
+  const [addForm, setAddForm] = useState({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'', paymentPlan:'full', paymentMethod:'cash' });
   const [editingPass, setEditingPass] = useState(null);
   const [editPassForm, setEditPassForm] = useState({ endDate:'', credits:'', status:'active', notes:'', reason:'' });
   const [editPassSaving, setEditPassSaving] = useState(false);
@@ -115,7 +117,7 @@ export default function PassesPage() {
   // 票種管理
   const [showAddType, setShowAddType] = useState(false);
   const [editingType, setEditingType] = useState(null);
-  const [typeForm, setTypeForm] = useState({ name:'', scope:'shared', targetGymId:'', price:'', durationDays:'', credits:'' });
+  const [typeForm, setTypeForm] = useState({ name:'', scope:'shared', targetGymId:'', price:'', durationDays:'', credits:'', installment:{ enabled:false, periods:[] } });
   const [typeSaving, setTypeSaving] = useState(false);
   const [typeMsg, setTypeMsg] = useState('');
 
@@ -158,14 +160,14 @@ export default function PassesPage() {
 
   const openAddType = () => {
     setEditingType(null);
-    setTypeForm({ name:'', scope:'shared', targetGymId:'', price:'', durationDays:'', credits:'' });
+    setTypeForm({ name:'', scope:'shared', targetGymId:'', price:'', durationDays:'', credits:'', installment:{ enabled:false, periods:[] } });
     setTypeMsg('');
     setShowAddType(true);
   };
 
   const openEditType = (t) => {
     setEditingType(t);
-    setTypeForm({ name:t.name, scope:t.scope, targetGymId:t.targetGymId || '', price:String(t.price), durationDays:String(t.durationDays), credits:t.credits ? String(t.credits) : '' });
+    setTypeForm({ name:t.name, scope:t.scope, targetGymId:t.targetGymId || '', price:String(t.price), durationDays:String(t.durationDays), credits:t.credits ? String(t.credits) : '', installment: t.installment || { enabled:false, periods:[] } });
     setTypeMsg('');
     setShowAddType(true);
   };
@@ -184,6 +186,7 @@ export default function PassesPage() {
         targetGymId: typeForm.scope === 'single' ? typeForm.targetGymId : null,
         price: parseInt(typeForm.price), durationDays: parseInt(typeForm.durationDays),
         credits: typeForm.credits ? parseInt(typeForm.credits) : null,
+        installment: typeForm.installment || { enabled:false, periods:[] },
       };
       if (editingType) {
         await updatePassType(editingType.id, payload);
@@ -410,7 +413,7 @@ export default function PassesPage() {
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:14 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                 <span style={{ fontSize:12, color:'#999' }}>搜尋會員後查看/管理其定期票</span>
-                <button onClick={() => { setAddForm({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'' }); setShowAdd(true); }}
+                <button onClick={() => { setAddForm({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'', paymentPlan:'full', paymentMethod:'cash' }); setShowAdd(true); }}
                   style={{ height:30, padding:'0 12px', borderRadius:7, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
                   ＋ 新增定期票
                 </button>
@@ -871,6 +874,11 @@ export default function PassesPage() {
               <input value={addForm.notes} onChange={e => setAddForm({...addForm, notes:e.target.value})} placeholder="選填"
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
+            {(() => { const pt = passTypes.find(t => t.id === addForm.passTypeId); return pt ? (
+              <PaymentPlanChoice installment={pt.installment} price={pt.price}
+                plan={addForm.paymentPlan || 'full'} paymentMethod={addForm.paymentMethod}
+                onChange={({ plan, paymentMethod }) => setAddForm({ ...addForm, paymentPlan: plan, paymentMethod })} />
+            ) : null; })()}
             <div style={{ display:'flex', gap:8 }}>
               <button type="button" onClick={() => setShowAdd(false)}
                 style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
@@ -1030,6 +1038,11 @@ export default function PassesPage() {
             <input type="number" value={typeForm.credits} onChange={e => setTypeForm({...typeForm, credits:e.target.value})}
               placeholder="例如優惠卡填 10、黑卡填 12"
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>分期付款規則</label>
+            <InstallmentRuleEditor value={typeForm.installment} price={typeForm.price}
+              onChange={v => setTypeForm({...typeForm, installment: v})} />
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setShowAddType(false)}
