@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProducts, createProduct, updateProduct, deleteProduct, restockProduct, sellProducts, setWarehouseStock } from '../../api/products';
+import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, restockProduct, sellProducts, setWarehouseStock } from '../../api/products';
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
@@ -95,6 +95,15 @@ export default function SalesPage({ embedded = false }) {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);   // 停用確認
+  const [inactiveList, setInactiveList] = useState(null);             // 已停用商品清單（null=未開啟）
+  const openInactive = async () => {
+    try { const res = await getInactiveProducts(targetGymId); setInactiveList(res.data.products || []); }
+    catch (e) { showMsg('載入失敗', 'red'); }
+  };
+  const reactivate = async (p) => {
+    try { await updateProduct(p.id, { isActive: true }); showMsg(`已重新啟用「${p.name}」`); await openInactive(); await loadProducts(); }
+    catch (e) { showMsg('啟用失敗', 'red'); }
+  };
   const [productForm, setProductForm] = useState({ brand:'', name:'', description:'', category:'裝備', lowStockAlert:5, variants:[] });
   const [showRestock, setShowRestock] = useState(null);
   const [showStocktake, setShowStocktake] = useState(false);
@@ -459,6 +468,10 @@ export default function SalesPage({ embedded = false }) {
               style={{ height:36, padding:'0 14px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
               📥 Excel 匯入
             </button>
+            <button onClick={openInactive}
+              style={{ height:36, padding:'0 14px', borderRadius:8, background:'#fff', color:'#666', border:'0.5px solid #E8D5D5', fontSize:13, cursor:'pointer' }}>
+              🗄 已停用商品
+            </button>
             <button onClick={() => setShowAddProduct(true)}
               style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
               ＋ 新增商品
@@ -657,6 +670,30 @@ export default function SalesPage({ embedded = false }) {
             </div>
           )))}
         </div>
+      )}
+
+      {/* ── 已停用商品 Modal（重新啟用）── */}
+      {inactiveList !== null && (
+        <Modal title="已停用商品" onClose={() => setInactiveList(null)} width={460}>
+          {inactiveList.length === 0 ? (
+            <div style={{ padding:'20px 0', textAlign:'center', color:'#999', fontSize:13 }}>目前沒有已停用的商品</div>
+          ) : (
+            <div>
+              <div style={{ fontSize:12, color:'#888', marginBottom:10 }}>共 {inactiveList.length} 項，按「重新啟用」即恢復到銷售／庫存清單。</div>
+              {inactiveList.map(p => (
+                <div key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'10px 0', borderBottom:'0.5px solid #F5EFEF' }}>
+                  <div style={{ minWidth:0 }}>
+                    {p.brand && <div style={{ fontSize:11, color:'#999' }}>{p.brand}</div>}
+                    <div style={{ fontSize:14, fontWeight:600 }}>{p.name}</div>
+                    <div style={{ fontSize:11, color:'#999' }}>{p.category} · {p.variants?.length || 0} 變體</div>
+                  </div>
+                  <button onClick={() => reactivate(p)}
+                    style={{ height:32, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer', flexShrink:0 }}>重新啟用</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal>
       )}
 
       {/* ── 停用確認 Modal ── */}

@@ -3,6 +3,9 @@ import client from './client';
 export const getProducts = (gymId) =>
   client.get('/products', { params: gymId ? { gymId } : {} });
 
+export const getInactiveProducts = (gymId) =>
+  client.get('/products', { params: { inactive: 1, ...(gymId ? { gymId } : {}) } });
+
 export const createProduct = (data) =>
   client.post('/products', data);
 
