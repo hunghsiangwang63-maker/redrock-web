@@ -85,9 +85,10 @@ export default function SalesPage({ embedded = false }) {
   const [msgType, setMsgType] = useState('ok');
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // 商品搜尋/分類篩選
+  // 商品搜尋/分類下鑽（類別→品項→變體）
   const [productSearch, setProductSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   // 商品管理
   const [showAddProduct, setShowAddProduct] = useState(false);
@@ -310,6 +311,31 @@ export default function SalesPage({ embedded = false }) {
     products.forEach(p => { m[p.category || '其他'] = (m[p.category || '其他'] || 0) + 1; });
     return Object.entries(m).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
   })();
+  // 各類別的庫存合計（供類別層顯示）
+  const catStock = {};
+  products.forEach(p => { const c = p.category || '其他'; catStock[c] = (catStock[c] || 0) + getTotalStock(p); });
+
+  // 單一商品列（品項層 / 搜尋結果共用）：點擊→選變體(顏色尺寸)
+  const productRow = (p) => {
+    const totalStock = getTotalStock(p);
+    const stockColor = totalStock === 0 ? '#A32D2D' : (totalStock <= p.lowStockAlert ? '#D97706' : '#2D7D46');
+    return (
+      <div key={p.id} onClick={() => totalStock > 0 && setSelectedProduct(p)}
+        style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderBottom:'0.5px solid #F5EFEF', cursor: totalStock > 0 ? 'pointer' : 'not-allowed', opacity: totalStock > 0 ? 1 : 0.55 }}>
+        <div style={{ flex:1, minWidth:0 }}>
+          {p.brand && <div style={{ fontSize:11, color:'#8B1A1A' }}>{p.brand}</div>}
+          <div style={{ fontWeight:600, fontSize:14, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.name}</div>
+        </div>
+        <div style={{ textAlign:'right', flexShrink:0 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{getProductPriceRange(p)}</div>
+          <div style={{ fontSize:13, color:'#888' }}>
+            庫存 <span style={{ fontSize:15, fontWeight:700, color: stockColor }}>{totalStock}</span>{totalStock === 0 ? '（已售完）' : ''} · {p.variants?.length || 0} 變體
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const filteredProducts = products.filter(p => {
     if (catFilter && (p.category || '其他') !== catFilter) return false;
     if (productSearch) {
@@ -371,41 +397,42 @@ export default function SalesPage({ embedded = false }) {
       {tab === 'sell' && (
         <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 340px', gap:16 }}>
           <div>
-            {/* 搜尋 + 分類篩選 */}
-            <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+            {/* 搜尋 + 返回類別 */}
+            <div style={{ display:'flex', gap:8, marginBottom:12, alignItems:'center', flexWrap:'wrap' }}>
+              {selectedCategory && !productSearch && (
+                <button onClick={() => setSelectedCategory(null)}
+                  style={{ height:38, padding:'0 12px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:13, fontWeight:600, cursor:'pointer', flexShrink:0 }}>← 類別</button>
+              )}
               <input value={productSearch} onChange={e => setProductSearch(e.target.value)} placeholder="🔍 搜尋商品名稱 / 品牌 / 尺寸..."
-                style={{ flex:'1 1 200px', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', boxSizing:'border-box', color:'#1a1a1a' }}/>
-              <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
-                style={{ height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a' }}>
-                <option value="">全部類別（{products.length}）</option>
-                {productCategories.map(c => <option key={c.name} value={c.name}>{c.name}（{c.count}）</option>)}
-              </select>
+                style={{ flex:'1 1 180px', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', boxSizing:'border-box', color:'#1a1a1a' }}/>
             </div>
-            {filteredProducts.length === 0 ? (
-              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-                {products.length === 0 ? '尚無商品，請先至「庫存管理」新增' : '找不到符合的商品'}
+            {selectedCategory && !productSearch && (
+              <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:8 }}>{selectedCategory}</div>
+            )}
+            {products.length === 0 ? (
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>尚無商品，請先至「庫存管理」新增</div>
+            ) : productSearch ? (
+              /* 搜尋：跨類別直接列出品項 */
+              filteredProducts.length === 0
+                ? <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>找不到符合的商品</div>
+                : <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>{filteredProducts.map(productRow)}</div>
+            ) : !selectedCategory ? (
+              /* 第一層：類別 */
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
+                {productCategories.map(c => (
+                  <div key={c.name} onClick={() => setSelectedCategory(c.name)}
+                    style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'15px 14px', borderBottom:'0.5px solid #F5EFEF', cursor:'pointer' }}>
+                    <div style={{ fontWeight:600, fontSize:15 }}>{c.name}</div>
+                    <div style={{ fontSize:12, color:'#888' }}>{c.count} 品項 · 庫存 {catStock[c.name] || 0}　<span style={{ color:'#8B1A1A', fontSize:16 }}>›</span></div>
+                  </div>
+                ))}
               </div>
             ) : (
+              /* 第二層：該類別的品項（依品牌→名稱）*/
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-                {filteredProducts.map(p => {
-                  const totalStock = getTotalStock(p);
-                  const stockColor = totalStock === 0 ? '#A32D2D' : (totalStock <= p.lowStockAlert ? '#D97706' : '#2D7D46');
-                  return (
-                    <div key={p.id} onClick={() => totalStock > 0 && setSelectedProduct(p)}
-                      style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderBottom:'0.5px solid #F5EFEF', cursor: totalStock > 0 ? 'pointer' : 'not-allowed', opacity: totalStock > 0 ? 1 : 0.55 }}>
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:11, color:'#8B1A1A' }}>{[p.brand, p.category].filter(Boolean).join(' · ')}</div>
-                        <div style={{ fontWeight:600, fontSize:14, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.name}</div>
-                      </div>
-                      <div style={{ textAlign:'right', flexShrink:0 }}>
-                        <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{getProductPriceRange(p)}</div>
-                        <div style={{ fontSize:13, color:'#888' }}>
-                          庫存 <span style={{ fontSize:15, fontWeight:700, color: stockColor }}>{totalStock}</span>{totalStock === 0 ? '（已售完）' : ''} · {p.variants?.length || 0} 變體
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                {products.filter(p => (p.category || '其他') === selectedCategory)
+                  .sort((a, b) => (a.brand || '').localeCompare(b.brand || '', 'zh-Hant') || (a.name || '').localeCompare(b.name || '', 'zh-Hant'))
+                  .map(productRow)}
               </div>
             )}
           </div>
