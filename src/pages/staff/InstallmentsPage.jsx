@@ -173,12 +173,8 @@ export default function InstallmentsPage({ embedded = false }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
         <div>
           <div style={{ fontSize:20, fontWeight:600 }}>分期付款管理</div>
-          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>適用課程報名、定期票等大額項目的分期收款追蹤</div>
+          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>分期由「課程／定期票設定的分期規則」自動產生（會員報名/購買時選分期）；此頁為繳款追蹤與逾期管理</div>
         </div>
-        <button onClick={() => setShowCreate(true)}
-          style={{ height:40, padding:'0 18px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-          ＋ 新增分期計畫
-        </button>
       </div>
 
       {msg && (
