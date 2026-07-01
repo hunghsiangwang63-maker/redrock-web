@@ -7,6 +7,7 @@ import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
+import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
 
@@ -29,6 +30,7 @@ export default function MemberCoursesPage() {
   const [payFor, setPayFor] = useState(null); // { enrollmentId, fee, gymId }
   const [enrollStep, setEnrollStep] = useState(1); // 1=基本資料 2=付款 3=規則確認 4=肖像授權
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [enrollPlan, setEnrollPlan] = useState('full');   // full | installment（課程有開分期時可選）
   const [paymentData, setPaymentData] = useState({ method:'cash', paymentDate:'', bankLastFive:'' });
   const [paymentDate, setPaymentDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
@@ -180,6 +182,7 @@ export default function MemberCoursesPage() {
   const resetEnrollModal = () => {
     setEnrollStep(1);
     setPaymentMethod('cash');
+    setEnrollPlan('full');
     setPaymentDate('');
     setBankLastFive('');
     setHealthNote('');
@@ -198,6 +201,7 @@ export default function MemberCoursesPage() {
     try {
       const extraFields = {
         deferPayment: ONLINE_PAYMENT_ENABLED, // 線上付款啟用時延後記帳，改由付款 callback 記
+        paymentPlan: enrollPlan,              // full | installment（課程有開分期時）
         paymentDate: paymentDate || null,
         bankLastFive: (paymentMethod === 'cash' && bankLastFive) ? bankLastFive : null,
         healthNote: healthNote || null,
@@ -969,10 +973,12 @@ export default function MemberCoursesPage() {
                   {dayjs(enrollSession.date).format('MM/DD')}（{WEEKDAYS[dayjs(enrollSession.date).day()]}）{enrollSession.startTime}～{enrollSession.endTime}
                 </div>
               </div>
+              <PaymentPlanChoice installment={selectedCourse?.installment} price={enrollSession?.fee || selectedCourse?.price}
+                plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
               <PaymentSection
                 value={paymentData}
                 onChange={d => { setPaymentData(d); setPaymentMethod(d.method); }}
-                amount={enrollSession?.fee || selectedCourse?.price}
+                amount={(() => { const full = enrollSession?.fee || selectedCourse?.price || 0; const fp = (selectedCourse?.installment?.periods||[])[0]?.percent; return (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full; })()}
                 bankInfo={bankAccounts[gymId] ? { bankName: bankAccounts[gymId].bankName, branch: bankAccounts[gymId].branch||'', account: bankAccounts[gymId].accountNumber, accountName: bankAccounts[gymId].accountName } : null}
               />
               {(paymentData.method==='cash'||paymentData.method==='transfer') && (

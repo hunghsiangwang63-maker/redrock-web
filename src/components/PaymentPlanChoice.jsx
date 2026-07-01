@@ -14,7 +14,7 @@ function previewPeriods(installment, price) {
   });
 }
 
-export default function PaymentPlanChoice({ installment, price, plan, paymentMethod, onChange }) {
+export default function PaymentPlanChoice({ installment, price, plan, paymentMethod, onChange, hideMethod = false }) {
   const has = installment?.enabled && (installment.periods?.length >= 2);
   if (!has) return null;
   const rows = previewPeriods(installment, price);
@@ -35,13 +35,17 @@ export default function PaymentPlanChoice({ installment, price, plan, paymentMet
               <span style={{ fontWeight: 600 }}>NT${r.amt.toLocaleString()}</span>
             </div>
           ))}
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>頭款（第一期）收款方式</div>
-            <select value={paymentMethod || 'cash'} onChange={e => onChange({ plan, paymentMethod: e.target.value })}
-              style={{ width: '100%', height: 34, borderRadius: 7, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, background: '#fff', color: '#1a1a1a' }}>
-              {PAY.map(m => <option key={m.k} value={m.k}>{m.l}</option>)}
-            </select>
-          </div>
+          {hideMethod
+            ? <div style={{ fontSize: 11, color: '#854F0B', marginTop: 8 }}>選擇分期後，下方付款即為「第一期（頭款）」金額；其餘各期依上表到期繳交。</div>
+            : (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>頭款（第一期）收款方式</div>
+                <select value={paymentMethod || 'cash'} onChange={e => onChange({ plan, paymentMethod: e.target.value })}
+                  style={{ width: '100%', height: 34, borderRadius: 7, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, background: '#fff', color: '#1a1a1a' }}>
+                  {PAY.map(m => <option key={m.k} value={m.k}>{m.l}</option>)}
+                </select>
+              </div>
+            )}
         </div>
       )}
     </div>
