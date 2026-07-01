@@ -94,6 +94,7 @@ export default function SalesPage({ embedded = false }) {
   // 商品管理
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [confirmDeactivate, setConfirmDeactivate] = useState(null);   // 停用確認
   const [productForm, setProductForm] = useState({ brand:'', name:'', description:'', category:'裝備', lowStockAlert:5, variants:[] });
   const [showRestock, setShowRestock] = useState(null);
   const [showStocktake, setShowStocktake] = useState(false);
@@ -597,7 +598,7 @@ export default function SalesPage({ embedded = false }) {
                     style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', color:'#444', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
                     編輯
                   </button>
-                  <button onClick={() => { if(window.confirm(`停用「${p.name}」？`)) { deleteProduct(p.id).then(() => { showMsg('已停用'); loadProducts(); }); } }}
+                  <button onClick={() => setConfirmDeactivate(p)}
                     style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>
                     停用
                   </button>
@@ -656,6 +657,24 @@ export default function SalesPage({ embedded = false }) {
             </div>
           )))}
         </div>
+      )}
+
+      {/* ── 停用確認 Modal ── */}
+      {confirmDeactivate && (
+        <Modal title="停用商品" onClose={() => setConfirmDeactivate(null)} width={400}>
+          <div style={{ fontSize:14, color:'#1a1a1a', lineHeight:1.7, marginBottom:6 }}>
+            確定要停用「<strong>{confirmDeactivate.name}</strong>」？
+          </div>
+          <div style={{ fontSize:12, color:'#888', marginBottom:20, lineHeight:1.6 }}>
+            停用後此商品不再出現在銷售／庫存清單；既有交易紀錄不受影響（可日後重新啟用）。
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setConfirmDeactivate(null)}
+              style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+            <button onClick={async () => { const p = confirmDeactivate; setConfirmDeactivate(null); try { await deleteProduct(p.id); showMsg('已停用'); await loadProducts(); } catch (e) { showMsg('停用失敗', 'red'); } }}
+              style={{ flex:1, height:42, borderRadius:9, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>確認停用</button>
+          </div>
+        </Modal>
       )}
 
       {/* ── 選擇變體 Modal ── */}
