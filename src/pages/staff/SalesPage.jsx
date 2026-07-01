@@ -389,7 +389,7 @@ export default function SalesPage({ embedded = false }) {
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                 {filteredProducts.map(p => {
                   const totalStock = getTotalStock(p);
-                  const low = totalStock <= p.lowStockAlert;
+                  const stockColor = totalStock === 0 ? '#A32D2D' : (totalStock <= p.lowStockAlert ? '#D97706' : '#2D7D46');
                   return (
                     <div key={p.id} onClick={() => totalStock > 0 && setSelectedProduct(p)}
                       style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderBottom:'0.5px solid #F5EFEF', cursor: totalStock > 0 ? 'pointer' : 'not-allowed', opacity: totalStock > 0 ? 1 : 0.55 }}>
@@ -399,8 +399,8 @@ export default function SalesPage({ embedded = false }) {
                       </div>
                       <div style={{ textAlign:'right', flexShrink:0 }}>
                         <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{getProductPriceRange(p)}</div>
-                        <div style={{ fontSize:13, fontWeight:600, color: low ? '#A32D2D' : '#555' }}>
-                          庫存 {totalStock}{low && totalStock > 0 ? ' ⚠️' : ''}{totalStock === 0 ? ' 已售完' : ''} · {p.variants?.length || 0} 變體
+                        <div style={{ fontSize:13, color:'#888' }}>
+                          庫存 <span style={{ fontSize:15, fontWeight:700, color: stockColor }}>{totalStock}</span>{totalStock === 0 ? '（已售完）' : ''} · {p.variants?.length || 0} 變體
                         </div>
                       </div>
                     </div>
