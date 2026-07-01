@@ -318,6 +318,9 @@ export default function SalesPage({ embedded = false }) {
       if (!hay.includes(q)) return false;
     }
     return true;
+  }).sort((a, b) => {
+    const bc = (a.brand || '').localeCompare(b.brand || '', 'zh-Hant');   // 先品牌
+    return bc !== 0 ? bc : (a.name || '').localeCompare(b.name || '', 'zh-Hant');  // 再名稱
   });
 
   return (
