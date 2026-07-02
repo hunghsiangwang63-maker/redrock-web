@@ -172,8 +172,10 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名' }) 
 };
 
 export default function MembersPage() {
-  const { staff, activeGymId, station, operator } = useAuth();
+  const { staff, activeGymId, station, operator, viewGym } = useAuth();
   const targetGymId = activeGymId || staff?.gymId;
+  // 報表類：super_admin 依頂部場館選擇（'全館'→undefined=全部）
+  const reportGymId = staff?.role === 'super_admin' ? (viewGym || undefined) : targetGymId;
   const isAdmin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!station || !!operator;
   const [memberRecords, setMemberRecords] = useState(null);
   const [recordsLoading, setRecordsLoading] = useState(false);
@@ -197,12 +199,12 @@ export default function MembersPage() {
     setView(v);
     if (v === 'passes' && passList === null) {
       setListLoading(true);
-      getActivePasses(staff?.role === 'super_admin' ? undefined : targetGymId)
+      getActivePasses(reportGymId)
         .then(r => setPassList(r.data.passTypes || [])).catch(() => setPassList([])).finally(() => setListLoading(false));
     }
     if (v === 'courses' && courseList === null) {
       setListLoading(true);
-      getActiveCourseStudents(staff?.role === 'super_admin' ? undefined : targetGymId)
+      getActiveCourseStudents(reportGymId)
         .then(r => setCourseList(r.data.courses || [])).catch(() => setCourseList([])).finally(() => setListLoading(false));
     }
   };

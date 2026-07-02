@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, restockProduct, sellProducts, setWarehouseStock } from '../../api/products';
+import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale } from '../../api/products';
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
@@ -70,7 +70,7 @@ const VariantForm = ({ variants, onChange }) => {
 };
 
 export default function SalesPage({ embedded = false }) {
-  const { staff, activeGymId } = useAuth();
+  const { staff, activeGymId, viewGym } = useAuth();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const fileRef = useRef();
   const [tab, setTab] = useState('sell');
@@ -85,6 +85,29 @@ export default function SalesPage({ embedded = false }) {
   const [msgType, setMsgType] = useState('ok');
   const [selectedProduct, setSelectedProduct] = useState(null);
 
+  // 銷售紀錄 / 退貨
+  const [salesList, setSalesList] = useState([]);
+  const [salesLoading, setSalesLoading] = useState(false);
+  const [confirmReturn, setConfirmReturn] = useState(null); // 待退貨的銷售
+  const [returnReason, setReturnReason] = useState('');
+  const loadSales = async () => {
+    setSalesLoading(true);
+    try {
+      const res = await getProductSales(targetGymId && targetGymId !== 'warehouse' ? { gymId: targetGymId, days: 30 } : { days: 30 });
+      setSalesList(res.data.sales || []);
+    } catch (e) { setSalesList([]); }
+    finally { setSalesLoading(false); }
+  };
+  const handleReturn = async () => {
+    const sale = confirmReturn; setConfirmReturn(null);
+    try {
+      const res = await returnSale(sale.id, returnReason);
+      showMsg(res.data.message || '已退貨');
+      setReturnReason('');
+      await loadSales(); await loadProducts();
+    } catch (e) { showMsg(e?.response?.data?.message || '退貨失敗', 'red'); }
+  };
+
   // 商品搜尋/分類下鑽（類別→品項→變體）
   const [productSearch, setProductSearch] = useState('');
   const [catFilter, setCatFilter] = useState('');
@@ -95,6 +118,7 @@ export default function SalesPage({ embedded = false }) {
   const [showAddProduct, setShowAddProduct] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [confirmDeactivate, setConfirmDeactivate] = useState(null);   // 停用確認
+  const [confirmDelete, setConfirmDelete] = useState(null);           // 永久刪除確認（限管理員）
   const [inactiveList, setInactiveList] = useState(null);             // 已停用商品清單（null=未開啟）
   const openInactive = async () => {
     try { const res = await getInactiveProducts(targetGymId); setInactiveList(res.data.products || []); }
@@ -115,17 +139,15 @@ export default function SalesPage({ embedded = false }) {
   const [editingWarehouse, setEditingWarehouse] = useState(null); // variantId 正在編輯中
   const [warehouseInput, setWarehouseInput] = useState('');
   const isSuperAdmin = staff?.role === 'super_admin';
+  const isAdmin = ['super_admin', 'gym_manager'].includes(staff?.role); // 管理員（永久刪除限管理員）
   const [gyms, setGyms] = useState([]);
-  const [selectedGymId, setSelectedGymId] = useState(staff?.gymId || '');
-  const targetGymId = isSuperAdmin ? selectedGymId : (activeGymId || staff?.gymId);
+  // 頂部選具體館 → 操作該館；頂部「全館」→ 操作「倉庫」（中央庫存）。本頁不再自帶場館選擇器。
+  const targetGymId = isSuperAdmin ? (viewGym || 'warehouse') : (activeGymId || staff?.gymId);
+  const isWarehouse = targetGymId === 'warehouse';
 
   useEffect(() => {
     if (isSuperAdmin) {
-      getGyms().then(res => {
-        const list = res.data.gyms || [];
-        setGyms(list);
-        if (!selectedGymId && list.length > 0) setSelectedGymId(list[0].id);
-      }).catch(() => {});
+      getGyms().then(res => setGyms(res.data.gyms || [])).catch(() => {});
     }
   }, [isSuperAdmin]);
 
@@ -143,6 +165,7 @@ export default function SalesPage({ embedded = false }) {
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3000); };
 
   useEffect(() => { loadProducts(); }, [targetGymId]);
+  useEffect(() => { if (tab === 'history') loadSales(); }, [tab, targetGymId]);
 
   const loadProducts = async () => {
     try {
@@ -188,6 +211,7 @@ export default function SalesPage({ embedded = false }) {
 
   const handleSell = async () => {
     if (!cart.length) { showMsg('請先加入商品', 'red'); return; }
+    if (isWarehouse) { showMsg('目前為「倉庫」模式，銷售請於上方切換到具體館別', 'red'); return; }
     setLoading(true);
     try {
       const res = await sellProducts({
@@ -206,10 +230,13 @@ export default function SalesPage({ embedded = false }) {
   const handleCreateProduct = async () => {
     setLoading(true);
     try {
-      await createProduct({ ...productForm, gymId: targetGymId,
+      await createProduct({ ...productForm, gymId: isWarehouse ? null : targetGymId,
         variants: productForm.variants.map(v => {
           const stockNum = parseInt(v.stock)||0;
-          return { ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: stockNum, gymStock: { [targetGymId]: stockNum } };
+          // 倉庫模式：初始庫存放倉庫；具體館模式：放該館
+          return isWarehouse
+            ? { ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: 0, gymStock: {}, warehouseStock: stockNum }
+            : { ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: stockNum, gymStock: { [targetGymId]: stockNum } };
         })
       });
       showMsg('商品已建立'); setShowAddProduct(false);
@@ -222,9 +249,10 @@ export default function SalesPage({ embedded = false }) {
   const handleUpdateProduct = async () => {
     setLoading(true);
     try {
-      // 編輯的 stock 對應「目前操作館別」的 gymStock，並重算跨館總量，避免每館庫存與 stock 不同步（顯示 0 的成因）
+      // 編輯的 stock 對應「目前操作對象」：倉庫模式→warehouseStock；具體館→該館 gymStock（重算跨館總量避免不同步）
       const variants = (productForm.variants || []).map(v => {
         const stockNum = parseInt(v.stock) || 0;
+        if (isWarehouse) return { ...v, price: parseInt(v.price) || 0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, warehouseStock: stockNum };
         const gymStock = { ...(v.gymStock || {}), [targetGymId]: stockNum };
         const total = Object.values(gymStock).reduce((s, n) => s + (Number(n) || 0), 0);
         return { ...v, price: parseInt(v.price) || 0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: total, gymStock };
@@ -246,7 +274,7 @@ export default function SalesPage({ embedded = false }) {
     if (!restockVariantId || !restockQty) { showMsg('請選擇變體並輸入數量', 'red'); return; }
     setLoading(true);
     try {
-      const res = await restockProduct(showRestock.id, { variantId: restockVariantId, quantity: parseInt(restockQty), note: restockNote });
+      const res = await restockProduct(showRestock.id, { variantId: restockVariantId, quantity: parseInt(restockQty), note: restockNote, gymId: targetGymId });
       showMsg(res.data.message); setShowRestock(null); setRestockQty(''); setRestockNote(''); setRestockVariantId('');
       await loadProducts();
     } catch (err) { showMsg('入庫失敗', 'red'); }
@@ -320,7 +348,7 @@ export default function SalesPage({ embedded = false }) {
     setMemberResults(res.data.members || []);
   };
 
-  const TABS = [{ key:'sell', label:'銷售' }, { key:'inventory', label:'庫存管理' }];
+  const TABS = [{ key:'sell', label:'銷售' }, { key:'inventory', label:'庫存管理' }, { key:'history', label:'銷售紀錄' }];
 
   // 計算商品最低價
   const getProductPriceRange = (product) => {
@@ -440,14 +468,11 @@ export default function SalesPage({ embedded = false }) {
         </div>
       )}
 
-      {isSuperAdmin && gyms.length > 0 && (
+      {isSuperAdmin && (
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14, background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:8, padding:'8px 12px' }}>
-          <span style={{ fontSize:12, color:'#999' }}>操作館別：</span>
-          <select value={selectedGymId} onChange={e => setSelectedGymId(e.target.value)}
-            style={{ height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-            {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
-          </select>
-          <span style={{ fontSize:11, color:'#999' }}>銷售扣庫存、盤點皆套用此館別</span>
+          <span style={{ fontSize:12, color:'#999' }}>操作對象：</span>
+          <span style={{ fontSize:13, color:'#8B1A1A', fontWeight:600 }}>{isWarehouse ? '📦 倉庫（中央庫存）' : (gyms.find(g => g.id === targetGymId)?.shortName || gyms.find(g => g.id === targetGymId)?.name || targetGymId)}</span>
+          <span style={{ fontSize:11, color:'#999' }}>{isWarehouse ? '（上方為「全館」＝倉庫；入庫／庫存修改作用於倉庫。銷售請於上方切換到具體館別）' : '（依上方場館選擇）'}</span>
         </div>
       )}
 
@@ -574,14 +599,76 @@ export default function SalesPage({ embedded = false }) {
                   <span style={{ fontSize:13, color:'#666' }}>總計{teamActive && cartDiscount > 0 && <span style={{ fontSize:11, color:'#999', textDecoration:'line-through', marginLeft:6 }}>NT${cartGross.toLocaleString()}</span>}</span>
                   <span style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>NT${totalAmount.toLocaleString()}</span>
                 </div>
-                <button onClick={handleSell} disabled={loading}
-                  style={{ width:'100%', height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                  {loading ? '處理中...' : `✓ 完成銷售 NT$${totalAmount.toLocaleString()}`}
+                <button onClick={handleSell} disabled={loading || isWarehouse}
+                  style={{ width:'100%', height:44, borderRadius:10, background: isWarehouse ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: isWarehouse ? 'not-allowed' : 'pointer' }}>
+                  {isWarehouse ? '倉庫模式無法銷售，請於上方切換館別' : loading ? '處理中...' : `✓ 完成銷售 NT$${totalAmount.toLocaleString()}`}
                 </button>
               </>
             )}
           </div>
         </div>
+      )}
+
+      {/* ── 銷售紀錄 tab ── */}
+      {tab === 'history' && (
+        <div>
+          <div style={{ fontSize:12, color:'#999', marginBottom:10 }}>近 30 天銷售（{isWarehouse ? '全部館別' : '本館'}）。退貨會還原庫存並沖銷當日營收。</div>
+          {salesLoading ? (
+            <div style={{ padding:30, textAlign:'center', color:'#999', fontSize:13 }}>載入中...</div>
+          ) : salesList.length === 0 ? (
+            <div style={{ padding:30, textAlign:'center', color:'#999', fontSize:13 }}>近 30 天無銷售紀錄</div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {salesList.map(sale => (
+                <div key={sale.id} style={{ background:'#fff', border:`0.5px solid ${sale.isReturn ? '#E8C5C5' : '#E8D5D5'}`, borderRadius:10, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, color:'#999', marginBottom:3 }}>
+                      {dayjs(sale.soldAt?.seconds ? sale.soldAt.seconds*1000 : sale.soldAt).format('MM/DD HH:mm')}
+                      {' · '}{sale.staffName}
+                      {' · '}{ { cash:'現金', linepay:'Line Pay', jkopay:'街口', taiwanpay:'台灣Pay' }[sale.paymentMethod] || sale.paymentMethod }
+                      {sale.memberName && sale.memberName !== '匿名' ? ` · ${sale.memberName}` : ''}
+                      {isWarehouse && sale.gymId ? ` · ${gyms.find(g=>g.id===sale.gymId)?.shortName || sale.gymId}` : ''}
+                    </div>
+                    <div style={{ fontSize:13, color:'#333' }}>
+                      {(sale.items||[]).map(i => `${i.productName}${i.size?` ${i.size}`:''}×${Math.abs(i.quantity)}`).join('、')}
+                    </div>
+                    {sale.isReturn && <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FBEEEE', border:'0.5px solid #E8C5C5', borderRadius:10, padding:'1px 8px', marginTop:4, display:'inline-block' }}>退貨紀錄</span>}
+                    {sale.returned && <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:10, padding:'1px 8px', marginTop:4, display:'inline-block' }}>已退貨</span>}
+                  </div>
+                  <div style={{ textAlign:'right', whiteSpace:'nowrap' }}>
+                    <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color: sale.isReturn ? '#A32D2D' : '#8B1A1A' }}>{sale.isReturn ? '−' : ''}NT${Math.abs(sale.totalAmount||0).toLocaleString()}</div>
+                    {!sale.isReturn && !sale.returned && (
+                      <button onClick={() => { setConfirmReturn(sale); setReturnReason(''); }}
+                        style={{ marginTop:6, height:28, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>退貨</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── 退貨確認 Modal ── */}
+      {confirmReturn && (
+        <Modal title="商品退貨" onClose={() => setConfirmReturn(null)} width={420}>
+          <div style={{ fontSize:14, color:'#1a1a1a', lineHeight:1.7, marginBottom:6 }}>
+            確定要退貨這筆銷售（<strong>NT${(confirmReturn.totalAmount||0).toLocaleString()}</strong>）？
+          </div>
+          <div style={{ fontSize:12, color:'#666', marginBottom:10, lineHeight:1.6 }}>
+            {(confirmReturn.items||[]).map(i => `${i.productName}${i.size?` ${i.size}`:''}×${i.quantity}`).join('、')}
+          </div>
+          <div style={{ fontSize:12, color:'#854F0B', background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:6, padding:'8px 10px', marginBottom:12 }}>
+            退貨後：庫存自動還原、當日商品營收沖銷（記一筆負額退貨），原銷售標記為已退貨。
+          </div>
+          <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>退貨原因（選填）</label>
+          <input value={returnReason} onChange={e => setReturnReason(e.target.value)} placeholder="如：尺寸不合、瑕疵…"
+            style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box', marginBottom:16 }} />
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setConfirmReturn(null)} style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+            <button onClick={handleReturn} style={{ flex:1, height:42, borderRadius:9, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確認退貨</button>
+          </div>
+        </Modal>
       )}
 
       {/* ── 庫存管理 tab ── */}
@@ -615,6 +702,12 @@ export default function SalesPage({ embedded = false }) {
                     style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>
                     停用
                   </button>
+                  {isAdmin && (
+                    <button onClick={() => setConfirmDelete(p)}
+                      style={{ height:30, padding:'0 12px', borderRadius:8, background:'#A32D2D', border:'none', color:'#fff', fontSize:12, cursor:'pointer', fontWeight:500 }}>
+                      刪除
+                    </button>
+                  )}
                 </div>
               </div>
               {/* 變體列表 */}
@@ -710,6 +803,27 @@ export default function SalesPage({ embedded = false }) {
               style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
             <button onClick={async () => { const p = confirmDeactivate; setConfirmDeactivate(null); try { await deleteProduct(p.id); showMsg('已停用'); await loadProducts(); } catch (e) { showMsg('停用失敗', 'red'); } }}
               style={{ flex:1, height:42, borderRadius:9, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>確認停用</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── 永久刪除確認 Modal（限管理員）── */}
+      {confirmDelete && (
+        <Modal title="永久刪除商品" onClose={() => setConfirmDelete(null)} width={400}>
+          <div style={{ fontSize:14, color:'#1a1a1a', lineHeight:1.7, marginBottom:6 }}>
+            確定要<strong style={{ color:'#A32D2D' }}>永久刪除</strong>「<strong>{confirmDelete.name}</strong>」？
+          </div>
+          <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, lineHeight:1.6, background:'#FBEEEE', border:'0.5px solid #E8C5C5', borderRadius:6, padding:'8px 10px' }}>
+            ⚠ 此動作<strong>無法復原</strong>，商品將從資料庫完全移除、無法重新啟用。若只是暫時下架，請改用「停用」。
+          </div>
+          <div style={{ fontSize:12, color:'#888', marginBottom:20, lineHeight:1.6 }}>
+            既有交易／銷售紀錄不受影響。僅管理員可執行此操作。
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setConfirmDelete(null)}
+              style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+            <button onClick={async () => { const p = confirmDelete; setConfirmDelete(null); try { await deleteProductPermanent(p.id); showMsg('已永久刪除'); await loadProducts(); } catch (e) { showMsg(e?.response?.data?.message || '刪除失敗', 'red'); } }}
+              style={{ flex:1, height:42, borderRadius:9, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確認永久刪除</button>
           </div>
         </Modal>
       )}
@@ -810,13 +924,17 @@ export default function SalesPage({ embedded = false }) {
       {/* ── 入庫 Modal ── */}
       {showRestock && (
         <Modal title={`入庫 — ${showRestock.name}`} onClose={() => setShowRestock(null)}>
+          <div style={{ marginBottom:12, background:'#EEF6EE', border:'0.5px solid #BFE0BF', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#2D7D46', fontWeight:600 }}>
+            📦 入庫至：{isWarehouse ? '倉庫（中央庫存）' : ((gyms.find(g => g.id === targetGymId)?.shortName) || (gyms.find(g => g.id === targetGymId)?.name) || ({ 'gym-hsinchu':'新竹館', 'gym-shilin':'士林館' }[targetGymId]) || targetGymId)}
+            <span style={{ fontWeight:400, color:'#888', marginLeft:6 }}>（依上方場館選擇）</span>
+          </div>
           <div style={{ marginBottom:12 }}>
             <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>選擇變體</label>
             <select value={restockVariantId} onChange={e => setRestockVariantId(e.target.value)}
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
               {(showRestock.variants||[]).map(v => (
                 <option key={v.id} value={v.id}>
-                  {[v.size, v.color].filter(Boolean).join(' / ') || '標準'} (庫存: {v.stock})
+                  {[v.size, v.color].filter(Boolean).join(' / ') || '標準'} ({isWarehouse ? '倉庫庫存' : '本館庫存'}: {isWarehouse ? (v.warehouseStock ?? 0) : (v.gymStock?.[targetGymId] ?? v.stock ?? 0)})
                 </option>
               ))}
             </select>

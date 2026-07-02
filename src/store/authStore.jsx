@@ -23,6 +23,13 @@ export const AuthProvider = ({ children }) => {
     return s ? JSON.parse(s) : null;
   });
 
+  // 全域檢視場館（僅 super_admin 使用）：'' = 全館；否則為 gymId。放頂部狀態列切換，全站沿用。
+  const [viewGym, setViewGymState] = useState(() => localStorage.getItem('viewGym') || '');
+  const setViewGym = (g) => {
+    if (g) localStorage.setItem('viewGym', g); else localStorage.removeItem('viewGym');
+    setViewGymState(g || '');
+  };
+
   const loginStation = (token, stationData) => {
     localStorage.setItem('stationToken', token);
     localStorage.setItem('station', JSON.stringify(stationData));
@@ -73,6 +80,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       station, stationToken, operator, operatorToken, staff,
+      viewGym, setViewGym,
       activeGymId, activeToken, isOperational, isStationMode,
       loginStation, clockIn, clockOut, logoutStation,
       login, logout,

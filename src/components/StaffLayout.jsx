@@ -36,10 +36,16 @@ function useIsMobile() {
 }
 
 export default function StaffLayout() {
-  const { logout, logoutStation, staff, station, operator, isStationMode, isOperational, clockIn, clockOut } = useAuth();
+  const { logout, logoutStation, staff, station, operator, isStationMode, isOperational, clockIn, clockOut, viewGym, setViewGym } = useAuth();
+  const [gyms, setGyms] = useState([]);
   // 管理員＝super_admin / gym_manager（依當前操作身份：值班 operator 優先，其次個人 staff）
   const isAdmin = ['super_admin', 'gym_manager'].includes(operator?.role || staff?.role);
   const isSuperAdmin = (operator?.role || staff?.role) === 'super_admin';
+  // 全域場館切換僅 super_admin：載入場館清單
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    import('../api/gyms').then(m => m.getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(() => {}));
+  }, [isSuperAdmin]);
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -128,6 +134,13 @@ export default function StaffLayout() {
             <span style={{ fontSize:isMobile?13:12, color:'#185FA5', background:'#E6F1FB', padding:'3px 8px', borderRadius:10 }}>
               {staff.name}
             </span>
+          )}
+          {isSuperAdmin && (
+            <select value={viewGym} onChange={e => setViewGym(e.target.value)} title="檢視場館（全站沿用）"
+              style={{ height:isMobile?30:26, borderRadius:8, border:'0.5px solid #C9A9A9', background:'#FBF5F5', color:'#8B1A1A', fontSize:isMobile?13:12, fontWeight:600, padding:'0 6px', outline:'none', cursor:'pointer' }}>
+              <option value="">🏛 全館</option>
+              {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
+            </select>
           )}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>

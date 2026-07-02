@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { searchMembers } from '../../api/members';
 import {
-  getMemberDiscountCards, purchaseDiscountCard,
+  getMemberDiscountCards, purchaseDiscountCard, bindDiscountCard,
   discountCardTransferPreview, transferDiscountCard,
   getMemberBlackCards, bindBlackCard,
   blackCardTransferPreview, transferBlackCard,
-  getMemberBonuses,
+  getMemberBonuses, getOutgoingTransfers, cancelCardTransfer,
 } from '../../api/cards';
 import dayjs from 'dayjs';
 
@@ -64,6 +64,8 @@ const MemberSearch = ({ onSelect, label='搜尋會員' }) => {
 // ── 優惠卡區塊 ────────────────────────────────────────────────────
 function DiscountCards({ member, cards, onRefresh }) {
   const [showBuy, setShowBuy] = useState(false);
+  const [showBind, setShowBind] = useState(false);
+  const [bindForm, setBindForm] = useState({ barcode:'', remainingCredits:'' });
   const [showTransfer, setShowTransfer] = useState(null);
   const [preview, setPreview] = useState(null);
   const [transferForm, setTransferForm] = useState({ toMember:null, credits:1 });
@@ -78,6 +80,18 @@ function DiscountCards({ member, cards, onRefresh }) {
       setShowBuy(false);
       onRefresh();
     } catch (e) { setMsg(e.response?.data?.message || '購買失敗'); }
+    finally { setLoading(false); }
+  };
+
+  const handleBind = async () => {
+    if (!bindForm.remainingCredits || parseInt(bindForm.remainingCredits) < 1) { setMsg('請輸入剩餘次數（至少 1）'); return; }
+    setLoading(true);
+    try {
+      await bindDiscountCard({ memberId: member.id, remainingCredits: parseInt(bindForm.remainingCredits), barcode: bindForm.barcode || undefined });
+      setMsg('優惠卡轉入成功！');
+      setShowBind(false); setBindForm({ barcode:'', remainingCredits:'' });
+      onRefresh();
+    } catch (e) { setMsg(e.response?.data?.message || '轉入失敗'); }
     finally { setLoading(false); }
   };
 
@@ -114,10 +128,16 @@ function DiscountCards({ member, cards, onRefresh }) {
 
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
         <div style={{ fontSize:12, fontWeight:600, color:'#6b6b6b' }}>優惠卡（{cards.length} 張有效）</div>
-        <button onClick={() => setShowBuy(true)}
-          style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>
-          ＋ 購買優惠卡
-        </button>
+        <div style={{ display:'flex', gap:6 }}>
+          <button onClick={() => { setShowBind(true); setBindForm({ barcode:'', remainingCredits:'' }); }}
+            style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:11, cursor:'pointer' }}>
+            🎫 轉入優惠卡
+          </button>
+          <button onClick={() => setShowBuy(true)}
+            style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>
+            ＋ 購買優惠卡
+          </button>
+        </div>
       </div>
 
       {cards.length === 0 ? (
@@ -126,13 +146,18 @@ function DiscountCards({ member, cards, onRefresh }) {
         <div key={c.id} style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:10, padding:14, color:'#fff', marginBottom:8, position:'relative', overflow:'hidden' }}>
           <div style={{ position:'absolute', right:-10, top:-10, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:50, opacity:.08, fontWeight:700 }}>RR</div>
           <div style={{ fontSize:10, opacity:.8, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>
-            {c.source === 'transferred' ? '移轉優惠卡' : '優惠卡'}
+            {c.source === 'transferred' ? '移轉優惠卡' : c.source === 'migrated' ? '轉入優惠卡' : '優惠卡'}
           </div>
           <div style={{ fontSize:28, fontWeight:700 }}>{c.remainingCredits} 次</div>
           <div style={{ fontSize:11, opacity:.75, marginTop:3 }}>
             有效至 {c.expiresAtFormatted}
             {c.isExpiringSoon && ' ⚠ 即將到期'}
           </div>
+          {c.bonusToOriginalOwner && (
+            <div style={{ marginTop:6, background:'rgba(255,255,255,.2)', borderRadius:6, padding:'4px 8px', fontSize:11 }}>
+              🎁 移轉取得，用完後紅利歸原購買者{c.originalOwnerName ? `「${c.originalOwnerName}」` : ''}
+            </div>
+          )}
           {c.bonusEarned && !c.bonusUsed && (
             <div style={{ background:'rgba(255,255,255,.2)', borderRadius:6, padding:'3px 8px', fontSize:11, marginTop:6, display:'inline-block' }}>
               🎁 紅利已解鎖
@@ -146,6 +171,32 @@ function DiscountCards({ member, cards, onRefresh }) {
           </div>
         </div>
       ))}
+
+      {/* 轉入 Modal（舊優惠卡轉入、設定剩餘次數）*/}
+      {showBind && (
+        <Modal title={`轉入優惠卡 — ${member.name}`} onClose={() => setShowBind(false)} width={400}>
+          <div style={{ fontSize:12, color:'#888', marginBottom:14, lineHeight:1.6 }}>
+            將既有（舊系統／實體）優惠卡轉入本系統並設定剩餘次數。轉入後即可 8 折入場、可移轉；用完（含移轉子卡累計）觸發紅利，與購買卡相同。有效期自轉入日起 1 年。
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>卡片條碼（選填）</label>
+            <input value={bindForm.barcode} onChange={e => setBindForm(f => ({ ...f, barcode:e.target.value }))}
+              placeholder="可手動輸入或留空" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>剩餘次數</label>
+            <input type="number" min={1} required value={bindForm.remainingCredits}
+              onChange={e => setBindForm(f => ({ ...f, remainingCredits:e.target.value }))}
+              placeholder="輸入卡片目前剩餘的八折入場次數" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setShowBind(false)}
+              style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <button onClick={handleBind} disabled={loading}
+              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>{loading ? '處理中...' : '確認轉入'}</button>
+          </div>
+        </Modal>
+      )}
 
       {/* 購買 Modal */}
       {showBuy && (
@@ -400,16 +451,24 @@ export default function CardsPage({ embedded = false }) {
   const [discountCards, setDiscountCards] = useState([]);
   const [blackCards, setBlackCards] = useState([]);
   const [bonuses, setBonuses] = useState([]);
+  const [pendingXfers, setPendingXfers] = useState([]);
 
   const loadCards = async (m) => {
-    const [dc, bc, bn] = await Promise.all([
+    const [dc, bc, bn, px] = await Promise.all([
       getMemberDiscountCards(m.id),
       getMemberBlackCards(m.id),
       getMemberBonuses(m.id),
+      getOutgoingTransfers(m.id).catch(() => ({ data: { transfers: [] } })),
     ]);
     setDiscountCards(dc.data.cards || []);
     setBlackCards(bc.data.cards || []);
     setBonuses(bn.data.bonuses || []);
+    setPendingXfers(px.data.transfers || []);
+  };
+
+  const handleCancelXfer = async (t) => {
+    try { await cancelCardTransfer(t.id); await loadCards(member); }
+    catch (e) { alert(e?.response?.data?.message || '取消失敗'); }
   };
 
   const handleSelectMember = async (m) => {
@@ -429,6 +488,22 @@ export default function CardsPage({ embedded = false }) {
           </div>
         )}
       </div>
+
+      {member && pendingXfers.length > 0 && (
+        <div style={{ background:'#FFF6E9', border:'1px solid #E0C08A', borderRadius:12, padding:16, marginBottom:16 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:'#854F0B', marginBottom:10 }}>🔄 移轉中（待對方接收，可取消回沖）</div>
+          {pendingXfers.map(t => (
+            <div key={t.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, padding:'10px 12px', background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:8, marginBottom:8 }}>
+              <div style={{ fontSize:13 }}>
+                <span style={{ fontWeight:600 }}>{t.cardType === 'black' ? '黑卡' : '優惠卡'} {t.credits} 次</span> → {t.toMemberName || '對方'}
+                <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{t.expiresAtISO ? dayjs(t.expiresAtISO).format('MM/DD HH:mm') : ''} 前未接收將自動回沖</div>
+              </div>
+              <button onClick={() => handleCancelXfer(t)}
+                style={{ height:30, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>取消</button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {member && (
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>

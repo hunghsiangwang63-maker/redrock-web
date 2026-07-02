@@ -15,6 +15,10 @@ export const updateProduct = (id, data) =>
 export const deleteProduct = (id) =>
   client.delete(`/products/${id}`);
 
+// 永久刪除（限管理員）
+export const deleteProductPermanent = (id) =>
+  client.delete(`/products/${id}/permanent`);
+
 export const restockProduct = (id, data) =>
   client.post(`/products/${id}/restock`, data);
 
@@ -26,3 +30,6 @@ export const sellProducts = (data) =>
 
 export const getProductSales = (params) =>
   client.get('/products/sales', { params });
+
+export const returnSale = (saleId, reason) =>
+  client.post(`/products/sales/${saleId}/return`, { reason });

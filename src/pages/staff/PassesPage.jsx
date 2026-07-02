@@ -40,7 +40,7 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 export default function PassesPage() {
-  const { staff, operator } = useAuth();
+  const { staff, operator, viewGym } = useAuth();
   const canManagePass = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -135,11 +135,12 @@ export default function PassesPage() {
 
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3000); };
 
-  const loadPassTypes = () => getPassTypes().then(r => setPassTypes(r.data.passTypes || []));
+  // super_admin 帶頂部選定的檢視場館（viewGym）；一般員工由後端以自身館別過濾（忽略此值）
+  const loadPassTypes = () => getPassTypes(viewGym).then(r => setPassTypes(r.data.passTypes || []));
 
   useEffect(() => {
     loadPassTypes();
-  }, []);
+  }, [viewGym]);
 
   useEffect(() => {
     if (tab === 'holiday') loadGymsForHoliday();

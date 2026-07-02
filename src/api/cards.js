@@ -5,6 +5,8 @@ export const getMemberDiscountCards = (memberId) =>
   client.get(`/cards/discount/member/${memberId}`);
 export const purchaseDiscountCard = (data) =>
   client.post('/cards/discount/purchase', data);
+export const bindDiscountCard = (data) =>
+  client.post('/cards/discount/bind', data);
 export const discountCardTransferPreview = (cardId, data) =>
   client.post(`/cards/discount/${cardId}/transfer-preview`, data);
 export const transferDiscountCard = (cardId, data) =>
@@ -18,6 +20,20 @@ export const blackCardTransferPreview = (cardId, data) =>
   client.post(`/cards/black/${cardId}/transfer-preview`, data);
 export const transferBlackCard = (cardId, data) =>
   client.post(`/cards/black/${cardId}/transfer`, data);
+
+// 卡片移轉（兩段式）
+export const getOutgoingTransfers = (memberId) =>
+  client.get(`/cards/transfers/outgoing/${memberId}`);
+export const cancelCardTransfer = (transferId) =>
+  client.post(`/cards/transfers/${transferId}/cancel`, {});
+export const memberGetIncomingTransfers = () =>
+  memberClient.get('/cards/transfers/incoming');
+export const memberAcceptTransfer = (transferId) =>
+  memberClient.post(`/cards/transfers/${transferId}/accept`, {});
+export const memberGetOutgoingTransfers = () =>
+  memberClient.get('/cards/transfers/outgoing');
+export const memberCancelTransfer = (transferId) =>
+  memberClient.post(`/cards/transfers/${transferId}/cancel`, {});
 
 export const getMemberBonuses = (memberId) =>
   client.get(`/cards/bonus/member/${memberId}`);

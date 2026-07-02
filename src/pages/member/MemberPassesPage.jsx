@@ -26,23 +26,62 @@ const BottomNav = ({ navigate }) => (
 );
 
 // 移轉 Modal
-function TransferModal({ ticket, ticketType, onClose, memberName }) {
+function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [success, setSuccess] = useState(false);
+  // 優惠卡/黑卡：走新版兩段式，可設定移轉次數
+  const isCreditCard = ticketType === 'discount_card' || ticketType === 'black_card';
+  const maxCredits = ticket.remainingCredits || 1;
+  const [credits, setCredits] = useState(1);
+  // 輸入電話即時帶出受贈者姓名（確認用）
+  const [recipient, setRecipient] = useState(null); // { found, self, name } | null
+  const [looking, setLooking] = useState(false);
+
+  useEffect(() => {
+    if (!phone || phone.length < 10) { setRecipient(null); return; }
+    let cancelled = false;
+    setLooking(true);
+    const t = setTimeout(async () => {
+      try {
+        const res = await memberClient.get('/cards/transfers/lookup', { params: { phone } });
+        if (!cancelled) setRecipient(res.data);
+      } catch { if (!cancelled) setRecipient({ found: false }); }
+      finally { if (!cancelled) setLooking(false); }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [phone]);
 
   const handleTransfer = async () => {
     if (!phone || phone.length < 10) { setMsg('請輸入有效手機號碼'); return; }
+    if (!recipient?.found) { setMsg('查無此手機號碼的會員'); return; }
+    if (recipient.self) { setMsg('不能移轉給自己'); return; }
+    if (isCreditCard) {
+      const c = parseInt(credits);
+      if (!c || c < 1 || c > maxCredits) { setMsg(`移轉次數需介於 1 ～ ${maxCredits}`); return; }
+    }
     setLoading(true);
     try {
-      await memberClient.post('/ticket-transfers/request', {
-        ticketType,
-        ticketId: ticket.id,
-        targetPhone: phone,
-      });
+      if (isCreditCard) {
+        // 新版兩段式：暫扣→對方於會員 App 接收（24h 未接收自動回沖）
+        await memberClient.post('/cards/transfers/initiate', {
+          cardType: ticketType === 'black_card' ? 'black' : 'discount',
+          fromCardId: ticket.id,
+          toPhone: phone,
+          credits: parseInt(credits),
+        });
+      } else {
+        // 紅利/單次券：整張移轉（舊流程）
+        await memberClient.post('/ticket-transfers/request', {
+          ticketType,
+          ticketId: ticket.id,
+          targetPhone: phone,
+        });
+      }
       setSuccess(true);
       setMsg('移轉申請已送出，等待對方確認');
+      onDone?.();
     } catch (e) {
       setMsg(e.response?.data?.message || '申請失敗');
     } finally { setLoading(false); }
@@ -52,8 +91,8 @@ function TransferModal({ ticket, ticketType, onClose, memberName }) {
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
       <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', width:'100%' }}>
         <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-        <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>申請票券移轉</div>
-        <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>移轉後對方需在 24 小時內確認，到期日依票券規則計算</div>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>{isCreditCard ? '移轉卡片次數' : '申請票券移轉'}</div>
+        <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>移轉後對方需在 24 小時內接收，逾期自動回沖；到期日依票券規則計算</div>
         {success ? (
           <div style={{ background:'#E6F4EB', borderRadius:12, padding:16, textAlign:'center', marginBottom:16 }}>
             <div style={{ fontSize:24, marginBottom:8 }}>✅</div>
@@ -62,17 +101,42 @@ function TransferModal({ ticket, ticketType, onClose, memberName }) {
           </div>
         ) : (
           <>
+            {isCreditCard && (
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>移轉次數（剩餘 {maxCredits} 次）</label>
+                <input type="number" min={1} max={maxCredits} value={credits}
+                  onChange={e => setCredits(e.target.value)}
+                  style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              </div>
+            )}
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>對方手機號碼</label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                 placeholder="0912345678" maxLength={10}
                 style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              {/* 即時帶出受贈者姓名 */}
+              {phone.length >= 10 && (
+                looking ? (
+                  <div style={{ fontSize:13, color:'#999', marginTop:8 }}>查詢中…</div>
+                ) : recipient?.self ? (
+                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>⚠ 這是你自己的號碼，不能移轉給自己</div>
+                ) : recipient?.found ? (
+                  <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>✅ 接收人：{recipient.name}</div>
+                ) : (
+                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的會員</div>
+                )
+              )}
             </div>
             {msg && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#A32D2D', marginBottom:12 }}>{msg}</div>}
-            <button onClick={handleTransfer} disabled={loading}
-              style={{ width:'100%', height:50, borderRadius:14, background: loading?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: loading?'not-allowed':'pointer', marginBottom:10 }}>
-              {loading ? '送出中...' : '確認申請移轉'}
-            </button>
+            {(() => {
+              const canSend = !loading && recipient?.found && !recipient?.self;
+              return (
+                <button onClick={handleTransfer} disabled={!canSend}
+                  style={{ width:'100%', height:50, borderRadius:14, background: canSend?'#8B1A1A':'#ccc', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: canSend?'pointer':'not-allowed', marginBottom:10 }}>
+                  {loading ? '送出中...' : (isCreditCard ? `確認移轉 ${credits} 次${recipient?.name ? ` 給 ${recipient.name}` : ''}` : '確認申請移轉')}
+                </button>
+              );
+            })()}
           </>
         )}
         <button onClick={onClose}
@@ -154,6 +218,9 @@ export default function MemberPassesPage() {
   const [bonuses, setBonuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('passes');
+  const [xferIn, setXferIn] = useState([]);   // 待接收的卡片移轉
+  const [xferOut, setXferOut] = useState([]); // 我送出的移轉中
+  const [xferBusy, setXferBusy] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [selectedTicketType, setSelectedTicketType] = useState(null);
   const [showTransfer, setShowTransfer] = useState(false);
@@ -191,7 +258,42 @@ export default function MemberPassesPage() {
       const bonusList = (dc.data.cards || []).filter(c => c.bonusEarned && !c.bonusUsed);
       setBonuses(bonusList);
     }).catch(() => {}).finally(() => setLoading(false));
+    loadTransfers();
   }, [member]);
+
+  const loadTransfers = async () => {
+    if (!member) return;
+    try {
+      const [inc, out] = await Promise.all([
+        memberClient.get('/cards/transfers/incoming').catch(() => ({ data: { transfers: [] } })),
+        memberClient.get('/cards/transfers/outgoing').catch(() => ({ data: { transfers: [] } })),
+      ]);
+      setXferIn(inc.data.transfers || []);
+      setXferOut(out.data.transfers || []);
+    } catch (e) {}
+  };
+  const reloadCards = async () => {
+    if (!member) return;
+    const [dc, bc] = await Promise.all([
+      memberClient.get(`/cards/discount/member/${member.id}`).catch(() => ({ data: { cards: [] } })),
+      memberClient.get(`/cards/black/member/${member.id}`).catch(() => ({ data: { cards: [] } })),
+    ]);
+    setDiscountCards(dc.data.cards || []); setBlackCards(bc.data.cards || []);
+  };
+  const acceptXfer = async (t) => {
+    setXferBusy(true);
+    try { await memberClient.post(`/cards/transfers/${t.id}/accept`, {}); setMsg('已接收，次數已入卡'); await loadTransfers(); await reloadCards(); }
+    catch (e) { setMsg(e?.response?.data?.message || '接收失敗'); }
+    finally { setXferBusy(false); }
+  };
+  const cancelXfer = async (t) => {
+    setXferBusy(true);
+    try { await memberClient.post(`/cards/transfers/${t.id}/cancel`, {}); setMsg('已取消移轉，次數已回沖'); await loadTransfers(); await reloadCards(); }
+    catch (e) { setMsg(e?.response?.data?.message || '取消失敗'); }
+    finally { setXferBusy(false); }
+  };
+  const cardLabel = (ty) => ty === 'black' ? '黑卡' : '優惠卡';
+  const xferDeadline = (iso) => iso ? dayjs(iso).format('MM/DD HH:mm') : '';
 
   const passStatus = (p) => {
     if (p.status === 'cancelled') return { color:'#999', label:'已取消', bg:'#F0EDED' };
@@ -291,6 +393,40 @@ export default function MemberPassesPage() {
         <div style={{ margin:'12px 16px 0', background:'#E6F4EB', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#2D7D46' }}>{msg}</div>
       )}
 
+      {/* 待接收的卡片移轉 */}
+      {xferIn.length > 0 && (
+        <div style={{ margin:'12px 16px 0' }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>🎁 待接收的卡片移轉</div>
+          {xferIn.map(t => (
+            <div key={t.id} style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+              <div style={{ fontSize:13, color:'#1a1a1a' }}>
+                <div style={{ fontWeight:600 }}>{cardLabel(t.cardType)} {t.credits} 次</div>
+                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>來自 {t.fromMemberName || '會員'} · 請於 {xferDeadline(t.expiresAtISO)} 前接收</div>
+              </div>
+              <button onClick={() => acceptXfer(t)} disabled={xferBusy}
+                style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>接收</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 我送出的移轉中（可取消） */}
+      {xferOut.length > 0 && (
+        <div style={{ margin:'12px 16px 0' }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#854F0B', marginBottom:6 }}>🔄 移轉中（我送出）</div>
+          {xferOut.map(t => (
+            <div key={t.id} style={{ background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+              <div style={{ fontSize:13, color:'#1a1a1a' }}>
+                <div style={{ fontWeight:600 }}>{cardLabel(t.cardType)} {t.credits} 次 → {t.toMemberName || '對方'}</div>
+                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>待接收 · {xferDeadline(t.expiresAtISO)} 前未接收將自動回沖</div>
+              </div>
+              <button onClick={() => cancelXfer(t)} disabled={xferBusy}
+                style={{ height:34, padding:'0 14px', borderRadius:8, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>取消</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ padding:16 }}>
         {loading ? <div style={{ textAlign:'center', padding:40, color:'#999' }}>載入中...</div> : (
           <>
@@ -339,11 +475,16 @@ export default function MemberPassesPage() {
               <div key={c.id} onClick={() => handleTicketClick(c, 'discount_card')}
                 style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer' }}>
                 <div style={{ position:'absolute', right:-15, top:-15, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:70, opacity:.07, fontWeight:700 }}>RR</div>
-                <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>優惠卡{c.isExpiringSoon && ' ⚠ 即將到期'}</div>
+                <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>{c.source === 'transferred' ? '移轉優惠卡' : '優惠卡'}{c.isExpiringSoon && ' ⚠ 即將到期'}</div>
                 <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
                 <div style={{ fontSize:12, opacity:.75 }}>有效至 {c.expiresAtFormatted}</div>
                 <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${(c.remainingCredits/10)*100}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
                 <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}><span>已使用 {10 - c.remainingCredits} 次</span><span>剩餘 {c.remainingCredits}/10</span></div>
+                {c.bonusToOriginalOwner && (
+                  <div style={{ marginTop:8, background:'rgba(255,255,255,.18)', borderRadius:8, padding:'6px 10px', fontSize:11, lineHeight:1.5 }}>
+                    🎁 此卡由{c.originalOwnerName ? `「${c.originalOwnerName}」` : '原購買者'}移轉，全部次數用完後紅利歸原購買者所有
+                  </div>
+                )}
                 <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>點擊查看詳情 →</div>
               </div>
             )))}
@@ -421,6 +562,7 @@ export default function MemberPassesPage() {
           ticketType={selectedTicketType}
           memberName={member?.name}
           onClose={() => { setShowTransfer(false); setSelectedTicket(null); }}
+          onDone={() => { loadTransfers(); reloadCards(); }}
         />
       )}
 

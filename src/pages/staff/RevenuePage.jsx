@@ -17,9 +17,10 @@ const PAYMENT_LABEL = {
 };
 
 export default function RevenuePage({ embedded = false }) {
-  const { staff } = useAuth();
+  const { staff, viewGym } = useAuth();
   const [tab, setTab] = useState('overview');
-  const [selectedGymId, setSelectedGymId] = useState(staff?.gymId || 'gym-hsinchu');
+  // 場館由頂部全域選擇器控制；營收屬報表類，「全館」(viewGym='') → undefined → 後端彙整所有館
+  const gymFilter = staff?.role === 'super_admin' ? (viewGym || undefined) : (staff?.gymId || undefined);
   const [summary, setSummary] = useState(null);
   const [daily, setDaily] = useState([]);
   const [checkinDaily, setCheckinDaily] = useState([]);
@@ -27,15 +28,15 @@ export default function RevenuePage({ embedded = false }) {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
 
-  useEffect(() => { loadAll(); }, [days, selectedGymId]);
+  useEffect(() => { loadAll(); }, [days, gymFilter]);
 
   const loadAll = async () => {
     setLoading(true);
     try {
       const [sumRes, dailyRes, checkinRes] = await Promise.all([
-        getRevenueSummary(selectedGymId),
-        getDailyReport({ days, gymId: selectedGymId }),
-        getCheckinStats({ days, gymId: selectedGymId }),
+        getRevenueSummary(gymFilter),
+        getDailyReport({ days, gymId: gymFilter }),
+        getCheckinStats({ days, gymId: gymFilter }),
       ]);
       setSummary(sumRes.data);
       setDaily(dailyRes.data.daily || []);
@@ -76,11 +77,9 @@ export default function RevenuePage({ embedded = false }) {
       {/* Tab + 天數選擇 */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         {staff?.role === 'super_admin' && (
-          <select value={selectedGymId} onChange={e => setSelectedGymId(e.target.value)}
-            style={{ height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, background:'#fff', marginRight:8 }}>
-            <option value="gym-hsinchu">新竹館</option>
-            <option value="gym-shilin">士林館</option>
-          </select>
+          <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginRight:8, whiteSpace:'nowrap' }}>
+            {viewGym === 'gym-hsinchu' ? '新竹館' : viewGym === 'gym-shilin' ? '士林館' : '🏛 全館彙整'}
+          </span>
         )}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>

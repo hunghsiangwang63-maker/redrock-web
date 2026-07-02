@@ -7,3 +7,5 @@ export const createShift = (data) => client.post('/schedule', data);
 export const createRecurringShifts = (data) => client.post('/schedule/recurring', data);
 export const updateShift = (shiftId, data) => client.put(`/schedule/${shiftId}`, data);
 export const deleteShift = (shiftId) => client.delete(`/schedule/${shiftId}`);
+export const clearMonthSchedule = (gymId, month) => client.post('/schedule/clear-month', { gymId, month });
+export const copyPreviousMonthSchedule = (gymId, month) => client.post('/schedule/copy-previous', { gymId, month });

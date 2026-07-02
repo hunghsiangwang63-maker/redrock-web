@@ -1,7 +1,7 @@
 import client, { memberClient } from './client';
 
 // 定期票
-export const getPassTypes = () => client.get('/passes/types');
+export const getPassTypes = (gymId) => client.get('/passes/types', { params: gymId ? { gymId } : {} });
 export const getMemberPasses = (memberId) => client.get(`/passes/member/${memberId}`);
 export const getMemberPassesAsMember = (memberId) => memberClient.get(`/passes/member/${memberId}`);
 export const createPass = (data) => client.post('/passes', data);

@@ -18,11 +18,11 @@ const ENTRY_TYPE_LABEL = {
 const PAYMENT_LABEL = { cash:'現金', linepay:'Line Pay', jkopay:'街口支付', taiwanpay:'台灣 Pay' };
 
 export default function CheckinPage() {
-  const { staff, activeGymId } = useAuth();
+  const { staff, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
   const [gyms, setGyms] = useState([]);
-  const [selectedGymId, setSelectedGymId] = useState('');
-  const targetGymId = activeGymId || staff?.gymId || (isSuperAdmin ? selectedGymId : '');
+  // 場館由頂部全域選擇器控制；入場屬操作類，super_admin 個人登入時「全館」退回第一個館
+  const targetGymId = activeGymId || staff?.gymId || (isSuperAdmin ? (viewGym || gyms[0]?.id || '') : '');
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
@@ -37,11 +37,7 @@ export default function CheckinPage() {
 
   useEffect(() => {
     if (isSuperAdmin && !activeGymId && !staff?.gymId) {
-      getGyms().then(res => {
-        const list = res.data.gyms || [];
-        setGyms(list);
-        if (!selectedGymId && list.length > 0) setSelectedGymId(list[0].id);
-      }).catch(() => {});
+      getGyms().then(res => setGyms(res.data.gyms || [])).catch(() => {});
     }
   }, [isSuperAdmin, activeGymId]);
 
@@ -380,11 +376,8 @@ export default function CheckinPage() {
 
           {isSuperAdmin && !activeGymId && !staff?.gymId && gyms.length > 0 && (
             <div style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 16px', background:'#FFFBF0', borderBottom:'0.5px solid #F0D9A8' }}>
-              <span style={{ fontSize:12, color:selectedGymId ? '#2D7D46' : '#854F0B' }}>{selectedGymId ? '✅ 已選擇館別' : '⚠ 請選擇操作館別：'}</span>
-              <select value={selectedGymId} onChange={e => setSelectedGymId(e.target.value)}
-                style={{ height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}>
-                {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
-              </select>
+              <span style={{ fontSize:12, color:'#854F0B' }}>操作館別：<b style={{ color:'#8B1A1A' }}>{gyms.find(g => g.id === targetGymId)?.shortName || gyms.find(g => g.id === targetGymId)?.name || targetGymId}</b></span>
+              <span style={{ fontSize:11, color:'#999' }}>{viewGym ? '（依上方場館選擇）' : '（上方為「全館」，入場預設此館；如需其他館請於上方切換）'}</span>
             </div>
           )}
 
@@ -615,7 +608,7 @@ export default function CheckinPage() {
                     const inst = memberEligibility?.instruments || {};
                     const basePrice = entryTypes.find(t => t.id === phoneEntryType)?.price || 0;
                     const opts = [{ key:'pay', kind:null, type:null, label:'一般付款' }];
-                    if (inst.discountCard?.available) opts.push({ key:'discountCard', kind:'discountCard', type:'discount_card', label:`優惠券8折 NT$${Math.round(basePrice*(inst.discountCard.rate||0.8))}`, cardId: inst.discountCard.cards[0]?.id });
+                    if (inst.discountCard?.available) opts.push({ key:'discountCard', kind:'discountCard', type:'discount_card', label:`${inst.discountCard.teamStacked ? '優惠券8折+隊員9折' : '優惠券8折'} NT$${Math.round(basePrice*(inst.discountCard.rate||0.8))}`, cardId: inst.discountCard.cards[0]?.id });
                     if (inst.blackCard?.available) opts.push({ key:'blackCard', kind:'blackCard', type:'black_card', label:'黑卡（免費）', cardId: inst.blackCard.cards[0]?.id });
                     if (inst.bonus?.available) opts.push({ key:'bonus', kind:'bonus', type:'bonus', label:'紅利（免費）', cardId: inst.bonus.bonuses[0]?.id });
                     if (inst.singleEntryTicket?.available) opts.push({ key:'ticket', kind:'singleEntryTicket', type:'single_entry_ticket', label:'單次入場券（免費）', cardId: inst.singleEntryTicket.tickets[0]?.id });

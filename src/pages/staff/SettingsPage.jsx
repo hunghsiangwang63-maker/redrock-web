@@ -3,6 +3,7 @@ import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import { getGyms, getAllGyms } from '../../api/gyms';
 import { getStaffList, createStaff, updateStaff, resetStaffPassword, toggleStaffActive, deleteStaff } from '../../api/staff';
+import { getStations, createStation, updateStation } from '../../api/stations';
 import SaveButton from '../../components/SaveButton';
 import GymsPage from './GymsPage';
 
@@ -65,6 +66,34 @@ export default function SettingsPage() {
   const [resettingPasswordFor, setResettingPasswordFor] = useState(null);
   const [resetPasswordValue, setResetPasswordValue] = useState('');
 
+  // ─── 館別電腦帳號 ───────────────────────────────────────────────
+  const [stationList, setStationList] = useState([]);
+  const [stationLoading, setStationLoading] = useState(false);
+  const [showStationForm, setShowStationForm] = useState(false);
+  const [editingStation, setEditingStation] = useState(null);
+  const [stationForm, setStationForm] = useState({ name:'', email:'', gymId:'', notificationEmail:'', password:'' });
+  const [stationSaving, setStationSaving] = useState(false);
+  const [stationFormMsg, setStationFormMsg] = useState('');
+
+  // ─── 裝置綁定總開關（super_admin）───────────────────────────────
+  const [deviceBindingEnabled, setDeviceBindingEnabled] = useState(true);
+  const [deviceBindingSaving, setDeviceBindingSaving] = useState(false);
+  const loadDeviceBinding = async () => {
+    try { const res = await client.get('/settings/device-binding'); setDeviceBindingEnabled(res.data.enabled !== false); }
+    catch (e) {}
+  };
+  const toggleDeviceBinding = async () => {
+    const next = !deviceBindingEnabled;
+    if (!next && !window.confirm('確定關閉裝置綁定？關閉後，員工個人帳號與館別電腦登入將不再需要裝置驗證（僅測試/轉換期使用，完成後請重新開啟）。')) return;
+    setDeviceBindingSaving(true);
+    try {
+      await client.put('/settings/device-binding', { enabled: next });
+      setDeviceBindingEnabled(next);
+      showMsg(next ? '已開啟裝置綁定' : '已關閉裝置綁定');
+    } catch (e) { showMsg(e.response?.data?.message || '設定失敗'); }
+    finally { setDeviceBindingSaving(false); }
+  };
+
   const loadStaffList = async () => {
     setStaffLoading(true);
     try {
@@ -74,10 +103,54 @@ export default function SettingsPage() {
     finally { setStaffLoading(false); }
   };
 
+  const loadStationList = async () => {
+    setStationLoading(true);
+    try {
+      const res = await getStations();
+      setStationList(res.data.stations || []);
+    } catch (e) { setStationList([]); }
+    finally { setStationLoading(false); }
+  };
+
   useEffect(() => {
-    if (activeTab === 'staffAccounts' && isSuperAdmin) loadStaffList();
+    if (activeTab === 'staffAccounts' && isSuperAdmin) { loadStaffList(); loadStationList(); loadDeviceBinding(); }
     if (activeTab === 'gyms') getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(()=>{});
   }, [activeTab]);
+
+  const openAddStation = () => {
+    setEditingStation(null);
+    setStationForm({ name:'', email:'', gymId: gyms[0]?.id || '', notificationEmail:'', password:'' });
+    setStationFormMsg('');
+    setShowStationForm(true);
+  };
+  const openEditStation = (st) => {
+    setEditingStation(st);
+    setStationForm({ name:st.name||'', email:st.email||'', gymId:st.gymId||'', notificationEmail:st.notificationEmail||'', password:'' });
+    setStationFormMsg('');
+    setShowStationForm(true);
+  };
+  const handleSaveStation = async () => {
+    if (!stationForm.name.trim() || !stationForm.email.trim() || !stationForm.gymId) { setStationFormMsg('請填寫名稱、Email 與館別'); return; }
+    if (!editingStation && stationForm.password.length < 6) { setStationFormMsg('密碼至少 6 碼'); return; }
+    if (editingStation && stationForm.password && stationForm.password.length < 6) { setStationFormMsg('密碼至少 6 碼'); return; }
+    setStationSaving(true); setStationFormMsg('');
+    try {
+      if (editingStation) {
+        const payload = { name: stationForm.name, gymId: stationForm.gymId, notificationEmail: stationForm.notificationEmail };
+        if (stationForm.password) payload.password = stationForm.password;
+        await updateStation(editingStation.id, payload);
+      } else {
+        await createStation(stationForm);
+      }
+      setShowStationForm(false);
+      await loadStationList();
+    } catch (e) {
+      setStationFormMsg(e?.response?.data?.message || '儲存失敗');
+    } finally { setStationSaving(false); }
+  };
+  const handleToggleStation = async (st) => {
+    try { await updateStation(st.id, { isActive: !st.isActive }); await loadStationList(); } catch (e) {}
+  };
 
   const openAddStaff = () => {
     setEditingStaff(null);
@@ -658,6 +731,33 @@ export default function SettingsPage() {
         </div>
       )}
 
+      {/* ── 裝置綁定總開關 ── */}
+      {activeTab === 'staffAccounts' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🔒 裝置綁定</span>
+          </div>
+          <div style={{ padding:'14px 4px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:16 }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:14, fontWeight:500 }}>強制裝置驗證</div>
+              <div style={{ fontSize:12, color:'#888', marginTop:3, lineHeight:1.6 }}>
+                開啟後，員工個人帳號與館別電腦於新裝置首次登入須經 Email 驗證碼／管理員核准（系統管理員不受限）。
+                測試或系統轉換期可暫時關閉；完成後請務必重新開啟。
+              </div>
+            </div>
+            <button onClick={toggleDeviceBinding} disabled={deviceBindingSaving}
+              title={deviceBindingEnabled ? '點擊關閉' : '點擊開啟'}
+              style={{ position:'relative', width:52, height:30, borderRadius:15, border:'none', flexShrink:0,
+                background: deviceBindingEnabled ? '#2D7D46' : '#C0B8B8', cursor: deviceBindingSaving ? 'wait' : 'pointer', transition:'background .2s' }}>
+              <span style={{ position:'absolute', top:3, left: deviceBindingEnabled ? 25 : 3, width:24, height:24, borderRadius:'50%', background:'#fff', transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,.3)' }}/>
+            </button>
+          </div>
+          <div style={{ padding:'8px 12px', borderRadius:8, background: deviceBindingEnabled ? '#E6F4EB' : '#FCEBEB', fontSize:12, color: deviceBindingEnabled ? '#2D7D46' : '#A32D2D' }}>
+            目前狀態：{deviceBindingEnabled ? '✅ 已開啟（登入須裝置驗證）' : '⚠ 已關閉（登入不驗證裝置，僅測試/轉換期）'}
+          </div>
+        </div>
+      )}
+
       {/* ── 員工帳號 ── */}
       {activeTab === 'staffAccounts' && isSuperAdmin && (
         <div style={s.card}>
@@ -701,6 +801,71 @@ export default function SettingsPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* ── 館別電腦帳號 ── */}
+      {activeTab === 'staffAccounts' && isSuperAdmin && (
+        <div style={{ ...s.card, marginTop:16 }}>
+          <div style={s.cardHead}>
+            <span>🖥️ 館別電腦帳號</span>
+            <button onClick={openAddStation} style={s.btnPrimary}>＋ 新增電腦帳號</button>
+          </div>
+          <div style={{ fontSize:12, color:'#888', margin:'0 0 10px', lineHeight:1.6 }}>
+            館別電腦以此帳號長期登入（前台固定電腦），員工再於其上打卡值班。結帳、退費審核等須由此電腦打卡後操作。
+          </div>
+          {stationLoading ? (
+            <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>載入中...</div>
+          ) : stationList.length === 0 ? (
+            <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>尚無館別電腦帳號</div>
+          ) : (
+            stationList.map(st => (
+              <div key={st.id} style={s.row}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:14, display:'flex', alignItems:'center', gap:8 }}>
+                    {st.name}
+                    <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>{gyms.find(g=>g.id===st.gymId)?.name || st.gymName || st.gymId}</span>
+                    {!st.isActive && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>已停用</span>}
+                  </div>
+                  <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{st.email}</div>
+                </div>
+                <div style={{ display:'flex', gap:6 }}>
+                  <button onClick={() => openEditStation(st)} style={{ height:30, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>編輯</button>
+                  <button onClick={() => handleToggleStation(st)}
+                    style={{ height:30, padding:'0 12px', borderRadius:7, background:'#fff', border:`0.5px solid ${st.isActive?'#A32D2D':'#2D7D46'}`, color: st.isActive?'#A32D2D':'#2D7D46', fontSize:12, cursor:'pointer' }}>
+                    {st.isActive ? '停用' : '啟用'}
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* 新增/編輯館別電腦帳號 Modal */}
+      {showStationForm && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:440, maxWidth:'95vw', maxHeight:'88vh', overflowY:'auto', border:'0.5px solid #E8D5D5' }}>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:16 }}>{editingStation ? `編輯電腦帳號 — ${editingStation.name}` : '新增館別電腦帳號'}</div>
+            {stationFormMsg && <div style={{ background:'#FCEBEB', border:'0.5px solid #F09595', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#A32D2D' }}>{stationFormMsg}</div>}
+            <label style={s.label}>帳號名稱</label>
+            <input value={stationForm.name} onChange={e => setStationForm({ ...stationForm, name:e.target.value })} placeholder="如：新竹館電腦" style={s.input} />
+            <label style={s.label}>登入 Email{editingStation && <span style={{ color:'#999', fontWeight:400 }}>（不可修改）</span>}</label>
+            <input value={stationForm.email} disabled={!!editingStation} onChange={e => setStationForm({ ...stationForm, email:e.target.value })} placeholder="station@redrock.app" style={{ ...s.input, background: editingStation?'#F3F3F3':'#FBF5F5' }} />
+            <label style={s.label}>館別</label>
+            <select value={stationForm.gymId} onChange={e => setStationForm({ ...stationForm, gymId:e.target.value })} style={s.input}>
+              <option value="">請選擇館別</option>
+              {gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+            <label style={s.label}>通知 Email<span style={{ color:'#999', fontWeight:400 }}>（選填，新裝置驗證碼寄送用）</span></label>
+            <input value={stationForm.notificationEmail} onChange={e => setStationForm({ ...stationForm, notificationEmail:e.target.value })} placeholder="收驗證碼的真實信箱" style={s.input} />
+            <label style={s.label}>{editingStation ? '重設密碼（留空則不變）' : '密碼'}</label>
+            <input type="password" value={stationForm.password} onChange={e => setStationForm({ ...stationForm, password:e.target.value })} placeholder={editingStation ? '留空不修改' : '至少 6 碼'} style={s.input} />
+            <div style={{ display:'flex', gap:8, marginTop:18 }}>
+              <button onClick={() => setShowStationForm(false)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={handleSaveStation} disabled={stationSaving} style={{ ...s.btnPrimary, flex:2, height:40 }}>{stationSaving ? '儲存中...' : '儲存'}</button>
+            </div>
+          </div>
         </div>
       )}
 

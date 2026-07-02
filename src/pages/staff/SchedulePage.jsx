@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift } from '../../api/schedule';
+import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule } from '../../api/schedule';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -20,13 +20,13 @@ const WEEKDAYS = ['日','一','二','三','四','五','六'];
 const STAFF_COLORS = ['#8B1A1A','#185FA5','#2D7D46','#854F0B','#533AB7','#0F6E56','#A32D2D','#B5762B'];
 
 export default function SchedulePage() {
-  const { staff, activeGymId } = useAuth();
+  const { staff, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
   const canManage = ['super_admin', 'gym_manager'].includes(staff?.role);
 
   const [gyms, setGyms] = useState([]);
-  const [selectedGymId, setSelectedGymId] = useState(staff?.gymId || '');
-  const targetGymId = isSuperAdmin ? selectedGymId : (activeGymId || staff?.gymId);
+  // 場館由頂部全域選擇器控制；排班為單館檢視，「全館」退回第一個館
+  const targetGymId = isSuperAdmin ? (viewGym || gyms[0]?.id || '') : (activeGymId || staff?.gymId);
 
   const [month, setMonth] = useState(dayjs().format('YYYY-MM'));
   const [shifts, setShifts] = useState([]);
@@ -44,6 +44,33 @@ export default function SchedulePage() {
   const [editingShift, setEditingShift] = useState(null);
   const [shiftForm, setShiftForm] = useState({ staffId:'', date:'', type:'full_day', startTime:'10:00', endTime:'18:00', note:'' });
   const [saving, setSaving] = useState(false);
+  const [schedBusy, setSchedBusy] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+
+  const monthLabel = () => dayjs(`${month}-01`).format('YYYY年MM月');
+  const handleCopyPrevious = async () => {
+    if (!targetGymId) return;
+    const prev = dayjs(`${month}-01`).subtract(1, 'month').format('YYYY年MM月');
+    if (!window.confirm(`確定要把「${prev}」的排班以星期對應複製到「${monthLabel()}」？\n（本月現有排班會保留，整天班重複會自動略過）`)) return;
+    setSchedBusy(true);
+    try {
+      const res = await copyPreviousMonthSchedule(targetGymId, month);
+      showMsg(res.data.message || '已複製上月排班');
+      await loadData();
+    } catch (e) { showMsg(e?.response?.data?.message || '複製失敗', 'red'); }
+    finally { setSchedBusy(false); }
+  };
+  const handleClearMonth = async () => {
+    setConfirmClear(false);
+    if (!targetGymId) return;
+    setSchedBusy(true);
+    try {
+      const res = await clearMonthSchedule(targetGymId, month);
+      showMsg(res.data.message || '已清空本月排班');
+      await loadData();
+    } catch (e) { showMsg(e?.response?.data?.message || '清空失敗', 'red'); }
+    finally { setSchedBusy(false); }
+  };
 
   // 固定週班
   const [showRecurringModal, setShowRecurringModal] = useState(false);
@@ -70,11 +97,7 @@ export default function SchedulePage() {
 
   useEffect(() => {
     if (isSuperAdmin) {
-      getGyms().then(res => {
-        const list = res.data.gyms || [];
-        setGyms(list);
-        if (!selectedGymId && list.length > 0) setSelectedGymId(list[0].id);
-      }).catch(() => {});
+      getGyms().then(res => setGyms(res.data.gyms || [])).catch(() => {});
     }
   }, [isSuperAdmin]);
 
@@ -274,10 +297,9 @@ export default function SchedulePage() {
 
       <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:16, flexWrap:'wrap' }}>
         {isSuperAdmin && gyms.length > 0 && (
-          <select value={selectedGymId} onChange={e => setSelectedGymId(e.target.value)}
-            style={{ height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}>
-            {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
-          </select>
+          <span style={{ height:36, display:'inline-flex', alignItems:'center', padding:'0 12px', borderRadius:8, background:'#FBF5F5', border:'0.5px solid #E8D5D5', fontSize:13, color:'#8B1A1A', fontWeight:600 }}>
+            {gyms.find(g => g.id === targetGymId)?.shortName || gyms.find(g => g.id === targetGymId)?.name || targetGymId}{!viewGym && '（全館預設）'}
+          </span>
         )}
         <button onClick={() => setMonth(dayjs(`${month}-01`).subtract(1,'month').format('YYYY-MM'))}
           style={{ width:36, height:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:16, color:'#333', fontWeight:600 }}>‹</button>
@@ -286,6 +308,14 @@ export default function SchedulePage() {
           style={{ width:36, height:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:16, color:'#333', fontWeight:600 }}>›</button>
         <button onClick={() => setMonth(dayjs().format('YYYY-MM'))}
           style={{ height:36, padding:'0 12px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:12, color:'#666' }}>回到本月</button>
+        {canManage && (
+          <div style={{ display:'flex', gap:8, marginLeft:'auto' }}>
+            <button onClick={handleCopyPrevious} disabled={schedBusy}
+              style={{ height:36, padding:'0 14px', borderRadius:8, border:'0.5px solid #185FA5', background:'#fff', color:'#185FA5', cursor:'pointer', fontSize:12, fontWeight:500 }}>📋 複製上月排班</button>
+            <button onClick={() => setConfirmClear(true)} disabled={schedBusy}
+              style={{ height:36, padding:'0 14px', borderRadius:8, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', cursor:'pointer', fontSize:12, fontWeight:500 }}>🗑 清空本月排班</button>
+          </div>
+        )}
       </div>
 
       {canManage && staffList.length > 0 && (
@@ -296,6 +326,20 @@ export default function SchedulePage() {
               {s.name}
             </div>
           ))}
+        </div>
+      )}
+
+      {confirmClear && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:400, maxWidth:'95vw', border:'0.5px solid #E8D5D5' }}>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:10 }}>清空本月排班</div>
+            <div style={{ fontSize:14, color:'#1a1a1a', lineHeight:1.7, marginBottom:6 }}>確定要清空「<strong>{monthLabel()}</strong>」<strong style={{ color:'#A32D2D' }}>所有排班</strong>？</div>
+            <div style={{ fontSize:12, color:'#A32D2D', background:'#FBEEEE', border:'0.5px solid #E8C5C5', borderRadius:6, padding:'8px 10px', marginBottom:18 }}>⚠ 此動作無法復原，該館本月的排班將全部刪除。</div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setConfirmClear(false)} style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={handleClearMonth} style={{ flex:1, height:42, borderRadius:9, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確認清空</button>
+            </div>
+          </div>
         </div>
       )}
 
