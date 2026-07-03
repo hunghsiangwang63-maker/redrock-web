@@ -286,15 +286,15 @@ export default function MemberPassesPage() {
       memberClient.get(`/cards/legacy-discount/member/${member.id}`),
       memberClient.get(`/passes/single-entry/member/${member.id}`).catch(() => ({ data: { tickets: [] } })),
       getMyPassRequests(member.id).catch(() => ({ data: { requests: [] } })),
-    ]).then(([p, dc, bc, ldc, se, reqs]) => {
+      memberClient.get(`/cards/bonus/member/${member.id}`).catch(() => ({ data: { bonuses: [] } })),
+    ]).then(([p, dc, bc, ldc, se, reqs, bn]) => {
       setPasses(p.data.passes || []);
       setDiscountCards([...(dc.data.cards || []), ...(ldc.data.cards || [])]);
       setBlackCards(bc.data.cards || []);
       setSingleTickets(se.data.tickets || []);
       setMyRequests(reqs.data.requests || []);
-      // 紅利從 discount cards 衍生
-      const bonusList = (dc.data.cards || []).filter(c => c.bonusEarned && !c.bonusUsed);
-      setBonuses(bonusList);
+      // 紅利：讀真實 discountBonuses（後端已過濾過期/已用），非從優惠卡欄位衍生
+      setBonuses(bn.data.bonuses || []);
     }).catch(() => {}).finally(() => setLoading(false));
     loadTransfers();
   }, [member]);
