@@ -186,6 +186,10 @@ export default function MembersPage() {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [promotingChild, setPromotingChild] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);   // 刪除會員確認
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState('');
   const [promoteForm, setPromoteForm] = useState({ phone:'', email:'', password:'' });
   const [promoteMsg, setPromoteMsg] = useState('');
   const [promoteLoading, setPromoteLoading] = useState(false);
@@ -382,6 +386,37 @@ export default function MembersPage() {
     finally { setEditSaving(false); }
   };
 
+  // 下載會員名單（XLSX，含最後兩次入場時間）；super_admin 依頂部場館，否則鎖自己館
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const params = staff?.role === 'super_admin' && viewGym ? { gymId: viewGym } : {};
+      const res = await client.get('/members/download', { responseType: 'blob', params });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `members_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('下載失敗：' + (err.response?.data?.message || err.message));
+    } finally { setDownloading(false); }
+  };
+
+  // 刪除會員（僅 super_admin）：一併刪其子帳號
+  const handleDeleteMember = async () => {
+    if (!detail?.member?.id) return;
+    setDeleteLoading(true); setDeleteMsg('');
+    try {
+      const res = await client.delete('/members/' + detail.member.id);
+      const removedIds = [detail.member.id, ...(res.data?.deletedChildren || []).map(c => c.id)];
+      setMembers(prev => prev.filter(m => !removedIds.includes(m.id)));
+      setDeleteModal(false); setSelected(null); setDetail(null);
+    } catch (err) {
+      setDeleteMsg(err.response?.data?.message || '刪除失敗');
+    } finally { setDeleteLoading(false); }
+  };
+
     const openWaiverView = async () => {
     setModalMsg(''); setWaiverData(null);
     try {
@@ -499,6 +534,13 @@ export default function MembersPage() {
               style={{ height:40, padding:'0 18px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
               {loading ? '搜尋中...' : '搜尋'}
             </button>
+            {(staff?.role === 'super_admin' || staff?.role === 'gym_manager') && (
+              <button type="button" onClick={handleDownload} disabled={downloading}
+                title="下載會員名單（含最後兩次入場時間）"
+                style={{ height:40, padding:'0 14px', borderRadius:8, background:'#fff', color:'#6b6b6b', border:'1px solid #E8D5D5', fontSize:13, fontWeight:500, cursor: downloading?'wait':'pointer', whiteSpace:'nowrap' }}>
+                {downloading ? '下載中…' : '⬇ 下載名單'}
+              </button>
+            )}
           </form>
         </div>
 
@@ -739,9 +781,35 @@ export default function MembersPage() {
                 入場登記
               </button>
             </div>
+            {/* 刪除會員：僅系統管理員 */}
+            {staff?.role === 'super_admin' && (
+              <button onClick={() => { setDeleteMsg(''); setDeleteModal(true); }}
+                style={{ width:'100%', height:34, marginTop:8, borderRadius:8, border:'1px solid #E3B7B7', background:'none', fontSize:12, color:'#A32D2D', cursor:'pointer' }}>
+                刪除會員
+              </button>
+            )}
           </>
         ) : null}
       </div>
+
+      {deleteModal && detail?.member && (
+        <Modal title="刪除會員" onClose={() => !deleteLoading && setDeleteModal(false)}>
+          <div style={{ background:'#FCEBEB', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:13, color:'#A32D2D', lineHeight:1.7 }}>
+            確定要刪除會員 <strong>{detail.member.name}</strong>（{detail.member.phone}）嗎？<br/>
+            {(detail.children?.length > 0) && <>將<strong>一併刪除其 {detail.children.length} 位子帳號</strong>。<br/></>}
+            此動作無法復原；入場／交易／票券等歷史紀錄仍會保留。
+          </div>
+          {deleteMsg && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#A32D2D', marginBottom:12 }}>{deleteMsg}</div>}
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setDeleteModal(false)} disabled={deleteLoading}
+              style={{ flex:1, height:42, borderRadius:8, border:'1px solid #E8D5D5', background:'none', fontSize:13, color:'#444', cursor:'pointer' }}>取消</button>
+            <button onClick={handleDeleteMember} disabled={deleteLoading}
+              style={{ flex:1, height:42, borderRadius:8, background:'#A32D2D', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor: deleteLoading?'wait':'pointer' }}>
+              {deleteLoading ? '刪除中…' : '確認刪除'}
+            </button>
+          </div>
+        </Modal>
+      )}
 
       {promotingChild && (
         <Modal title={`升級為正式會員 — ${promotingChild.name}`} onClose={() => setPromotingChild(null)}>
