@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/courseCategories';
 import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
-         generateWeeklySessions, updateSession, deleteCourse, permanentDeleteCourse } from '../../api/courses';
+         generateWeeklySessions, updateSession, setSessionSubstitute, deleteCourse, permanentDeleteCourse } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
+import CoachSelect from '../../components/CoachSelect';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
@@ -66,6 +67,11 @@ export default function CoursesPage({ embedded = false }) {
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(null);
   const [rosterSession, setRosterSession] = useState(null);
+  // 代班教練
+  const [subSession, setSubSession] = useState(null);
+  const [subCoach, setSubCoach] = useState({ coachId: null, coachName: '' });
+  const [subReason, setSubReason] = useState('');
+  const [subSaving, setSubSaving] = useState(false);
   const [rosterData, setRosterData] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -137,6 +143,23 @@ export default function CoursesPage({ embedded = false }) {
   const [enrollMember, setEnrollMember] = useState(null);
   const [enrollPayment, setEnrollPayment] = useState('cash');
   const [enrollPaymentPlan, setEnrollPaymentPlan] = useState('full');
+
+  const openSubstitute = (s) => {
+    setSubSession(s);
+    setSubCoach({ coachId: s.coachId || null, coachName: s.instructor || '' });
+    setSubReason('');
+  };
+  const saveSubstitute = async () => {
+    if (!subCoach.coachName?.trim()) { showMsg('請選擇或輸入代班教練', 'red'); return; }
+    setSubSaving(true);
+    try {
+      await setSessionSubstitute(subSession.id, { coachId: subCoach.coachId || undefined, coachName: subCoach.coachName.trim(), reason: subReason.trim() });
+      showMsg('✅ 已設定代班教練並發送待辦提醒');
+      setSubSession(null);
+      loadCalendarSessions();
+    } catch (e) { showMsg(e.response?.data?.message || '設定失敗', 'red'); }
+    finally { setSubSaving(false); }
+  };
 
   const showMsg = (text, type='ok') => {
     setMsg(text); setMsgType(type);
@@ -636,6 +659,7 @@ export default function CoursesPage({ embedded = false }) {
                             <div style={{ fontWeight:600, fontSize:14 }}>{s.courseName}</div>
                             <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                               {s.startTime}～{s.endTime}{s.instructor ? ` · 👟 ${s.instructor}` : ''}
+                              {s.isSubstitute && <span style={{ marginLeft:6, fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:5, background:'#FFF3E0', color:'#B26A00' }}>代班{s.originalInstructor?`（原 ${s.originalInstructor}）`:''}</span>}
                             </div>
                           </div>
                           <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
@@ -645,6 +669,12 @@ export default function CoursesPage({ embedded = false }) {
                             {(s.makeupCount||0) > 0 && <Tag type="blue">補課 {s.makeupCount}</Tag>}
                             {(s.trialCount||0) > 0 && <Tag type="blue">試上 {s.trialCount}</Tag>}
                           </div>
+                        </div>
+                        <div style={{ marginTop:8, textAlign:'right' }}>
+                          <button onClick={e => { e.stopPropagation(); openSubstitute(s); }}
+                            style={{ height:26, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #B26A00', color:'#B26A00', fontSize:11, cursor:'pointer' }}>
+                            👟 {s.isSubstitute ? '更改代班' : '設定代班'}
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -1253,6 +1283,31 @@ export default function CoursesPage({ embedded = false }) {
             <button onClick={handleSaveEditSession}
               style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
               儲存變更
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── 代班教練 Modal ── */}
+      {subSession && (
+        <Modal title={`設定代班教練 — ${dayjs(subSession.date).format('MM/DD')}`} onClose={() => setSubSession(null)}>
+          <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
+            {subSession.courseName} · {subSession.startTime}～{subSession.endTime}
+            {subSession.originalInstructor || subSession.instructor ? <div style={{ marginTop:4 }}>原教練：{subSession.originalInstructor || subSession.instructor}</div> : null}
+          </div>
+          <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>代班教練</label>
+          <CoachSelect gymId={effectiveGymId} value={subCoach} onChange={setSubCoach}
+            style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+          <label style={{ fontSize:11, color:'#666', display:'block', margin:'12px 0 5px' }}>代班原因（選填）</label>
+          <input value={subReason} onChange={e => setSubReason(e.target.value)} placeholder="例：原教練請假"
+            style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+          <div style={{ fontSize:11, color:'#999', margin:'8px 0 4px' }}>儲存後：員工／會員課程月曆自動顯示代班教練，並發送待辦提醒給代班教練與館管理員。</div>
+          <div style={{ display:'flex', gap:8, marginTop:8 }}>
+            <button onClick={() => setSubSession(null)} disabled={subSaving}
+              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+            <button onClick={saveSubstitute} disabled={subSaving}
+              style={{ flex:2, height:40, borderRadius:9, background:subSaving?'#C9A24A':'#B26A00', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              {subSaving ? '儲存中…' : '儲存代班'}
             </button>
           </div>
         </Modal>

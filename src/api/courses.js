@@ -17,6 +17,9 @@ export const getSessions = (params) =>
 export const createSession = (courseId, data) =>
   client.post(`/courses/${courseId}/sessions`, data);
 
+export const setSessionSubstitute = (sessionId, data) =>
+  client.put(`/courses/sessions/${sessionId}/substitute`, data);
+
 export const getSessionRoster = (sessionId) =>
   client.get(`/courses/sessions/${sessionId}/roster`);
 

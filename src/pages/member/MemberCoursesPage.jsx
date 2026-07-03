@@ -720,8 +720,13 @@ export default function MemberCoursesPage() {
                             {isExpanded && (
                               <div style={{ marginTop:10, paddingTop:10, borderTop:'0.5px solid #F5EFEF' }}>
                                 {group.sessions.sort((a,b) => a.date.localeCompare(b.date)).map(s => (
-                                  <div key={s.id} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', fontSize:12, borderBottom:'0.5px solid #FBF5F5' }}>
+                                  <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'7px 0', fontSize:12, borderBottom:'0.5px solid #FBF5F5' }}>
                                     <span>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
+                                    {s.instructor && (
+                                      <span style={{ color: s.isSubstitute ? '#B26A00' : '#999', flexShrink:0 }}>
+                                        👟 {s.instructor}{s.isSubstitute ? '（代班）' : ''}
+                                      </span>
+                                    )}
                                   </div>
                                 ))}
                               </div>
