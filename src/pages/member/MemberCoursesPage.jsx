@@ -449,7 +449,6 @@ export default function MemberCoursesPage() {
                   <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
                     NT${(c.price||0).toLocaleString()}
                   </div>
-                  <div style={{ fontSize:12, color:'#999' }}>最多 {c.maxStudents} 人</div>
                 </div>
                 {c.description && (
                   <div style={{ fontSize:12, color:'#666', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8 }}>
@@ -553,9 +552,9 @@ export default function MemberCoursesPage() {
                         </div>
                       </div>
                       <div style={{ textAlign:'right' }}>
-                        <div style={{ fontSize:12, color: full && !enrolled ? '#A32D2D' : '#999' }}>
-                          {s.enrolledCount}/{s.maxStudents} 人
-                        </div>
+                        {full && !enrolled && (
+                          <div style={{ fontSize:12, color:'#A32D2D' }}>額滿</div>
+                        )}
                         {enrolled ? (
                           <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>已報名</span>
                         ) : (
@@ -1117,9 +1116,6 @@ export default function MemberCoursesPage() {
                   </div>
                   <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                     {s.startTime}～{s.endTime} · {s.courseName}
-                  </div>
-                  <div style={{ fontSize:11, color:'#999', marginTop:1 }}>
-                    {s.enrolledCount}/{s.maxStudents} 人
                   </div>
                 </div>
                 <button onClick={() => handleMakeup(s.id)} disabled={loading || s.enrolledCount >= s.maxStudents}
