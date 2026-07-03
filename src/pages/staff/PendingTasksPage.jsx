@@ -15,6 +15,7 @@ import { confirmTeamPayment } from '../../api/team';
 import { rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
+import { getMyUpcomingShifts } from '../../api/schedule';
 
 // 通知 type → 類別（待辦頁通知面板過濾用）
 const NOTIF_CAT = {
@@ -107,6 +108,16 @@ export default function PendingTasksPage() {
   }, [gymFilter, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── 我的近七日排班（僅員工本人登入顯示；站台/值班電腦帳號不顯示）──
+  const isRealStaff = !!staff?.id && !operator && !station;
+  const [myShifts, setMyShifts] = useState(null);
+  useEffect(() => {
+    if (!isRealStaff) return;
+    const from = dayjs().format('YYYY-MM-DD');
+    const to = dayjs().add(6, 'day').format('YYYY-MM-DD');
+    getMyUpcomingShifts(from, to).then(r => setMyShifts(r.data.shifts || [])).catch(() => setMyShifts([]));
+  }, [isRealStaff]);
 
   // ── 內嵌審核動作 ──────────────────────────────────────────────
   const [modal, setModal] = useState(null);   // { kind, record?, action?, props? }
@@ -238,6 +249,40 @@ export default function PendingTasksPage() {
       <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>
         上次更新：{dayjs().format('HH:mm')}　·　🔔 今日提醒（器材取件·歸還／體驗）　🔍 需審核（課程／票券／單次券）　💰 待收款（轉帳／比賽／攀岩隊／器材）　·　近 7 天動態請看「🔔 通知」
       </div>
+
+      {/* 我的近 7 日班表（員工本人登入才顯示；站台／值班電腦帳號不顯示）*/}
+      {isRealStaff && (
+        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:16 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>🗓️ 我的近 7 日班表</div>
+            <div style={{ flex:1, height:1, background:'#F0E8E8' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{myShifts ? `${myShifts.length} 個班` : ''}</div>
+          </div>
+          {myShifts === null && <div style={{ fontSize:13, color:'#999', padding:'6px 0' }}>載入中…</div>}
+          {myShifts !== null && myShifts.length === 0 && <div style={{ fontSize:13, color:'#999', padding:'6px 0' }}>近 7 天沒有排班</div>}
+          {myShifts !== null && myShifts.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {myShifts.map(s => {
+                const d = dayjs(s.date);
+                const wd = ['日','一','二','三','四','五','六'][d.day()];
+                const isToday = s.date === dayjs().format('YYYY-MM-DD');
+                const time = s.type === 'full_day' ? '全天' : `${s.startTime || ''}–${s.endTime || ''}`;
+                return (
+                  <div key={s.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', borderRadius:8, background: isToday ? '#FBF5F5' : '#FAFAFA', border:'0.5px solid #F0E8E8' }}>
+                    <div style={{ minWidth:82, fontSize:13, fontWeight:600, color:'#8B1A1A', flexShrink:0 }}>
+                      {d.format('MM/DD')}（{wd}）{isToday && <span style={{ fontSize:10, color:'#fff', background:'#A32D2D', borderRadius:4, padding:'1px 5px', marginLeft:4 }}>今</span>}
+                    </div>
+                    <div style={{ minWidth:92, fontSize:13, fontWeight:500, color: s.type==='full_day' ? '#2D7D46' : '#185FA5', flexShrink:0 }}>
+                      {s.type==='full_day' ? '☀️' : '🕒'} {time}
+                    </div>
+                    <div style={{ flex:1, fontSize:12, color:'#666', wordBreak:'break-all' }}>{s.note || ''}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 課程相關查詢（退費/暫停：已核准 / 已拒絕） */}
       {trackView === 'course' && (
