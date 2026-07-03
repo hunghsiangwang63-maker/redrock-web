@@ -38,8 +38,19 @@ export default function MemberExperiencePage() {
   const [payment, setPayment] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
   const [participants, setParticipants] = useState([{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
   const [submitting, setSubmitting] = useState(false);
+  // 課程試上
+  const [trialSessions, setTrialSessions] = useState([]);
+  const [trialModal, setTrialModal] = useState(null);          // 選中的可試上場次
+  const [trialConsent, setTrialConsent] = useState(false);
+  const [trialPay, setTrialPay] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
+  const [trialSubmitting, setTrialSubmitting] = useState(false);
 
   const showMsg = (t,type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),6000); };
+
+  const loadTrialSessions = () => {
+    memberClient.get('/courses/trial-sessions', { params:{ gymId } })
+      .then(r => setTrialSessions(r.data.sessions||[])).catch(()=>setTrialSessions([]));
+  };
 
   useEffect(() => {
     memberClient.get('/experience-bookings/settings').then(r => setCourseSettings(r.data)).catch(()=>{});
@@ -47,6 +58,37 @@ export default function MemberExperiencePage() {
       memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
     }
   }, [member?.id]);
+
+  useEffect(() => { loadTrialSessions(); }, [gymId]);
+
+  const submitTrial = async () => {
+    if (!trialConsent) { showMsg('請先勾選同意免責同意書','red'); return; }
+    if (trialPay.method==='transfer' && (!trialPay.paymentDate || !trialPay.bankLastFive)) { showMsg('請填寫匯款日期與末五碼','red'); return; }
+    setTrialSubmitting(true);
+    try {
+      const res = await memberClient.post('/experience-bookings', {
+        memberId: member.id, trialSessionId: trialModal.id, consentSigned: true,
+        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive,
+      });
+      const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
+      if (trialPay.method==='transfer' && bookingId) {
+        try {
+          const fd = new FormData();
+          fd.append('type','experience'); fd.append('referenceId',bookingId);
+          fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive||'');
+          fd.append('paymentDate', trialPay.paymentDate||'');
+          await memberClient.post('/transfers', fd, { headers:{ 'Content-Type':'multipart/form-data' } });
+        } catch(e) { /* 不阻斷 */ }
+      }
+      setTrialModal(null); setTrialConsent(false); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
+      loadTrialSessions();
+      memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
+      if (trialPay.method==='online' && ONLINE_PAYMENT_ENABLED) setPayFor({ bookingId, fee, gymId: trialModal.gymId });
+      else showMsg('試上預約已送出！請完成匯款，待館方確認');
+      setTab('my');
+    } catch (e) { showMsg(e.response?.data?.message || '送出失敗','red'); }
+    finally { setTrialSubmitting(false); }
+  };
 
   const addParticipant = () => setParticipants(p=>[...p,{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
   const removeParticipant = (i) => { if (participants.length>1) setParticipants(p=>p.filter((_,idx)=>idx!==i)); };
@@ -136,6 +178,40 @@ export default function MemberExperiencePage() {
         </div>
       )}
 
+      {/* 試上報名 Modal */}
+      {trialModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:420, maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+              <div style={{ fontWeight:700, fontSize:16 }}>🧗 報名試上</div>
+              <button onClick={()=>setTrialModal(null)} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <div style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:14, fontSize:13 }}>
+              <div style={{ fontWeight:600 }}>{trialModal.courseName}</div>
+              <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(trialModal.date).day()]}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?` · 教練 ${trialModal.instructor}`:''}</div>
+              <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>試上費 NT${(trialModal.trialPrice||0).toLocaleString()}</div>
+            </div>
+            {/* 匯款資訊 */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>付款方式：銀行匯款</div>
+              <div style={{ display:'flex', gap:8 }}>
+                <input type="date" value={trialPay.paymentDate} onChange={e=>setTrialPay({...trialPay, paymentDate:e.target.value})} style={{ ...inp, flex:1 }} placeholder="匯款日期"/>
+                <input value={trialPay.bankLastFive} onChange={e=>setTrialPay({...trialPay, bankLastFive:e.target.value.replace(/\D/g,'').slice(0,5)})} maxLength={5} style={{ ...inp, flex:1 }} placeholder="帳號末五碼"/>
+              </div>
+            </div>
+            {/* 免責同意 */}
+            <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'#444', cursor:'pointer', marginBottom:14, lineHeight:1.6 }}>
+              <input type="checkbox" checked={trialConsent} onChange={e=>setTrialConsent(e.target.checked)} style={{ marginTop:2 }}/>
+              <span>我已閱讀並同意<strong>免責同意書／攀岩活動風險告知</strong>，並瞭解試上為單堂體驗、不含保險。</span>
+            </label>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>setTrialModal(null)} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={submitTrial} disabled={trialSubmitting} style={{ flex:2, height:44, borderRadius:10, background:trialSubmitting?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={()=>navigate('/member/home')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
         <div style={{ fontSize:18, fontWeight:700 }}>🧗 體驗課程預約</div>
@@ -144,7 +220,7 @@ export default function MemberExperiencePage() {
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'apply',label:'填寫預約'},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
+        {[{key:'apply',label:'填寫預約'},{key:'trial',label:`課程試上${trialSessions.length?` (${trialSessions.length})`:''}`},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
             {t.label}
@@ -287,6 +363,38 @@ export default function MemberExperiencePage() {
               style={{ width:'100%', height:48, borderRadius:12, background:submitting?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:submitting?'not-allowed':'pointer' }}>
               {submitting ? '送出中...' : '✓ 送出預約申請'}
             </button>
+          </div>
+        )}
+
+        {tab==='trial' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, fontSize:12, color:'#666', lineHeight:1.9 }}>
+              🧗 以下為開放試上的課程場次（單堂）。試上另收費用、<strong>免保險</strong>；額滿的場次不會顯示。<br/>
+              💳 報名後請於期限內匯款，待館方確認收款即完成。
+            </div>
+            {/* 場館切換沿用填寫預約的 gymId */}
+            <div style={{ display:'flex', gap:8 }}>
+              {[{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g=>(
+                <button key={g.id} onClick={()=>setGymId(g.id)}
+                  style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${gymId===g.id?'#8B1A1A':'#E8D5D5'}`, background:gymId===g.id?'#FBF5F5':'#fff', color:gymId===g.id?'#8B1A1A':'#666', fontSize:13, fontWeight:gymId===g.id?600:400, cursor:'pointer' }}>
+                  {g.label}
+                </button>
+              ))}
+            </div>
+            {trialSessions.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有開放試上的場次</div>}
+            {trialSessions.map(s=>(
+              <div key={s.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontWeight:600, fontSize:14 }}>{s.courseName}</div>
+                  <div style={{ fontSize:12, color:'#666', marginTop:3 }}>
+                    {dayjs(s.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(s.date).day()]}）{s.startTime}～{s.endTime}{s.instructor?` · 👟 ${s.instructor}`:''}
+                  </div>
+                  <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginTop:3 }}>試上費 NT${(s.trialPrice||0).toLocaleString()} · 剩餘 {s.remaining} 位</div>
+                </div>
+                <button onClick={()=>{ setTrialModal(s); setTrialConsent(false); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' }); }}
+                  style={{ height:38, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', flexShrink:0 }}>試上</button>
+              </div>
+            ))}
           </div>
         )}
 
