@@ -617,7 +617,7 @@ export default function CoursesPage({ embedded = false }) {
             for (let i = 0; i < firstDow; i++) cells.push(null);
             for (let d = 1; d <= daysInMonth; d++) cells.push(startOfMonth.date(d).format('YYYY-MM-DD'));
 
-            const sessionsForDate = (date) => calendarSessions.filter(s => s.date === date);
+            const sessionsForDate = (date) => calendarSessions.filter(s => s.date === date && s.status !== 'cancelled');
             const today = dayjs().format('YYYY-MM-DD');
 
             return (
