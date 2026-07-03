@@ -36,8 +36,11 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
   const maxCredits = ticket.remainingCredits || 1;
   const [credits, setCredits] = useState(1);
   // 輸入電話即時帶出受贈者姓名（確認用）
-  const [recipient, setRecipient] = useState(null); // { found, self, name } | null
+  const [recipient, setRecipient] = useState(null); // { found, self, name } | null（次數型用）
   const [looking, setLooking] = useState(false);
+  // 整張券：同一手機下的家庭成員（家長+子女），供挑選實際收件人（可轉給指定子女）
+  const [recipients, setRecipients] = useState([]);
+  const [pickId, setPickId] = useState('');
 
   useEffect(() => {
     if (!phone || phone.length < 10) { setRecipient(null); return; }
@@ -53,13 +56,32 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
     return () => { cancelled = true; clearTimeout(t); };
   }, [phone]);
 
+  // 整張券（紅利/單次券/體驗券）：載入該手機下家庭成員清單，預設家長（後端已家長排前）
+  useEffect(() => {
+    if (isCreditCard) return;
+    if (!phone || phone.length < 10) { setRecipients([]); setPickId(''); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await memberClient.get('/ticket-transfers/recipients', { params: { phone } });
+        if (cancelled) return;
+        const list = res.data.recipients || [];
+        setRecipients(list);
+        setPickId(list.length ? list[0].id : '');
+      } catch { if (!cancelled) { setRecipients([]); setPickId(''); } }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [phone, isCreditCard]);
+
   const handleTransfer = async () => {
     if (!phone || phone.length < 10) { setMsg('請輸入有效手機號碼'); return; }
-    if (!recipient?.found) { setMsg('查無此手機號碼的會員'); return; }
-    if (recipient.self) { setMsg('不能移轉給自己'); return; }
     if (isCreditCard) {
+      if (!recipient?.found) { setMsg('查無此手機號碼的會員'); return; }
+      if (recipient.self) { setMsg('不能移轉給自己'); return; }
       const c = parseInt(credits);
       if (!c || c < 1 || c > maxCredits) { setMsg(`移轉次數需介於 1 ～ ${maxCredits}`); return; }
+    } else {
+      if (!pickId) { setMsg('請選擇接收人'); return; }
     }
     setLoading(true);
     try {
@@ -72,11 +94,12 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
           credits: parseInt(credits),
         });
       } else {
-        // 紅利/單次券：整張移轉（舊流程）
+        // 紅利/單次券/體驗券：整張移轉；toMemberId 指定實際收件人（可為子女）
         await memberClient.post('/ticket-transfers/request', {
           ticketType,
           ticketId: ticket.id,
           targetPhone: phone,
+          toMemberId: pickId,
         });
       }
       setSuccess(true);
@@ -114,8 +137,8 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                 placeholder="0912345678" maxLength={10}
                 style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
-              {/* 即時帶出受贈者姓名 */}
-              {phone.length >= 10 && (
+              {/* 接收人：次數型用 cards lookup；整張券用家庭成員清單（可挑子女）*/}
+              {phone.length >= 10 && (isCreditCard ? (
                 looking ? (
                   <div style={{ fontSize:13, color:'#999', marginTop:8 }}>查詢中…</div>
                 ) : recipient?.self ? (
@@ -125,15 +148,30 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
                 ) : (
                   <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的會員</div>
                 )
-              )}
+              ) : (
+                recipients.length === 0 ? (
+                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的會員</div>
+                ) : recipients.length === 1 ? (
+                  <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>✅ 接收人：{recipients[0].name}{recipients[0].isChildAccount ? '（子女）' : ''}</div>
+                ) : (
+                  <div style={{ marginTop:8 }}>
+                    <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>此號碼有多個帳號，請選擇接收人</div>
+                    <select value={pickId} onChange={e => setPickId(e.target.value)}
+                      style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', color:'#1a1a1a', boxSizing:'border-box' }}>
+                      {recipients.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}</option>)}
+                    </select>
+                  </div>
+                )
+              ))}
             </div>
             {msg && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#A32D2D', marginBottom:12 }}>{msg}</div>}
             {(() => {
-              const canSend = !loading && recipient?.found && !recipient?.self;
+              const pickedName = recipients.find(r => r.id === pickId)?.name;
+              const canSend = !loading && (isCreditCard ? (recipient?.found && !recipient?.self) : !!pickId);
               return (
                 <button onClick={handleTransfer} disabled={!canSend}
                   style={{ width:'100%', height:50, borderRadius:14, background: canSend?'#8B1A1A':'#ccc', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: canSend?'pointer':'not-allowed', marginBottom:10 }}>
-                  {loading ? '送出中...' : (isCreditCard ? `確認移轉 ${credits} 次${recipient?.name ? ` 給 ${recipient.name}` : ''}` : '確認申請移轉')}
+                  {loading ? '送出中...' : (isCreditCard ? `確認移轉 ${credits} 次${recipient?.name ? ` 給 ${recipient.name}` : ''}` : `確認申請移轉${pickedName ? ` 給 ${pickedName}` : ''}`)}
                 </button>
               );
             })()}
