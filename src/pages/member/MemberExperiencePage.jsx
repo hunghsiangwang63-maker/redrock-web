@@ -44,6 +44,8 @@ export default function MemberExperiencePage() {
   const [trialConsent, setTrialConsent] = useState(false);
   const [trialPay, setTrialPay] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
   const [trialSubmitting, setTrialSubmitting] = useState(false);
+  const [children, setChildren] = useState([]);          // 子會員（家長可代報名）
+  const [trialFor, setTrialFor] = useState('self');      // 報名對象：'self' 或子會員 id
 
   const showMsg = (t,type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),6000); };
 
@@ -56,6 +58,7 @@ export default function MemberExperiencePage() {
     memberClient.get('/experience-bookings/settings').then(r => setCourseSettings(r.data)).catch(()=>{});
     if (member?.id) {
       memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
+      memberClient.get('/members/my/children').then(r => setChildren(r.data.children||[])).catch(()=>setChildren([]));
     }
   }, [member?.id]);
 
@@ -68,6 +71,7 @@ export default function MemberExperiencePage() {
     try {
       const res = await memberClient.post('/experience-bookings', {
         memberId: member.id, trialSessionId: trialModal.id, consentSigned: true,
+        ...(trialFor !== 'self' ? { childMemberId: trialFor } : {}),
         paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive,
       });
       const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
@@ -80,7 +84,7 @@ export default function MemberExperiencePage() {
           await memberClient.post('/transfers', fd, { headers:{ 'Content-Type':'multipart/form-data' } });
         } catch(e) { /* 不阻斷 */ }
       }
-      setTrialModal(null); setTrialConsent(false); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
+      setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
       loadTrialSessions();
       memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
       if (trialPay.method==='online' && ONLINE_PAYMENT_ENABLED) setPayFor({ bookingId, fee, gymId: trialModal.gymId });
@@ -184,13 +188,23 @@ export default function MemberExperiencePage() {
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:420, maxHeight:'90vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
               <div style={{ fontWeight:700, fontSize:16 }}>🧗 報名試上</div>
-              <button onClick={()=>setTrialModal(null)} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <div style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:14, fontSize:13 }}>
               <div style={{ fontWeight:600 }}>{trialModal.courseName}</div>
               <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(trialModal.date).day()]}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?` · 教練 ${trialModal.instructor}`:''}</div>
               <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>試上費 NT${(trialModal.trialPrice||0).toLocaleString()}</div>
             </div>
+            {/* 報名對象（有子會員時可代子女報名；券與名單會綁到所選對象）*/}
+            {children.length > 0 && (
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>報名對象</div>
+                <select value={trialFor} onChange={e=>setTrialFor(e.target.value)} style={{ ...inp, width:'100%' }}>
+                  <option value="self">{member?.name || '本人'}（本人）</option>
+                  {children.map(c => <option key={c.id} value={c.id}>{c.name}（子女）</option>)}
+                </select>
+              </div>
+            )}
             {/* 匯款資訊 */}
             <div style={{ marginBottom:12 }}>
               <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>付款方式：銀行匯款</div>
@@ -205,7 +219,7 @@ export default function MemberExperiencePage() {
               <span>我已閱讀並同意<strong>免責同意書／攀岩活動風險告知</strong>，並瞭解試上為單堂體驗、不含保險。</span>
             </label>
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={()=>setTrialModal(null)} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={submitTrial} disabled={trialSubmitting} style={{ flex:2, height:44, borderRadius:10, background:trialSubmitting?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
             </div>
           </div>
