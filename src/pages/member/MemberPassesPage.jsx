@@ -474,7 +474,7 @@ export default function MemberPassesPage() {
             ) : discountCards.map(c => (
               <div key={c.id} onClick={() => handleTicketClick(c, 'discount_card')}
                 style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer' }}>
-                <div style={{ position:'absolute', right:-15, top:-15, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:70, opacity:.07, fontWeight:700 }}>RR</div>
+                <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
                 <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>{c.source === 'transferred' ? '移轉優惠卡' : '優惠卡'}{c.isExpiringSoon && ' ⚠ 即將到期'}</div>
                 <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
                 <div style={{ fontSize:12, opacity:.75 }}>有效至 {c.expiresAtFormatted}</div>
@@ -497,7 +497,7 @@ export default function MemberPassesPage() {
             ) : blackCards.map(c => (
               <div key={c.id} onClick={() => handleTicketClick(c, 'black_card')}
                 style={{ background:'linear-gradient(135deg,#1a1a1a,#444)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer' }}>
-                <div style={{ position:'absolute', right:-15, top:-15, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:70, opacity:.07, fontWeight:700 }}>RR</div>
+                <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
                 <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>黑卡</div>
                 <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
                 <div style={{ fontSize:12, opacity:.75 }}>有效至 {c.expiresAtFormatted || '—'}</div>

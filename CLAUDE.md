@@ -73,6 +73,13 @@ RedRock 紅石攀岩館管理系統，服務兩個場館：新竹館（`gym-hsin
 - 🚧 **設定頁：館別電腦帳號管理 + 裝置綁定總開關**：`SettingsPage` 帳號分頁（super_admin）新增「🖥️ 館別電腦帳號」CRUD（`getStations`/`createStation`/`updateStation`，名稱/登入 Email/館別/通知 Email/密碼，停用啟用）＋「🔒 裝置綁定」總開關（`GET/PUT /settings/device-binding`，關閉後員工個人帳號/館別電腦新裝置登入免驗證，僅測試/轉換期用、完成後重開）。新增 API `src/api/stations.js`
 - 🚧 **結帳作廢發票號改逐張標籤**：`DailySettlementPage` 作廢發票號由單一輸入框改「輸入一張按 Enter/加入→chip 標籤（可逐張 ×刪除）」，也可一次貼多組逗號分隔；送出時合併為字串（沿用後端 `invoiceVoidNumbers`）
 - 🚧 **其他小修**：`CheckinPage` 電話入場優惠券選項疊加隊員 9 折時 label 顯示「優惠券8折+隊員9折」（`inst.discountCard.teamStacked`）；`passes.js` `getPassTypes(gymId)` 支援帶場館參數；`FinancePage` 發票明細下載失敗改顯示後端完整訊息（原僅 403/狀態碼）
+- ✅ **體驗預約→指定/改教練（前端）**：新增 `components/CoachSelect.jsx`（載館內員工清單〔`getScheduleStaffList`，需 `schedule.manage`〕＋「其他自訂輸入」，載不到只給自訂）。確認彈窗 `ExperienceDetailModal` 加「指定教練（選填）」，確認時帶 `{coachId,coachName}`。`ExperienceBookingsPage` 已確認卡片顯示「👟 教練」＋「指定/改教練」「🗑 取消預約」；試上預約以紫標「試上」＋課名區分、`needsInsurance:false` 不顯示保險鈕。後端：確認自動建 course/session/教練排班、改教練刪舊班建新班、取消一併清理
+- ✅ **員工本人待辦頁近七日班表**：`PendingTasksPage` 頂端「🗓️ 我的近 7 日班表」卡（日期·時間〔全天/時段〕·備註，今日標記），僅 `staff && !operator && !station` 顯示；`GET /schedule/my-upcoming?from&to`（傳本地時區七日範圍，只回自己）
+- ✅ **課程月曆：教練+報名/預計上課；會員隱藏人數**：員工 `CoursesPage` 月曆場次卡顯示 課名·👟教練·報名(原報名)·預計上課(原報名−請假+補課+試上)＋請假/補課/試上標籤；會員 `MemberCoursesPage` 課程月曆/課程總覽/補課場次**全隱藏人數**（保留「額滿」）。`getSessions` 回 `registeredCount/expectedCount/trialCount` 並帶出 instructor
+- ✅ **排班表編輯可改員工（bug 修正）**：後端 `updateShift` 原漏 `staffId/staffName`（前端本就有送）→ 補上；改員工/日期/類型/時間/備註皆正常。純後端
+- ✅ **週課「開放試上」**：`CoursesPage` 課程表單（僅週課）加「開放試上」＋「試上費用」（`allowTrial/trialPrice`）。會員 `MemberExperiencePage` 新增「課程試上」分頁（`GET /courses/trial-sessions`，開放且未額滿的場次〔額滿含補課佔滿自動排除〕）＋試上報名 modal（匯款＋免責同意勾選）。報名比照體驗（`POST /experience-bookings` 帶 `trialSessionId`，費用=`trialPrice` 後端權威、免保險），確認後 `enrollTrial` 加入場次名單 `isTrial`（佔名額、計入預計上課）＋發單日券（不卡墜測，沿用 1.7.1 體驗券豁免）
+- ✅ **課程場次「代班教練」**：`CoursesPage` 月曆場次卡「設定/更改/取消代班」（`CoachSelect`＋原因，`PUT|DELETE /courses/sessions/:id/substitute`）→ 覆寫該堂 instructor、記錄原教練、發待辦提醒（管理員+代班本人，`notifyRoleInGym`+`createNotification`）。兩端月曆自動同步（`getSessions` 優先場次 instructor）：員工橘標「代班（原XX）」、會員 `MemberCoursesPage` 顯示「👟 教練（代班）」。修：代班選單 gymId 改用場次 gymId（super_admin 看全館時不再空白）
+- ✅ **卡片封面品牌全名**：優惠卡/黑卡（`MemberPassesPage`）與員工卡片（`CardsPage`）右上裝飾浮水印 `RR` → 全部改「RedRock 紅石攀岩館」（縮字級+不換行，維持浮水印質感）
 - 🟡 **線上金流串接（進行中）**：統一付款元件 `src/components/PaymentFlow.jsx`（接 `client` prop，會員/員工通用；匯出 `ONLINE_PAYMENT_ENABLED`，正式環境 gateway 上線前為 false → 不顯示付款入口、fallback 匯款）
   - 已接會員自助：競賽 / 體驗 / 課程 / 租借（MemberCompetitions/Experience/Courses/Rental Page）
   - 後端 rail 與設計：見 `redrock-api/docs/payment-integration-plan.md`

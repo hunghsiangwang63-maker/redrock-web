@@ -144,7 +144,7 @@ function DiscountCards({ member, cards, onRefresh }) {
         <div style={{ padding:'16px 0', textAlign:'center', color:'#999', fontSize:12 }}>目前無優惠卡</div>
       ) : cards.map(c => (
         <div key={c.id} style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:10, padding:14, color:'#fff', marginBottom:8, position:'relative', overflow:'hidden' }}>
-          <div style={{ position:'absolute', right:-10, top:-10, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:50, opacity:.08, fontWeight:700 }}>RR</div>
+          <div style={{ position:'absolute', right:12, top:10, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:13, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
           <div style={{ fontSize:10, opacity:.8, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>
             {c.source === 'transferred' ? '移轉優惠卡' : c.source === 'migrated' ? '轉入優惠卡' : '優惠卡'}
           </div>
