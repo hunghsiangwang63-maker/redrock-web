@@ -1296,7 +1296,7 @@ export default function CoursesPage({ embedded = false }) {
             {subSession.originalInstructor || subSession.instructor ? <div style={{ marginTop:4 }}>原教練：{subSession.originalInstructor || subSession.instructor}</div> : null}
           </div>
           <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>代班教練</label>
-          <CoachSelect gymId={effectiveGymId} value={subCoach} onChange={setSubCoach}
+          <CoachSelect gymId={subSession.gymId || effectiveGymId} value={subCoach} onChange={setSubCoach}
             style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
           <label style={{ fontSize:11, color:'#666', display:'block', margin:'12px 0 5px' }}>代班原因（選填）</label>
           <input value={subReason} onChange={e => setSubReason(e.target.value)} placeholder="例：原教練請假"
