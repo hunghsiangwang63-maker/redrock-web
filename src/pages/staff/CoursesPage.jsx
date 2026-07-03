@@ -626,12 +626,16 @@ export default function CoursesPage({ embedded = false }) {
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                           <div>
                             <div style={{ fontWeight:600, fontSize:14 }}>{s.courseName}</div>
-                            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{s.startTime}～{s.endTime}</div>
+                            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                              {s.startTime}～{s.endTime}{s.instructor ? ` · 👟 ${s.instructor}` : ''}
+                            </div>
                           </div>
-                          <div style={{ display:'flex', gap:6 }}>
-                            <Tag type="ok">報名 {s.enrolledCount||0}</Tag>
+                          <div style={{ display:'flex', gap:6, flexWrap:'wrap', justifyContent:'flex-end' }}>
+                            <Tag type="ok">報名 {s.registeredCount ?? s.enrolledCount ?? 0}</Tag>
+                            <Tag type="blue">預計上課 {s.expectedCount ?? s.enrolledCount ?? 0}</Tag>
                             {(s.leaveCount||0) > 0 && <Tag type="gray">請假 {s.leaveCount}</Tag>}
                             {(s.makeupCount||0) > 0 && <Tag type="blue">補課 {s.makeupCount}</Tag>}
+                            {(s.trialCount||0) > 0 && <Tag type="blue">試上 {s.trialCount}</Tag>}
                           </div>
                         </div>
                       </div>

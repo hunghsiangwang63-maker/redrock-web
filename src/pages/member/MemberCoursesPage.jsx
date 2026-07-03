@@ -717,18 +717,12 @@ export default function MemberCoursesPage() {
                                 </div>
                                 <span style={{ fontSize:11, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看場次表 ▼'}</span>
                               </div>
-                              {courseInfo && (
-                                <div style={{ fontSize:11, color:'#999', marginTop:3 }}>
-                                  {courseInfo.enrolledCount || 0} / {courseInfo.maxStudents} 人已報名
-                                </div>
-                              )}
                             </div>
                             {isExpanded && (
                               <div style={{ marginTop:10, paddingTop:10, borderTop:'0.5px solid #F5EFEF' }}>
                                 {group.sessions.sort((a,b) => a.date.localeCompare(b.date)).map(s => (
                                   <div key={s.id} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', fontSize:12, borderBottom:'0.5px solid #FBF5F5' }}>
                                     <span>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
-                                    <span style={{ color:'#999' }}>{s.enrolledCount || 0} 人</span>
                                   </div>
                                 ))}
                               </div>
