@@ -20,6 +20,9 @@ export const createSession = (courseId, data) =>
 export const setSessionSubstitute = (sessionId, data) =>
   client.put(`/courses/sessions/${sessionId}/substitute`, data);
 
+export const clearSessionSubstitute = (sessionId) =>
+  client.delete(`/courses/sessions/${sessionId}/substitute`);
+
 export const getSessionRoster = (sessionId) =>
   client.get(`/courses/sessions/${sessionId}/roster`);
 

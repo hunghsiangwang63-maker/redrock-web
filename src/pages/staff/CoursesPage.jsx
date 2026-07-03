@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/courseCategories';
 import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
-         generateWeeklySessions, updateSession, setSessionSubstitute, deleteCourse, permanentDeleteCourse } from '../../api/courses';
+         generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, permanentDeleteCourse } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import CoachSelect from '../../components/CoachSelect';
@@ -159,6 +159,13 @@ export default function CoursesPage({ embedded = false }) {
       loadCalendarSessions();
     } catch (e) { showMsg(e.response?.data?.message || '設定失敗', 'red'); }
     finally { setSubSaving(false); }
+  };
+  const clearSubstitute = async (s) => {
+    try {
+      await clearSessionSubstitute(s.id);
+      showMsg('✅ 已取消代班，恢復原教練');
+      loadCalendarSessions();
+    } catch (e) { showMsg(e.response?.data?.message || '取消失敗', 'red'); }
   };
 
   const showMsg = (text, type='ok') => {
@@ -670,7 +677,13 @@ export default function CoursesPage({ embedded = false }) {
                             {(s.trialCount||0) > 0 && <Tag type="blue">試上 {s.trialCount}</Tag>}
                           </div>
                         </div>
-                        <div style={{ marginTop:8, textAlign:'right' }}>
+                        <div style={{ marginTop:8, textAlign:'right', display:'flex', gap:6, justifyContent:'flex-end' }}>
+                          {s.isSubstitute && (
+                            <button onClick={e => { e.stopPropagation(); clearSubstitute(s); }}
+                              style={{ height:26, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #999', color:'#666', fontSize:11, cursor:'pointer' }}>
+                              取消代班
+                            </button>
+                          )}
                           <button onClick={e => { e.stopPropagation(); openSubstitute(s); }}
                             style={{ height:26, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #B26A00', color:'#B26A00', fontSize:11, cursor:'pointer' }}>
                             👟 {s.isSubstitute ? '更改代班' : '設定代班'}
