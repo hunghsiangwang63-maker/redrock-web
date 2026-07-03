@@ -88,6 +88,7 @@ export default function CoursesPage({ embedded = false }) {
     startTime: '', endTime: '', instructor: '',
     gymAccessDays: 1, leaveDeadlineHours: 2,
     maxLeaves: 2, allowMakeup: true, makeupDeadlineDays: 60, midpointSurcharge: 1.05,
+    allowTrial: false, trialPrice: '',
     unlimitedPracticeStart: '', unlimitedPracticeEnd: '',
     perSessionDeduction: 850, handlingFeeRate: 5,
     installment: { enabled: false, periods: [] },
@@ -240,6 +241,8 @@ export default function CoursesPage({ embedded = false }) {
         midpointSurcharge: parseFloat(courseForm.midpointSurcharge) || 1.05,
         perSessionDeduction: parseInt(courseForm.perSessionDeduction) || 850,
         handlingFeeRate: (parseFloat(courseForm.handlingFeeRate) || 5) / 100,
+        allowTrial: courseForm.type === 'weekly' && !!courseForm.allowTrial,
+        trialPrice: parseInt(courseForm.trialPrice) || 0,
         weekdays: courseForm.weekdays.map(Number),
       });
       // 週課自動產生場次
@@ -277,6 +280,9 @@ export default function CoursesPage({ embedded = false }) {
       perSessionDeduction: course.perSessionDeduction ?? 850,
       handlingFeeRate: Math.round((course.handlingFeeRate ?? 0.05) * 100),
       allowMakeup: course.allowMakeup !== false,
+      type: course.type || 'weekly',
+      allowTrial: course.allowTrial === true,
+      trialPrice: course.trialPrice || '',
       unlimitedPracticeStart: course.unlimitedPracticeStart || course.startDate || '',
       unlimitedPracticeEnd: course.unlimitedPracticeEnd || course.endDate || '',
       installment: course.installment || { enabled: false, periods: [] },
@@ -308,6 +314,8 @@ export default function CoursesPage({ embedded = false }) {
         midpointSurcharge: parseFloat(editForm.midpointSurcharge) || 1.05,
         perSessionDeduction: parseInt(editForm.perSessionDeduction) || 850,
         handlingFeeRate: (parseFloat(editForm.handlingFeeRate) || 5) / 100,
+        allowTrial: (editForm.type || editingCourse?.type) === 'weekly' && !!editForm.allowTrial,
+        trialPrice: parseInt(editForm.trialPrice) || 0,
       });
       showMsg(needRegen ? '課程已更新，正在依新課表重排場次…' : '課程已更新');
       setEditingCourse(null);
@@ -1143,6 +1151,22 @@ export default function CoursesPage({ embedded = false }) {
               <label htmlFor="allowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
             </div>
             {courseForm.type === 'weekly' && (
+              <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
+                <input type="checkbox" id="allowTrial" checked={courseForm.allowTrial}
+                  onChange={e => setCourseForm({...courseForm, allowTrial:e.target.checked})}/>
+                <label htmlFor="allowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上</label>
+              </div>
+            )}
+            {courseForm.type === 'weekly' && courseForm.allowTrial && (
+              <div>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費用（另收）</label>
+                <input type="number" min={0} value={courseForm.trialPrice}
+                  onChange={e => setCourseForm({...courseForm, trialPrice:e.target.value})}
+                  placeholder="0"
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}/>
+              </div>
+            )}
+            {courseForm.type === 'weekly' && (
               <div style={{ gridColumn:'1/-1' }}>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期（可複選）</label>
                 <div style={{ display:'flex', gap:8 }}>
@@ -1330,6 +1354,21 @@ export default function CoursesPage({ embedded = false }) {
                 onChange={e => setEditForm({...editForm, allowMakeup:e.target.checked})}/>
               <label htmlFor="editAllowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
             </div>
+            {(editForm.type || editingCourse?.type) === 'weekly' && (
+              <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
+                <input type="checkbox" id="editAllowTrial" checked={editForm.allowTrial === true}
+                  onChange={e => setEditForm({...editForm, allowTrial:e.target.checked})}/>
+                <label htmlFor="editAllowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上</label>
+              </div>
+            )}
+            {(editForm.type || editingCourse?.type) === 'weekly' && editForm.allowTrial && (
+              <div>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費用（另收）</label>
+                <input type="number" min={0} value={editForm.trialPrice || ''}
+                  onChange={e => setEditForm({...editForm, trialPrice:e.target.value})} placeholder="0"
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              </div>
+            )}
             <div style={{ gridColumn:'1/-1' }}>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期（可複選）</label>
               <div style={{ display:'flex', gap:8 }}>
