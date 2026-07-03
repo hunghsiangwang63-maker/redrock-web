@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import SaveButton from '../../components/SaveButton';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import CoachSelect from '../../components/CoachSelect';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 
@@ -36,6 +37,39 @@ export default function ExperienceBookingsPage() {
   const [editBooking, setEditBooking] = useState(null);   // 編輯參加者的預約
   const [editParts, setEditParts] = useState([]);
   const [savingParts, setSavingParts] = useState(false);
+  const [coachBooking, setCoachBooking] = useState(null); // 指定/改教練的預約
+  const [coachVal, setCoachVal] = useState({ coachId: null, coachName: '' });
+  const [savingCoach, setSavingCoach] = useState(false);
+  const [cancelBooking, setCancelBooking] = useState(null); // 取消的預約
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+
+  const doCancel = async () => {
+    setCancelling(true);
+    try {
+      const r = await client.post(`/experience-bookings/${cancelBooking.id}/cancel`, { reason: cancelReason.trim() || '館方取消' });
+      const v = r.data.voidedTickets ? `（作廢票券 ${r.data.voidedTickets} 張）` : '';
+      showMsg('✅ 已取消預約' + v);
+      setCancelBooking(null); setCancelReason(''); load();
+    } catch (e) { showMsg(e.response?.data?.message || '取消失敗', 'red'); }
+    finally { setCancelling(false); }
+  };
+
+  const openCoach = (b) => {
+    setCoachBooking(b);
+    setCoachVal({ coachId: b.coachId || null, coachName: b.coachName || '' });
+  };
+  const saveCoach = async () => {
+    if (!coachVal.coachName?.trim()) { showMsg('請選擇或輸入教練', 'red'); return; }
+    setSavingCoach(true);
+    try {
+      const r = await client.post(`/experience-bookings/${coachBooking.id}/confirm`,
+        { coachId: coachVal.coachId || undefined, coachName: coachVal.coachName.trim() });
+      showMsg('✅ ' + (r.data.message || '已更新教練與排班'));
+      setCoachBooking(null); load();
+    } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'red'); }
+    finally { setSavingCoach(false); }
+  };
 
   const issueTickets = async (b) => {
     if (!window.confirm(`發放體驗入場券給 ${b.contactName}？\n數量＝報名人數 ${b.numParticipants} 張，限 ${b.bookingDate} 當天使用，無另外收費。`)) return;
@@ -202,6 +236,7 @@ export default function ExperienceBookingsPage() {
                         <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
                           {b.contactPhone}{b.bankLastFive&&` · 末五碼：${b.bankLastFive}`}{b.paymentDate&&` · 匯款日：${b.paymentDate}`}
                         </div>
+                        {b.coachName && <div style={{ fontSize:12, color:'#2D7D46', marginTop:3 }}>👟 教練：{b.coachName}</div>}
                       </div>
                       <button onClick={()=>setExpanded(isExpanded?null:b.id)}
                         style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
@@ -229,6 +264,12 @@ export default function ExperienceBookingsPage() {
                       )}
                       {b.status!=='cancelled' && (
                         <button onClick={()=>openEditParticipants(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>✏️ 編輯參加者</button>
+                      )}
+                      {b.status==='confirmed' && (
+                        <button onClick={()=>openCoach(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:12, cursor:'pointer' }}>{b.coachName?'👟 改教練':'👟 指定教練'}</button>
+                      )}
+                      {b.status==='confirmed' && (
+                        <button onClick={()=>{ setCancelBooking(b); setCancelReason(''); }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>🗑 取消預約</button>
                       )}
                     </div>
                   </div>
@@ -438,6 +479,49 @@ export default function ExperienceBookingsPage() {
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>setEditBooking(null)} disabled={savingParts} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={saveParticipants} disabled={savingParts} style={{ flex:2, height:44, borderRadius:10, background:savingParts?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{savingParts?'儲存中…':'儲存（連動票券）'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 指定 / 改教練 Modal */}
+      {coachBooking && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:420 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style={{ fontSize:16, fontWeight:600 }}>👟 {coachBooking.coachName?'改教練':'指定教練'}</div>
+              <span onClick={()=>setCoachBooking(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
+            </div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{coachBooking.contactName} · {coachBooking.bookingDate} {coachBooking.bookingTime} · {coachBooking.numParticipants} 人</div>
+            <CoachSelect gymId={coachBooking.gymId} value={coachVal} onChange={setCoachVal} style={tinp} />
+            <div style={{ fontSize:11, color:'#999', margin:'8px 0 16px' }}>
+              指定後會建立體驗課程與該教練當日排班；改教練會同步更新課程並將排班換成新教練。
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>setCoachBooking(null)} disabled={savingCoach} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={saveCoach} disabled={savingCoach} style={{ flex:2, height:44, borderRadius:10, background:savingCoach?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{savingCoach?'儲存中…':'儲存（排課／排班）'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 取消預約 Modal */}
+      {cancelBooking && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:420 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style={{ fontSize:16, fontWeight:600, color:'#A32D2D' }}>🗑 取消體驗預約</div>
+              <span onClick={()=>setCancelBooking(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
+            </div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{cancelBooking.contactName} · {cancelBooking.bookingDate} {cancelBooking.bookingTime} · {cancelBooking.numParticipants} 人</div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>取消原因</label>
+            <input value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="預設「館方取消」" style={tinp} />
+            <div style={{ fontSize:11, color:'#999', margin:'8px 0 16px' }}>
+              取消後將作廢未使用的體驗入場券；若已指定教練，會一併取消體驗課程並移除教練當日排班。
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>setCancelBooking(null)} disabled={cancelling} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>返回</button>
+              <button onClick={doCancel} disabled={cancelling} style={{ flex:2, height:44, borderRadius:10, background:cancelling?'#C99':'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{cancelling?'取消中…':'確認取消預約'}</button>
             </div>
           </div>
         </div>

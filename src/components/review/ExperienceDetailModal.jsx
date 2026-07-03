@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import client from '../../api/client';
+import CoachSelect from '../CoachSelect';
 
-// 體驗預約「確認」彈窗：顯示完整預約資訊，按「確認預約」才正式確認
+// 體驗預約「確認」彈窗：顯示完整預約資訊 + 指定教練，按「確認預約」正式確認並排課/排班
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
+
+const fieldStyle = { width: '100%', height: 38, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, background: '#FBF5F5', color: '#1a1a1a', outline: 'none', boxSizing: 'border-box' };
 
 const Row = ({ label, children }) => (
   <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '0.5px solid #F5EFEF', fontSize: 13 }}>
@@ -14,14 +17,16 @@ const Row = ({ label, children }) => (
 export default function ExperienceDetailModal({ record, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [coach, setCoach] = useState({ coachId: record?.coachId || null, coachName: record?.coachName || '' });
   if (!record) return null;
 
   const participants = Array.isArray(record.participants) ? record.participants : [];
   const confirm = async () => {
     setBusy(true); setError('');
     try {
-      await client.post(`/experience-bookings/${record.id}/confirm`);
-      onDone?.('已確認預約');
+      await client.post(`/experience-bookings/${record.id}/confirm`,
+        coach.coachName ? { coachId: coach.coachId || undefined, coachName: coach.coachName } : {});
+      onDone?.(coach.coachName ? '已確認預約並排課/排班' : '已確認預約');
     } catch (e) {
       setError(e.response?.data?.message || '確認失敗，請重試');
       setBusy(false);
@@ -65,6 +70,12 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
             </div>
           </div>
         )}
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>指定教練（選填）</div>
+          <CoachSelect gymId={record.gymId} value={coach} onChange={setCoach} style={fieldStyle} />
+          <div style={{ fontSize: 11, color: '#999', marginTop: 5 }}>指定後將自動建立體驗課程與該教練當日排班；不指定則僅確認收款。</div>
+        </div>
 
         {error && <div style={{ background: '#FCEBEB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#A32D2D', marginBottom: 12 }}>{error}</div>}
 
