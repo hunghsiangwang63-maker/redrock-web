@@ -85,6 +85,7 @@ function DiscountCards({ member, cards, onRefresh }) {
 
   const handleBind = async () => {
     if (!bindForm.remainingCredits || parseInt(bindForm.remainingCredits) < 1) { setMsg('請輸入剩餘次數（至少 1）'); return; }
+    if (parseInt(bindForm.remainingCredits) > 10) { setMsg('優惠卡剩餘次數上限為 10'); return; }
     setLoading(true);
     try {
       await bindDiscountCard({ memberId: member.id, remainingCredits: parseInt(bindForm.remainingCredits), barcode: bindForm.barcode || undefined });
@@ -185,9 +186,9 @@ function DiscountCards({ member, cards, onRefresh }) {
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>剩餘次數</label>
-            <input type="number" min={1} required value={bindForm.remainingCredits}
+            <input type="number" min={1} max={10} required value={bindForm.remainingCredits}
               onChange={e => setBindForm(f => ({ ...f, remainingCredits:e.target.value }))}
-              placeholder="輸入卡片目前剩餘的八折入場次數" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+              placeholder="輸入卡片目前剩餘的八折入場次數（上限 10）" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setShowBind(false)}
