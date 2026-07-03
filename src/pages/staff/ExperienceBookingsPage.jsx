@@ -231,7 +231,9 @@ export default function ExperienceBookingsPage() {
                           <span style={{ fontWeight:600, fontSize:14 }}>{b.contactName}</span>
                           <span style={{ fontSize:12, color:'#666' }}>{b.gymId==='gym-hsinchu'?'新竹館':'士林館'}</span>
                           <span style={{ fontSize:11, fontWeight:600, padding:'1px 8px', borderRadius:6, background:sl.bg, color:sl.color }}>{sl.label}</span>
+                          {b.kind==='trial' && <span style={{ fontSize:11, fontWeight:600, padding:'1px 8px', borderRadius:6, background:'#F3EEF9', color:'#5B2D8B' }}>試上</span>}
                         </div>
+                        {b.kind==='trial' && <div style={{ fontSize:12, color:'#5B2D8B', marginBottom:2 }}>🧗 {b.courseName}</div>}
                         <div style={{ fontSize:13, color:'#444' }}>{b.bookingDate} {b.bookingTime} · {b.numParticipants} 人 · NT${b.totalFee}</div>
                         <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
                           {b.contactPhone}{b.bankLastFive&&` · 末五碼：${b.bankLastFive}`}{b.paymentDate&&` · 匯款日：${b.paymentDate}`}
@@ -245,13 +247,13 @@ export default function ExperienceBookingsPage() {
                     </div>
                     <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap', alignItems:'center' }}>
                       {b.status==='pending' && <span style={{ fontSize:11, color:'#854F0B' }}>待確認（於待辦總覽確認/取消）</span>}
-                      {b.status!=='cancelled' && ctNeedsInsurance(b.courseType) && (
+                      {b.status!=='cancelled' && b.needsInsurance!==false && ctNeedsInsurance(b.courseType) && (
                         <button onClick={()=>downloadInsurance(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>📋 保險名冊</button>
                       )}
-                      {b.status!=='cancelled' && ctNeedsInsurance(b.courseType) && (
+                      {b.status!=='cancelled' && b.needsInsurance!==false && ctNeedsInsurance(b.courseType) && (
                         <button disabled={sendingId===b.id} onClick={()=>sendInsurance(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:sendingId===b.id?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{sendingId===b.id?'寄送中…':'📧 寄送保險'}</button>
                       )}
-                      {b.status!=='cancelled' && !ctNeedsInsurance(b.courseType) && <span style={{ fontSize:11, color:'#999' }}>此課程免保險</span>}
+                      {b.status!=='cancelled' && (b.needsInsurance===false || !ctNeedsInsurance(b.courseType)) && <span style={{ fontSize:11, color:'#999' }}>{b.kind==='trial'?'試上免保險':'此課程免保險'}</span>}
                       {b.status==='confirmed' && (
                         <button disabled={issuingId===b.id} onClick={()=>issueTickets(b)}
                           title={b.ticketsIssued>0 ? '已發放；如有增加參加者可再按補發' : ''}
