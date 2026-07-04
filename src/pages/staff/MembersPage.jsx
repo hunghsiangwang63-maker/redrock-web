@@ -173,7 +173,9 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名' }) 
 
 export default function MembersPage() {
   const { staff, activeGymId, station, operator, viewGym } = useAuth();
-  const targetGymId = activeGymId || staff?.gymId;
+  // super_admin 不綁館、也無 activeGymId（未打卡值班）；沿用其在畫面上選的檢視館別（viewGym）
+  // 作為操作館別，與 CheckinPage 一致，否則快速入場會誤報「無法判斷操作館別」。
+  const targetGymId = activeGymId || staff?.gymId || (staff?.role === 'super_admin' ? viewGym : undefined);
   // 報表類：super_admin 依頂部場館選擇（'全館'→undefined=全部）
   const reportGymId = staff?.role === 'super_admin' ? (viewGym || undefined) : targetGymId;
   const isAdmin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!station || !!operator;
