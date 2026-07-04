@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { getStaffFallTestSignature } from '../../api/fallTests';
-import { completeFallTestBooking } from '../../api/fallTestBookings';
+import { completeFallTestBooking, returnFallTestBooking } from '../../api/fallTestBookings';
 
 // 站台待辦：墜落測驗待安排 → 檢視 waiver / 同意書副本，登記「通過 / 未通過」
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
@@ -16,8 +16,8 @@ const Row = ({ label, children }) => (
 export default function FallTestBookingModal({ record, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [failMode, setFailMode] = useState(false);
-  const [failReason, setFailReason] = useState('');
+  const [mode, setMode] = useState(null);       // null | 'fail' | 'return'
+  const [reason, setReason] = useState('');
   const [waiver, setWaiver] = useState(undefined);      // undefined=載入中, null=無
   const [signature, setSignature] = useState(undefined);
   const memberId = record?.memberId;
@@ -39,6 +39,17 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
       onDone?.(result === 'passed' ? '已登記：測驗通過' : '已登記：測驗未通過');
     } catch (e) {
       setError(e.response?.data?.message || '登記失敗，請重試');
+      setBusy(false);
+    }
+  };
+
+  const doReturn = async (r) => {
+    setBusy(true); setError('');
+    try {
+      await returnFallTestBooking(record.id, r);
+      onDone?.('已退回申請，會員需重新安排');
+    } catch (e) {
+      setError(e.response?.data?.message || '退回失敗，請重試');
       setBusy(false);
     }
   };
@@ -84,32 +95,38 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
 
         {error && <div style={{ background: '#FCEBEB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#A32D2D', margin: '4px 0 12px' }}>{error}</div>}
 
-        {!failMode ? (
+        {!mode ? (
           <>
             <div style={{ background: '#FBF5F5', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#854F0B', marginBottom: 14 }}>
-              現場完成墜落測驗後登記結果。通過後會員即可正常入場。
+              現場完成墜落測驗後登記結果（通過後會員即可入場）。若資料有誤或無法測驗，可「退回申請」讓會員重新安排。
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setFailMode(true)} disabled={busy}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+              <button onClick={() => setMode('fail')} disabled={busy}
                 style={{ flex: 1, height: 42, borderRadius: 8, background: '#fff', border: '0.5px solid #A32D2D', color: '#A32D2D', fontSize: 14, cursor: 'pointer' }}>未通過</button>
               <button onClick={() => submit('passed')} disabled={busy}
                 style={{ flex: 2, height: 42, borderRadius: 8, background: busy ? '#9CB9A6' : '#2D7D46', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
                 {busy ? '處理中…' : '✓ 通過'}
               </button>
             </div>
+            <button onClick={() => setMode('return')} disabled={busy}
+              style={{ width: '100%', height: 38, borderRadius: 8, background: '#fff', border: '0.5px solid #E8D5D5', color: '#888', fontSize: 13, cursor: 'pointer' }}>
+              ↩ 退回申請（退回會員重新安排）
+            </button>
           </>
         ) : (
           <>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>未通過原因（選填）</div>
-            <textarea value={failReason} onChange={e => setFailReason(e.target.value)} rows={3}
-              placeholder="例：尚未掌握確保動作，需再練習"
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+              {mode === 'fail' ? '未通過原因（選填）' : '退回原因（選填）'}
+            </div>
+            <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3}
+              placeholder={mode === 'fail' ? '例：尚未掌握確保動作，需再練習' : '例：資料有誤／今日無法測驗，請重新安排'}
               style={{ width: '100%', borderRadius: 8, border: '0.5px solid #E8D5D5', padding: 10, fontSize: 13, resize: 'vertical', boxSizing: 'border-box', marginBottom: 12 }} />
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setFailMode(false)} disabled={busy}
+              <button onClick={() => { setMode(null); setReason(''); }} disabled={busy}
                 style={{ flex: 1, height: 42, borderRadius: 8, background: '#f5f5f5', border: 'none', color: '#444', fontSize: 14, cursor: 'pointer' }}>返回</button>
-              <button onClick={() => submit('failed', failReason)} disabled={busy}
+              <button onClick={() => mode === 'fail' ? submit('failed', reason) : doReturn(reason)} disabled={busy}
                 style={{ flex: 2, height: 42, borderRadius: 8, background: busy ? '#C99' : '#A32D2D', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
-                {busy ? '處理中…' : '確認未通過'}
+                {busy ? '處理中…' : (mode === 'fail' ? '確認未通過' : '確認退回')}
               </button>
             </div>
           </>

@@ -12,3 +12,6 @@ export const cancelFallTestBooking = (id) => memberClient.delete(`/fall-test-boo
 // 登記測驗結果（passed / failed）
 export const completeFallTestBooking = (id, result, notes) =>
   client.post(`/fall-test-bookings/${id}/complete`, { result, notes });
+// 退回申請（退回會員，需重新申請）
+export const returnFallTestBooking = (id, reason) =>
+  client.post(`/fall-test-bookings/${id}/return`, { reason });

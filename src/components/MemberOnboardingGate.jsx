@@ -4,7 +4,7 @@ import { useMember } from '../store/memberStore.jsx';
 import { memberClient } from '../api/client';
 import { getMemberGyms } from '../api/gyms';
 import { getFallTestSignature, getMyFallTestStatus } from '../api/fallTests';
-import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } from '../api/fallTestBookings';
+import { getMyFallTestBookings, createFallTestBooking } from '../api/fallTestBookings';
 
 /**
  * 新會員入場前置流程（全屏硬卡）：
@@ -22,6 +22,7 @@ export default function MemberOnboardingGate({ children }) {
   const [gyms, setGyms] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [justBooked, setJustBooked] = useState(false);  // 剛送出申請 → 顯示確認畫面（可回首頁）
 
   const memberId = member?.id;
 
@@ -39,10 +40,11 @@ export default function MemberOnboardingGate({ children }) {
         }
       } catch (_) {}
 
-      const [sigRes, statusRes, bookRes] = await Promise.all([
+      const [sigRes, statusRes, bookRes, expRes] = await Promise.all([
         getFallTestSignature(memberId).catch(() => ({ data: {} })),
         getMyFallTestStatus(memberId).catch(() => ({ data: {} })),
         getMyFallTestBookings().catch(() => ({ data: { bookings: [] } })),
+        memberClient.get('/experience-bookings/my').catch(() => ({ data: { bookings: [] } })),
       ]);
 
       const needsWaiver = blockReasons.includes('waiver_unsigned') || blockReasons.includes('parent_waiver_pending');
@@ -50,8 +52,12 @@ export default function MemberOnboardingGate({ children }) {
       const consentSigned = !!sigRes.data?.signature;
       const testPassed = statusRes.data?.status === 'passed';
       const booking = (bookRes.data?.bookings || []).find(b => b.memberId === memberId) || null;
+      // 持體驗券豁免：有未取消的體驗預約者，可憑體驗券入場（免通過墜測），不硬卡排測階段
+      const today = new Date().toISOString().slice(0, 10);
+      const hasExperience = (expRes.data?.bookings || [])
+        .some(b => b.status !== 'cancelled' && (!b.bookingDate || b.bookingDate >= today));
 
-      setState({ needsWaiver, parentPending, consentSigned, testPassed, booking });
+      setState({ needsWaiver, parentPending, consentSigned, testPassed, booking, hasExperience });
     } finally {
       setLoading(false);
     }
@@ -64,7 +70,8 @@ export default function MemberOnboardingGate({ children }) {
   // 尚未判斷完成前，若會員物件已明確通過則直接放行，避免閃現遮罩
   if (!member) return children;
   if (!state && !loading) return children;
-  if (state && !state.needsWaiver && state.consentSigned && state.testPassed) return children;
+  // 完成（waiver + 同意書 + 墜測通過）→ 放行；或已簽兩項且持體驗券豁免 → 放行（憑體驗券入場）
+  if (state && !state.needsWaiver && state.consentSigned && (state.testPassed || state.hasExperience)) return children;
 
   // ── 全屏遮罩 ──
   const overlay = (inner) => (
@@ -117,43 +124,35 @@ export default function MemberOnboardingGate({ children }) {
     </>);
   }
 
-  // 已通過（理論上前面已 render children，此為保險）
-  if (testPassed) return children;
-
   const gymName = (id) => (gyms.find(g => g.id === id)?.shortName) || (id === 'gym-hsinchu' ? '新竹館' : id === 'gym-shilin' ? '士林館' : id);
 
-  // 階段三：已排測 → 等待站台測驗
-  if (booking) {
-    const changeGym = async () => {
-      setBusy(true); setError('');
-      try { await cancelFallTestBooking(booking.id); await refresh(); }
-      catch (e) { setError(e.response?.data?.message || '操作失敗'); }
-      finally { setBusy(false); }
-    };
+  // 剛送出申請 → 確認畫面（按「回到首頁」即回正常首頁）
+  if (justBooked) {
     return overlay(<>
       <div style={{ background:'#fff', border:'1.5px solid #B3DEC0', borderRadius:18, padding:'28px 22px', textAlign:'center', boxShadow:'0 1px 4px rgba(0,0,0,.04)' }}>
-        <div style={{ fontSize:44, marginBottom:12 }}>⏳</div>
-        <div style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>已安排墜落測驗</div>
+        <div style={{ fontSize:44, marginBottom:12 }}>✅</div>
+        <div style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>已送出墜落測驗申請</div>
         <div style={{ fontSize:14, color:'#666', lineHeight:1.7 }}>
-          請至 <strong style={{ color:'#8B1A1A' }}>{gymName(booking.gymId)}</strong> 現場，由工作人員為您進行墜落測驗。<br/>測驗通過後即可正常入場。
+          已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/>
+          <span style={{ color:'#B5762B' }}>測驗通過前暫不可入場</span>（持當日體驗課程券者不受此限）。
         </div>
       </div>
-      {error && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#A32D2D', marginTop:12 }}>{error}</div>}
-      <button onClick={changeGym} disabled={busy}
-        style={{ width:'100%', height:44, marginTop:16, borderRadius:10, background:'#fff', border:'0.5px solid #E8D5D5', color:'#888', fontSize:14, cursor:'pointer' }}>
-        {busy ? '處理中…' : '更改測驗場館'}
-      </button>
-      <button onClick={refresh} disabled={busy}
-        style={{ width:'100%', height:40, marginTop:8, borderRadius:10, background:'transparent', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>
-        重新整理狀態
+      <button onClick={() => setJustBooked(false)}
+        style={{ width:'100%', height:46, marginTop:18, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
+        回到首頁
       </button>
     </>);
   }
 
+  // 已排測（pending）→ 回正常首頁（入場仍由後端擋到通過為止）
+  if (booking) return children;
+  // 已通過 → 放行
+  if (testPassed) return children;
+
   // 階段二：兩者已簽 → 請安排墜落測驗（選場館）
   const pick = async (gymId) => {
     setBusy(true); setError('');
-    try { await createFallTestBooking({ gymId }); await refresh(); }
+    try { await createFallTestBooking({ gymId }); setJustBooked(true); await refresh(); setBusy(false); }
     catch (e) { setError(e.response?.data?.message || '安排失敗，請重試'); setBusy(false); }
   };
   return overlay(<>
