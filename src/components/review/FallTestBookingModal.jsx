@@ -13,8 +13,19 @@ const Row = ({ label, children }) => (
   </div>
 );
 
+// 相容 Firestore Timestamp（_seconds/seconds）、字串、毫秒數
+const fmtTime = (t) => {
+  if (!t) return null;
+  const ms = t._seconds ? t._seconds * 1000
+    : t.seconds ? t.seconds * 1000
+    : typeof t === 'number' ? t
+    : typeof t === 'string' ? Date.parse(t) : NaN;
+  if (!ms || isNaN(ms)) return null;
+  return new Date(ms).toLocaleString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+};
+
 // 文件區塊：狀態徽章 + 「檢視內容」展開（條款文字快照 + 簽名圖）
-function DocBlock({ title, status, doneText, content, images, open, onToggle }) {
+function DocBlock({ title, status, doneText, signedAt, content, images, open, onToggle }) {
   const imgs = (images || []).filter(im => im.src);
   return (
     <div style={{ border: '0.5px solid #E8D5D5', borderRadius: 10, padding: 12, marginBottom: 10 }}>
@@ -32,10 +43,16 @@ function DocBlock({ title, status, doneText, content, images, open, onToggle }) 
         )}
       </div>
       {status === 'done' && (
-        <div style={{ fontSize: 12, color: '#2D7D46', marginTop: 6 }}>✓ {doneText}</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap', marginTop: 6 }}>
+          <span style={{ fontSize: 12, color: '#2D7D46' }}>✓ {doneText}</span>
+          {signedAt && <span style={{ fontSize: 11, color: '#999' }}>· 簽署時間 {signedAt}</span>}
+        </div>
       )}
       {open && status === 'done' && (
         <div style={{ marginTop: 10 }}>
+          {signedAt && (
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>簽署時間：{signedAt}</div>
+          )}
           {content ? (
             <div style={{ maxHeight: 200, overflowY: 'auto', background: '#FBF7F7', borderRadius: 8, padding: 10, fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: '#444' }}>{content}</div>
           ) : (
@@ -117,10 +134,12 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
         </div>
 
         <DocBlock title="免責聲明書（Waiver）" status={waiverStatus} doneText="已完成簽署"
+          signedAt={fmtTime(waiver?.memberSignedAt)}
           content={waiver?.contentSnapshot?.zh}
           images={[{ label: '會員簽名', src: waiver?.memberSignatureUrl }, { label: '家長/監護人簽名', src: waiver?.parentSignatureUrl }]}
           open={openDoc === 'waiver'} onToggle={() => toggle('waiver')} />
         <DocBlock title="墜落測驗同意書" status={consentStatus} doneText="已簽署同意書"
+          signedAt={fmtTime(signature?.signedAt)}
           content={signature?.contentSnapshot?.zh}
           images={[{ label: '會員簽名', src: signature?.signatureData }, { label: `家長/監護人簽名${signature?.guardianName ? `（${signature.guardianName}）` : ''}`, src: signature?.guardianSignatureData }]}
           open={openDoc === 'consent'} onToggle={() => toggle('consent')} />
