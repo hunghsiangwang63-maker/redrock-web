@@ -3,8 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMyWaiver } from '../../api/memberAuth';
 import { getMyFallTestStatus } from '../../api/fallTests';
+import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } from '../../api/fallTestBookings';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
+
+const FT_GYMS = [{ id:'gym-hsinchu', name:'新竹館' }, { id:'gym-shilin', name:'士林館' }];
+const ftGymName = (id) => FT_GYMS.find(g => g.id === id)?.name || id;
 
 const BottomNav = ({ navigate }) => (
   <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:"env(safe-area-inset-bottom)", zIndex:50 }}>
@@ -44,9 +48,42 @@ export default function MemberProfilePage() {
   const [childGender, setChildGender] = useState('');
   const [addingChild, setAddingChild] = useState(false);
   const [familyMsg, setFamilyMsg] = useState('');
+  const [childBookings, setChildBookings] = useState({}); // memberId -> pending booking
+  const [ftBusyChild, setFtBusyChild] = useState(null);
+
+  const loadChildBookings = async () => {
+    try {
+      const r = await getMyFallTestBookings();
+      const map = {};
+      (r.data.bookings || []).forEach(b => { map[b.memberId] = b; });
+      setChildBookings(map);
+    } catch (e) {}
+  };
+
+  const scheduleChildFallTest = async (childId, gymId) => {
+    setFtBusyChild(childId); setFamilyMsg('');
+    try {
+      await createFallTestBooking({ gymId, targetMemberId: childId });
+      setFamilyMsg('已為家庭成員安排墜落測驗');
+      await loadChildBookings();
+    } catch (e) {
+      setFamilyMsg(e.response?.data?.message || '安排失敗');
+    } finally { setFtBusyChild(null); }
+  };
+
+  const cancelChildFallTest = async (childId, bookingId) => {
+    setFtBusyChild(childId); setFamilyMsg('');
+    try {
+      await cancelFallTestBooking(bookingId);
+      await loadChildBookings();
+    } catch (e) {
+      setFamilyMsg(e.response?.data?.message || '取消失敗');
+    } finally { setFtBusyChild(null); }
+  };
 
   const loadChildren = async () => {
     try {
+      loadChildBookings();
       const r = await memberClient.get('/members/my/children');
       const list = r.data.children || [];
       // 每位子會員抓 waiver + fallTest 狀態
@@ -299,6 +336,35 @@ export default function MemberProfilePage() {
                     </button>
                   )}
                 </div>
+
+                {/* 墜落測驗：安排 / 待測 / 已通過（waiver + 同意書皆完成後才出現） */}
+                {c.waiverSigned && c.fallTestSigned && (
+                  c.fallTestPassed ? (
+                    <div style={{ marginTop:8, fontSize:11, color:'#2D7D46', fontWeight:600 }}>✓ 已通過墜落測驗</div>
+                  ) : childBookings[c.id] ? (
+                    <div style={{ marginTop:8, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                      <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FFF3E0', color:'#B5762B', fontWeight:600 }}>
+                        ⏳ 已排 {ftGymName(childBookings[c.id].gymId)}，待現場測驗
+                      </span>
+                      <button disabled={ftBusyChild===c.id} onClick={() => cancelChildFallTest(c.id, childBookings[c.id].id)}
+                        style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#fff', color:'#888', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
+                        {ftBusyChild===c.id ? '處理中…' : '更改場館'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop:8 }}>
+                      <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>安排墜落測驗（選擇場館）：</div>
+                      <div style={{ display:'flex', gap:8 }}>
+                        {FT_GYMS.map(g => (
+                          <button key={g.id} disabled={ftBusyChild===c.id} onClick={() => scheduleChildFallTest(c.id, g.id)}
+                            style={{ flex:1, height:34, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer' }}>
+                            {ftBusyChild===c.id ? '…' : g.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                )}
               </div>
             ))}
 

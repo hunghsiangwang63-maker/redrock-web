@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMemberGyms, getMemberAnnouncements } from '../../api/gyms';
 import { memberClient } from '../../api/client';
+import MemberOnboardingGate from '../../components/MemberOnboardingGate';
 import dayjs from 'dayjs';
 
 export default function MemberHomePage() {
@@ -63,6 +64,7 @@ export default function MemberHomePage() {
   }[type] || '公告');
 
   return (
+    <MemberOnboardingGate>
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
 
       {/* 頂部 Header */}
@@ -289,5 +291,6 @@ export default function MemberHomePage() {
         })}
       </div>
     </div>
+    </MemberOnboardingGate>
   );
 }

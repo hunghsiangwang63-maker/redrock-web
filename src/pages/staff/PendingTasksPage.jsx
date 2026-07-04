@@ -11,6 +11,7 @@ import ReasonModal from '../../components/review/ReasonModal';
 import TransferConfirmModal from '../../components/review/TransferConfirmModal';
 import ExperienceDetailModal from '../../components/review/ExperienceDetailModal';
 import TicketApprovalModal from '../../components/review/TicketApprovalModal';
+import FallTestBookingModal from '../../components/review/FallTestBookingModal';
 import { confirmTeamPayment } from '../../api/team';
 import { rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
@@ -45,11 +46,13 @@ const TYPE_CONFIG = {
   experience_transfer:{ icon:'💳', color:'#185FA5', bg:'#E6F1FB', label:'體驗轉帳待確認' },
   transfer_confirm:   { icon:'🏦', color:'#185FA5', bg:'#E6F1FB', label:'轉帳確認' },
   ticket_approval:    { icon:'🎟️', color:'#5B2D8B', bg:'#F3EEF9', label:'票券審核' },
+  fall_test_pending:  { icon:'🧗', color:'#8B1A1A', bg:'#FBF5F5', label:'墜落測驗' },
 };
 
 // 待辦總覽：依「性質」分段（今日提醒／需審核／待收款）
 const CATEGORIES = [
   { key:'remind',  label:'🔔 今日提醒／預約', color:'#854F0B', types:['rental_pickup','rental_return','experience'] },
+  { key:'falltest',label:'🧗 墜落測驗待安排', color:'#8B1A1A', types:['fall_test_pending'] },
   { key:'review',  label:'🔍 需審核（核准／拒絕）', color:'#5B2D8B', types:['course_adjustment','pass_adjustment','ticket_approval'] },
   { key:'payment', label:'💰 待收款（核對後確認）', color:'#185FA5', types:['transfer_confirm','competition_payment','team_member','rental'] },
 ];
@@ -95,6 +98,7 @@ export default function PendingTasksPage() {
     team_member:         isManager || isOpStation,
     competition_payment: isManager,                    // checkPermission('competitions.manage')
     ticket_approval:     isManager,                    // checkPermission('passes.approve')
+    fall_test_pending:   true,                          // 站台/值班/員工皆可登記（後端 authenticate）
   };
   const load = useCallback(async () => {
     setLoading(true);
@@ -199,6 +203,8 @@ export default function PendingTasksPage() {
           <button onClick={() => setModal({ kind:'ticket', record: task.record })} style={primaryBtn('#2D7D46')}>核准</button>
           <button onClick={() => setModal({ kind:'reason', props:{ title:'拒絕單次入場券', label:'拒絕原因', placeholder:'請填寫拒絕原因', confirmText:'確認拒絕', required:true, onSubmit: async (reason) => { await rejectTicket(task.targetId, reason); afterDone('已拒絕'); } } })} style={dangerBtn}>拒絕</button>
         </>;
+      case 'fall_test_pending':
+        return <><button onClick={() => setModal({ kind:'falltest', record: task.record })} style={primaryBtn('#8B1A1A')}>檢視／登記</button></>;
       default:
         // rental_pickup（取件提醒）、transfer_payment、experience_transfer：維持前往處理
         return <button onClick={() => navigate(task.link)} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 }}>前往處理</button>;
@@ -448,6 +454,7 @@ export default function PendingTasksPage() {
       {modal?.kind === 'transfer' && <TransferConfirmModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'experience' && <ExperienceDetailModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'ticket' && <TicketApprovalModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'falltest' && <FallTestBookingModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
 
       {/* 操作結果提示 */}
       {toast && (
