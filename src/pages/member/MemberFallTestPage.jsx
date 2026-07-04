@@ -20,6 +20,7 @@ export default function MemberFallTestPage() {
   const [searchParams] = useSearchParams();
   const forChildId = searchParams.get('forChild');
   const forChildName = searchParams.get('childName');
+  const onboarding = searchParams.get('onboarding') === '1';  // 新會員入場前置流程：簽完回 gate
   const { member } = useMember();
   const targetId = forChildId || member?.id; // 代簽子帳號時為子帳號 id，否則為本人
   const navigate = useNavigate();
@@ -137,6 +138,7 @@ export default function MemberFallTestPage() {
         agreedParagraphs: Array.from(agreedParagraphs),
         guardianSignatureData: isUnder12 ? guardianSigRef.current.toDataURL() : null,
       });
+      if (onboarding) { navigate('/member/home'); return; }  // 回 gate → 自動走到下一步（安排墜落測驗）
       const [st, sig] = await Promise.all([
         getMyFallTestStatus(targetId),
         getFallTestSignature(targetId),

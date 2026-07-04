@@ -113,9 +113,9 @@ export default function MemberOnboardingGate({ children }) {
       </div>
       <Box icon="📝" title="風險安全聲明" sub="RedRock 攀岩館入場免責與安全聲明書"
         done={!needsWaiver} doneText={parentPending ? '' : '已完成簽署'}
-        waiting={parentPending} onClick={() => navigate('/member/waiver')} />
+        waiting={parentPending} onClick={() => navigate('/member/waiver?onboarding=1')} />
       <Box icon="🧗" title="安全墜落測驗同意書" sub="觀看安全影片並簽署墜落測驗同意書"
-        done={consentSigned} doneText="已簽署同意書" onClick={() => navigate('/member/fall-test')} />
+        done={consentSigned} doneText="已簽署同意書" onClick={() => navigate('/member/fall-test?onboarding=1')} />
       {parentPending && (
         <div style={{ background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', fontSize:13, color:'#B5762B', marginTop:4 }}>
           📧 免責聲明書已送出，等待家長 / 監護人完成簽署。

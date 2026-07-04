@@ -8,6 +8,7 @@ export default function MemberWaiverPage() {
   const [searchParams] = useSearchParams();
   const forChildId = searchParams.get('forChild');
   const forChildName = searchParams.get('childName');
+  const onboarding = searchParams.get('onboarding') === '1';  // 新會員入場前置流程：簽完回 gate
   const { member, updateMember } = useMember();
   const navigate = useNavigate();
   const sigRef = useRef(null);
@@ -65,7 +66,7 @@ export default function MemberWaiverPage() {
       });
       const blockReasons = res.data.blockReasons || [];
       updateMember({ blockReasons, isBlocked: blockReasons.length > 0 });
-      navigate('/member/profile');
+      navigate(onboarding ? '/member/home' : '/member/profile');
     } catch (err) {
       setError(err.response?.data?.message || '簽署失敗，請再試一次');
     } finally {
