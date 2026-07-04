@@ -3,7 +3,7 @@ import client from '../../api/client';
 import { getStaffFallTestSignature } from '../../api/fallTests';
 import { completeFallTestBooking, returnFallTestBooking } from '../../api/fallTestBookings';
 
-// 站台待辦：墜落測驗待安排 → 檢視 waiver / 同意書副本，登記「通過 / 未通過」
+// 站台待辦：墜落測驗待安排 → 檢視 waiver / 同意書副本（可展開看條款＋簽名），登記通過/未通過/退回
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
 const Row = ({ label, children }) => (
@@ -13,6 +13,50 @@ const Row = ({ label, children }) => (
   </div>
 );
 
+// 文件區塊：狀態徽章 + 「檢視內容」展開（條款文字快照 + 簽名圖）
+function DocBlock({ title, status, doneText, content, images, open, onToggle }) {
+  const imgs = (images || []).filter(im => im.src);
+  return (
+    <div style={{ border: '0.5px solid #E8D5D5', borderRadius: 10, padding: 12, marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ fontSize: 13, fontWeight: 600 }}>{title}</div>
+        {status === 'loading' ? (
+          <span style={{ fontSize: 12, color: '#999' }}>載入中…</span>
+        ) : status === 'none' ? (
+          <span style={{ fontSize: 12, color: '#A32D2D' }}>查無簽署</span>
+        ) : (
+          <button onClick={onToggle}
+            style={{ height: 28, padding: '0 12px', borderRadius: 7, background: open ? '#8B1A1A' : '#FBF5F5', color: open ? '#fff' : '#8B1A1A', border: '0.5px solid #E8D5D5', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>
+            {open ? '收合' : '檢視內容'}
+          </button>
+        )}
+      </div>
+      {status === 'done' && (
+        <div style={{ fontSize: 12, color: '#2D7D46', marginTop: 6 }}>✓ {doneText}</div>
+      )}
+      {open && status === 'done' && (
+        <div style={{ marginTop: 10 }}>
+          {content ? (
+            <div style={{ maxHeight: 200, overflowY: 'auto', background: '#FBF7F7', borderRadius: 8, padding: 10, fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: '#444' }}>{content}</div>
+          ) : (
+            <div style={{ fontSize: 12, color: '#999' }}>（無條款文字快照）</div>
+          )}
+          {imgs.map((im, i) => (
+            <div key={i} style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 12, color: '#6b6b6b', marginBottom: 4 }}>{im.label}</div>
+              <img src={im.src} alt={im.label}
+                style={{ width: '100%', maxWidth: 320, border: '0.5px solid #eee', borderRadius: 8, background: '#fff' }} />
+            </div>
+          ))}
+          {imgs.length === 0 && (
+            <div style={{ fontSize: 12, color: '#999', marginTop: 8 }}>（此筆無簽名圖檔，僅文字紀錄）</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function FallTestBookingModal({ record, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -20,6 +64,7 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
   const [reason, setReason] = useState('');
   const [waiver, setWaiver] = useState(undefined);      // undefined=載入中, null=無
   const [signature, setSignature] = useState(undefined);
+  const [openDoc, setOpenDoc] = useState(null);         // 'waiver' | 'consent'
   const memberId = record?.memberId;
 
   useEffect(() => {
@@ -54,26 +99,9 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
     }
   };
 
-  const CopyBlock = ({ title, state, imgSrc, doneText }) => (
-    <div style={{ border: '0.5px solid #E8D5D5', borderRadius: 10, padding: 12, marginBottom: 10 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>{title}</div>
-      {state === undefined ? (
-        <div style={{ fontSize: 12, color: '#999' }}>載入中…</div>
-      ) : state === null ? (
-        <div style={{ fontSize: 12, color: '#A32D2D' }}>查無簽署副本</div>
-      ) : (
-        <>
-          <div style={{ fontSize: 12, color: '#2D7D46', marginBottom: imgSrc ? 8 : 0 }}>✓ {doneText}</div>
-          {imgSrc && (
-            <a href={imgSrc} target="_blank" rel="noreferrer">
-              <img src={imgSrc} alt={title}
-                style={{ maxWidth: '100%', maxHeight: 160, borderRadius: 6, border: '0.5px solid #eee', background: '#fff' }} />
-            </a>
-          )}
-        </>
-      )}
-    </div>
-  );
+  const toggle = (key) => setOpenDoc(prev => (prev === key ? null : key));
+  const waiverStatus = waiver === undefined ? 'loading' : (waiver && waiver.isComplete ? 'done' : 'none');
+  const consentStatus = signature === undefined ? 'loading' : (signature ? 'done' : 'none');
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(3px)' }}>
@@ -88,10 +116,14 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
           <Row label="場館">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
         </div>
 
-        <CopyBlock title="免責聲明書（Waiver）" state={waiver === undefined ? undefined : (waiver && waiver.isComplete ? waiver : null)}
-          imgSrc={waiver?.memberSignatureUrl || waiver?.parentSignatureUrl} doneText="已完成簽署" />
-        <CopyBlock title="墜落測驗同意書" state={signature}
-          imgSrc={signature?.signatureData || signature?.guardianSignatureData} doneText="已簽署同意書" />
+        <DocBlock title="免責聲明書（Waiver）" status={waiverStatus} doneText="已完成簽署"
+          content={waiver?.contentSnapshot?.zh}
+          images={[{ label: '會員簽名', src: waiver?.memberSignatureUrl }, { label: '家長/監護人簽名', src: waiver?.parentSignatureUrl }]}
+          open={openDoc === 'waiver'} onToggle={() => toggle('waiver')} />
+        <DocBlock title="墜落測驗同意書" status={consentStatus} doneText="已簽署同意書"
+          content={signature?.contentSnapshot?.zh}
+          images={[{ label: '會員簽名', src: signature?.signatureData }, { label: `家長/監護人簽名${signature?.guardianName ? `（${signature.guardianName}）` : ''}`, src: signature?.guardianSignatureData }]}
+          open={openDoc === 'consent'} onToggle={() => toggle('consent')} />
 
         {error && <div style={{ background: '#FCEBEB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#A32D2D', margin: '4px 0 12px' }}>{error}</div>}
 
