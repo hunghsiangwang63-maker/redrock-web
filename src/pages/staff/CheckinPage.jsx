@@ -111,6 +111,7 @@ export default function CheckinPage() {
   const [entryTypes, setEntryTypes] = useState([]);
   const [shoeRental, setShoeRental] = useState({ price: 100, active: true });
   const [checkinAlreadyPaid, setCheckinAlreadyPaid] = useState(false); // 轉換期：電話搜尋顯示「已付費」放行
+  const [checkinLegacyDiscount, setCheckinLegacyDiscount] = useState(false); // 轉換期：電話搜尋可用「舊折扣卡 8 折」
   const [chalkRental, setChalkRental] = useState({ price: 50, active: true });
   const [phoneRentShoes, setPhoneRentShoes] = useState(false);
   const [phoneRentChalk, setPhoneRentChalk] = useState(false);
@@ -122,7 +123,7 @@ export default function CheckinPage() {
   const inputRef = useRef(null);
 
   useEffect(() => { loadStats(); loadEntryTypes(); }, []); // 待審核/轉帳確認/通知 已移至待辦頁
-  useEffect(() => { client.get('/settings/transition').then(r => setCheckinAlreadyPaid(!!r.data.checkinAlreadyPaid)).catch(() => {}); }, []);
+  useEffect(() => { client.get('/settings/transition').then(r => { setCheckinAlreadyPaid(!!r.data.checkinAlreadyPaid); setCheckinLegacyDiscount(!!r.data.checkinLegacyDiscountCard); }).catch(() => {}); }, []);
   useEffect(() => {
     if (tab === 'scan') inputRef.current?.focus();
     if (tab === 'today') loadTodayCheckIns();
@@ -287,7 +288,7 @@ export default function CheckinPage() {
     setPhoneLoading(true);
     try {
       let res;
-      if (phoneInstrument) {
+      if (phoneInstrument && phoneInstrument.kind !== 'legacyDiscount') {
         // 兩段流程：身分(phoneEntryType) + 票券(instrument)，走 /checkin/direct（重用結算邏輯）
         res = await client.post('/checkin/direct', {
           memberId: phoneSelectedMember.id,
@@ -303,7 +304,7 @@ export default function CheckinPage() {
           rentChalk: phoneRentChalk,
         });
       } else {
-        // 一般付款／免費身分：維持原 /checkin/phone
+        // 一般付款／免費身分／舊折扣卡8折：走 /checkin/phone（後端權威算價）
         const effectiveEntryType = memberEligibility?.isVip ? 'vip' : memberEligibility?.hasValidPass ? 'pass' : memberEligibility?.hasCourseAccess ? 'course_access' : phoneEntryType;
         res = await client.post('/checkin/phone', {
           memberId: phoneSelectedMember.id,
@@ -312,6 +313,7 @@ export default function CheckinPage() {
           paymentMethod: phonePayment,
           rentShoes: phoneRentShoes,
           rentChalk: phoneRentChalk,
+          legacyDiscountCard: phoneInstrument?.kind === 'legacyDiscount', // 轉換期舊折扣卡8折
         });
       }
       setPhoneCheckedIn({
@@ -332,7 +334,8 @@ export default function CheckinPage() {
     }
   };
 
-  // 轉換期「已付費」放行：會員於舊系統已付，直接入場（記 NT$0、付款『已付費』）。仍須 Waiver/墜測（後端硬擋）
+  // 轉換期「已付費」放行：會員於舊系統已付「入場費」，入場費記 NT$0。
+  // 但若加購岩鞋/粉袋仍須另收（帶 rentShoes/rentChalk + 付款方式，後端以真實付款方式收加購）。仍須 Waiver/墜測（後端硬擋）。
   const handlePhoneAlreadyPaid = async () => {
     if (!phoneSelectedMember) { setPhoneError('請先選擇入場人員'); return; }
     setPhoneLoading(true);
@@ -341,6 +344,9 @@ export default function CheckinPage() {
         memberId: phoneSelectedMember.id,
         gymId: targetGymId,
         alreadyPaid: true,
+        rentShoes: phoneRentShoes,
+        rentChalk: phoneRentChalk,
+        paymentMethod: phonePayment,
       });
       setPhoneCheckedIn({ ...res.data.checkIn, needsPromotion: res.data.needsPromotion || false, promotionMessage: res.data.promotionMessage });
       setPhoneMember(null); setPhoneInput(''); setPhoneRentShoes(false); setPhoneRentChalk(false); setPhoneInstrument(null);
@@ -612,6 +618,13 @@ export default function CheckinPage() {
                     if (inst.blackCard?.available) opts.push({ key:'blackCard', kind:'blackCard', type:'black_card', label:'黑卡（免費）', cardId: inst.blackCard.cards[0]?.id });
                     if (inst.bonus?.available) opts.push({ key:'bonus', kind:'bonus', type:'bonus', label:'紅利（免費）', cardId: inst.bonus.bonuses[0]?.id });
                     if (inst.singleEntryTicket?.available) opts.push({ key:'ticket', kind:'singleEntryTicket', type:'single_entry_ticket', label:'單次入場券（免費）', cardId: inst.singleEntryTicket.tickets[0]?.id });
+                    // 轉換期：持實體舊折扣卡、未轉入新優惠卡者，員工可手動套 8 折（有效隊員再疊 9 折）。
+                    // 僅在開關開啟、且會員名下無新優惠卡、且該身分有票價時提供。
+                    if (checkinLegacyDiscount && !inst.discountCard?.available && basePrice > 0) {
+                      const teamStacked = !!inst.discountCard?.teamStacked;
+                      const rate = inst.discountCard?.rate || 0.8; // 0.72(隊員疊加) / 0.8
+                      opts.push({ key:'legacyDiscount', kind:'legacyDiscount', type:null, label:`${teamStacked ? '舊折扣卡8折+隊員9折' : '舊折扣卡8折'} NT$${Math.round(basePrice*rate)}` });
+                    }
                     if (opts.length === 1) return null;
                     const cur = phoneInstrument?.kind || null;
                     return (
@@ -675,8 +688,8 @@ export default function CheckinPage() {
                     const basePrice = (entryTypes.find(t => t.id === phoneEntryType)?.price || 0);
                     let entryPrice = basePrice;
                     if (phoneInstrument) {
-                      if (phoneInstrument.kind === 'discountCard') {
-                        const rate = memberEligibility?.instruments?.discountCard?.rate || 0.8;
+                      if (phoneInstrument.kind === 'discountCard' || phoneInstrument.kind === 'legacyDiscount') {
+                        const rate = memberEligibility?.instruments?.discountCard?.rate || 0.8; // 8折(或隊員疊9折=0.72)
                         entryPrice = Math.round(basePrice * rate);
                       } else {
                         entryPrice = 0; // 黑卡/紅利/單次券免費
@@ -685,7 +698,7 @@ export default function CheckinPage() {
                     const shoePrice = phoneRentShoes ? (shoeRental?.price || 0) : 0;
                     const chalkPrice = phoneRentChalk ? (chalkRental?.price || 50) : 0;
                     const total = entryPrice + shoePrice + chalkPrice;
-                    const freeByInstrument = phoneInstrument && phoneInstrument.kind !== 'discountCard';
+                    const freeByInstrument = phoneInstrument && phoneInstrument.kind !== 'discountCard' && phoneInstrument.kind !== 'legacyDiscount';
                     if (total === 0 && !freeByInstrument) return null;
                     return (
                       <div style={{ background:'#F5EFEF', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#8B1A1A', fontWeight:500 }}>
@@ -707,13 +720,16 @@ export default function CheckinPage() {
                     style={{ width:'100%', height:44, borderRadius:8, background: blocked ? '#ccc' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: blocked ? 'not-allowed' : 'pointer' }}>
                     {phoneLoading ? '...' : noWaiver ? '⚠ Waiver 未簽署，無法入場' : noFallTest ? '⚠ 未通過墜落測驗，無法入場' : memberEligibility?.isVip ? '✓ VIP 入場' : memberEligibility?.hasValidPass ? '✓ 定期票入場' : memberEligibility?.hasCourseAccess ? '✓ 課程學員入場' : '✓ 確認入場'}
                   </button>
-                  {checkinAlreadyPaid && !blocked && (
+                  {checkinAlreadyPaid && !blocked && (() => {
+                    const rentTotal = (phoneRentShoes ? (shoeRental?.price || 0) : 0) + (phoneRentChalk ? (chalkRental?.price || 50) : 0);
+                    return (
                     <button type="button" onClick={handlePhoneAlreadyPaid} disabled={phoneLoading}
-                      title="會員於舊系統已付費，直接放行入場（記 NT$0）"
+                      title="會員於舊系統已付『入場費』，入場費記 NT$0；加購岩鞋/粉袋仍另收"
                       style={{ width:'100%', height:40, borderRadius:8, background:'#fff', color:'#854F0B', border:'0.5px solid #E0C067', fontSize:13, fontWeight:600, cursor:'pointer', marginTop:8 }}>
-                      💳 已付費入場（舊系統已付，免費放行）
+                      💳 已付費入場（入場費 NT$0{rentTotal > 0 ? `，加購另收 NT$${rentTotal}` : ''}）
                     </button>
-                  )}
+                    );
+                  })()}
                   </>
                     );
                   })()}

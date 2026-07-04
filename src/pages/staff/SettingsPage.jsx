@@ -301,7 +301,7 @@ export default function SettingsPage() {
   };
 
   // ─── 系統轉換期設定 ─────────────────────────────────────────────
-  const [transition, setTransition] = useState({ settlementManualInput: false, settlementShowCardNumbers: true, checkinAlreadyPaid: false });
+  const [transition, setTransition] = useState({ settlementManualInput: false, settlementShowCardNumbers: true, checkinAlreadyPaid: false, checkinLegacyDiscountCard: false });
   const loadTransition = async () => {
     try { const res = await client.get('/settings/transition'); setTransition(res.data); } catch (e) {}
   };
@@ -559,7 +559,7 @@ export default function SettingsPage() {
             <button onClick={handleSaveTransition} disabled={loading}
               style={{ height:32, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>儲存</button>
           </div>
-          <div style={{ padding:16, display:'flex', flexDirection:'column', gap:18 }}>
+          <div style={{ padding:16, display:'flex', flexDirection:'column', gap:18, textAlign:'left' }}>
             <div style={{ fontSize:12, color:'#999', lineHeight:1.6 }}>新舊系統轉換期間的暫時選項，轉換完成後可關閉／移除。</div>
             <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
               <input type="checkbox" checked={!!transition.settlementManualInput}
@@ -585,7 +585,16 @@ export default function SettingsPage() {
                 style={{ width:16, height:16, marginTop:2 }} />
               <span>
                 <div style={{ fontWeight:600 }}>入場：電話搜尋顯示「已付費」放行</div>
-                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>會員於舊系統已付者，員工電話搜尋後可直接放行入場（記 NT$0、付款方式「已付費」）。仍須完成 Waiver／墜測。</div>
+                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>會員於舊系統已付「入場費」者，員工電話搜尋後可直接放行入場（入場費記 NT$0）。若加購岩鞋／粉袋仍另收費。仍須完成 Waiver／墜測。</div>
+              </span>
+            </label>
+            <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
+              <input type="checkbox" checked={!!transition.checkinLegacyDiscountCard}
+                onChange={e => setTransition(p => ({...p, checkinLegacyDiscountCard: e.target.checked}))}
+                style={{ width:16, height:16, marginTop:2 }} />
+              <span>
+                <div style={{ fontWeight:600 }}>入場：電話搜尋可用「舊折扣卡 8 折」</div>
+                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>持實體舊折扣卡、未轉入新優惠卡者，員工電話搜尋入場可手動套 8 折（有效隊員再疊 9 折）。轉換完成後關閉。</div>
               </span>
             </label>
           </div>

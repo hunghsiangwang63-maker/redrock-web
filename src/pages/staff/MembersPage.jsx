@@ -287,10 +287,14 @@ export default function MembersPage() {
   };
 
   const [checkinEligibility, setCheckinEligibility] = useState(null);
+  // 轉換期設定（已付費放行 / 舊折扣卡8折）
+  const [checkinTransition, setCheckinTransition] = useState({ checkinAlreadyPaid: false, checkinLegacyDiscountCard: false });
+  const [useLegacyDiscount, setUseLegacyDiscount] = useState(false); // 本次入場是否套舊折扣卡8折
 
   const openCheckin = async () => {
     setCheckinMsg('');
     setCheckinEligibility(null);
+    setUseLegacyDiscount(false);
     setShowCheckin(true);
     // 查詢入場資格（有無定期票）
     try {
@@ -304,6 +308,27 @@ export default function MembersPage() {
         setEntryTypes((res.data || []).filter(t => t.active));
       } catch (e) {}
     }
+    // 轉換期設定
+    try {
+      const res = await client.get('/settings/transition');
+      setCheckinTransition({ checkinAlreadyPaid: !!res.data.checkinAlreadyPaid, checkinLegacyDiscountCard: !!res.data.checkinLegacyDiscountCard });
+    } catch (e) {}
+  };
+
+  // 轉換期「已付費」放行：入場費記 NT$0（MembersPage 快速入場無加購，故純放行）。仍須 Waiver/墜測（後端硬擋）。
+  const handleAlreadyPaidCheckin = async () => {
+    if (!targetGymId) { setCheckinMsg('無法判斷操作館別，請確認登入狀態'); setCheckinMsgType('red'); return; }
+    setCheckinSaving(true);
+    setCheckinMsg('');
+    try {
+      await client.post('/checkin/phone', { memberId: selected.id, gymId: targetGymId, alreadyPaid: true });
+      setCheckinMsg(`${selected.name} 入場成功（已付費）`);
+      setCheckinMsgType('ok');
+      setTimeout(() => setShowCheckin(false), 1200);
+    } catch (err) {
+      setCheckinMsg(err.response?.data?.message || '入場失敗');
+      setCheckinMsgType('red');
+    } finally { setCheckinSaving(false); }
   };
 
   const handleQuickCheckin = async () => {
@@ -317,6 +342,7 @@ export default function MembersPage() {
         gymId: targetGymId,
         entryType: checkinEligibility?.isVip ? 'vip' : checkinEligibility?.hasValidPass ? 'pass' : checkinEligibility?.hasCourseAccess ? 'course_access' : checkinEntryType,
         paymentMethod: checkinPayment,
+        legacyDiscountCard: useLegacyDiscount, // 轉換期舊折扣卡8折（僅折入場費）
       });
       setCheckinMsg(`${selected.name} 入場成功`);
       setCheckinMsgType('ok');
@@ -917,6 +943,21 @@ export default function MembersPage() {
               </div>
             </div>
           )}
+          {/* 轉換期：舊折扣卡8折（僅折入場費；持實體舊卡未轉入新優惠卡者）。僅一般付費身分適用。 */}
+          {checkinTransition.checkinLegacyDiscountCard && !checkinEligibility?.isVip && !checkinEligibility?.hasValidPass && !checkinEligibility?.hasCourseAccess && (() => {
+            const base = entryTypes.find(t => t.id === checkinEntryType)?.price || 0;
+            if (base <= 0) return null;
+            const teamStacked = !!checkinEligibility?.instruments?.discountCard?.teamStacked;
+            const rate = checkinEligibility?.instruments?.discountCard?.rate || 0.8;
+            return (
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'10px 12px', borderRadius:8, border:`0.5px solid ${useLegacyDiscount?'#8B1A1A':'#E8D5D5'}`, background: useLegacyDiscount?'#FBF0F0':'#fff', marginBottom:16 }}>
+                <input type="checkbox" checked={useLegacyDiscount} onChange={e => setUseLegacyDiscount(e.target.checked)} style={{ width:16, height:16 }} />
+                <span style={{ fontSize:13, color: useLegacyDiscount?'#8B1A1A':'#444', fontWeight: useLegacyDiscount?600:400 }}>
+                  套用舊折扣卡{teamStacked ? '8折+隊員9折' : '8折'}（入場費 NT${Math.round(base*rate)}，加購不折）
+                </span>
+              </label>
+            );
+          })()}
           {checkinMsg && (
             <div style={{ background: checkinMsgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${checkinMsgType==='ok'?'#B3DEC0':'#F5C4C4'}`, borderRadius:8, padding:'8px 12px', fontSize:12, color: checkinMsgType==='ok'?'#2D7D46':'#A32D2D', marginBottom:14 }}>
               {checkinMsg}
@@ -930,6 +971,14 @@ export default function MembersPage() {
               {checkinSaving ? '處理中...' : '確認入場'}
             </button>
           </div>
+          {/* 轉換期：已付費放行（入場費 NT$0）。仍須 Waiver／墜測（後端硬擋）。 */}
+          {checkinTransition.checkinAlreadyPaid && checkinEligibility?.waiverSigned && checkinEligibility?.fallTestPassed !== false && (
+            <button onClick={handleAlreadyPaidCheckin} disabled={checkinSaving}
+              title="會員於舊系統已付『入場費』，入場費記 NT$0"
+              style={{ width:'100%', height:40, borderRadius:9, background:'#fff', color:'#854F0B', border:'0.5px solid #E0C067', fontSize:13, fontWeight:600, cursor:'pointer', marginTop:8 }}>
+              💳 已付費入場（入場費 NT$0）
+            </button>
+          )}
         </Modal>
       )}
 
