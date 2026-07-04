@@ -943,8 +943,8 @@ export default function MembersPage() {
               </div>
             </div>
           )}
-          {/* 轉換期：舊折扣卡8折（僅折入場費；持實體舊卡未轉入新優惠卡者）。僅一般付費身分適用。 */}
-          {checkinTransition.checkinLegacyDiscountCard && !checkinEligibility?.isVip && !checkinEligibility?.hasValidPass && !checkinEligibility?.hasCourseAccess && (() => {
+          {/* 轉換期：舊折扣卡8折（僅折入場費；持實體舊卡未轉入新優惠卡者）。僅一般付費身分適用、兒童不適用。 */}
+          {checkinTransition.checkinLegacyDiscountCard && !checkinEligibility?.isVip && !checkinEligibility?.hasValidPass && !checkinEligibility?.hasCourseAccess && checkinEntryType !== 'child_free' && (() => {
             const base = entryTypes.find(t => t.id === checkinEntryType)?.price || 0;
             if (base <= 0) return null;
             const teamStacked = !!checkinEligibility?.instruments?.discountCard?.teamStacked;

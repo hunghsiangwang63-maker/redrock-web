@@ -619,8 +619,8 @@ export default function CheckinPage() {
                     if (inst.bonus?.available) opts.push({ key:'bonus', kind:'bonus', type:'bonus', label:'紅利（免費）', cardId: inst.bonus.bonuses[0]?.id });
                     if (inst.singleEntryTicket?.available) opts.push({ key:'ticket', kind:'singleEntryTicket', type:'single_entry_ticket', label:'單次入場券（免費）', cardId: inst.singleEntryTicket.tickets[0]?.id });
                     // 轉換期：持實體舊折扣卡、未轉入新優惠卡者，員工可手動套 8 折（有效隊員再疊 9 折）。
-                    // 僅在開關開啟、且會員名下無新優惠卡、且該身分有票價時提供。
-                    if (checkinLegacyDiscount && !inst.discountCard?.available && basePrice > 0) {
+                    // 僅在開關開啟、會員名下無新優惠卡、該身分有票價、且非兒童（兒童不適用折扣卡）時提供。
+                    if (checkinLegacyDiscount && !inst.discountCard?.available && basePrice > 0 && phoneEntryType !== 'child_free') {
                       const teamStacked = !!inst.discountCard?.teamStacked;
                       const rate = inst.discountCard?.rate || 0.8; // 0.72(隊員疊加) / 0.8
                       opts.push({ key:'legacyDiscount', kind:'legacyDiscount', type:null, label:`${teamStacked ? '舊折扣卡8折+隊員9折' : '舊折扣卡8折'} NT$${Math.round(basePrice*rate)}` });
