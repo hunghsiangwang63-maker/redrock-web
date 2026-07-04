@@ -23,6 +23,7 @@ export default function MemberOnboardingGate({ children }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [justBooked, setJustBooked] = useState(false);  // 剛送出申請 → 顯示確認畫面（可回首頁）
+  const [bookedGymId, setBookedGymId] = useState('');   // 剛選的場館 id（refresh 尚未回填 booking 前，確認畫面用它顯示館名）
 
   const memberId = member?.id;
 
@@ -133,7 +134,7 @@ export default function MemberOnboardingGate({ children }) {
         <div style={{ fontSize:44, marginBottom:12 }}>✅</div>
         <div style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>已送出墜落測驗申請</div>
         <div style={{ fontSize:14, color:'#666', lineHeight:1.7 }}>
-          已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/>
+          已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/>
           <span style={{ color:'#B5762B' }}>測驗通過前暫不可入場</span>（持當日體驗課程券者不受此限）。
         </div>
       </div>
@@ -152,7 +153,7 @@ export default function MemberOnboardingGate({ children }) {
   // 階段二：兩者已簽 → 請安排墜落測驗（選場館）
   const pick = async (gymId) => {
     setBusy(true); setError('');
-    try { await createFallTestBooking({ gymId }); setJustBooked(true); await refresh(); setBusy(false); }
+    try { await createFallTestBooking({ gymId }); setBookedGymId(gymId); setJustBooked(true); await refresh(); setBusy(false); }
     catch (e) { setError(e.response?.data?.message || '安排失敗，請重試'); setBusy(false); }
   };
   return overlay(<>
