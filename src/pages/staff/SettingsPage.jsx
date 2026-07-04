@@ -94,6 +94,25 @@ export default function SettingsPage() {
     finally { setDeviceBindingSaving(false); }
   };
 
+  // ─── Email 認證總開關（super_admin）─────────────────────────────
+  const [emailVerifyEnabled, setEmailVerifyEnabled] = useState(true);
+  const [emailVerifySaving, setEmailVerifySaving] = useState(false);
+  const loadEmailVerify = async () => {
+    try { const res = await client.get('/settings/email-verification'); setEmailVerifyEnabled(res.data.enabled !== false); }
+    catch (e) {}
+  };
+  const toggleEmailVerify = async () => {
+    const next = !emailVerifyEnabled;
+    if (!next && !window.confirm('確定關閉 Email 認證？關閉後，會員自助註冊將不需驗證 Email 即可登入（僅測試/轉換期使用，完成後請重新開啟）。')) return;
+    setEmailVerifySaving(true);
+    try {
+      await client.put('/settings/email-verification', { enabled: next });
+      setEmailVerifyEnabled(next);
+      showMsg(next ? '已開啟 Email 認證' : '已關閉 Email 認證');
+    } catch (e) { showMsg(e.response?.data?.message || '設定失敗'); }
+    finally { setEmailVerifySaving(false); }
+  };
+
   const loadStaffList = async () => {
     setStaffLoading(true);
     try {
@@ -113,7 +132,7 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    if (activeTab === 'staffAccounts' && isSuperAdmin) { loadStaffList(); loadStationList(); loadDeviceBinding(); }
+    if (activeTab === 'staffAccounts' && isSuperAdmin) { loadStaffList(); loadStationList(); loadDeviceBinding(); loadEmailVerify(); }
     if (activeTab === 'gyms') getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(()=>{});
   }, [activeTab]);
 
@@ -754,6 +773,33 @@ export default function SettingsPage() {
           </div>
           <div style={{ padding:'8px 12px', borderRadius:8, background: deviceBindingEnabled ? '#E6F4EB' : '#FCEBEB', fontSize:12, color: deviceBindingEnabled ? '#2D7D46' : '#A32D2D' }}>
             目前狀態：{deviceBindingEnabled ? '✅ 已開啟（登入須裝置驗證）' : '⚠ 已關閉（登入不驗證裝置，僅測試/轉換期）'}
+          </div>
+        </div>
+      )}
+
+      {/* ── Email 認證總開關 ── */}
+      {activeTab === 'staffAccounts' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>✉️ Email 認證</span>
+          </div>
+          <div style={{ padding:'14px 4px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:16 }}>
+            <div style={{ flex:1 }}>
+              <div style={{ fontSize:14, fontWeight:500 }}>強制 Email 驗證</div>
+              <div style={{ fontSize:12, color:'#888', marginTop:3, lineHeight:1.6 }}>
+                開啟後，會員自助註冊須點擊驗證信連結完成 Email 驗證才能登入（員工建立／舊系統移轉的帳號不受限）。
+                資料移轉或測試期可暫時關閉；完成後請務必重新開啟。
+              </div>
+            </div>
+            <button onClick={toggleEmailVerify} disabled={emailVerifySaving}
+              title={emailVerifyEnabled ? '點擊關閉' : '點擊開啟'}
+              style={{ position:'relative', width:52, height:30, borderRadius:15, border:'none', flexShrink:0,
+                background: emailVerifyEnabled ? '#2D7D46' : '#C0B8B8', cursor: emailVerifySaving ? 'wait' : 'pointer', transition:'background .2s' }}>
+              <span style={{ position:'absolute', top:3, left: emailVerifyEnabled ? 25 : 3, width:24, height:24, borderRadius:'50%', background:'#fff', transition:'left .2s', boxShadow:'0 1px 3px rgba(0,0,0,.3)' }}/>
+            </button>
+          </div>
+          <div style={{ padding:'8px 12px', borderRadius:8, background: emailVerifyEnabled ? '#E6F4EB' : '#FCEBEB', fontSize:12, color: emailVerifyEnabled ? '#2D7D46' : '#A32D2D' }}>
+            目前狀態：{emailVerifyEnabled ? '✅ 已開啟（自助註冊須驗證 Email 才能登入）' : '⚠ 已關閉（自助註冊免驗證即可登入，僅測試/轉換期）'}
           </div>
         </div>
       )}
