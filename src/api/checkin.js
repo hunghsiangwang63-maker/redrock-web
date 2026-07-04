@@ -13,9 +13,6 @@ export const confirmCheckIn = (qrToken) =>
 export const cancelCheckIn = (checkInId) =>
   client.post('/checkin/cancel', { checkInId });
 
-export const recordCheckIn = (data) =>
-  client.post('/checkin/record', data);
-
 export const getTodayStats = (gymId) =>
   client.get('/checkin/today', { params: gymId ? { gymId } : {} });
 
