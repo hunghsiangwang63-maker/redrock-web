@@ -84,6 +84,8 @@ RedRock 紅石攀岩館管理系統，服務兩個場館：新竹館（`gym-hsin
   - 已接會員自助：競賽 / 體驗 / 課程 / 租借（MemberCompetitions/Experience/Courses/Rental Page）
   - 後端 rail 與設計：見 `redrock-api/docs/payment-integration-plan.md`
 
+- ✅ **新會員入場前置全屏流程（墜落測驗自助排測）**：會員端 `MemberOnboardingGate`（包在 `MemberHomePage`）——email 認證後主畫面全屏 gate：①②兩大方框簽 waiver + 墜測同意書（沿用既有 `/member/waiver`、`/member/fall-test`）→ 兩者完成顯示「請安排墜落測驗」選場館 → **送出後確認畫面→回正常首頁**（不卡等待畫面；入場仍由後端擋到通過為止，持當日體驗券者豁免）。子帳號於 `MemberProfilePage`「家庭成員」各自代簽 + 各自選場館排測（可換館）。員工/站台端 `PendingTasksPage` 新增「🧗 墜落測驗待安排」分段 + `fall_test_pending` 卡，`FallTestBookingModal` 檢視 waiver/同意書副本 + 通過/未通過/**退回申請**（站台值班可用）。新 `api/fallTestBookings.js`；接後端 `1.34.0` `/fall-test-bookings`
+
 ## 待辦
 - 各館金流商戶金鑰到位後：啟用 `ONLINE_PAYMENT_ENABLED` + 員工端 QR PaymentFlow（定期票/分期/入場）
 - 資料移轉（Climbio 18,000+ 筆）
