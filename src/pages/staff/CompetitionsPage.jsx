@@ -369,7 +369,7 @@ export default function CompetitionsPage() {
                         </div>
                         {(r.idNumber || r.emergencyContact) && (
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            身分證：{r.idNumber||'—'} ｜ 緊急聯絡：{r.emergencyContact||'—'} {r.emergencyPhone||''}
+                            身分證：{r.idNumber||'—'} ｜ 緊急聯絡：{r.emergencyContact||'—'}{r.emergencyRelation?`（${r.emergencyRelation}）`:''} {r.emergencyPhone||''}
                           </div>
                         )}
                         {r.refundAccount && (

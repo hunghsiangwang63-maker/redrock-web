@@ -58,6 +58,7 @@ export default function MemberCompetitionsPage() {
   const [isHonorary, setIsHonorary] = useState(false);
   const [idNumber, setIdNumber] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
+  const [emergencyRelation, setEmergencyRelation] = useState('');
   const [emergencyPhone, setEmergencyPhone] = useState('');
   const [height, setHeight] = useState('');
   const [armSpan, setArmSpan] = useState('');
@@ -153,7 +154,7 @@ export default function MemberCompetitionsPage() {
     setStep(1);
     setDivisionId(comp.divisions?.[0]?.id || '');
     setIsHonorary(false);
-    setIdNumber(''); setEmergencyContact(''); setEmergencyPhone('');
+    setIdNumber(''); setEmergencyContact(''); setEmergencyRelation(''); setEmergencyPhone('');
     setHeight(''); setArmSpan('');
     setPaymentMethod('transfer'); setPaymentDate(''); setBankLastFive('');
     setAgreedWaiver(false); setAgreedPhoto(false);
@@ -188,6 +189,7 @@ export default function MemberCompetitionsPage() {
         isHonorary,
         idNumber,
         emergencyContact,
+        emergencyRelation,
         emergencyPhone,
         height: height ? Number(height) : null,
         armSpan: armSpan ? Number(armSpan) : null,
@@ -424,8 +426,6 @@ export default function MemberCompetitionsPage() {
                 </label>
                 {[
                   { label:'身分證 / 護照號碼 *（保險用）', val:idNumber, set:setIdNumber, ph:'R123456789 / 外籍：國籍+護照號' },
-                  { label:'緊急聯絡人姓名 *', val:emergencyContact, set:setEmergencyContact, ph:'請填寫緊急聯絡人姓名' },
-                  { label:'緊急聯絡人手機 *', val:emergencyPhone, set:setEmergencyPhone, ph:'請填寫緊急聯絡人手機' },
                 ].map(({label,val,set,ph})=>(
                   <div key={label} style={{ marginBottom:12 }}>
                     <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{label}</label>
@@ -433,6 +433,18 @@ export default function MemberCompetitionsPage() {
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 ))}
+                {/* 緊急聯絡人：姓名 / 關係 / 電話 三格（關係選填） */}
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>緊急聯絡人 *</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    <input value={emergencyContact} onChange={e=>setEmergencyContact(e.target.value)} placeholder="姓名"
+                      style={{ flex:'1.2 1 0', minWidth:0, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                    <input value={emergencyRelation} onChange={e=>setEmergencyRelation(e.target.value)} placeholder="關係"
+                      style={{ flex:'1 1 0', minWidth:0, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                    <input value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} placeholder="電話" inputMode="tel"
+                      style={{ flex:'1.6 1 0', minWidth:0, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  </div>
+                </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
                   <div>
                     <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>身高（公分，定線參考）</label>
