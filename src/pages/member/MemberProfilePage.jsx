@@ -155,7 +155,7 @@ export default function MemberProfilePage() {
       setWaiverLoading(false);
     }
   };
-  const [editForm, setEditForm] = useState({ name:'', email:'', birthday:'', gender:'', emergencyContact:'' });
+  const [editForm, setEditForm] = useState({ name:'', email:'', birthday:'', gender:'', ecName:'', ecRelation:'', ecPhone:'' });
   const [editOpen, setEditOpen] = useState(false);
   const [pwForm, setPwForm] = useState({ current:'', newPw:'', confirm:'' });
   const [checkinHistory, setCheckinHistory] = useState([]);
@@ -276,7 +276,7 @@ export default function MemberProfilePage() {
         {/* 功能清單 */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:12 }}>
           {[
-            { icon:'✏️', label:'修改個人資料', action: () => { setEditForm({ name: member?.name||'', email: member?.email||'', birthday: member?.birthday||'', gender: member?.gender||'', emergencyContact: member?.emergencyContact||'' }); setShowEditProfile(true); } },
+            { icon:'✏️', label:'修改個人資料', action: () => { const ec = (member?.emergencyContact||'').split('/').map(s => s.trim()); setEditForm({ name: member?.name||'', email: member?.email||'', birthday: member?.birthday||'', gender: member?.gender||'', ecName: ec[0]||'', ecRelation: ec[1]||'', ecPhone: ec[2]||'' }); setShowEditProfile(true); } },
             { icon:'🔑', label:'修改密碼', action: () => setShowChangePassword(true) },
             { icon:'🔔', label:'Line 官方通知設定', action: () => setShowNotification(true) },
             { icon:'👨‍👩‍👧‍👦', label:'家庭成員（限兒童及青少年）', action: () => { loadChildren(); setShowFamily(true); } },
@@ -437,7 +437,6 @@ export default function MemberProfilePage() {
               { label:'姓名', key:'name', placeholder: member?.name, type:'text' },
               { label:'Email', key:'email', placeholder: member?.email, type:'email' },
               { label:'生日', key:'birthday', placeholder: member?.birthday || 'YYYY-MM-DD', type:'date' },
-              { label:'緊急聯絡人', key:'emergencyContact', placeholder: '姓名 / 關係 / 電話', type:'text' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -446,6 +445,21 @@ export default function MemberProfilePage() {
                   style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               </div>
             ))}
+            {/* 緊急聯絡人：姓名 / 關係 / 電話 三格 */}
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>緊急聯絡人</label>
+              <div style={{ display:'flex', gap:8 }}>
+                <input value={editForm.ecName} onChange={e => setEditForm(p => ({...p, ecName: e.target.value}))}
+                  placeholder="姓名"
+                  style={{ flex:'1.2 1 0', minWidth:0, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+                <input value={editForm.ecRelation} onChange={e => setEditForm(p => ({...p, ecRelation: e.target.value}))}
+                  placeholder="關係"
+                  style={{ flex:'1 1 0', minWidth:0, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+                <input value={editForm.ecPhone} onChange={e => setEditForm(p => ({...p, ecPhone: e.target.value}))}
+                  placeholder="電話" inputMode="tel"
+                  style={{ flex:'1.6 1 0', minWidth:0, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              </div>
+            </div>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>性別</label>
               <select value={editForm.gender} onChange={e => setEditForm(p => ({...p, gender: e.target.value}))}
@@ -461,9 +475,12 @@ export default function MemberProfilePage() {
                 style={{ flex:1, height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={async () => {
                 try {
+                  const ecParts = [editForm.ecName, editForm.ecRelation, editForm.ecPhone].map(s => (s || '').trim());
+                  const emergencyContact = ecParts.some(Boolean) ? ecParts.join(' / ') : '';
+                  const payload = { name: editForm.name, email: editForm.email, birthday: editForm.birthday, gender: editForm.gender, emergencyContact };
                   const { memberClient } = await import('../../api/client');
-                  await memberClient.put('/auth/member/profile', editForm);
-                  updateMember({ name: editForm.name, email: editForm.email, birthday: editForm.birthday, gender: editForm.gender, emergencyContact: editForm.emergencyContact });
+                  await memberClient.put('/auth/member/profile', payload);
+                  updateMember(payload);
                   setMsg('資料已更新');
                   setTimeout(() => { setMsg(''); setShowEditProfile(false); }, 1500);
                 } catch { setMsg('更新失敗，請稍後再試'); }
