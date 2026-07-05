@@ -158,7 +158,7 @@ export default function MemberWaiverPage() {
                     border: `0.5px solid ${agreedParagraphs.has(idx) ? '#B3DEC0' : '#F0E4E4'}`,
                     borderRadius: 10, padding: 14, marginBottom: 10, transition: 'background .15s',
                   }}>
-                  <div onClick={e => e.stopPropagation()}
+                  <div
                     style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, border: `2px solid ${agreedParagraphs.has(idx) ? '#2D7D46' : '#CCC'}`, borderRadius: 3, background: agreedParagraphs.has(idx) ? '#2D7D46' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                     {agreedParagraphs.has(idx) && <span style={{ color: '#fff', fontSize: 12, lineHeight: 1 }}>✓</span>}
                   </div>
