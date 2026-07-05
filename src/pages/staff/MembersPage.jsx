@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PasswordInput from '../../components/PasswordInput';
 import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
@@ -858,7 +859,7 @@ export default function MembersPage() {
           </div>
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>密碼（選填，預設為手機末4碼）</label>
-            <input type="password" value={promoteForm.password} onChange={e => setPromoteForm({...promoteForm, password:e.target.value})}
+            <PasswordInput value={promoteForm.password} onChange={e => setPromoteForm({...promoteForm, password:e.target.value})}
               placeholder="至少8碼，留空則用手機末4碼"
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
           </div>

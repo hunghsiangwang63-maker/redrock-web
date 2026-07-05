@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PasswordInput from './PasswordInput';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../store/authStore.jsx';
 import client from '../api/client';
@@ -297,7 +298,7 @@ export default function StaffLayout() {
               </div>
               <div style={{ marginBottom:18 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>密碼</label>
-                <input type="password" value={clockInPw} onChange={e => setClockInPw(e.target.value)}
+                <PasswordInput value={clockInPw} onChange={e => setClockInPw(e.target.value)}
                   placeholder="••••••••" required style={inp} />
               </div>
               {clockInErr && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#A32D2D', marginBottom:14 }}>{clockInErr}</div>}

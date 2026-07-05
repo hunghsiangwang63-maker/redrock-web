@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMyWaiver } from '../../api/memberAuth';
@@ -485,7 +486,7 @@ export default function MemberProfilePage() {
             ].map(f => (
               <div key={f.key} style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
-                <input type="password" value={pwForm[f.key]} onChange={e => setPwForm(p => ({...p, [f.key]: e.target.value}))}
+                <PasswordInput value={pwForm[f.key]} onChange={e => setPwForm(p => ({...p, [f.key]: e.target.value}))}
                   placeholder="••••••••"
                   style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
 import { memberSelfRegister } from '../../api/memberAuth';
 
@@ -65,7 +66,7 @@ export default function MemberRegisterPage() {
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={labelStyle}>密碼（至少8碼）</label>
-                <input type="password" value={form.password} onChange={set('password')} placeholder="••••••••" required minLength={8} style={inputStyle} />
+                <PasswordInput value={form.password} onChange={set('password')} placeholder="••••••••" required minLength={8} style={inputStyle} />
               </div>
               <div style={{ marginBottom:20 }}>
                 <label style={labelStyle}>生日（選填）</label>

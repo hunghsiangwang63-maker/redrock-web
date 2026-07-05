@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { memberLogin, resendMemberVerification } from '../../api/memberAuth';
 import { useMember } from '../../store/memberStore.jsx';
+import PasswordInput from '../../components/PasswordInput';
 
 const inputStyle = { width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:15, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 
@@ -143,7 +144,7 @@ export default function MemberLoginPage() {
               </div>
               <div style={{ marginBottom:20 }}>
                 <label style={{ fontSize:12, color:'#6b6b6b', display:'block', marginBottom:5 }}>密碼</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                <PasswordInput value={password} onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••" required
                   style={inputStyle}/>
               </div>

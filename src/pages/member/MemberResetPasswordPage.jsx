@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PasswordInput from '../../components/PasswordInput';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import client from '../../api/client';
 
@@ -51,9 +52,9 @@ export default function MemberResetPasswordPage() {
         ) : (
           <form onSubmit={handleSubmit}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>新密碼（至少 8 碼）</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required style={inp}/>
+            <PasswordInput value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required style={inp}/>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>確認新密碼</label>
-            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="••••••••" required style={inp}/>
+            <PasswordInput value={confirm} onChange={e => setConfirm(e.target.value)} placeholder="••••••••" required style={inp}/>
             {error && <div style={{ color:'#A32D2D', fontSize:12, marginBottom:10 }}>{error}</div>}
             <button type="submit" disabled={loading || !token}
               style={{ width:'100%', height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, cursor:'pointer' }}>

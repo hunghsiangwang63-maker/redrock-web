@@ -4,6 +4,7 @@ import { staffLogin, verifyDeviceOtp } from '../../api/auth';
 import { useAuth } from '../../store/authStore';
 import client from '../../api/client';
 import { getDeviceToken } from '../../utils/deviceToken';
+import PasswordInput from '../../components/PasswordInput';
 
 export default function LoginPage() {
   const [mode, setMode] = useState('station'); // 'staff' | 'station'
@@ -144,7 +145,7 @@ export default function LoginPage() {
               </div>
               <div style={{ marginBottom:20 }}>
                 <label style={s.label}>密碼</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+                <PasswordInput value={password} onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••" required style={s.input} />
               </div>
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import PasswordInput from '../../components/PasswordInput';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import { getGyms, getAllGyms } from '../../api/gyms';
@@ -915,7 +916,7 @@ export default function SettingsPage() {
             <label style={s.label}>通知 Email<span style={{ color:'#999', fontWeight:400 }}>（選填，新裝置驗證碼寄送用）</span></label>
             <input value={stationForm.notificationEmail} onChange={e => setStationForm({ ...stationForm, notificationEmail:e.target.value })} placeholder="收驗證碼的真實信箱" style={s.input} />
             <label style={s.label}>{editingStation ? '重設密碼（留空則不變）' : '密碼'}</label>
-            <input type="password" value={stationForm.password} onChange={e => setStationForm({ ...stationForm, password:e.target.value })} placeholder={editingStation ? '留空不修改' : '至少 6 碼'} style={s.input} />
+            <PasswordInput value={stationForm.password} onChange={e => setStationForm({ ...stationForm, password:e.target.value })} placeholder={editingStation ? '留空不修改' : '至少 6 碼'} style={s.input} />
             <div style={{ display:'flex', gap:8, marginTop:18 }}>
               <button onClick={() => setShowStationForm(false)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={handleSaveStation} disabled={stationSaving} style={{ ...s.btnPrimary, flex:2, height:40 }}>{stationSaving ? '儲存中...' : '儲存'}</button>
@@ -972,7 +973,7 @@ export default function SettingsPage() {
             {!editingStaff && (
               <div style={{ marginBottom:12 }}>
                 <label style={s.label}>初始密碼（至少6個字元）</label>
-                <input type="password" value={staffForm.password} onChange={e => setStaffForm({...staffForm, password:e.target.value})} style={s.input} />
+                <PasswordInput value={staffForm.password} onChange={e => setStaffForm({...staffForm, password:e.target.value})} style={s.input} />
               </div>
             )}
             {staffFormMsg && (
@@ -999,7 +1000,7 @@ export default function SettingsPage() {
             </div>
             <div style={{ marginBottom:20 }}>
               <label style={s.label}>新密碼（至少6個字元）</label>
-              <input type="password" value={resetPasswordValue} onChange={e => setResetPasswordValue(e.target.value)} style={s.input} />
+              <PasswordInput value={resetPasswordValue} onChange={e => setResetPasswordValue(e.target.value)} style={s.input} />
             </div>
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={() => setResettingPasswordFor(null)}
