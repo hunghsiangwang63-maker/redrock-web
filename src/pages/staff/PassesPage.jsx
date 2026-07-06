@@ -45,6 +45,8 @@ const Modal = ({ title, onClose, children }) => (
 export default function PassesPage() {
   const { staff, operator, viewGym } = useAuth();
   const canManagePass = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator;
+  // 新增定期票給會員 = 僅管理員（gym_manager/super_admin）；operator 值班不可（與後端 requireManager 一致）
+  const canAddPass = ['super_admin', 'gym_manager'].includes(staff?.role);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
     let timer;
@@ -425,10 +427,12 @@ export default function PassesPage() {
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:14 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                 <span style={{ fontSize:12, color:'#999' }}>搜尋會員後查看/管理其定期票</span>
+                {canAddPass && (
                 <button onClick={() => { setAddForm({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'', paymentPlan:'full', paymentMethod:'cash' }); setShowAdd(true); }}
                   style={{ height:30, padding:'0 12px', borderRadius:7, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
                   ＋ 新增定期票
                 </button>
+                )}
               </div>
               <form onSubmit={searchMember} style={{ display:'flex', gap:8 }}>
                 <input value={memberQuery} onChange={e => setMemberQuery(e.target.value)}
@@ -452,8 +456,10 @@ export default function PassesPage() {
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                 <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontWeight:600, fontSize:13 }}>{selectedMember.name} 的定期票</span>
+                  {canAddPass && (
                   <button onClick={() => setShowAdd(true)}
                     style={{ height:30, padding:'0 12px', borderRadius:7, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增定期票</button>
+                  )}
                 </div>
                 {memberPasses.length === 0 ? (
                   <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>目前沒有定期票</div>
@@ -801,8 +807,10 @@ export default function PassesPage() {
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                 <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontWeight:600, fontSize:13 }}>{ticketMember.name} 的單次入場券</span>
+                  {canManagePass && (
                   <button onClick={() => setShowIssueTicket(true)}
                     style={{ height:30, padding:'0 12px', borderRadius:7, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 發放</button>
+                  )}
                 </div>
                 {memberTickets.length === 0 ? (
                   <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>目前沒有單次入場券</div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../../store/authStore';
 import { searchMembers } from '../../api/members';
 import {
   getMemberDiscountCards, purchaseDiscountCard, bindDiscountCard,
@@ -63,6 +64,10 @@ const MemberSearch = ({ onSelect, label='搜尋會員' }) => {
 
 // ── 優惠卡區塊 ────────────────────────────────────────────────────
 function DiscountCards({ member, cards, onRefresh }) {
+  const { staff, operator } = useAuth();
+  const isManager = ['super_admin', 'gym_manager'].includes(staff?.role);
+  const canBind = isManager || !!operator;   // 轉入優惠卡 = Group A（值班/管理員）
+  const canPurchase = isManager;             // 購買(新增)優惠卡 = Group B（僅管理員）
   const [showBuy, setShowBuy] = useState(false);
   const [showBind, setShowBind] = useState(false);
   const [bindForm, setBindForm] = useState({ barcode:'', remainingCredits:'' });
@@ -130,14 +135,18 @@ function DiscountCards({ member, cards, onRefresh }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
         <div style={{ fontSize:12, fontWeight:600, color:'#6b6b6b' }}>優惠卡（{cards.length} 張有效）</div>
         <div style={{ display:'flex', gap:6 }}>
+          {canBind && (
           <button onClick={() => { setShowBind(true); setBindForm({ barcode:'', remainingCredits:'' }); }}
             style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:11, cursor:'pointer' }}>
             🎫 轉入優惠卡
           </button>
+          )}
+          {canPurchase && (
           <button onClick={() => setShowBuy(true)}
             style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>
             ＋ 購買優惠卡
           </button>
+          )}
         </div>
       </div>
 
@@ -283,6 +292,8 @@ function DiscountCards({ member, cards, onRefresh }) {
 
 // ── 黑卡區塊 ──────────────────────────────────────────────────────
 function BlackCards({ member, cards, onRefresh }) {
+  const { staff, operator } = useAuth();
+  const canBind = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator; // 黑卡綁定 = Group A
   const [showBind, setShowBind] = useState(false);
   const [showTransfer, setShowTransfer] = useState(null);
   const [bindForm, setBindForm] = useState({ barcode:'', remainingCredits:'' });
@@ -340,10 +351,12 @@ function BlackCards({ member, cards, onRefresh }) {
 
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
         <div style={{ fontSize:12, fontWeight:600, color:'#6b6b6b' }}>黑卡（{cards.length} 張有效）</div>
+        {canBind && (
         <button onClick={() => setShowBind(true)}
           style={{ height:28, padding:'0 12px', borderRadius:6, background:'#1a1a1a', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>
           🖤 綁定黑卡
         </button>
+        )}
       </div>
 
       {cards.length === 0 ? (
