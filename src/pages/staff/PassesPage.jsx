@@ -14,6 +14,9 @@ import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import CardsPage from './CardsPage';
 
+// 效期顯示：優先月數（一個月一個月算），否則天數
+const durationLabel = (t) => (t && t.durationMonths) ? `${t.durationMonths} 個月` : `${(t && t.durationDays) || 0} 天`;
+
 const Tag = ({ type='ok', children }) => {
   const styles = {
     ok:      { bg:'#E6F4EB', color:'#2D7D46' },
@@ -117,7 +120,7 @@ export default function PassesPage() {
   // 票種管理
   const [showAddType, setShowAddType] = useState(false);
   const [editingType, setEditingType] = useState(null);
-  const [typeForm, setTypeForm] = useState({ name:'', scope:'shared', targetGymId:'', price:'', durationDays:'', credits:'', installment:{ enabled:false, periods:[] } });
+  const [typeForm, setTypeForm] = useState({ name:'', scope:'shared', targetGymId:'', price:'', durationValue:'', durationUnit:'month', credits:'', installment:{ enabled:false, periods:[] } });
   const [typeSaving, setTypeSaving] = useState(false);
   const [typeMsg, setTypeMsg] = useState('');
 
@@ -161,31 +164,39 @@ export default function PassesPage() {
 
   const openAddType = () => {
     setEditingType(null);
-    setTypeForm({ name:'', scope:'shared', targetGymId:'', price:'', durationDays:'', credits:'', installment:{ enabled:false, periods:[] } });
+    setTypeForm({ name:'', scope:'shared', targetGymId:'', price:'', durationValue:'', durationUnit:'month', credits:'', installment:{ enabled:false, periods:[] } });
     setTypeMsg('');
     setShowAddType(true);
   };
 
   const openEditType = (t) => {
     setEditingType(t);
-    setTypeForm({ name:t.name, scope:t.scope, targetGymId:t.targetGymId || '', price:String(t.price), durationDays:String(t.durationDays), credits:t.credits ? String(t.credits) : '', installment: t.installment || { enabled:false, periods:[] } });
+    // 有月數 → 以月為單位；否則沿用天數
+    const unit = t.durationMonths ? 'month' : 'day';
+    const val = t.durationMonths ? t.durationMonths : t.durationDays;
+    setTypeForm({ name:t.name, scope:t.scope, targetGymId:t.targetGymId || '', price:String(t.price), durationValue: val != null ? String(val) : '', durationUnit: unit, credits:t.credits ? String(t.credits) : '', installment: t.installment || { enabled:false, periods:[] } });
     setTypeMsg('');
     setShowAddType(true);
   };
 
   const handleSaveType = async () => {
-    if (!typeForm.name || !typeForm.price || !typeForm.durationDays) {
-      setTypeMsg('請填寫名稱、價格、有效天數'); return;
+    if (!typeForm.name || !typeForm.price || !typeForm.durationValue) {
+      setTypeMsg('請填寫名稱、價格、效期'); return;
     }
     if (typeForm.scope === 'single' && !typeForm.targetGymId) {
       setTypeMsg('請選擇此票種適用的場館'); return;
     }
     setTypeSaving(true);
     try {
+      const durNum = parseInt(typeForm.durationValue);
+      const byMonth = typeForm.durationUnit === 'month';
       const payload = {
         name: typeForm.name, scope: typeForm.scope,
         targetGymId: typeForm.scope === 'single' ? typeForm.targetGymId : null,
-        price: parseInt(typeForm.price), durationDays: parseInt(typeForm.durationDays),
+        price: parseInt(typeForm.price),
+        // 月數優先（一個月一個月算，7/6→10/6）；另一項送空字串讓後端清除
+        durationMonths: byMonth ? durNum : '',
+        durationDays: byMonth ? '' : durNum,
         credits: typeForm.credits ? parseInt(typeForm.credits) : null,
         installment: typeForm.installment || { enabled:false, periods:[] },
       };
@@ -483,7 +494,7 @@ export default function PassesPage() {
                   <span style={{ fontSize:13, fontWeight:500 }}>{t.name}</span>
                   <span style={{ fontSize:14, fontWeight:600, color:'#8B1A1A', fontFamily:'monospace' }}>NT${t.price.toLocaleString()}</span>
                 </div>
-                <div style={{ fontSize:11, color:'#999' }}>{t.durationDays} 天 · {t.scope==='shared'?'全館':'單館'}{t.credits?` · ${t.credits} 次`:''}</div>
+                <div style={{ fontSize:11, color:'#999' }}>{durationLabel(t)} · {t.scope==='shared'?'全館':'單館'}{t.credits?` · ${t.credits} 次`:''}</div>
               </div>
             ))}
           </div>
@@ -511,7 +522,7 @@ export default function PassesPage() {
                 </div>
                 <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{t.name}</div>
                 <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:8 }}>NT${t.price.toLocaleString()}</div>
-                <div style={{ fontSize:12, color:'#999', marginBottom: canManageTypes ? 10 : 0 }}>{t.durationDays} 天{t.credits?` · ${t.credits} 次`:''}</div>
+                <div style={{ fontSize:12, color:'#999', marginBottom: canManageTypes ? 10 : 0 }}>{durationLabel(t)}{t.credits?` · ${t.credits} 次`:''}</div>
                 {canManageTypes && (
                   <div style={{ display:'flex', gap:6 }}>
                     <button onClick={() => openEditType(t)}
@@ -1029,9 +1040,19 @@ export default function PassesPage() {
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
             <div style={{ flex:1 }}>
-              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>有效天數</label>
-              <input type="number" value={typeForm.durationDays} onChange={e => setTypeForm({...typeForm, durationDays:e.target.value})}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>效期</label>
+              <div style={{ display:'flex', gap:6 }}>
+                <input type="number" value={typeForm.durationValue} onChange={e => setTypeForm({...typeForm, durationValue:e.target.value})}
+                  style={{ flex:1, width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                <select value={typeForm.durationUnit} onChange={e => setTypeForm({...typeForm, durationUnit:e.target.value})}
+                  style={{ width:78, height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}>
+                  <option value="month">個月</option>
+                  <option value="day">天</option>
+                </select>
+              </div>
+              <div style={{ fontSize:10, color:'#999', marginTop:4 }}>
+                {typeForm.durationUnit === 'month' ? '一個月一個月算（例 7/6 起 3 個月 → 10/6）' : '曆日計算（例 起 90 天）'}
+              </div>
             </div>
           </div>
           <div style={{ marginBottom:20 }}>
