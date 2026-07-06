@@ -12,7 +12,7 @@ const ENTRY_TYPE_LABEL = {
   child_free: '兒童入場', student_free: '學生入場',
   discount_card: '優惠折扣券', black_card: '黑卡',
   single_entry_ticket: '單次入場券', single_ticket: '單次購票',
-  buy_discount_card: '購買優惠折扣券', already_paid: '已付費（舊系統）',
+  buy_discount_card: '購買優惠折扣券', buy_pass: '購買定期票', already_paid: '已付費（舊系統）',
 };
 
 const PAYMENT_LABEL = { cash:'現金', linepay:'Line Pay', jkopay:'街口支付', taiwanpay:'台灣 Pay' };

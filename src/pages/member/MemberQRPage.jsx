@@ -17,7 +17,7 @@ const ENTRY_TYPE_LABEL = {
   child_free: '兒童入場', student_free: '學生入場',
   discount_card: '使用優惠折扣券', black_card: '使用黑卡', bonus: '紅利免費入場',
   single_entry_ticket: '使用單次入場券', single_ticket: '單次購票',
-  buy_discount_card: '購買優惠折扣券',
+  buy_discount_card: '購買優惠折扣券', buy_pass: '購買定期票',
 };
 
 export default function MemberQRPage() {
@@ -100,6 +100,7 @@ export default function MemberQRPage() {
         originalAmount: 0,
       };
       if (selectedEntry.passId) payload.passId = selectedEntry.passId;
+      if (selectedEntry.buyPassTypeId) payload.buyPassTypeId = selectedEntry.buyPassTypeId;
       const cardId = selectedEntry.cardId || selectedCard;
       if (cardId) {
         if (selectedEntry.instrumentKind === 'discountCard') payload.discountCardId = cardId;
@@ -327,6 +328,14 @@ export default function MemberQRPage() {
     if (inst.bonus?.available) methods.push({ kind:'bonus', type:'bonus', label:'使用紅利（免費）', freeEntry:true, instrumentKind:'bonus', cards:inst.bonus.bonuses });
     if (inst.singleEntryTicket?.available) methods.push({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true, instrumentKind:'singleEntryTicket', cards:inst.singleEntryTicket.tickets });
     if (inst.buyDiscountCard?.available) methods.push({ kind:'buy', type:'buy_discount_card', label:'購買優惠折扣券入場', note:'含本次入場＋10次八折＋紅利', price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
+    // 購買新定期票入場（單館票僅該館可買，QR 綁該館）；每個票種一個選項
+    if (inst.buyPass?.available) (inst.buyPass.passTypes || []).forEach(pt => {
+      const dur = pt.durationMonths ? `${pt.durationMonths} 個月` : pt.durationDays ? `${pt.durationDays} 天` : '';
+      const scopeLabel = pt.scope === 'shared' ? '雙館通用' : '單館';
+      methods.push({ kind:'buyPass', type:'buy_pass', buyPassTypeId:pt.id,
+        label:`購買定期票：${pt.name}`, note:[dur, scopeLabel].filter(Boolean).join('・'),
+        price:pt.price, discountedPrice:pt.price, freeEntry:false, requiresPayment:true });
+    });
     return wrap(
       <>
         <Header title="選擇付款方式" onBack={() => setStep('select_entry')} />
@@ -471,7 +480,7 @@ export default function MemberQRPage() {
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? '折扣優惠券' : '入場費'}</span>
+                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? '折扣優惠券' : selectedEntry?.type === 'buy_pass' ? '定期票' : '入場費'}</span>
                   <span>NT${entryPrice}</span>
                 </div>
               )}
