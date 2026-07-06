@@ -487,7 +487,13 @@ export default function MemberQRPage() {
   );
 
   if (step === 'qr') {
-    const entryPrice = selectedEntry?.freeEntry ? 0 : (selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0);
+    // 分期購定期票：本次只收「第一期（頭款）」，合計顯示頭款而非全額（與後端一致）
+    const bpInst = selectedEntry?.type === 'buy_pass' && buyPassPlan === 'installment'
+      && (selectedEntry?.installment?.periods?.length >= 2);
+    const firstPeriod = bpInst
+      ? Math.round((selectedEntry.price || 0) * (Number(selectedEntry.installment.periods[0].percent) || 0) / 100)
+      : null;
+    const entryPrice = selectedEntry?.freeEntry ? 0 : (bpInst ? firstPeriod : (selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0));
     const totalAmount = entryPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0);
     const minutesLeft = qrExpiry ? Math.max(0, dayjs(qrExpiry).diff(dayjs(), 'minute')) : 0;
     return wrap(
@@ -505,8 +511,13 @@ export default function MemberQRPage() {
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? '折扣優惠券' : selectedEntry?.type === 'buy_pass' ? '定期票' : '入場費'}</span>
+                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? '折扣優惠券' : selectedEntry?.type === 'buy_pass' ? (bpInst ? '定期票（頭款・第1期）' : '定期票') : '入場費'}</span>
                   <span>NT${entryPrice}</span>
+                </div>
+              )}
+              {bpInst && (
+                <div style={{ fontSize:11, color:'#999', textAlign:'right', marginBottom:6, marginTop:-2 }}>
+                  分期 {selectedEntry.installment.periods.length} 期 · 全額 NT${(selectedEntry.price || 0).toLocaleString()}
                 </div>
               )}
               {rentShoes && (
