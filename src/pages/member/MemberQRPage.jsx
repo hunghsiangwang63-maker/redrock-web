@@ -20,6 +20,10 @@ const ENTRY_TYPE_LABEL = {
   buy_discount_card: '購買優惠折扣券', buy_pass: '購買定期票',
 };
 
+// 入場身分顯示名稱（不帶金額）：成人入場 / 學生入場 / 兒童入場；其餘去除「單次」字樣
+const ENTRY_ID_LABEL = { single_ticket: '成人入場', student_free: '學生入場', child_free: '兒童入場' };
+const entryIdLabel = (opt) => ENTRY_ID_LABEL[opt?.type] || (opt?.label || '').replace(/單次/g, '').trim() || '入場';
+
 export default function MemberQRPage() {
   const { member } = useMember();
   const navigate = useNavigate();
@@ -290,18 +294,8 @@ export default function MemberQRPage() {
             <div key={opt.type}
               onClick={() => { setSelectedType(opt); setStep('select_method'); }}
               style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{opt.label?.trim()}</div>
-              <div style={{ textAlign:'right', display:'flex', alignItems:'center', gap:8 }}>
-                {opt.discountedPrice !== undefined && opt.discountedPrice < opt.price ? (
-                  <div>
-                    <div style={{ fontSize:11, color:'#999', textDecoration:'line-through' }}>NT${opt.price}</div>
-                    <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${opt.discountedPrice}</div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${opt.price}</div>
-                )}
-                <div style={{ fontSize:18, color:'#ccc' }}>›</div>
-              </div>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{entryIdLabel(opt)}</div>
+              <div style={{ fontSize:18, color:'#ccc' }}>›</div>
             </div>
           ))}
         </div>
@@ -328,14 +322,18 @@ export default function MemberQRPage() {
     if (inst.bonus?.available) methods.push({ kind:'bonus', type:'bonus', label:'使用紅利（免費）', freeEntry:true, instrumentKind:'bonus', cards:inst.bonus.bonuses });
     if (inst.singleEntryTicket?.available) methods.push({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true, instrumentKind:'singleEntryTicket', cards:inst.singleEntryTicket.tickets });
     if (inst.buyDiscountCard?.available) methods.push({ kind:'buy', type:'buy_discount_card', label:'購買優惠折扣券入場', note:'含本次入場＋10次八折＋紅利', price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
-    // 購買新定期票入場（單館票僅該館可買，QR 綁該館）；每個票種一個選項
-    if (inst.buyPass?.available) (inst.buyPass.passTypes || []).forEach(pt => {
+    // 購買新定期票入場改為下拉選單（單館票僅該館可買，QR 綁該館）
+    const buyPassTypes = inst.buyPass?.available ? (inst.buyPass.passTypes || []) : [];
+    const pickBuyPass = (id) => {
+      const pt = buyPassTypes.find(p => p.id === id);
+      if (!pt) return;
       const dur = pt.durationMonths ? `${pt.durationMonths} 個月` : pt.durationDays ? `${pt.durationDays} 天` : '';
       const scopeLabel = pt.scope === 'shared' ? '雙館通用' : '單館';
-      methods.push({ kind:'buyPass', type:'buy_pass', buyPassTypeId:pt.id,
+      setSelectedEntry({ kind:'buyPass', type:'buy_pass', buyPassTypeId:pt.id, baseEntryType:t.type,
         label:`購買定期票：${pt.name}`, note:[dur, scopeLabel].filter(Boolean).join('・'),
         price:pt.price, discountedPrice:pt.price, freeEntry:false, requiresPayment:true });
-    });
+      setStep('select_payment');
+    };
     return wrap(
       <>
         <Header title="選擇付款方式" onBack={() => setStep('select_entry')} />
@@ -371,6 +369,20 @@ export default function MemberQRPage() {
               </div>
             </div>
           ))}
+          {buyPassTypes.length > 0 && (
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10 }}>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a', textAlign:'left', marginBottom:8 }}>購買定期票入場</div>
+              <select defaultValue="" onChange={e => pickBuyPass(e.target.value)}
+                style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', color:'#1a1a1a', appearance:'auto' }}>
+                <option value="" disabled>請選擇定期票方案…</option>
+                {buyPassTypes.map(pt => {
+                  const dur = pt.durationMonths ? `${pt.durationMonths}個月` : pt.durationDays ? `${pt.durationDays}天` : '';
+                  const scopeLabel = pt.scope === 'shared' ? '雙館' : '單館';
+                  return <option key={pt.id} value={pt.id}>{pt.name}（{[dur, scopeLabel].filter(Boolean).join('・')}）NT${pt.price}</option>;
+                })}
+              </select>
+            </div>
+          )}
         </div>
       </>
     );
