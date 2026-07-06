@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
+import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import QRCode from 'qrcode';
 import dayjs from 'dayjs';
 
@@ -35,6 +36,7 @@ export default function MemberQRPage() {
   const [selectedEntry, setSelectedEntry] = useState(null); // 第二段：付款/票券方式
   const [selectedCard, setSelectedCard] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
+  const [buyPassPlan, setBuyPassPlan] = useState('full'); // 購定期票：'full' | 'installment'
   const [rentShoes, setRentShoes] = useState(false);
   const [rentChalk, setRentChalk] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState(null);
@@ -66,7 +68,7 @@ export default function MemberQRPage() {
     setStep('loading');
     setError(null);
     // 切換對象時清空上一位的流程狀態
-    setSelectedType(null); setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null);
+    setSelectedType(null); setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null); setBuyPassPlan('full');
     setRentShoes(false); setRentChalk(false);
     setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
     try {
@@ -104,7 +106,10 @@ export default function MemberQRPage() {
         originalAmount: 0,
       };
       if (selectedEntry.passId) payload.passId = selectedEntry.passId;
-      if (selectedEntry.buyPassTypeId) payload.buyPassTypeId = selectedEntry.buyPassTypeId;
+      if (selectedEntry.buyPassTypeId) {
+        payload.buyPassTypeId = selectedEntry.buyPassTypeId;
+        payload.paymentPlan = buyPassPlan; // 'full' | 'installment'（後端權威依票種 installment 決定是否真分期）
+      }
       const cardId = selectedEntry.cardId || selectedCard;
       if (cardId) {
         if (selectedEntry.instrumentKind === 'discountCard') payload.discountCardId = cardId;
@@ -329,9 +334,11 @@ export default function MemberQRPage() {
       if (!pt) return;
       const dur = pt.durationMonths ? `${pt.durationMonths} 個月` : pt.durationDays ? `${pt.durationDays} 天` : '';
       const scopeLabel = pt.scope === 'shared' ? '雙館通用' : '單館';
+      setBuyPassPlan('full');
       setSelectedEntry({ kind:'buyPass', type:'buy_pass', buyPassTypeId:pt.id, baseEntryType:t.type,
         label:`購買定期票：${pt.name}`, note:[dur, scopeLabel].filter(Boolean).join('・'),
-        price:pt.price, discountedPrice:pt.price, freeEntry:false, requiresPayment:true });
+        price:pt.price, discountedPrice:pt.price, freeEntry:false, requiresPayment:true,
+        installment:pt.installment || null });
       setStep('select_payment');
     };
     return wrap(
@@ -402,7 +409,13 @@ export default function MemberQRPage() {
             <div style={{ color:'#8B1A1A', fontWeight:700, fontSize:16, marginTop:4 }}>NT${selectedEntry.price}</div>
           ) : null}
         </div>
-        <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>請選擇付款方式</div>
+        {selectedEntry?.type === 'buy_pass' && selectedEntry?.installment?.enabled && (
+          <PaymentPlanChoice installment={selectedEntry.installment} price={selectedEntry.price}
+            plan={buyPassPlan} hideMethod onChange={({ plan }) => setBuyPassPlan(plan)} />
+        )}
+        <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
+          {selectedEntry?.type === 'buy_pass' && buyPassPlan === 'installment' ? '請選擇「頭款（第一期）」付款方式' : '請選擇付款方式'}
+        </div>
         {PAYMENT_METHODS.map(pm => (
           <div key={pm.key} onClick={() => { setSelectedPayment(pm.key); setStep('shoes'); }}
             style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
