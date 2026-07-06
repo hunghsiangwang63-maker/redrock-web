@@ -326,7 +326,7 @@ export default function MemberQRPage() {
     if (inst.blackCard?.available) methods.push({ kind:'blackCard', type:'black_card', label:'使用黑卡（免費）', freeEntry:true, instrumentKind:'blackCard', cards:inst.blackCard.cards });
     if (inst.bonus?.available) methods.push({ kind:'bonus', type:'bonus', label:'使用紅利（免費）', freeEntry:true, instrumentKind:'bonus', cards:inst.bonus.bonuses });
     if (inst.singleEntryTicket?.available) methods.push({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true, instrumentKind:'singleEntryTicket', cards:inst.singleEntryTicket.tickets });
-    if (inst.buyDiscountCard) methods.push({ kind:'buy', type:'buy_discount_card', label:'購買優惠折扣券入場', note:'含本次入場＋10次八折＋紅利', price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
+    if (inst.buyDiscountCard?.available) methods.push({ kind:'buy', type:'buy_discount_card', label:'購買優惠折扣券入場', note:'含本次入場＋10次八折＋紅利', price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
     return wrap(
       <>
         <Header title="選擇付款方式" onBack={() => setStep('select_entry')} />
