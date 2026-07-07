@@ -681,7 +681,10 @@ export default function MembersPage() {
               <div style={{ display:'flex', gap:6, justifyContent:'center', marginTop:8, flexWrap:'wrap' }}>
                 {detail.member?.isMinor && <Tag type="blue">未成年</Tag>}
                 {detail.member?.isTeamMember && <Tag type="warn">🏔️ 隊員</Tag>}
-                {detail.member?.isBlocked && <Tag type="red">封鎖中</Tag>}
+                {(detail.member?.blockReasons || []).map(r => {
+                  const label = { waiver_unsigned:'待簽免責聲明', parent_waiver_pending:'待家長簽署', fall_test_required:'待通過墜落測驗', email_unverified:'待驗證 Email' }[r] || r;
+                  return <Tag key={r} type="red">⚠️ {label}</Tag>;
+                })}
               </div>
             </div>
 
