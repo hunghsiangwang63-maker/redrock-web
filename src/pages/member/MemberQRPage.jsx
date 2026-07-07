@@ -37,6 +37,8 @@ export default function MemberQRPage() {
   const [selectedCard, setSelectedCard] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [buyPassPlan, setBuyPassPlan] = useState('full'); // 購定期票：'full' | 'installment'
+  const [renewOptIn, setRenewOptIn] = useState(false);    // 續約：是否順便續約
+  const [renewPlan, setRenewPlan] = useState('full');     // 續約：'full' | 'installment'
   const [rentShoes, setRentShoes] = useState(false);
   const [rentChalk, setRentChalk] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState(null);
@@ -52,6 +54,23 @@ export default function MemberQRPage() {
   const isChildTarget = !!entrant && !!member && entrant.id !== member.id;
 
   const gymId = member?.defaultGymId || 'gym-hsinchu';
+
+  // 續約資訊（到期前14天由後端 verify 回傳）；分期各期前 n-1 照原價比例、折扣集中末期（與後端 buildRenewalPeriods 一致）
+  const renewal = verifyResult?.renewal || null;
+  const renewInstEnabled = !!renewal?.installment?.enabled && (renewal?.installment?.periods?.length >= 2) && renewal?.renewalPrice > 0;
+  const computeRenewPeriods = () => {
+    if (!renewInstEnabled) return [];
+    const ps = renewal.installment.periods;
+    let alloc = 0;
+    return ps.map((p, i) => {
+      const amt = i === ps.length - 1 ? Math.max(0, renewal.renewalPrice - alloc) : Math.round((renewal.fullPrice || 0) * (Number(p.percent) || 0) / 100);
+      alloc += amt;
+      return amt;
+    });
+  };
+  const renewPeriods = computeRenewPeriods();
+  // 續約本次應收：一次付清＝折後全額；分期＝首期
+  const renewDueNow = !renewOptIn ? 0 : (renewPlan === 'installment' && renewPeriods.length ? renewPeriods[0] : (renewal?.renewalPrice || 0));
 
   // 載入子會員清單
   useEffect(() => {
@@ -69,6 +88,7 @@ export default function MemberQRPage() {
     setError(null);
     // 切換對象時清空上一位的流程狀態
     setSelectedType(null); setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null); setBuyPassPlan('full');
+    setRenewOptIn(false); setRenewPlan('full');
     setRentShoes(false); setRentChalk(false);
     setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
     try {
@@ -122,6 +142,12 @@ export default function MemberQRPage() {
         payload.originalAmount = selectedEntry.price || 0;
         payload.amount = selectedEntry.discountedPrice ?? selectedEntry.price ?? 0;
         payload.isTeamDiscount = selectedEntry.teamDiscount || false;
+      }
+      // 續約附加（免費入場定期票、到期前14天）：帶要續約的票 + 分期選擇 + 續約款付款方式
+      if (renewOptIn && renewal?.passId) {
+        payload.renewPassId = renewal.passId;
+        payload.renewPaymentPlan = renewPlan;
+        payload.paymentMethod = selectedPayment || 'cash';
       }
 
       const res = await memberClient.post('/checkin/qr/create', payload);
@@ -437,6 +463,58 @@ export default function MemberQRPage() {
       }} />
       <MemberSelector />
       <div style={{ padding:20 }}>
+        {/* 續約（定期票到期前14天）*/}
+        {renewal && (
+          <div style={{ background:'#fff', borderRadius:16, border:`1.5px solid ${renewOptIn?'#8B1A1A':'#E8D5D5'}`, padding:20, marginBottom:16 }}>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>🎫 定期票即將到期</div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>
+              {renewal.passTypeName}・剩 {renewal.daysLeft} 天（{renewal.currentEndDate} 到期）
+            </div>
+            <div onClick={() => setRenewOptIn(v => !v)}
+              style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, border:`1.5px solid ${renewOptIn?'#8B1A1A':'#E8D5D5'}`, background: renewOptIn?'#FBF5F5':'#fff', cursor:'pointer' }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:600, fontSize:14 }}>順便續約（延長至 {renewal.newEndDate}）</div>
+                <div style={{ fontSize:13, marginTop:2 }}>
+                  {renewal.renewalPrice < renewal.fullPrice && (
+                    <span style={{ color:'#bbb', textDecoration:'line-through', marginRight:6 }}>NT${renewal.fullPrice.toLocaleString()}</span>
+                  )}
+                  <span style={{ color:'#8B1A1A', fontWeight:700 }}>NT${renewal.renewalPrice.toLocaleString()}</span>
+                  {renewal.renewalDiscount && <span style={{ fontSize:11, color:'#A32D2D', marginLeft:6 }}>續約優惠</span>}
+                </div>
+              </div>
+              <div style={{ width:24, height:24, borderRadius:12, border:`2px solid ${renewOptIn?'#8B1A1A':'#ccc'}`, background: renewOptIn?'#8B1A1A':'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {renewOptIn && <span style={{ color:'#fff', fontSize:14 }}>✓</span>}
+              </div>
+            </div>
+            {renewOptIn && renewInstEnabled && (
+              <div style={{ display:'flex', gap:10, marginTop:12 }}>
+                {[{ k:'full', t:'一次付清', s:`NT$${renewal.renewalPrice.toLocaleString()}` },
+                  { k:'installment', t:`分期 ${renewal.installment.periods.length} 期`, s:`首期 NT$${(renewPeriods[0]||0).toLocaleString()}` }].map(o => (
+                  <div key={o.k} onClick={() => setRenewPlan(o.k)}
+                    style={{ flex:1, padding:'10px 12px', borderRadius:10, border:`1.5px solid ${renewPlan===o.k?'#8B1A1A':'#E8D5D5'}`, background: renewPlan===o.k?'#FBF5F5':'#fff', cursor:'pointer', textAlign:'center' }}>
+                    <div style={{ fontWeight:600, fontSize:13 }}>{o.t}</div>
+                    <div style={{ fontSize:12, color:'#8B1A1A', marginTop:2 }}>{o.s}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {renewOptIn && (
+              <div style={{ marginTop:12 }}>
+                <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
+                  {renewPlan === 'installment' ? '續約頭款（第一期）付款方式' : '續約付款方式'}
+                </div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                  {PAYMENT_METHODS.map(pm => (
+                    <div key={pm.key} onClick={() => setSelectedPayment(pm.key)}
+                      style={{ padding:'8px 14px', borderRadius:20, border:`1.5px solid ${selectedPayment===pm.key?'#8B1A1A':'#E8D5D5'}`, background: selectedPayment===pm.key?'#8B1A1A':'#fff', color: selectedPayment===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                      {pm.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div style={{ background:'#fff', borderRadius:16, border:'0.5px solid #E8D5D5', padding:24 }}>
           <div style={{ fontWeight:600, fontSize:17, marginBottom:20, textAlign:'center' }}>需要租借器材嗎？</div>
           {/* 岩鞋 */}
@@ -478,9 +556,12 @@ export default function MemberQRPage() {
             </div>
           </div>
           {error && <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
-          <button onClick={() => handleGenerateQR(rentShoes, rentChalk)} disabled={loading}
-            style={{ width:'100%', height:50, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor:'pointer' }}>
-            {loading ? '...' : `確認${rentShoes||rentChalk ? `（+NT$${(rentShoes?100:0)+(rentChalk?50:0)}）` : ''}`}
+          {renewOptIn && !selectedPayment && (
+            <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', textAlign:'center' }}>請先選擇續約付款方式</div>
+          )}
+          <button onClick={() => handleGenerateQR(rentShoes, rentChalk)} disabled={loading || (renewOptIn && !selectedPayment)}
+            style={{ width:'100%', height:50, borderRadius:12, background: (renewOptIn && !selectedPayment) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor: (renewOptIn && !selectedPayment) ? 'not-allowed' : 'pointer' }}>
+            {loading ? '...' : `確認${(renewDueNow + (rentShoes?100:0) + (rentChalk?50:0)) > 0 ? `（+NT$${(renewDueNow + (rentShoes?100:0)+(rentChalk?50:0)).toLocaleString()}）` : ''}`}
           </button>
         </div>
       </div>
@@ -495,7 +576,7 @@ export default function MemberQRPage() {
       ? Math.round((selectedEntry.price || 0) * (Number(selectedEntry.installment.periods[0].percent) || 0) / 100)
       : null;
     const entryPrice = selectedEntry?.freeEntry ? 0 : (bpInst ? firstPeriod : (selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0));
-    const totalAmount = entryPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0);
+    const totalAmount = entryPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0) + renewDueNow;
     const minutesLeft = qrExpiry ? Math.max(0, dayjs(qrExpiry).diff(dayjs(), 'minute')) : 0;
     return wrap(
       <>
@@ -520,6 +601,19 @@ export default function MemberQRPage() {
                 <div style={{ fontSize:11, color:'#999', textAlign:'right', marginBottom:6, marginTop:-2 }}>
                   分期 {selectedEntry.installment.periods.length} 期 · 全額 NT${(selectedEntry.price || 0).toLocaleString()}
                 </div>
+              )}
+              {renewOptIn && renewal && (
+                <>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                    <span style={{ color:'#666' }}>定期票續約{renewPlan === 'installment' ? '（頭款・第1期）' : ''}</span>
+                    <span>NT${renewDueNow.toLocaleString()}</span>
+                  </div>
+                  {renewPlan === 'installment' && renewPeriods.length >= 2 && (
+                    <div style={{ fontSize:11, color:'#999', textAlign:'right', marginBottom:6, marginTop:-2 }}>
+                      分期 {renewPeriods.length} 期 · 折後全額 NT${renewal.renewalPrice.toLocaleString()}（末期 NT${renewPeriods[renewPeriods.length-1].toLocaleString()}）
+                    </div>
+                  )}
+                </>
               )}
               {rentShoes && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
