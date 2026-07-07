@@ -122,7 +122,7 @@ export default function PassesPage() {
   // 票種管理
   const [showAddType, setShowAddType] = useState(false);
   const [editingType, setEditingType] = useState(null);
-  const [typeForm, setTypeForm] = useState({ name:'', scope:'shared', targetGymId:'', price:'', durationValue:'', durationUnit:'month', credits:'', installment:{ enabled:false, periods:[] } });
+  const [typeForm, setTypeForm] = useState({ name:'', scope:'shared', targetGymId:'', price:'', durationValue:'', durationUnit:'month', credits:'', installment:{ enabled:false, periods:[] }, renewalDiscount:{ mode:'percent', value:'' } });
   const [typeSaving, setTypeSaving] = useState(false);
   const [typeMsg, setTypeMsg] = useState('');
 
@@ -166,7 +166,7 @@ export default function PassesPage() {
 
   const openAddType = () => {
     setEditingType(null);
-    setTypeForm({ name:'', scope:'shared', targetGymId:'', price:'', durationValue:'', durationUnit:'month', credits:'', installment:{ enabled:false, periods:[] } });
+    setTypeForm({ name:'', scope:'shared', targetGymId:'', price:'', durationValue:'', durationUnit:'month', credits:'', installment:{ enabled:false, periods:[] }, renewalDiscount:{ mode:'percent', value:'' } });
     setTypeMsg('');
     setShowAddType(true);
   };
@@ -176,7 +176,7 @@ export default function PassesPage() {
     // 有月數 → 以月為單位；否則沿用天數
     const unit = t.durationMonths ? 'month' : 'day';
     const val = t.durationMonths ? t.durationMonths : t.durationDays;
-    setTypeForm({ name:t.name, scope:t.scope, targetGymId:t.targetGymId || '', price:String(t.price), durationValue: val != null ? String(val) : '', durationUnit: unit, credits:t.credits ? String(t.credits) : '', installment: t.installment || { enabled:false, periods:[] } });
+    setTypeForm({ name:t.name, scope:t.scope, targetGymId:t.targetGymId || '', price:String(t.price), durationValue: val != null ? String(val) : '', durationUnit: unit, credits:t.credits ? String(t.credits) : '', installment: t.installment || { enabled:false, periods:[] }, renewalDiscount: t.renewalDiscount || { mode:'percent', value:'' } });
     setTypeMsg('');
     setShowAddType(true);
   };
@@ -201,6 +201,7 @@ export default function PassesPage() {
         durationDays: byMonth ? '' : durNum,
         credits: typeForm.credits ? parseInt(typeForm.credits) : null,
         installment: typeForm.installment || { enabled:false, periods:[] },
+        renewalDiscount: (typeForm.renewalDiscount && Number(typeForm.renewalDiscount.value) > 0) ? { mode: typeForm.renewalDiscount.mode, value: Number(typeForm.renewalDiscount.value) } : null,
       };
       if (editingType) {
         await updatePassType(editingType.id, payload);
@@ -1068,6 +1069,20 @@ export default function PassesPage() {
             <input type="number" value={typeForm.credits} onChange={e => setTypeForm({...typeForm, credits:e.target.value})}
               placeholder="例如優惠卡填 10、黑卡填 12"
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>續約折扣（選填，會員端到期前 2 週可續約）</label>
+            <div style={{ display:'flex', gap:8 }}>
+              <select value={typeForm.renewalDiscount?.mode || 'percent'} onChange={e => setTypeForm({...typeForm, renewalDiscount:{ mode:e.target.value, value: typeForm.renewalDiscount?.value ?? '' }})}
+                style={{ height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a' }}>
+                <option value="percent">折扣 %</option>
+                <option value="amount">折抵 NT$</option>
+              </select>
+              <input type="number" value={typeForm.renewalDiscount?.value ?? ''} onChange={e => setTypeForm({...typeForm, renewalDiscount:{ mode: typeForm.renewalDiscount?.mode || 'percent', value:e.target.value }})}
+                placeholder={typeForm.renewalDiscount?.mode==='amount' ? '折抵金額，如 800' : '折扣百分比，如 10 = 打 9 折'}
+                style={{ flex:1, height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+            <div style={{ fontSize:10, color:'#999', marginTop:4 }}>留空＝續約以原價計；分期時折扣集中在最後一期扣。</div>
           </div>
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>分期付款規則</label>
