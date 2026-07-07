@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getPassTypes, getMemberPasses, createPass, updatePass, renewPass,
          getMemberSingleEntryTickets, issueSingleEntryTicket,
-         createPassType, updatePassType, deactivatePassType } from '../../api/passes';
+         createPassType, updatePassType, setPassTypeActive, deletePassType } from '../../api/passes';
 import { getPassHistory, editPassWithReason, runHolidayBatchExtension, getHolidayHistory } from '../../api/passAdjustments';
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { getGyms } from '../../api/gyms';
@@ -143,7 +143,9 @@ export default function PassesPage() {
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3000); };
 
   // super_admin 帶頂部選定的檢視場館（viewGym）；一般員工由後端以自身館別過濾（忽略此值）
-  const loadPassTypes = () => getPassTypes(viewGym).then(r => setPassTypes(r.data.passTypes || []));
+  // 管理頁需含停用票種（供啟用/刪除）；「可挑選/會員可購」的清單再另外用 activePassTypes 過濾
+  const loadPassTypes = () => getPassTypes(viewGym, true).then(r => setPassTypes(r.data.passTypes || []));
+  const activePassTypes = passTypes.filter(t => t.isActive !== false); // 供 新增定期票 選單 / 票種一覽
 
   useEffect(() => {
     loadPassTypes();
@@ -219,17 +221,30 @@ export default function PassesPage() {
     } finally { setTypeSaving(false); }
   };
 
-  // 刪除票種：改用自訂確認 Modal（取代 window.confirm）
+  // 停用/啟用票種（會員即看/看不到，可逆；既有已購買的定期票不受影響）
+  const handleToggleTypeActive = async (t, isActive) => {
+    try {
+      await setPassTypeActive(t.id, isActive);
+      await loadPassTypes();
+      showMsg(isActive ? '票種已啟用' : '票種已停用');
+    } catch (err) {
+      showMsg(err.response?.data?.message || '操作失敗', 'red');
+    }
+  };
+
+  // 永久刪除票種（硬刪除）：自訂確認 Modal；後端若有有效持有者會 409 擋下
   const confirmDeleteType = async () => {
     if (!deleteTypeTarget) return;
     setDeletingType(true);
     try {
-      await deactivatePassType(deleteTypeTarget.id);
+      await deletePassType(deleteTypeTarget.id);
       await loadPassTypes();
       setDeleteTypeTarget(null);
       setShowAddType(false); // 若從編輯 Modal 觸發，一併關閉
+      showMsg('票種已刪除');
     } catch (err) {
-      setTypeMsg(err.response?.data?.message || '刪除失敗');
+      // 有效持有者擋下（409）→ 顯示後端訊息，Modal 關閉
+      showMsg(err.response?.data?.message || '刪除失敗', 'red');
       setDeleteTypeTarget(null);
     } finally { setDeletingType(false); }
   };
@@ -507,7 +522,7 @@ export default function PassesPage() {
           </div>
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, alignSelf:'start' }}>
             <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>票種一覽</div>
-            {passTypes.map(t => (
+            {activePassTypes.map(t => (
               <div key={t.id} style={{ padding:'10px 0', borderBottom:'0.5px solid #F5EFEF' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
                   <span style={{ fontSize:13, fontWeight:500 }}>{t.name}</span>
@@ -532,12 +547,15 @@ export default function PassesPage() {
             </div>
           )}
           <div style={{ display:'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(240px, 1fr))', gap:12 }}>
-            {passTypes.map(t => (
-              <div key={t.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+            {passTypes.map(t => {
+              const inactive = t.isActive === false;
+              return (
+              <div key={t.id} style={{ background:'#fff', borderRadius:12, border:`0.5px solid ${inactive?'#E0D3D3':'#E8D5D5'}`, padding:16, opacity: inactive ? 0.6 : 1 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, gap:6 }}>
                   <Tag type={t.scope==='shared'?'blue':'gray'}>
                     {t.scope==='shared' ? '全館' : (gyms.find(g => g.id === t.targetGymId)?.shortName || gyms.find(g => g.id === t.gymId)?.shortName || '單館')}
                   </Tag>
+                  {inactive && <Tag type="gray">已停用</Tag>}
                 </div>
                 <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{t.name}</div>
                 <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:8 }}>NT${t.price.toLocaleString()}</div>
@@ -546,12 +564,19 @@ export default function PassesPage() {
                   <div style={{ display:'flex', gap:6 }}>
                     <button onClick={() => openEditType(t)}
                       style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>編輯</button>
+                    {inactive ? (
+                      <button onClick={() => handleToggleTypeActive(t, true)}
+                        style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>啟用</button>
+                    ) : (
+                      <button onClick={() => handleToggleTypeActive(t, false)}
+                        style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #B5762B', color:'#B5762B', fontSize:11, cursor:'pointer' }}>停用</button>
+                    )}
                     <button onClick={() => setDeleteTypeTarget(t)}
                       style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>刪除</button>
                   </div>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         </div>
       )}
@@ -894,7 +919,7 @@ export default function PassesPage() {
               <select value={addForm.passTypeId} onChange={e => setAddForm({...addForm, passTypeId:e.target.value})} required
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none' }}>
                 <option value="">選擇票種...</option>
-                {passTypes.map(t => <option key={t.id} value={t.id}>{t.name} — NT${t.price.toLocaleString()}</option>)}
+                {activePassTypes.map(t => <option key={t.id} value={t.id}>{t.name} — NT${t.price.toLocaleString()}</option>)}
               </select>
             </div>
             <div style={{ marginBottom:14 }}>
@@ -1125,8 +1150,8 @@ export default function PassesPage() {
             確定要刪除「<span style={{ fontWeight:700 }}>{deleteTypeTarget.name}</span>」？
           </div>
           <div style={{ fontSize:12, color:'#6b6b6b', background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:20, lineHeight:1.6 }}>
-            此票種將<span style={{ color:'#A32D2D', fontWeight:600 }}>停用</span>，之後<b>無法再選購</b>（新增定期票、入場購票、續約都不會出現）。<br/>
-            <b>已購買此票種的會員不受影響</b>，既有定期票照常使用。
+            此票種將被<span style={{ color:'#A32D2D', fontWeight:600 }}>永久刪除、無法復原</span>。<br/>
+            若仍有會員<b>持有此票種的有效定期票</b>，系統會<b>擋下</b>刪除——這種情況請改用「<b>停用</b>」（會員即看不到、既有票不受影響、日後可再啟用）。
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setDeleteTypeTarget(null)} disabled={deletingType}

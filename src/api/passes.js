@@ -1,7 +1,7 @@
 import client, { memberClient } from './client';
 
 // 定期票
-export const getPassTypes = (gymId) => client.get('/passes/types', { params: gymId ? { gymId } : {} });
+export const getPassTypes = (gymId, includeInactive = false) => client.get('/passes/types', { params: { ...(gymId ? { gymId } : {}), ...(includeInactive ? { includeInactive: 1 } : {}) } });
 export const getMemberPasses = (memberId) => client.get(`/passes/member/${memberId}`);
 export const getMemberPassesAsMember = (memberId) => memberClient.get(`/passes/member/${memberId}`);
 export const createPass = (data) => client.post('/passes', data);
@@ -11,7 +11,8 @@ export const renewPass = (id, data) => client.put(`/passes/${id}`, { ...data, re
 // 票種定義
 export const createPassType = (data) => client.post('/passes/types', data);
 export const updatePassType = (id, data) => client.put(`/passes/types/${id}`, data);
-export const deactivatePassType = (id) => client.delete(`/passes/types/${id}`);
+export const setPassTypeActive = (id, isActive) => client.put(`/passes/types/${id}`, { isActive }); // 停用/啟用
+export const deletePassType = (id) => client.delete(`/passes/types/${id}`);                          // 永久刪除（後端擋有效持有者）
 
 // 單次入場券
 // 員工端專用：用 staff client（路由 authenticateAny 接受員工 token）。

@@ -368,6 +368,19 @@ export default function CoursesPage({ embedded = false }) {
     }
   };
 
+  // 停用/啟用課程（會員課程總覽隱藏/顯示，可逆；不通知學員、不動報名，與「取消課程」不同）
+  const handleToggleCourseActive = async (course, isActive) => {
+    if (!isActive && !window.confirm(`停用「${course.name}」？停用後會員在課程總覽將看不到（不會通知學員、不影響已報名者），日後可再啟用。`)) return;
+    try {
+      const { updateCourse } = await import('../../api/courses');
+      await updateCourse(course.id, { isActive });
+      showMsg(isActive ? '課程已啟用' : '課程已停用');
+      await loadCourses();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '操作失敗', 'red');
+    }
+  };
+
   const handlePermanentDelete = async (course) => {
     if (!window.confirm(`⚠️ 永久刪除「${course.name}」？\n將一併刪除所有場次、報名與補課紀錄，無法復原。\n（若仍有學員報名會被擋下，請先「取消課程」並處理退費）`)) return;
     try {
@@ -545,12 +558,16 @@ export default function CoursesPage({ embedded = false }) {
             </div>
           ) : courses.map(c => {
             const st = courseStatus(c);
+            const inactive = c.isActive === false && c.status !== 'cancelled';
             return (
-              <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer' }}
+              <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer', opacity: inactive ? 0.6 : 1 }}
                 onClick={() => { setSelectedCourse(c); setTab('sessions'); }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, gap:6 }}>
                   <Tag type={c.type==='weekly'?'blue':'purple'}>{courseTypeLabel(c.type)}</Tag>
-                  <Tag type={st.type}>{st.label}</Tag>
+                  <div style={{ display:'flex', gap:6 }}>
+                    {inactive && <Tag type="gray">已停用</Tag>}
+                    <Tag type={st.type}>{st.label}</Tag>
+                  </div>
                 </div>
                 <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{c.name}</div>
                 <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:8 }}>
@@ -570,6 +587,19 @@ export default function CoursesPage({ embedded = false }) {
                       style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
                       編輯
                     </button>
+                  )}
+                  {c.status !== 'cancelled' && (
+                    inactive ? (
+                      <button onClick={() => handleToggleCourseActive(c, true)}
+                        style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>
+                        啟用
+                      </button>
+                    ) : (
+                      <button onClick={() => handleToggleCourseActive(c, false)}
+                        style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #B5762B', color:'#B5762B', fontSize:11, cursor:'pointer' }}>
+                        停用
+                      </button>
+                    )
                   )}
                   {c.status !== 'cancelled' && (
                     <button onClick={() => handleDeleteCourse(c)}
