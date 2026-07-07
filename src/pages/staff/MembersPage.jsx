@@ -719,7 +719,9 @@ export default function MembersPage() {
                     <button onClick={openWaiverView} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', cursor:'pointer' }}>檢視副本</button>
                   )}
                   {detail.waiver?.isComplete && isAdmin && (
-                    <button onClick={openWaiverReset} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>退回重簽</button>
+                    detail.latestFallTest?.result === 'passed'
+                      ? <span title="墜落測驗已通過，文件已鎖定，避免誤觸" style={{ fontSize:11, color:'#999' }}>🔒 已鎖定</span>
+                      : <button onClick={openWaiverReset} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>退回重簽</button>
                   )}
                 </div>
               </div>
@@ -739,7 +741,9 @@ export default function MembersPage() {
                     <button onClick={openFallTestView} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', cursor:'pointer' }}>檢視同意書</button>
                   )}
                   {detail.hasFallTestSignature && isAdmin && (
-                    <button onClick={openFallTestReset} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>退回重簽</button>
+                    detail.latestFallTest?.result === 'passed'
+                      ? <span title="墜落測驗已通過，文件已鎖定，避免誤觸" style={{ fontSize:11, color:'#999' }}>🔒 已鎖定</span>
+                      : <button onClick={openFallTestReset} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>退回重簽</button>
                   )}
                   {isAdmin && (
                     <button onClick={openFallTestRecord} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #185FA5', background:'#fff', color:'#185FA5', cursor:'pointer' }}>登記結果</button>
