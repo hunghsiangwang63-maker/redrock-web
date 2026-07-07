@@ -515,7 +515,7 @@ export default function MemberPassesPage() {
                 <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
                 <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>{c.source === 'transferred' ? '移轉優惠卡' : '優惠卡'}{c.isExpiringSoon && ' ⚠ 即將到期'}</div>
                 <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
-                <div style={{ fontSize:12, opacity:.75 }}>有效至 {c.expiresAtFormatted}</div>
+                <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? `有效至 ${c.expiresAtFormatted}` : '無期限'}</div>
                 <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${(c.remainingCredits/10)*100}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
                 <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}><span>已使用 {10 - c.remainingCredits} 次</span><span>剩餘 {c.remainingCredits}/10</span></div>
                 {c.bonusToOriginalOwner && (

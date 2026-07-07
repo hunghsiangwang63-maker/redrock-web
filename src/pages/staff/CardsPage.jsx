@@ -160,7 +160,7 @@ function DiscountCards({ member, cards, onRefresh }) {
           </div>
           <div style={{ fontSize:28, fontWeight:700 }}>{c.remainingCredits} 次</div>
           <div style={{ fontSize:11, opacity:.75, marginTop:3 }}>
-            有效至 {c.expiresAtFormatted}
+            {c.expiresAtFormatted ? `有效至 ${c.expiresAtFormatted}` : '無期限'}
             {c.isExpiringSoon && ' ⚠ 即將到期'}
           </div>
           {c.bonusToOriginalOwner && (
@@ -248,7 +248,7 @@ function DiscountCards({ member, cards, onRefresh }) {
             <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
               <span style={{ color:'#6b6b6b' }}>到期日</span>
               <span style={{ fontWeight:500, color: showTransfer.isExpiringSoon ? '#854F0B' : '#1a1a1a' }}>
-                {showTransfer.expiresAtFormatted}
+                {showTransfer.expiresAtFormatted || '無期限'}
                 {showTransfer.isExpiringSoon && ' ⚠'}
               </span>
             </div>
