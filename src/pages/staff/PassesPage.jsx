@@ -471,13 +471,18 @@ export default function PassesPage() {
                 </div>
                 {memberPasses.length === 0 ? (
                   <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>目前沒有定期票</div>
-                ) : memberPasses.map(p => {
+                ) : [...memberPasses].sort((a, b) => {
+                  const inact = x => (x.status === 'cancelled' || x.endDate < dayjs().format('YYYY-MM-DD')) ? 1 : 0;
+                  const d = inact(a) - inact(b);            // 有效優先，已取消/過期收到底部
+                  return d !== 0 ? d : ((b.endDate || '') < (a.endDate || '') ? -1 : 1); // 同組內到期日新→舊
+                }).map(p => {
                   const st = passStatus(p);
+                  const inactive = st.label === '已取消' || st.label === '已過期';
                   const pct = Math.min(100, Math.max(0,
                     (1 - dayjs(p.endDate).diff(dayjs(), 'day') / dayjs(p.endDate).diff(dayjs(p.startDate), 'day')) * 100
                   ));
                   return (
-                    <div key={p.id} style={{ padding:'14px 16px', borderBottom:'0.5px solid #F5EFEF' }}>
+                    <div key={p.id} style={{ padding:'14px 16px', borderBottom:'0.5px solid #F5EFEF', opacity: inactive ? 0.5 : 1 }}>
                       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                         <div style={{ fontWeight:500, fontSize:14 }}>{p.passTypeName}</div>
                         <Tag type={st.type}>{st.label}</Tag>
