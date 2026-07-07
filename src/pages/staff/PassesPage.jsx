@@ -92,16 +92,18 @@ export default function PassesPage() {
     } catch(e) {} finally { setAnalyticsLoading(false); }
   };
 
-  const downloadAnalyticsCSV = (type) => {
-    const token = localStorage.getItem('staffToken') || sessionStorage.getItem('staffToken') || '';
-    fetch(`${API_BASE}/pass-adjustments/analytics/download?type=${type}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(r => r.blob()).then(blob => {
-      const url = URL.createObjectURL(blob);
+  const downloadAnalyticsCSV = async (type) => {
+    // 用 axios client（interceptor 自動帶正確 token：operatorToken/token/stationToken），
+    // 不要自己讀不存在的 'staffToken' → 會變空 token → 401「請先登入」寫進 CSV。
+    try {
+      const r = await client.get(`/pass-adjustments/analytics/download?type=${type}`, { responseType: 'blob' });
+      const url = URL.createObjectURL(r.data);
       const a = document.createElement('a'); a.href = url;
       a.download = `${type}_${new Date().toISOString().slice(0,10)}.csv`;
       a.click(); URL.revokeObjectURL(url);
-    });
+    } catch (e) {
+      showMsg(e.response?.status === 403 ? '權限不足：僅管理員/值班可下載' : '下載失敗，請重新登入後再試', 'red');
+    }
   };
 
   // 年假批次展延
