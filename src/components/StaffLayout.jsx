@@ -42,6 +42,15 @@ export default function StaffLayout() {
   // 管理員＝super_admin / gym_manager（依當前操作身份：值班 operator 優先，其次個人 staff）
   const isAdmin = ['super_admin', 'gym_manager'].includes(operator?.role || staff?.role);
   const isSuperAdmin = (operator?.role || staff?.role) === 'super_admin';
+  // 非值班個人帳號的可見選單（依角色）：part_time＝排班/課程活動/待辦；full_time 另加商品(清點庫存)。
+  // 管理員 或 值班中(operator) → 全部（櫃檯功能，受 finance/settlement 各別 gate）。通知/待辦一律可見。
+  const navRole = operator?.role || staff?.role;
+  const onDuty = !!operator;
+  const PERSONAL_NAV = {
+    part_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/activities'],
+    full_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/activities', '/staff/shop'],
+  };
+  const canSeeNav = (path) => (isAdmin || onDuty) ? true : (PERSONAL_NAV[navRole] ? PERSONAL_NAV[navRole].includes(path) : true);
   // 全域場館切換僅 super_admin：載入場館清單
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -170,7 +179,7 @@ export default function StaffLayout() {
         {/* 桌機：左側導覽 */}
         {!isMobile && (
           <div style={{ width:56, background:'#fff', borderRight:'0.5px solid #E8D5D5', display:'flex', flexDirection:'column', alignItems:'center', padding:'12px 0', gap:4, flexShrink:0 }}>
-            {NAV.filter(n => (n.path !== '/staff/settlement' || (isStationMode && operator) || isSuperAdmin) && (n.path !== '/staff/finance' || isAdmin)).map(n => {
+            {NAV.filter(n => canSeeNav(n.path) && (n.path !== '/staff/settlement' || (isStationMode && operator) || isSuperAdmin) && (n.path !== '/staff/finance' || isAdmin)).map(n => {
               const active = n.path === '/staff/activities'
                 ? location.pathname === '/staff/activities'
                 : location.pathname === n.path;
@@ -223,7 +232,7 @@ export default function StaffLayout() {
       {/* 手機：底部導覽列 */}
       {isMobile && (
         <div style={{ position:'fixed', bottom:0, left:0, right:0, height:60, background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', zIndex:100 }}>
-          {NAV_MOBILE.map(n => {
+          {NAV_MOBILE.filter(n => n.path === '__more__' || canSeeNav(n.path)).map(n => {
             const isMore = n.path === '__more__';
             const active = isMore ? showMoreMenu
               : n.path === '/staff/activities' ? location.pathname.startsWith('/staff/activities')
@@ -268,7 +277,7 @@ export default function StaffLayout() {
                 { path:'/staff/settlement',    icon:'ti-calculator',   label:'每日結算' },
                 { path:'/staff/schedule',      icon:'ti-calendar-time',label:'排班表' },
                 { path:'/staff/settings',      icon:'ti-settings',     label:'系統設定' },
-              ].map(n => {
+              ].filter(n => canSeeNav(n.path) && (n.path !== '/staff/finance' || isAdmin) && (n.path !== '/staff/settlement' || (isStationMode && operator) || isSuperAdmin)).map(n => {
                 const active = location.pathname === n.path;
                 return (
                   <div key={n.path} onClick={() => { navigate(n.path); setShowMoreMenu(false); }}
