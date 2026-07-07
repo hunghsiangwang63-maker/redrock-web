@@ -18,8 +18,10 @@ const ENTRY_TYPE_LABEL = {
 const PAYMENT_LABEL = { cash:'現金', linepay:'Line Pay', jkopay:'街口支付', taiwanpay:'台灣 Pay' };
 
 export default function CheckinPage() {
-  const { staff, activeGymId, viewGym } = useAuth();
+  const { staff, operator, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
+  // 入場動作限值班(operator)/管理員（與後端 requireManagerOrStation 一致）；報表 tab 不限
+  const canCheckin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator;
   const [gyms, setGyms] = useState([]);
   // 場館由頂部全域選擇器控制；入場屬操作類，super_admin 個人登入時「全館」退回第一個館
   const targetGymId = activeGymId || staff?.gymId || (isSuperAdmin ? (viewGym || gyms[0]?.id || '') : '');
@@ -402,7 +404,14 @@ export default function CheckinPage() {
         </div>
 
         {/* ── 掃描 tab ── */}
-        {tab === 'scan' && (
+        {tab === 'scan' && !canCheckin && (
+          <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center' }}>
+            <div style={{ fontSize:32, marginBottom:10 }}>🔒</div>
+            <div style={{ fontSize:15, fontWeight:600, marginBottom:6 }}>入場功能限值班/管理員</div>
+            <div style={{ fontSize:13, color:'#999' }}>請於館別電腦打卡值班後使用，或以管理員帳號操作。</div>
+          </div>
+        )}
+        {tab === 'scan' && canCheckin && (
           <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:12 }}>
 
             {/* 上：QR Code 掃描 */}
@@ -757,7 +766,14 @@ export default function CheckinPage() {
         )}
 
         {/* ── 今日課程學員 tab ── */}
-        {tab === 'courseStudents' && (
+        {tab === 'courseStudents' && !canCheckin && (
+          <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center' }}>
+            <div style={{ fontSize:32, marginBottom:10 }}>🔒</div>
+            <div style={{ fontSize:15, fontWeight:600, marginBottom:6 }}>入場功能限值班/管理員</div>
+            <div style={{ fontSize:13, color:'#999' }}>請於館別電腦打卡值班後使用，或以管理員帳號操作。</div>
+          </div>
+        )}
+        {tab === 'courseStudents' && canCheckin && (
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
               <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46' }}>🧗 今日課程學員</div>
