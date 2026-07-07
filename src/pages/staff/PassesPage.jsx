@@ -122,6 +122,8 @@ export default function PassesPage() {
   // 票種管理
   const [showAddType, setShowAddType] = useState(false);
   const [editingType, setEditingType] = useState(null);
+  const [deleteTypeTarget, setDeleteTypeTarget] = useState(null); // 刪除票種確認 Modal 的目標
+  const [deletingType, setDeletingType] = useState(false);
   const [typeForm, setTypeForm] = useState({ name:'', scope:'shared', targetGymId:'', price:'', durationValue:'', durationUnit:'month', credits:'', installment:{ enabled:false, periods:[] }, renewalDiscount:{ mode:'percent', value:'' } });
   const [typeSaving, setTypeSaving] = useState(false);
   const [typeMsg, setTypeMsg] = useState('');
@@ -217,14 +219,19 @@ export default function PassesPage() {
     } finally { setTypeSaving(false); }
   };
 
-  const handleDeactivateType = async (t) => {
-    if (!window.confirm(`確定要停用「${t.name}」？已購買此票種的會員不受影響，僅未來無法再選購此票種。`)) return;
+  // 刪除票種：改用自訂確認 Modal（取代 window.confirm）
+  const confirmDeleteType = async () => {
+    if (!deleteTypeTarget) return;
+    setDeletingType(true);
     try {
-      await deactivatePassType(t.id);
+      await deactivatePassType(deleteTypeTarget.id);
       await loadPassTypes();
+      setDeleteTypeTarget(null);
+      setShowAddType(false); // 若從編輯 Modal 觸發，一併關閉
     } catch (err) {
-      alert(err.response?.data?.message || '停用失敗');
-    }
+      setTypeMsg(err.response?.data?.message || '刪除失敗');
+      setDeleteTypeTarget(null);
+    } finally { setDeletingType(false); }
   };
 
   // ── 定期票 ──
@@ -534,8 +541,8 @@ export default function PassesPage() {
                   <div style={{ display:'flex', gap:6 }}>
                     <button onClick={() => openEditType(t)}
                       style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>編輯</button>
-                    <button onClick={() => handleDeactivateType(t)}
-                      style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>停用</button>
+                    <button onClick={() => setDeleteTypeTarget(t)}
+                      style={{ flex:1, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>刪除</button>
                   </div>
                 )}
               </div>
@@ -1095,6 +1102,33 @@ export default function PassesPage() {
             <button onClick={handleSaveType} disabled={typeSaving}
               style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
               {typeSaving ? '儲存中...' : editingType ? '儲存變更' : '確認新增'}
+            </button>
+          </div>
+          {editingType && (
+            <button onClick={() => setDeleteTypeTarget(editingType)}
+              style={{ width:'100%', height:38, marginTop:10, borderRadius:9, background:'none', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              刪除此票種
+            </button>
+          )}
+        </Modal>
+      )}
+
+      {/* 刪除票種確認 Modal */}
+      {deleteTypeTarget && (
+        <Modal title="刪除票種" onClose={() => !deletingType && setDeleteTypeTarget(null)}>
+          <div style={{ fontSize:14, color:'#1a1a1a', marginBottom:8 }}>
+            確定要刪除「<span style={{ fontWeight:700 }}>{deleteTypeTarget.name}</span>」？
+          </div>
+          <div style={{ fontSize:12, color:'#6b6b6b', background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:20, lineHeight:1.6 }}>
+            此票種將<span style={{ color:'#A32D2D', fontWeight:600 }}>停用</span>，之後<b>無法再選購</b>（新增定期票、入場購票、續約都不會出現）。<br/>
+            <b>已購買此票種的會員不受影響</b>，既有定期票照常使用。
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setDeleteTypeTarget(null)} disabled={deletingType}
+              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <button onClick={confirmDeleteType} disabled={deletingType}
+              style={{ flex:2, height:40, borderRadius:9, background:'#A32D2D', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor: deletingType ? 'default' : 'pointer' }}>
+              {deletingType ? '刪除中...' : '確定刪除'}
             </button>
           </div>
         </Modal>
