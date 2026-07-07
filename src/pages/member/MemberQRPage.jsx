@@ -385,7 +385,8 @@ export default function MemberQRPage() {
                 {buyPassTypes.map(pt => {
                   const dur = pt.durationMonths ? `${pt.durationMonths}個月` : pt.durationDays ? `${pt.durationDays}天` : '';
                   const scopeLabel = pt.scope === 'shared' ? '雙館' : '單館';
-                  return <option key={pt.id} value={pt.id}>{pt.name}（{[dur, scopeLabel].filter(Boolean).join('・')}）NT${pt.price}</option>;
+                  const canInst = pt.installment?.enabled ? ' · 可分期' : '';
+                  return <option key={pt.id} value={pt.id}>{pt.name}（{[dur, scopeLabel].filter(Boolean).join('・')}）NT${pt.price}{canInst}</option>;
                 })}
               </select>
             </div>

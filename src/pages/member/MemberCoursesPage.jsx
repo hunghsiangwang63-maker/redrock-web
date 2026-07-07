@@ -433,9 +433,14 @@ export default function MemberCoursesPage() {
               <div key={c.id} onClick={() => setSelectedCourse(c)}
                 style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12, cursor:'pointer' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                  <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
-                    {c.type === 'weekly' ? '週課' : '工作坊'}
-                  </span>
+                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                    <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
+                      {c.type === 'weekly' ? '週課' : '工作坊'}
+                    </span>
+                    {c.installment?.enabled && (
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
+                    )}
+                  </div>
                   <span style={{ fontSize:12, color:'#999' }}>
                     {c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}
                   </span>
