@@ -538,7 +538,7 @@ export default function MemberPassesPage() {
                 <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
                 <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>黑卡</div>
                 <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
-                <div style={{ fontSize:12, opacity:.75 }}>有效至 {c.expiresAtFormatted || '—'}</div>
+                <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? `有效至 ${c.expiresAtFormatted}` : '無期限'}</div>
                 <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${(c.remainingCredits/12)*100}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
                 <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}><span>已使用 {12 - c.remainingCredits} 次</span><span>剩餘 {c.remainingCredits}/12</span></div>
                 <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>點擊查看詳情 →</div>
@@ -575,7 +575,7 @@ export default function MemberPassesPage() {
                   <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background: b.isExpiringSoon ? '#FAEEDA' : '#E6F4EB', color: b.isExpiringSoon ? '#854F0B' : '#2D7D46' }}>{b.isExpiringSoon ? `剩 ${b.daysLeft} 天` : '有效'}</span>
                 </div>
                 <div style={{ fontWeight:600, fontSize:16, color:'#2D7D46' }}>免費入場 1 次</div>
-                <div style={{ fontSize:12, color:'#6b6b6b', marginTop:4 }}>有效至 {b.expiresAtFormatted}</div>
+                <div style={{ fontSize:12, color:'#6b6b6b', marginTop:4 }}>{b.expiresAtFormatted ? `有效至 ${b.expiresAtFormatted}` : '無期限'}</div>
                 <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'right' }}>點擊查看詳情 →</div>
               </div>
             )))}

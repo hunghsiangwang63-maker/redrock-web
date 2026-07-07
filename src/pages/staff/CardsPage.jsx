@@ -540,7 +540,7 @@ export default function CardsPage({ embedded = false }) {
                   <div key={b.id} style={{ background:'#E6F4EB', border:'1px solid #B3DEC0', borderRadius:8, padding:12, marginBottom:8 }}>
                     <div style={{ fontSize:14, fontWeight:600, color:'#2D7D46' }}>免費入場 1 次</div>
                     <div style={{ fontSize:12, color:'#3B6D11', marginTop:3 }}>
-                      有效至 {b.expiresAtFormatted}
+                      {b.expiresAtFormatted ? `有效至 ${b.expiresAtFormatted}` : '無期限'}
                       {b.isExpiringSoon && ' ⚠ 即將到期'}
                     </div>
                   </div>
