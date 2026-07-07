@@ -477,6 +477,19 @@ export default function CoursesPage({ embedded = false }) {
     }
   };
 
+  // 下載整門課的出缺席點名表 CSV（走 axios client，interceptor 自動帶正確 token）
+  const downloadAttendanceCSV = async (courseId, courseName) => {
+    try {
+      const r = await client.get(`/courses/${courseId}/attendance/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `${courseName || '課程'}_出缺席_${dayjs().format('YYYY-MM-DD')}.csv`;
+      a.click(); URL.revokeObjectURL(url);
+    } catch (e) {
+      showMsg(e.response?.status === 403 ? '權限不足：僅管理員可下載' : '下載失敗，請重新登入後再試', 'red');
+    }
+  };
+
   const searchEnrollMember = async (q) => {
     setEnrollQuery(q);
     if (q.length < 2) { setEnrollResults([]); return; }
@@ -954,11 +967,17 @@ export default function CoursesPage({ embedded = false }) {
                     const makeupCount = enrolled.filter(e => e.isMakeup).length;
                     return (
                       <>
-                        <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between' }}>
+                        <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                           <span style={{ fontWeight:600, fontSize:13 }}>學員名單</span>
-                          <span style={{ fontSize:12, color:'#999' }}>
-                            正取 {enrolled.length} / {selectedCourse?.maxStudents} · 候補 {waitlist.length} · 請假 {onLeave.length}{makeupCount > 0 ? ` · 補課 ${makeupCount}` : ''}
-                          </span>
+                          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                            <span style={{ fontSize:12, color:'#999' }}>
+                              正取 {enrolled.length} / {selectedCourse?.maxStudents} · 候補 {waitlist.length} · 請假 {onLeave.length}{makeupCount > 0 ? ` · 補課 ${makeupCount}` : ''}
+                            </span>
+                            <button onClick={() => downloadAttendanceCSV(selectedCourse?.id, selectedCourse?.name)}
+                              style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer', whiteSpace:'nowrap' }}>
+                              ⬇ 下載出缺席
+                            </button>
+                          </div>
                         </div>
 
                         {/* 正取 */}
@@ -974,14 +993,18 @@ export default function CoursesPage({ embedded = false }) {
                                 {e.paymentStatus === 'pending' && <span style={{ color:'#854F0B', marginLeft:6 }}>待付款</span>}
                               </div>
                             </div>
-                            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                              {e.attendanceStatus === 'present' ? (
-                                <Tag type="ok">已出席</Tag>
-                              ) : e.attendanceStatus === 'absent' ? (
-                                <Tag type="red">缺席</Tag>
-                              ) : (
-                                <Tag type="gray">未登記</Tag>
-                              )}
+                            <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                              {[['present','出席','#2D7D46'],['late','遲到','#B5762B'],['absent','缺席','#A32D2D']].map(([st,label,color]) => {
+                                const active = e.attendanceStatus === st;
+                                return (
+                                  <button key={st} onClick={() => handleMarkAttendance(selectedSession.id, e.memberId, st)}
+                                    disabled={selectedSession?.status === 'cancelled'}
+                                    style={{ height:26, padding:'0 10px', borderRadius:6, fontSize:11, cursor: selectedSession?.status==='cancelled'?'default':'pointer',
+                                      border:`1px solid ${active?color:'#E8D5D5'}`, background: active?color:'#fff', color: active?'#fff':'#999', fontWeight: active?600:400 }}>
+                                    {label}
+                                  </button>
+                                );
+                              })}
                             </div>
                           </div>
                         ))}
