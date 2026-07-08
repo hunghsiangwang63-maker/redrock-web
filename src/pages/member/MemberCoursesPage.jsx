@@ -99,6 +99,12 @@ export default function MemberCoursesPage() {
     setTimeout(() => setMsg(''), 3000);
   };
 
+  // 報名對象（本人或子會員）；未成年判定以「報名對象」為準，非登入者
+  // → 家長代未成年子女報名時，也會自動出現法定代理人簽名欄位
+  const enrollTarget = enrollForMemberId ? familyMembers.find(c => c.id === enrollForMemberId) : member;
+  const targetIsMinor = enrollTarget?.isMinor
+    ?? (enrollTarget?.birthday ? dayjs().diff(dayjs(enrollTarget.birthday), 'year') < 18 : false);
+
   useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, [member?.id]);
   useEffect(() => {
     if (selectedCourse) loadSessions(selectedCourse);
@@ -1083,9 +1089,9 @@ export default function MemberCoursesPage() {
                 </div>
                 {portraitSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 已儲存</div>}
               </div>
-              {member?.isMinor && (
+              {targetIsMinor && (
                 <div>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>法定代理人簽名（未滿18歲必填）</label>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>法定代理人簽名（報名對象未滿 18 歲必填）</label>
                   <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
                     <SignaturePad ref={courseGuardianSigRef} height={120}/>
                   </div>
@@ -1117,8 +1123,8 @@ export default function MemberCoursesPage() {
                   下一步 →
                 </button>
               ) : (
-                <button onClick={handleEnroll} disabled={loading || !portraitSig || (member?.isMinor && !guardianSig)}
-                  style={{ flex:2, height:44, borderRadius:10, background: (!portraitSig || (member?.isMinor && !guardianSig)) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: (!portraitSig) ? 'not-allowed' : 'pointer' }}>
+                <button onClick={handleEnroll} disabled={loading || !portraitSig || (targetIsMinor && !guardianSig)}
+                  style={{ flex:2, height:44, borderRadius:10, background: (!portraitSig || (targetIsMinor && !guardianSig)) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: (!portraitSig) ? 'not-allowed' : 'pointer' }}>
                   {loading ? '報名中...' : '✓ 確認報名'}
                 </button>
               )}
