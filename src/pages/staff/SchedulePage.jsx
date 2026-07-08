@@ -377,7 +377,7 @@ export default function SchedulePage() {
                       {dayShifts.map(s => (
                         <div key={s.id} onClick={e => { e.stopPropagation(); openEditShift(s); }}
                           style={{
-                            fontSize:10, padding:'2px 5px', borderRadius:4, marginBottom:2,
+                            fontSize:10, fontWeight:700, padding:'2px 5px', borderRadius:4, marginBottom:2,
                             // 全天：淡色填滿（員工色 +25% 透明度）＋員工色文字，讀得清楚又不搶眼
                             background: s.type === 'full_day' ? `${staffColor(s.staffId)}40` : 'transparent',
                             color: staffColor(s.staffId),
