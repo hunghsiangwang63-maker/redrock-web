@@ -180,6 +180,8 @@ export default function MemberCoursesPage() {
   };
 
   const resetEnrollModal = () => {
+    setShowEnrollModal(false); // 關閉報名 Modal（原本漏了此行 → 送出成功後只重置到步驟1、Modal 不關 → 使用者以為失敗重複送出、造成重複報名/重複收費）
+    setEnrollSession(null);
     setEnrollStep(1);
     setPaymentMethod('cash');
     setEnrollPlan('full');
