@@ -25,9 +25,10 @@ const NOTIF_CAT = {
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
   competition_payment:'competition',
   cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
+  shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
 };
 const NOTIF_CATS = [
-  { key:'', label:'全部' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
+  { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
   { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
 ];
 const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名' };
