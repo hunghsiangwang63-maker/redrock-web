@@ -25,6 +25,7 @@ const TAB_GROUPS = [
       { key: 'waiver',       icon: '📄', label: 'Waiver 內容' },
       { key: 'fallTest',     icon: '🧗', label: '墜落測驗' },
       { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借' },
+      { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
     ],
   },
 ];
@@ -135,6 +136,7 @@ export default function SettingsPage() {
   useEffect(() => {
     if (activeTab === 'staffAccounts' && isSuperAdmin) { loadStaffList(); loadStationList(); loadDeviceBinding(); loadEmailVerify(); }
     if (activeTab === 'gyms') getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(()=>{});
+    if (activeTab === 'bonus' && isSuperAdmin) loadBonus();
   }, [activeTab]);
 
   const openAddStation = () => {
@@ -334,6 +336,22 @@ export default function SettingsPage() {
       await client.put('/settings/shoe-rental', shoeRental);
       await client.put('/settings/chalk-rental', chalkRental);
       showMsg('租借設定已儲存');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+
+  // ─── 紅利（免費入場）使用期限 ────────────────────────────────────
+  const [bonus, setBonus] = useState({ validityMonths: 6 });
+  const [bonusDirty, setBonusDirty] = useState(false);
+  const loadBonus = async () => {
+    try { const res = await client.get('/settings/bonus'); setBonus({ validityMonths: res.data.validityMonths ?? 6 }); setBonusDirty(false); } catch (e) {}
+  };
+  const handleSaveBonus = async () => {
+    setLoading(true);
+    try {
+      const res = await client.put('/settings/bonus', { validityMonths: Number(bonus.validityMonths) });
+      setBonus({ validityMonths: res.data.validityMonths }); setBonusDirty(false);
+      showMsg('紅利使用期限已儲存');
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -649,6 +667,28 @@ export default function SettingsPage() {
             </div>
             <div style={{ marginTop:16, fontSize:12, color:'#999' }}>
               啟用後，入場時會顯示對應的租借勾選選項。
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'bonus' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🎁 紅利使用期限</span>
+            <SaveButton onSave={handleSaveBonus} isDirty={bonusDirty} label='儲存紅利期限' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
+              優惠卡（新／舊）所有次數用完時，原購買者獲得一次免費入場紅利。此設定為紅利自「發出當日」起的有效月數；
+              調整後<strong>只影響之後新發出的紅利</strong>，既有紅利不變。
+            </div>
+            <div style={{ maxWidth:260 }}>
+              <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>紅利使用期限（個月）</label>
+              <input type="number" value={bonus.validityMonths} min="1" max="60"
+                onChange={e => { setBonus({ validityMonths: e.target.value }); setBonusDirty(true); }}
+                style={{ ...s.input, width:'100%' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 1～60 個月，預設 6 個月。</div>
             </div>
           </div>
         </div>
