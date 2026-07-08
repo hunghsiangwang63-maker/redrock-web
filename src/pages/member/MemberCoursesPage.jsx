@@ -25,6 +25,7 @@ export default function MemberCoursesPage() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
+  const [enrollSuccess, setEnrollSuccess] = useState(false); // 報名成功確認彈窗
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollSession, setEnrollSession] = useState(null);
   const [payFor, setPayFor] = useState(null); // { enrollmentId, fee, gymId }
@@ -233,7 +234,6 @@ export default function MemberCoursesPage() {
           ...extraFields,
         });
       }
-      showMsg(res.data.message);
       const enrInfo = enrollSession.isCourse
         ? { id: res.data.enrollmentId, fee: res.data.fee }
         : { id: res.data.enrollment?.id, fee: res.data.enrollment?.enrollmentFee };
@@ -266,6 +266,8 @@ export default function MemberCoursesPage() {
       if (selectedCourse) await loadSessions(selectedCourse);
       if (ONLINE_PAYMENT_ENABLED && enrInfo.id && enrInfo.fee > 0) {
         setPayFor({ enrollmentId: enrInfo.id, fee: enrInfo.fee, gymId });
+      } else {
+        setEnrollSuccess(true); // 跳出「已報名成功」確認（非線上付款流程）
       }
     } catch (err) {
       showMsg(err.response?.data?.message || '報名失敗', 'red');
@@ -398,6 +400,24 @@ export default function MemberCoursesPage() {
       {msg && (
         <div style={{ margin:'12px 16px 0', background: msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color: msgType==='ok'?'#2D7D46':'#A32D2D' }}>
           {msg}
+        </div>
+      )}
+
+      {/* 報名成功確認彈窗 */}
+      {enrollSuccess && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => setEnrollSuccess(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'28px 22px', width:320, maxWidth:'90vw', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:46, marginBottom:10 }}>✅</div>
+            <div style={{ fontSize:18, fontWeight:700, color:'#1a1a1a', marginBottom:8 }}>已報名成功</div>
+            <div style={{ fontSize:14, color:'#666', lineHeight:1.6, marginBottom:22 }}>可至「我的課程」中查詢。</div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setEnrollSuccess(false)}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>知道了</button>
+              <button onClick={() => { setEnrollSuccess(false); setTab('my'); }}
+                style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>前往我的課程</button>
+            </div>
+          </div>
         </div>
       )}
 
