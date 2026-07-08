@@ -452,44 +452,60 @@ export default function MemberCoursesPage() {
             </div>
           )}
           {!selectedCourse ? (
-            // 課程列表 - 依館別篩選
-            (browseGymId ? courses.filter(c => c.gymId === browseGymId) : courses).length === 0 ? (
-              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-                {browseGymId ? '此館目前沒有開放報名的課程' : '目前沒有開放報名的課程'}
-              </div>
-            ) : (browseGymId ? courses.filter(c => c.gymId === browseGymId) : courses).map(c => (
-              <div key={c.id} onClick={() => setSelectedCourse(c)}
-                style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12, cursor:'pointer' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                    <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
-                      {c.type === 'weekly' ? '週課' : '工作坊'}
+            // 課程列表 - 依館別篩選，再依【類別】分組（多梯次同類別歸在一起）
+            (() => {
+              const list = browseGymId ? courses.filter(c => c.gymId === browseGymId) : courses;
+              if (list.length === 0) return (
+                <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
+                  {browseGymId ? '此館目前沒有開放報名的課程' : '目前沒有開放報名的課程'}
+                </div>
+              );
+              const groups = {};
+              list.forEach(c => { const k = c.categoryName || '其他'; if (!groups[k]) groups[k] = []; groups[k].push(c); });
+              const names = Object.keys(groups).sort((a, b) => a === '其他' ? 1 : b === '其他' ? -1 : a.localeCompare(b, 'zh-Hant'));
+              const Card = (c) => (
+                <div key={c.id} onClick={() => setSelectedCourse(c)}
+                  style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:10, cursor:'pointer' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
+                        {c.type === 'weekly' ? '週課' : '工作坊'}
+                      </span>
+                      {c.installment?.enabled && (
+                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
+                      )}
+                    </div>
+                    <span style={{ fontSize:12, color:'#999' }}>
+                      {c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}
                     </span>
-                    {c.installment?.enabled && (
-                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
-                    )}
                   </div>
-                  <span style={{ fontSize:12, color:'#999' }}>
-                    {c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}
-                  </span>
-                </div>
-                <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{c.name}</div>
-                <div style={{ fontSize:13, color:'#999', marginBottom:8 }}>
-                  {c.startDate} ～ {c.endDate}
-                  {c.instructor && ` · 講師：${c.instructor}`}
-                </div>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
-                    NT${(c.price||0).toLocaleString()}
+                  <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{c.name}</div>
+                  <div style={{ fontSize:13, color:'#999', marginBottom:8 }}>
+                    {c.startDate} ～ {c.endDate}
+                    {c.instructor && ` · 講師：${c.instructor}`}
                   </div>
-                </div>
-                {c.description && (
-                  <div style={{ fontSize:12, color:'#666', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8 }}>
-                    {c.description}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
+                      NT${(c.price||0).toLocaleString()}
+                    </div>
                   </div>
-                )}
-              </div>
-            ))
+                  {c.description && (
+                    <div style={{ fontSize:12, color:'#666', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8 }}>
+                      {c.description}
+                    </div>
+                  )}
+                </div>
+              );
+              return names.map(gname => (
+                <div key={gname} style={{ marginBottom:20 }}>
+                  <div style={{ display:'flex', alignItems:'baseline', gap:8, margin:'0 2px 10px' }}>
+                    <span style={{ fontSize:15, fontWeight:700, color:'#1a1a1a' }}>{gname}</span>
+                    <span style={{ fontSize:12, color:'#999' }}>{groups[gname].length} 梯</span>
+                  </div>
+                  {groups[gname].map(Card)}
+                </div>
+              ));
+            })()
           ) : (
             // 場次列表
             <>
