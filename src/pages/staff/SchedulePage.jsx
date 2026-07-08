@@ -354,7 +354,13 @@ export default function SchedulePage() {
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', minWidth:640 }}>
             {calendarCells.map((date, idx) => {
-              const dayShifts = date ? shiftsForDate(date) : [];
+              // 排序：全天班放最上面（同為全天依姓名穩定排序）；自由時段依開始時間先後上下排列
+              const dayShifts = date ? [...shiftsForDate(date)].sort((a, b) => {
+                const af = a.type === 'full_day' ? 0 : 1, bf = b.type === 'full_day' ? 0 : 1;
+                if (af !== bf) return af - bf;
+                if (af === 0) return (a.staffName || '').localeCompare(b.staffName || '');
+                return (a.startTime || '').localeCompare(b.startTime || '');
+              }) : [];
               const isToday = date === dayjs().format('YYYY-MM-DD');
               return (
                 <div key={idx} onClick={() => date && openAddShift(date)}
@@ -372,8 +378,9 @@ export default function SchedulePage() {
                         <div key={s.id} onClick={e => { e.stopPropagation(); openEditShift(s); }}
                           style={{
                             fontSize:10, padding:'2px 5px', borderRadius:4, marginBottom:2,
-                            background: s.type === 'full_day' ? staffColor(s.staffId) : 'transparent',
-                            color: s.type === 'full_day' ? '#fff' : staffColor(s.staffId),
+                            // 全天：淡色填滿（員工色 +25% 透明度）＋員工色文字，讀得清楚又不搶眼
+                            background: s.type === 'full_day' ? `${staffColor(s.staffId)}40` : 'transparent',
+                            color: staffColor(s.staffId),
                             border: s.type === 'full_day' ? 'none' : `1.5px solid ${staffColor(s.staffId)}`,
                             cursor: canManage ? 'pointer' : 'default',
                             whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
