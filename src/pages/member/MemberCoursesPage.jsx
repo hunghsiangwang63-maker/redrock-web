@@ -19,6 +19,7 @@ export default function MemberCoursesPage() {
   const [tab, setTab] = useState('my'); // browse | my
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null); // 兩層式：先選類別（同課多梯次）再選梯次
   const [sessions, setSessions] = useState([]);
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myMakeups, setMyMakeups] = useState([]);
@@ -440,11 +441,11 @@ export default function MemberCoursesPage() {
       {/* ── 課程總覽 ── */}
       {tab === 'browse' && (
         <div style={{ padding:'12px 16px' }}>
-          {/* 館別選取 */}
-          {!selectedCourse && (
+          {/* 館別選取（僅第一層類別列表顯示）*/}
+          {!selectedCourse && !selectedCategory && (
             <div style={{ display:'flex', gap:8, marginBottom:12 }}>
               {[{id:'',label:'全部館別'},{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g => (
-                <button key={g.id} onClick={() => setBrowseGymId(g.id)}
+                <button key={g.id} onClick={() => { setBrowseGymId(g.id); setSelectedCategory(null); }}
                   style={{ height:34, padding:'0 14px', borderRadius:20, border:`1.5px solid ${browseGymId===g.id?'#8B1A1A':'#E8D5D5'}`, background:browseGymId===g.id?'#8B1A1A':'#fff', color:browseGymId===g.id?'#fff':'#666', fontSize:12, fontWeight:browseGymId===g.id?600:400, cursor:'pointer' }}>
                   {g.label}
                 </button>
@@ -452,7 +453,7 @@ export default function MemberCoursesPage() {
             </div>
           )}
           {!selectedCourse ? (
-            // 課程列表 - 依館別篩選，再依【類別】分組（多梯次同類別歸在一起）
+            // 兩層式：第一層【類別】一課一卡 → 點進去 → 第二層列該類別各梯次 → 選一個 → 進報名
             (() => {
               const list = browseGymId ? courses.filter(c => c.gymId === browseGymId) : courses;
               if (list.length === 0) return (
@@ -463,48 +464,96 @@ export default function MemberCoursesPage() {
               const groups = {};
               list.forEach(c => { const k = c.categoryName || '其他'; if (!groups[k]) groups[k] = []; groups[k].push(c); });
               const names = Object.keys(groups).sort((a, b) => a === '其他' ? 1 : b === '其他' ? -1 : a.localeCompare(b, 'zh-Hant'));
-              const Card = (c) => (
-                <div key={c.id} onClick={() => setSelectedCourse(c)}
-                  style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:10, cursor:'pointer' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
-                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
-                        {c.type === 'weekly' ? '週課' : '工作坊'}
-                      </span>
-                      {c.installment?.enabled && (
-                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
-                      )}
+
+              // ── 第二層：某類別的梯次清單 ──
+              if (selectedCategory) {
+                const cohorts = groups[selectedCategory] || [];
+                if (cohorts.length === 0) return (
+                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
+                    此類別目前沒有開放報名的梯次
+                    <div><button onClick={() => setSelectedCategory(null)} style={{ marginTop:12, background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>← 返回類別</button></div>
+                  </div>
+                );
+                return (
+                  <>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
+                      <button onClick={() => setSelectedCategory(null)}
+                        style={{ background:'none', border:'none', fontSize:20, color:'#8B1A1A', cursor:'pointer' }}>←</button>
+                      <div style={{ fontWeight:700, fontSize:16 }}>{selectedCategory}</div>
+                      <span style={{ fontSize:12, color:'#999' }}>{cohorts.length} 梯</span>
                     </div>
-                    <span style={{ fontSize:12, color:'#999' }}>
-                      {c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}
-                    </span>
-                  </div>
-                  <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{c.name}</div>
-                  <div style={{ fontSize:13, color:'#999', marginBottom:8 }}>
-                    {c.startDate} ～ {c.endDate}
-                    {c.instructor && ` · 講師：${c.instructor}`}
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
-                      NT${(c.price||0).toLocaleString()}
+                    {cohorts.map(c => {
+                      const remaining = Math.max(0, (c.maxStudents || 0) - (c.enrolledCount || 0));
+                      const isFull = c.statusLabel === 'full' || remaining <= 0;
+                      return (
+                        <div key={c.id} onClick={() => setSelectedCourse(c)}
+                          style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, cursor:'pointer' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                            <div style={{ fontWeight:600, fontSize:15 }}>{c.name}</div>
+                            {isFull
+                              ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E0E0', color:'#8B1A1A' }}>額滿</span>
+                              : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>剩 {remaining} 位</span>}
+                          </div>
+                          <div style={{ fontSize:12, color:'#777', lineHeight:1.7 }}>
+                            <div>🗓 每{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>
+                            <div>📅 {c.startDate} ～ {c.endDate}</div>
+                            <div>👟 教練：{c.instructor || '—'}　·　名額 {c.enrolledCount || 0}/{c.maxStudents || 0}</div>
+                          </div>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8 }}>
+                            <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
+                              NT${(c.price||0).toLocaleString()}
+                            </div>
+                            <div style={{ display:'flex', gap:6 }}>
+                              <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
+                                {c.type === 'weekly' ? '週課' : '工作坊'}
+                              </span>
+                              {c.installment?.enabled && (
+                                <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                );
+              }
+
+              // ── 第一層：每個類別一張卡（僅一梯者點卡直接進報名，跳過中間層）──
+              return names.map(gname => {
+                const g = groups[gname];
+                const prices = g.map(c => c.price || 0);
+                const minP = Math.min(...prices), maxP = Math.max(...prices);
+                const anyInstallment = g.some(c => c.installment?.enabled);
+                const single = g.length === 1;
+                return (
+                  <div key={gname} onClick={() => single ? setSelectedCourse(g[0]) : setSelectedCategory(gname)}
+                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:10, cursor:'pointer' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                      <div style={{ fontWeight:700, fontSize:16 }}>{gname}</div>
+                      <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{single ? '報名 ›' : `${g.length} 梯 ›`}</span>
                     </div>
-                  </div>
-                  {c.description && (
-                    <div style={{ fontSize:12, color:'#666', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8 }}>
-                      {c.description}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
+                        NT${minP.toLocaleString()}{maxP !== minP && `～${maxP.toLocaleString()}`}
+                      </div>
+                      <div style={{ display:'flex', gap:6 }}>
+                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
+                          {g[0].type === 'weekly' ? '週課' : '工作坊'}
+                        </span>
+                        {anyInstallment && (
+                          <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-              return names.map(gname => (
-                <div key={gname} style={{ marginBottom:20 }}>
-                  <div style={{ display:'flex', alignItems:'baseline', gap:8, margin:'0 2px 10px' }}>
-                    <span style={{ fontSize:15, fontWeight:700, color:'#1a1a1a' }}>{gname}</span>
-                    <span style={{ fontSize:12, color:'#999' }}>{groups[gname].length} 梯</span>
+                    {single && (
+                      <div style={{ fontSize:12, color:'#999', marginTop:6 }}>
+                        每{g[0].weekdays?.map(d => WEEKDAYS[d]).join('、')} {g[0].startTime}～{g[0].endTime} · {g[0].startDate} 起
+                      </div>
+                    )}
                   </div>
-                  {groups[gname].map(Card)}
-                </div>
-              ));
+                );
+              });
             })()
           ) : (
             // 場次列表
