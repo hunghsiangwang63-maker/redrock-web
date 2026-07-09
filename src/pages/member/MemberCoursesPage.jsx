@@ -495,7 +495,7 @@ export default function MemberCoursesPage() {
                               : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>剩 {remaining} 位</span>}
                           </div>
                           <div style={{ fontSize:12, color:'#777', lineHeight:1.7 }}>
-                            <div>🗓 每{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>
+                            <div>🗓 每週{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>
                             <div>📅 {c.startDate} ～ {c.endDate}</div>
                             <div>👟 教練：{c.instructor || '—'}　·　名額 {c.enrolledCount || 0}/{c.maxStudents || 0}</div>
                           </div>
@@ -553,7 +553,7 @@ export default function MemberCoursesPage() {
                     </div>
                     {single && (
                       <div style={{ fontSize:12, color:'#999', marginTop:6 }}>
-                        每{g[0].weekdays?.map(d => WEEKDAYS[d]).join('、')} {g[0].startTime}～{g[0].endTime} · {g[0].startDate} 起
+                        每週{g[0].weekdays?.map(d => WEEKDAYS[d]).join('、')} {g[0].startTime}～{g[0].endTime} · {g[0].startDate} 起
                       </div>
                     )}
                     </div>
@@ -579,7 +579,7 @@ export default function MemberCoursesPage() {
                     {selectedCourse.instructor && ` · 講師：${selectedCourse.instructor}`}
                   </div>
                   <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
-                    每{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}
+                    每週{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}
                   </div>
                   {selectedCourse.description && (
                     <div style={{ fontSize:13, color:'#555', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8, whiteSpace:'pre-wrap', lineHeight:1.7 }}>
