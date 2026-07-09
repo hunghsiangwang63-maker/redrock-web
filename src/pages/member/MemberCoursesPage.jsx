@@ -365,6 +365,8 @@ export default function MemberCoursesPage() {
       await memberClient.post(`/courses/${group.courseId}/cancel-waitlist`, { memberId: targetId });
       showMsg('已取消候補');
       setCancelWaitlistTarget(null);
+      // 樂觀移除該課候補列（避免 Firestore 讀寫延遲導致卡片短暫殘留）
+      setMyEnrollments(prev => prev.filter(e => e.courseId !== group.courseId));
       await loadMyEnrollments();
     } catch (err) {
       showMsg(err.response?.data?.message || '取消候補失敗', 'red');
