@@ -20,6 +20,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
   const [error, setError] = useState('');
   if (!record) return null;
 
+  const isCash = record.paymentMethod === 'cash';
   const ts = record.createdAt?._seconds ? new Date(record.createdAt._seconds * 1000) : null;
   const confirm = async () => {
     setBusy(true); setError('');
@@ -36,7 +37,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(3px)' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 440, maxHeight: '88vh', overflowY: 'auto', border: '0.5px solid #E8D5D5' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>🏦 確認轉帳收款</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>{isCash ? '💵 確認現金收款' : '🏦 確認轉帳收款'}</div>
           <span onClick={onClose} style={{ cursor: 'pointer', color: '#999', fontSize: 18 }}>×</span>
         </div>
 
@@ -47,12 +48,13 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
             {record.orderType && <span style={{ marginLeft: 6, fontSize: 11, color: '#185FA5', background: '#E6F1FB', padding: '1px 7px', borderRadius: 6 }}>{ORDER_TYPE_LABEL[record.orderType] || record.orderType}</span>}
           </Row>
           <Row label="金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
-          <Row label="匯款銀行">{record.bankName || <span style={{ color: '#bbb' }}>—</span>}</Row>
-          <Row label="匯款末五碼">{record.bankLastFive ? <strong>{record.bankLastFive}</strong> : <span style={{ color: '#bbb' }}>未填（僅附截圖）</span>}</Row>
-          <Row label="匯款日期">{record.paymentDate || '—'}</Row>
+          <Row label="付款方式">{isCash ? '現金' : '轉帳'}</Row>
+          {!isCash && <Row label="匯款銀行">{record.bankName || <span style={{ color: '#bbb' }}>—</span>}</Row>}
+          {!isCash && <Row label="匯款末五碼">{record.bankLastFive ? <strong>{record.bankLastFive}</strong> : <span style={{ color: '#bbb' }}>未填（僅附截圖）</span>}</Row>}
+          {!isCash && <Row label="匯款日期">{record.paymentDate || '—'}</Row>}
           <Row label="館別">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
-          {ts && <Row label="申請時間">{ts.toLocaleString('zh-TW')}</Row>}
-          {record.screenshotUrl && (
+          {ts && <Row label="報名時間">{ts.toLocaleString('zh-TW')}</Row>}
+          {!isCash && record.screenshotUrl && (
             <div style={{ paddingTop: 10 }}>
               <a href={record.screenshotUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#185FA5' }}>🖼️ 開啟匯款截圖</a>
               <div style={{ marginTop: 8 }}>
@@ -65,7 +67,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
         {error && <div style={{ background: '#FCEBEB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#A32D2D', marginBottom: 12 }}>{error}</div>}
 
         <div style={{ background: '#FBF5F5', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#854F0B', marginBottom: 14 }}>
-          請核對匯款資訊無誤後再確認收款，確認後將開通對應的課程／票券／資格。
+          {isCash ? '請確認已向會員收到現金後再按確認收款。' : '請核對匯款資訊無誤後再確認收款，確認後將開通對應的課程／票券／資格。'}
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>

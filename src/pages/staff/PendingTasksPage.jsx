@@ -170,6 +170,12 @@ export default function PendingTasksPage() {
 
   const renderActions = (task) => {
     const busy = busyId === task.targetId;
+    // 收款確認權限：現金→值班 operator 或管理員；轉帳→僅管理員（對齊後端）
+    if (task.type === 'transfer_confirm') {
+      const isCash = task.method === 'cash';
+      const allowed = isCash ? (isOpStation || isManager) : isManager;
+      if (!allowed) return <span style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>{isCash ? '需值班或管理員確認' : '需管理員確認'}</span>;
+    }
     // 權限分隔：無權限的審核類動作不顯示操作鈕，僅淡化提示
     if (perm[task.type] === false) {
       return <span style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>需主管審核</span>;
