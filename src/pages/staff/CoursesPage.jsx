@@ -46,9 +46,10 @@ const PAYMENT_METHODS = [
 ];
 
 export default function CoursesPage({ embedded = false }) {
-  const { staff, activeGymId } = useAuth();
-  const effectiveGymId = activeGymId || staff?.gymId;
+  const { staff, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
+  // super_admin 走頂部「檢視場館」選單 viewGym（全館＝''）；一般員工用自己館別
+  const effectiveGymId = activeGymId || staff?.gymId || (isSuperAdmin ? (viewGym || '') : '');
   const GYMS = [
     { id: 'gym-hsinchu', name: '新竹館' },
     { id: 'gym-shilin',  name: '士林館' },
