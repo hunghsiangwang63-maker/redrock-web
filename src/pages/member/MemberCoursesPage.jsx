@@ -139,7 +139,8 @@ export default function MemberCoursesPage() {
       enrollResList.forEach(r => {
         if (r.status !== 'fulfilled') return;
         (r.value.data.enrollments || []).forEach(e => {
-          if (!['confirmed', 'leave', 'waitlist'].includes(e.status)) return;
+          // 月曆不放候補課程（只放正取/請假）
+          if (!['confirmed', 'leave'].includes(e.status)) return;
           enrollMap[e.sessionId] = { status: e.status, isMakeup: e.isMakeup || false, memberName: e.memberName };
         });
       });
@@ -1001,6 +1002,10 @@ export default function MemberCoursesPage() {
               const isForChild = group.memberId && member?.id && group.memberId !== member.id; // 幫子女報名的課
               // 報名對象姓名：以家庭成員清單為準（enroll-all 曾把 memberName 存成家長名，不可信）
               const childName = familyMembers.find(c => c.id === group.memberId)?.name || group.memberName;
+              // 有家庭成員時，每張課卡都標報名學員（本人或子女）
+              const hasFamily = familyMembers.length > 0;
+              const enrolleeName = isForChild ? childName : (member?.name || '');
+              const enrolleeIcon = isForChild ? '👦' : '👤';
               // 全數已取消/失效（如取消候補後）→ 不在「我的課程」顯示幽靈卡
               if (confirmed.length === 0 && onLeave.length === 0 && waitlist.length === 0) return null;
               const today = dayjs().format('YYYY-MM-DD');
@@ -1009,6 +1014,11 @@ export default function MemberCoursesPage() {
               const next = future[0];
               const leaveLimit = group.sessions.find(s => s.leaveLimit != null)?.leaveLimit ?? 2;
               const leaveRemaining = group.sessions.find(s => s.leaveRemaining != null)?.leaveRemaining ?? Math.max(0, leaveLimit - onLeave.length);
+              // 課程起迄日：優先課程設定，否則用本人場次最早/最晚日
+              const gCourse = courses.find(c => c.id === group.courseId);
+              const _dates = group.sessions.map(s => s.date).filter(Boolean).sort();
+              const rangeStart = gCourse?.startDate || _dates[0];
+              const rangeEnd = gCourse?.endDate || _dates[_dates.length - 1];
               const isExpanded = expandedCourseId === groupKey;
               const attendedLabel = (s) => {
                 if (s.attendanceStatus === 'present') return { text:'已出席', color:'#2D7D46', bg:'#E6F4EB' };
@@ -1021,7 +1031,7 @@ export default function MemberCoursesPage() {
                     onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
                     <div style={{ fontWeight:600, fontSize:15 }}>
                       {group.courseName}
-                      {isForChild && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>👦 {childName}</span>}
+                      {hasFamily && enrolleeName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{enrolleeIcon} {enrolleeName}</span>}
                     </div>
                     {isWaitlistGroup ? (
                       <span style={{ fontSize:11, background:'#FAEEDA', color:'#B5651D', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
@@ -1038,11 +1048,16 @@ export default function MemberCoursesPage() {
                       您已排入候補名單，等待正取名額釋出。遞補為正取後將另行通知您繳費；在此之前不需付款。
                     </div>
                   ) : (
-                    <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
-                      onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
-                      共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span>
-                      <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
-                    </div>
+                    <>
+                      {(rangeStart || rangeEnd) && (
+                        <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>📅 {rangeStart} ～ {rangeEnd}</div>
+                      )}
+                      <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
+                        onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
+                        共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span>
+                        <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
+                      </div>
+                    </>
                   )}
 
                   {isWaitlistGroup ? (
