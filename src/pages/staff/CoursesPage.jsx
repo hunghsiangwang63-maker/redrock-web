@@ -91,7 +91,7 @@ export default function CoursesPage({ embedded = false }) {
   const [editForm, setEditForm] = useState({});
   const [copyFrom, setCopyFrom] = useState('');
   const [courseForm, setCourseForm] = useState({
-    name: '', description: '', price: '', maxStudents: 6, maxWaitlist: 2, categoryId: '',
+    name: '', description: '', price: '', maxStudents: 6, maxWaitlist: 2, reservedSlots: '', categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
     gymAccessDays: 1, leaveDeadlineHours: 2,
@@ -301,6 +301,7 @@ export default function CoursesPage({ embedded = false }) {
       price: course.price || '',
       maxStudents: course.maxStudents || 10,
       maxWaitlist: course.maxWaitlist ?? '',
+      reservedSlots: course.reservedSlots ?? '',
       startDate: course.startDate || '',
       endDate: course.endDate || '',
       startTime: course.startTime || '',
@@ -1199,7 +1200,8 @@ export default function CoursesPage({ embedded = false }) {
               { label:'課程說明', key:'description', type:'text', colSpan:2 },
               { label:'費用（NT$）', key:'price', type:'number' },
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
-              { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number', colSpan:2 },
+              { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
+              { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number', colSpan:2 },
               { label:'入館有效天數', key:'gymAccessDays', type:'number' },
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
               { label:'整期可請假/補課次數', key:'maxLeaves', type:'number', hint:'此為整期學員共用；插班學員請於該課程「查看名單」個別設定' },
@@ -1456,7 +1458,8 @@ export default function CoursesPage({ embedded = false }) {
               { label:'課程說明', key:'description', type:'text', colSpan:2 },
               { label:'費用（NT$）', key:'price', type:'number' },
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
-              { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number', colSpan:2 },
+              { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
+              { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number', colSpan:2 },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
               { label:'上課開始時間', key:'startTime', type:'time' },
