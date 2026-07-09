@@ -121,28 +121,38 @@ export default function MemberCoursesPage() {
     try {
       const fromDate = dayjs(`${calendarMonth}-01`).format('YYYY-MM-DD');
       const toDate = dayjs(`${calendarMonth}-01`).endOf('month').format('YYYY-MM-DD');
-      const [sessRes, expRes, compRes, enrollRes] = await Promise.allSettled([
+      // 家長帳號一併帶子女報名，讓月曆能顯示自己＋子女報名的課
+      let childIds = familyMembers.map(c => c.id);
+      if (childIds.length === 0) {
+        try { const r = await memberClient.get('/members/my/children'); childIds = (r.data.children || []).map(c => c.id); } catch (e) {}
+      }
+      const memberIds = member?.id ? [member.id, ...childIds] : [];
+      const [sessRes, expRes, compRes, ...enrollResList] = await Promise.allSettled([
         memberClient.get('/courses/sessions', { params: { fromDate, toDate } }),
         memberClient.get('/experience-bookings/my'),
         member?.id ? memberClient.get(`/competitions/registrations/member/${member.id}`) : Promise.resolve({ data: { registrations: [] } }),
-        member?.id ? memberClient.get(`/courses/member/${member.id}/enrollments`) : Promise.resolve({ data: { enrollments: [] } }),
+        ...memberIds.map(id => memberClient.get(`/courses/member/${id}/enrollments`)),
       ]);
 
-      // 建立 sessionId → enrollment 狀態的對照表
+      // 建立 sessionId → enrollment 狀態的對照表（僅有效報名；含子女）
       const enrollMap = {};
-      if (enrollRes.status === 'fulfilled') {
-        (enrollRes.value.data.enrollments || []).forEach(e => {
-          enrollMap[e.sessionId] = { status: e.status, isMakeup: e.isMakeup || false };
+      enrollResList.forEach(r => {
+        if (r.status !== 'fulfilled') return;
+        (r.value.data.enrollments || []).forEach(e => {
+          if (!['confirmed', 'leave', 'waitlist'].includes(e.status)) return;
+          enrollMap[e.sessionId] = { status: e.status, isMakeup: e.isMakeup || false, memberName: e.memberName };
         });
-      }
+      });
 
-      // 合併 session 資料與 enrollment 狀態
-      const sessions = sessRes.status === 'fulfilled' ? (sessRes.value.data.sessions || []) : [];
-      setCalendarSessions(sessions.map(s => ({
-        ...s,
-        enrollmentStatus: enrollMap[s.id]?.status || null,
-        isMakeup: enrollMap[s.id]?.isMakeup || false,
-      })));
+      // 月曆只顯示「自己（含子女）報名的課程」→ 過濾出有報名的場次
+      const allSessions = sessRes.status === 'fulfilled' ? (sessRes.value.data.sessions || []) : [];
+      setCalendarSessions(allSessions
+        .filter(s => enrollMap[s.id])
+        .map(s => ({
+          ...s,
+          enrollmentStatus: enrollMap[s.id]?.status || null,
+          isMakeup: enrollMap[s.id]?.isMakeup || false,
+        })));
 
       if (expRes.status==='fulfilled') {
         const all = expRes.value.data.bookings || [];
@@ -402,6 +412,18 @@ export default function MemberCoursesPage() {
     </div>
   );
 
+  // 進行中門數：以「課程＋報名對象」分組，計有效報名(confirmed/leave/waitlist)且未結束（有候補或未來/今日場次）的門數
+  const activeCourseCount = (() => {
+    const today = dayjs().format('YYYY-MM-DD');
+    const groups = {};
+    myEnrollments.forEach(e => {
+      if (!['confirmed', 'leave', 'waitlist'].includes(e.status)) return;
+      const key = `${e.courseId}__${e.memberId}`;
+      (groups[key] = groups[key] || []).push(e);
+    });
+    return Object.values(groups).filter(sess => sess.some(s => s.status === 'waitlist' || s.date >= today)).length;
+  })();
+
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
       {/* 線上付款 Modal（Phase 1：課程報名）*/}
@@ -481,7 +503,7 @@ export default function MemberCoursesPage() {
 
       {/* Tabs */}
       <div style={{ display:'flex', margin:'12px 16px 0', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>
-        {[{key:'browse',label:'課程總覽'},{key:'my',label:`我的課程 ${myEnrollments.length > 0 ? `(${myEnrollments.length})` : ''}`},{key:'calendar',label:'月曆'}].map(t => (
+        {[{key:'browse',label:'課程總覽'},{key:'my',label:`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount} 門進行中)` : ''}`},{key:'calendar',label:'月曆'}].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ flex:1, height:32, borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
             {t.label}
