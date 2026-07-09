@@ -1161,11 +1161,11 @@ export default function MemberCoursesPage() {
             {enrollStep === 3 && (<>
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假/補課方式</div>
-                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10 }}>
+                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
                   1. 每期最多可請假 2 次，超過則不予補課。特殊狀況（受傷等不可抗因素）得申請展延。<br/>
                   2. 請假最晚於課前 2 小時告知，否則視為自行放棄，不予補課。<br/>
                   3. 補課可安排其他梯次，最晚於補課前一天告知。<br/>
-                  4. 補課請於課程結束後 2 個月內完成，逾期視同放棄。
+                  4. 補課請於課程結束後 2 週內完成，逾期視同放棄。
                 </div>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedLeavePolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedLeavePolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedLeavePolicy} onChange={e => setConfirmedLeavePolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
@@ -1174,7 +1174,7 @@ export default function MemberCoursesPage() {
               </div>
               <div>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式</div>
-                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10 }}>
+                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
                   1. 開課日前申請退費：已繳費用扣除 5% 手續費後退回。<br/>
                   2. 開課日後申請退費：費用扣除已開課堂數（不論有無請假）× 每堂課單價後退回。<br/>
                   3. 範例：8 堂 8400 元，開課 2 堂後申請，退款 = 8400 - 1300×2 = 5800 元。
