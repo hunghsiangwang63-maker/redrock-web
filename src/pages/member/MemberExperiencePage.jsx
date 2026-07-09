@@ -3,8 +3,25 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
+import { isUnder5 } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
+
+// 參加者生日為民國格式（如 "920110"＝民國92年）；相容 ISO。未滿 5 歲回 true。
+const participantUnder5 = (s) => {
+  if (!s) return false;
+  const str = String(s).trim();
+  let d;
+  if (str.includes('-')) d = dayjs(str);
+  else {
+    const digits = str.replace(/\D/g, '');
+    if (digits.length < 5) return false;
+    const year = parseInt(digits.slice(0, -4), 10) + 1911;
+    const mmdd = digits.slice(-4);
+    d = dayjs(`${year}-${mmdd.slice(0, 2)}-${mmdd.slice(2, 4)}`);
+  }
+  return d.isValid() && dayjs().diff(d, 'year') < 5;
+};
 
 const FALLBACK_COURSE_TYPES = [
   { id:'general',    label:'抱石體驗課程（依人數計費）' },
@@ -64,7 +81,12 @@ export default function MemberExperiencePage() {
 
   useEffect(() => { loadTrialSessions(); }, [gymId]);
 
+  // 試上報名對象（本人或子女）——未滿 5 歲擋（友善提示，後端仍為權威）
+  const trialTarget = trialFor === 'self' ? member : children.find(c => c.id === trialFor);
+  const trialTargetUnder5 = isUnder5(trialTarget);
+
   const submitTrial = async () => {
+    if (trialTargetUnder5) { showMsg('未滿 5 歲無法報名課程/體驗','red'); return; }
     if (!trialConsent) { showMsg('請先勾選同意免責同意書','red'); return; }
     if (trialPay.method==='transfer' && (!trialPay.paymentDate || !trialPay.bankLastFive)) { showMsg('請填寫匯款日期與末五碼','red'); return; }
     setTrialSubmitting(true);
@@ -104,11 +126,14 @@ export default function MemberExperiencePage() {
   const unitPrice = courseType==='general' ? getGeneralPrice(n) : (courseSettings?.courseTypes || FALLBACK_COURSE_TYPES).find(c=>c.id===courseType)?.price||0;
   const totalFee = courseType==='general' ? unitPrice * n : unitPrice * n;
 
+  const anyParticipantUnder5 = participants.some(p => participantUnder5(p.birthday));
+
   const handleSubmit = async () => {
     if (!bookingDate) { showMsg('請填寫預約體驗日期','red'); return; }
     if (!bookingTime) { showMsg('請填寫預約時間','red'); return; }
     const invalid = participants.find(p => !p.name.trim() || (needsIns && (!p.idNumber.trim() || !p.birthday.trim())));
     if (invalid) { showMsg(needsIns ? '請填寫所有參加者的姓名、身分證字號、生日' : '請填寫所有參加者的姓名','red'); return; }
+    if (anyParticipantUnder5) { showMsg('未滿 5 歲無法報名課程/體驗','red'); return; }
     if (payment.method==='transfer' && !payment.paymentDate) { showMsg('請填寫匯款日期','red'); return; }
     if (payment.method==='transfer' && !payment.bankLastFive) { showMsg('請填寫匯款末五碼','red'); return; }
     setSubmitting(true);
@@ -218,9 +243,14 @@ export default function MemberExperiencePage() {
               <input type="checkbox" checked={trialConsent} onChange={e=>setTrialConsent(e.target.checked)} style={{ marginTop:2 }}/>
               <span>我已閱讀並同意<strong>免責同意書／攀岩活動風險告知</strong>，並瞭解試上為單堂體驗、不含保險。</span>
             </label>
+            {trialTargetUnder5 && (
+              <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
+                {trialTarget?.name || '報名對象'} 未滿 5 歲，無法報名課程／體驗。
+              </div>
+            )}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={submitTrial} disabled={trialSubmitting} style={{ flex:2, height:44, borderRadius:10, background:trialSubmitting?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
+              <button onClick={submitTrial} disabled={trialSubmitting || trialTargetUnder5} style={{ flex:2, height:44, borderRadius:10, background:(trialSubmitting||trialTargetUnder5)?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:(trialTargetUnder5?'not-allowed':'pointer') }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
             </div>
           </div>
         </div>
@@ -373,8 +403,13 @@ export default function MemberExperiencePage() {
                 style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
             </div>
 
-            <button onClick={handleSubmit} disabled={submitting}
-              style={{ width:'100%', height:48, borderRadius:12, background:submitting?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:submitting?'not-allowed':'pointer' }}>
+            {anyParticipantUnder5 && (
+              <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:10, fontSize:13, color:'#B3261E', textAlign:'left' }}>
+                參加者中有未滿 5 歲者，無法報名體驗。
+              </div>
+            )}
+            <button onClick={handleSubmit} disabled={submitting || anyParticipantUnder5}
+              style={{ width:'100%', height:48, borderRadius:12, background:(submitting||anyParticipantUnder5)?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:(submitting||anyParticipantUnder5)?'not-allowed':'pointer' }}>
               {submitting ? '送出中...' : '✓ 送出預約申請'}
             </button>
           </div>

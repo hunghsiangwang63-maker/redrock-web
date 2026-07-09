@@ -5,6 +5,7 @@ import { memberClient } from '../../api/client';
 import { requestCourseRefund, requestCoursePause } from '../../api/courseAdjustments';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
+import { isUnder5 } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
@@ -107,6 +108,8 @@ export default function MemberCoursesPage() {
   const enrollTarget = enrollForMemberId ? familyMembers.find(c => c.id === enrollForMemberId) : member;
   const targetIsMinor = enrollTarget?.isMinor
     ?? (enrollTarget?.birthday ? dayjs().diff(dayjs(enrollTarget.birthday), 'year') < 18 : false);
+  // 未滿 5 歲無法報名課程（友善提示，後端仍為權威）
+  const targetUnder5 = isUnder5(enrollTarget);
 
   useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, [member?.id]);
   useEffect(() => {
@@ -1200,6 +1203,12 @@ export default function MemberCoursesPage() {
             {/* Scrollable content */}
             <div style={{ overflowY:'auto', flex:1, padding:'16px 20px' }}>
 
+            {targetUnder5 && (
+              <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
+                {enrollTarget?.name || '報名對象'} 未滿 5 歲，無法報名課程。
+              </div>
+            )}
+
             {/* Step 1: 付款資訊 */}
             {enrollStep === 1 && (<>
               {/* 為誰報名 */}
@@ -1354,8 +1363,8 @@ export default function MemberCoursesPage() {
                   下一步 →
                 </button>
               ) : (
-                <button onClick={handleEnroll} disabled={loading || !portraitSig || (targetIsMinor && !guardianSig)}
-                  style={{ flex:2, height:44, borderRadius:10, background: (!portraitSig || (targetIsMinor && !guardianSig)) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: (!portraitSig) ? 'not-allowed' : 'pointer' }}>
+                <button onClick={handleEnroll} disabled={loading || targetUnder5 || !portraitSig || (targetIsMinor && !guardianSig)}
+                  style={{ flex:2, height:44, borderRadius:10, background: (targetUnder5 || !portraitSig || (targetIsMinor && !guardianSig)) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: (targetUnder5 || !portraitSig) ? 'not-allowed' : 'pointer' }}>
                   {loading ? '送出中...' : (enrollSession.isWaitlist ? '✓ 確認加入候補' : '✓ 確認報名')}
                 </button>
               )}

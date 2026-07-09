@@ -5,6 +5,7 @@ import { memberClient } from '../../api/client';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import QRCode from 'qrcode';
 import dayjs from 'dayjs';
+import { isChild } from '../../utils/age';
 
 const PAYMENT_METHODS = [
   { key: 'cash',      label: '現金' },
@@ -352,9 +353,11 @@ export default function MemberQRPage() {
     if (inst.blackCard?.available) methods.push({ kind:'blackCard', type:'black_card', label:'使用黑卡（免費）', freeEntry:true, instrumentKind:'blackCard', cards:inst.blackCard.cards });
     if (inst.bonus?.available) methods.push({ kind:'bonus', type:'bonus', label:'使用紅利（免費）', freeEntry:true, instrumentKind:'bonus', cards:inst.bonus.bonuses });
     if (inst.singleEntryTicket?.available) methods.push({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true, instrumentKind:'singleEntryTicket', cards:inst.singleEntryTicket.tickets });
-    if (inst.buyDiscountCard?.available) methods.push({ kind:'buy', type:'buy_discount_card', label:'購買優惠折扣券入場', note:'含本次入場＋10次八折＋紅利', price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
+    // 未滿 13 歲（兒童，以出生日期判定）不可購買優惠券／定期票（友善提示，後端仍為權威）
+    const entrantIsChild = isChild(entrant);
+    if (!entrantIsChild && inst.buyDiscountCard?.available) methods.push({ kind:'buy', type:'buy_discount_card', label:'購買優惠折扣券入場', note:'含本次入場＋10次八折＋紅利', price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
     // 購買新定期票入場改為下拉選單（單館票僅該館可買，QR 綁該館）
-    const buyPassTypes = inst.buyPass?.available ? (inst.buyPass.passTypes || []) : [];
+    const buyPassTypes = (!entrantIsChild && inst.buyPass?.available) ? (inst.buyPass.passTypes || []) : [];
     const pickBuyPass = (id) => {
       const pt = buyPassTypes.find(p => p.id === id);
       if (!pt) return;
