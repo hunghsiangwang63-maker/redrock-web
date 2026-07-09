@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getRevenueSummary, getDailyReport, getCheckinStats, exportCheckinCsv } from '../../api/revenue';
+import { getRevenueSummary, getDailyReport, getCheckinStats, getAdjustments, exportCheckinCsv } from '../../api/revenue';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -16,6 +16,8 @@ const PAYMENT_LABEL = {
   taiwanpay: '台灣Pay', ecpay_atm: 'ATM轉帳',
 };
 
+const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
+
 export default function RevenuePage({ embedded = false }) {
   const { staff, viewGym } = useAuth();
   const [tab, setTab] = useState('overview');
@@ -24,6 +26,8 @@ export default function RevenuePage({ embedded = false }) {
   const [summary, setSummary] = useState(null);
   const [daily, setDaily] = useState([]);
   const [checkinDaily, setCheckinDaily] = useState([]);
+  const [adjustments, setAdjustments] = useState([]);
+  const [adjNet, setAdjNet] = useState(0);
   const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -33,14 +37,17 @@ export default function RevenuePage({ embedded = false }) {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [sumRes, dailyRes, checkinRes] = await Promise.all([
+      const [sumRes, dailyRes, checkinRes, adjRes] = await Promise.all([
         getRevenueSummary(gymFilter),
         getDailyReport({ days, gymId: gymFilter }),
         getCheckinStats({ days, gymId: gymFilter }),
+        getAdjustments({ days, gymId: gymFilter }),
       ]);
       setSummary(sumRes.data);
       setDaily(dailyRes.data.daily || []);
       setCheckinDaily(checkinRes.data.daily || []);
+      setAdjustments(adjRes.data.adjustments || []);
+      setAdjNet(adjRes.data.netAdjust || 0);
     } catch (e) {
       console.error(e);
     } finally {
@@ -188,6 +195,51 @@ export default function RevenuePage({ embedded = false }) {
                         <td style={{ padding:'10px 14px', textAlign:'right', color:'#999', fontSize:12 }}>
                           {daily.reduce((a, b) => a + b.count, 0)} 筆
                         </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+              </div>
+
+              {/* 加減項（來源：每日結帳 deductions；抽屜現金加減、非銷售收入，不併入營收總數） */}
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden', marginTop:16 }}>
+                <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5' }}>
+                  <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>加減項（近 {days} 天結帳）</span>
+                  <div style={{ fontSize:11, color:'#B08A3E', marginTop:3, textAlign:'left' }}>結帳時抽屜現金的手動加／減，非銷售收入、不併入上方營收總數</div>
+                </div>
+                {adjustments.length === 0 ? (
+                  <div style={{ padding:32, textAlign:'center', color:'#999', fontSize:13 }}>此期間無加減項</div>
+                ) : (
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                    <thead>
+                      <tr style={{ background:'#FBF5F5' }}>
+                        {[['日期','left'],['館別','left'],['類型','left'],['金額','right'],['備註','left']].map(([h, al], i) => (
+                          <th key={i} style={{ padding:'8px 14px', textAlign:al, fontSize:10, color:'#999', fontWeight:500 }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adjustments.map((a, i) => (
+                        <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
+                          <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12, fontWeight:500 }}>
+                            {dayjs(a.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(a.date).day()]}）
+                          </td>
+                          <td style={{ padding:'10px 14px', fontSize:12, color:'#666' }}>{GYM_LABEL[a.gymId] || a.gymId || '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:12 }}>{a.type || '—'}</td>
+                          <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontSize:13, fontWeight:600, color: a.sign === '+' ? '#2D7D46' : '#B3261E' }}>
+                            {a.sign === '+' ? '+' : '−'}{NT(a.amount)}
+                          </td>
+                          <td style={{ padding:'10px 14px', fontSize:12, color:'#666' }}>{a.note || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ borderTop:'2px solid #E8D5D5', background:'#FBF5F5' }}>
+                        <td style={{ padding:'10px 14px', fontWeight:600 }} colSpan={3}>淨額小計</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:700, fontSize:14, color: adjNet >= 0 ? '#2D7D46' : '#B3261E' }}>
+                          {adjNet >= 0 ? '+' : '−'}{NT(Math.abs(adjNet))}
+                        </td>
+                        <td></td>
                       </tr>
                     </tfoot>
                   </table>
