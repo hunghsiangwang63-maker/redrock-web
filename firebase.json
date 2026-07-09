@@ -7,7 +7,7 @@
       "rewrites": [{ "source": "**", "destination": "/index.html" }],
       "headers": [
         {
-          "source": "/index.html",
+          "source": "**",
           "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
         },
         {
@@ -23,7 +23,7 @@
       "rewrites": [{ "source": "**", "destination": "/index.html" }],
       "headers": [
         {
-          "source": "/index.html",
+          "source": "**",
           "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
         },
         {
