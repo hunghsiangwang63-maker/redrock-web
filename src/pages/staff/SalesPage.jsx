@@ -641,7 +641,7 @@ export default function SalesPage({ embedded = false }) {
                         };
                         return (
                           <div key={idx} style={{ marginBottom: idx < (sale.items.length-1) ? 5 : 0 }}>
-                            <span>{i.productName}{i.size ? ` ${i.size}` : ''}×{Math.abs(i.quantity)}</span>
+                            <span>{i.brand ? `${i.brand} ` : ''}{i.productName}{i.size ? ` ${i.size}` : ''}×{Math.abs(i.quantity)}</span>
                             {variant && (
                               <span style={{ fontSize:11, marginLeft:8, display:'inline-flex', gap:8, flexWrap:'wrap' }}>
                                 <span style={{ color:'#bbb' }}>存貨</span>
