@@ -4,6 +4,7 @@ import { useAuth } from '../../store/authStore.jsx';
 import { getGyms } from '../../api/gyms';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import Modal from '../../components/Modal';
 
 const DENOMINATIONS = [
   { key:'d1000', label:'NT$1,000', value:1000 },
@@ -31,8 +32,19 @@ export default function DailySettlementPage() {
   const [alreadySettled, setAlreadySettled] = useState(false);
   const [denominations, setDenominations] = useState({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
   const [deductions, setDeductions] = useState([]);
-  const [invoiceLastNumber, setInvoiceLastNumber] = useState('');
-  const [invoiceStartNumber, setInvoiceStartNumber] = useState('');
+  // 發票多段：一天內換發票捲可加多段起末號
+  const [invoiceSegments, setInvoiceSegments] = useState([{ start:'', last:'' }]);
+  const [showConfirm, setShowConfirm] = useState(false);   // 完成結帳確認 modal
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [resettleMode, setResettleMode] = useState(false); // 當日再次結帳（由已結帳畫面進入）
+  const [resettleReason, setResettleReason] = useState('');
+  const setSegment = (i, field, val) => setInvoiceSegments(prev => prev.map((sg, idx) => idx === i ? { ...sg, [field]: val } : sg));
+  const addSegment = () => setInvoiceSegments(prev => {
+    const lastSeg = prev[prev.length - 1];
+    const suggest = /^\d+$/.test(String(lastSeg?.last || '')) ? String(Number(lastSeg.last) + 1).padStart(String(lastSeg.last).length, '0') : '';
+    return [...prev, { start: suggest, last: '' }];
+  });
+  const removeSegment = (i) => setInvoiceSegments(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
   const [voidList, setVoidList] = useState([]);   // 作廢發票號碼（逐張標籤）
   const [voidInput, setVoidInput] = useState('');
   const addVoid = () => {
@@ -77,10 +89,25 @@ export default function DailySettlementPage() {
       const res = await client.get('/daily-settlements/today', { params: { gymId } });
       setSettlement(res.data.settlement);
       setAlreadySettled(res.data.alreadySettled);
-      if (res.data.settlement?.denominations) setDenominations(res.data.settlement.denominations);
-      if (res.data.settlement?.invoiceLastNumber) setInvoiceLastNumber(res.data.settlement.invoiceLastNumber);
-      // 發票起始號＝前一天最後一張+1（帶入，可改）
-      if (res.data.settlement?.suggestedInvoiceStart) setInvoiceStartNumber(prev => prev || res.data.settlement.suggestedInvoiceStart);
+      setResettleMode(false);
+      const draft = res.data.draft;
+      if (draft) {
+        // 載回暫存檔續填
+        if (draft.denominations) setDenominations(draft.denominations);
+        if (Array.isArray(draft.deductions)) setDeductions(draft.deductions);
+        if (Array.isArray(draft.invoiceSegments) && draft.invoiceSegments.length) setInvoiceSegments(draft.invoiceSegments);
+        else if (draft.invoiceStartNumber || draft.invoiceLastNumber) setInvoiceSegments([{ start: draft.invoiceStartNumber || '', last: draft.invoiceLastNumber || '' }]);
+        if (draft.invoiceVoidNumbers) setVoidList(String(draft.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean));
+        setCardOrangeFirst(draft.cardOrangeFirst || ''); setCardFullFirst(draft.cardFullFirst || '');
+        setNotes(draft.notes || '');
+        if (draft.incomeManual) setIncomeManual(draft.incomeManual);
+        if (draft.paymentManual) setPaymentManual(draft.paymentManual);
+        showMsg('已載入暫存檔');
+      } else if (!res.data.alreadySettled) {
+        // 無暫存 → 首段起始號帶入前一天最後+1（可改）
+        const sug = res.data.settlement?.suggestedInvoiceStart;
+        if (sug) setInvoiceSegments(prev => (prev.length === 1 && !prev[0].start && !prev[0].last) ? [{ start: sug, last: '' }] : prev);
+      }
     } catch (e) { showMsg('載入失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -101,29 +128,67 @@ export default function DailySettlementPage() {
   const actualCash = DENOMINATIONS.reduce((sum, d) => sum + (denominations[d.key]||0) * d.value, 0);
   // 加減項：sign '+' ＝加入抽屜（預期上升）、'-' ＝取出（預期下降）；舊資料無 sign 視為 '-'（減）
   const netAdjust = deductions.reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount)||0)), 0);
-  const expectedCash = (settlement?.prevCashBalance || 0) + (settlement?.payment?.cash || 0) + netAdjust;
+  const manualCashVal = transition.settlementManualInput && paymentManual.cash !== '' && paymentManual.cash != null ? Number(paymentManual.cash) || 0 : null;
+  const effectiveCash = manualCashVal != null ? manualCashVal : (settlement?.payment?.cash || 0);
+  const expectedCash = (settlement?.prevCashBalance || 0) + effectiveCash + netAdjust;
   const difference = actualCash - expectedCash;
+  // 發票總金額＝income 各項合計（轉換期手動開啟時取手動值，缺項回退系統值）
+  const invoiceTotal = transition.settlementManualInput
+    ? ['entry', 'shoeRental', 'product', 'course', 'pass'].reduce((sum, k) => sum + ((incomeManual[k] !== '' && incomeManual[k] != null) ? (Number(incomeManual[k]) || 0) : (settlement?.income?.[k] || 0)), 0)
+    : (settlement?.income?.total || 0);
 
   const addDeduction = () => setDeductions(prev => [...prev, { sign: '-', type: DEDUCTION_TYPES[0], amount: '', note: '' }]);
   const removeDeduction = (i) => setDeductions(prev => prev.filter((_, idx) => idx !== i));
 
-  const handleSettle = async () => {
-    if (!invoiceLastNumber) { showMsg('請輸入最後一張發票號碼', 'err'); return; }
+  const cleanSegments = () => invoiceSegments.map(sg => ({ start: String(sg.start || '').trim(), last: String(sg.last || '').trim() })).filter(sg => sg.start || sg.last);
+  const buildBody = () => ({
+    gymId, income: settlement?.income, payment: settlement?.payment,
+    deductions, denominations, notes,
+    invoiceSegments: cleanSegments(),
+    invoiceVoidNumbers: [...voidList, voidInput.trim()].filter(Boolean).join(', '),
+    cardOrangeFirst, cardFullFirst,
+    checkinCount: settlement?.checkinCount ?? null,
+    ...(transition.settlementManualInput ? { incomeManual, paymentManual } : {}),
+  });
+
+  const saveDraft = async () => {
+    setSavingDraft(true);
+    try { await client.put('/daily-settlements/draft', buildBody()); showMsg('已暫存'); }
+    catch (e) { showMsg(e.response?.data?.message || '暫存失敗', 'err'); }
+    finally { setSavingDraft(false); }
+  };
+
+  const openConfirm = () => {
+    const segs = cleanSegments();
+    if (!segs.length || !segs[segs.length - 1].last) { showMsg('請至少填一段發票，且最後一段需填末號', 'err'); return; }
+    setShowConfirm(true);
+  };
+
+  const doSettle = async () => {
     setSaving(true);
     try {
-      await client.post('/daily-settlements', {
-        gymId, income: settlement?.income, payment: settlement?.payment,
-        deductions, denominations, invoiceLastNumber, notes,
-        invoiceStartNumber, cardOrangeFirst, cardFullFirst,
-        invoiceVoidNumbers: [...voidList, voidInput.trim()].filter(Boolean).join(', '),
-        checkinCount: settlement?.checkinCount ?? null,
-        ...(transition.settlementManualInput ? { incomeManual, paymentManual } : {}),
-      });
-      showMsg(Math.abs(difference) > 200 ? `結帳完成，差異 NT$${difference} 已通知管理員` : '結帳完成！');
-      await loadToday();
-      await loadHistory();
+      const res = await client.post('/daily-settlements', { ...buildBody(), ...(resettleMode ? { resettleReason } : {}) });
+      setShowConfirm(false);
+      showMsg(res.data?.message || '結帳完成！');
+      await loadToday(); await loadHistory();
     } catch (e) { showMsg(e.response?.data?.message || '結帳失敗', 'err'); }
     finally { setSaving(false); }
+  };
+
+  // 由「今日已結帳」進入當日再次結帳：用已結帳資料預填表單、切回編輯
+  const startResettle = () => {
+    const st = settlement;
+    if (st?.denominations) setDenominations(st.denominations);
+    if (Array.isArray(st?.deductions)) setDeductions(st.deductions);
+    if (Array.isArray(st?.invoiceSegments) && st.invoiceSegments.length) setInvoiceSegments(st.invoiceSegments);
+    else setInvoiceSegments([{ start: st?.invoiceStartNumber || '', last: st?.invoiceLastNumber || '' }]);
+    setVoidList(st?.invoiceVoidNumbers ? String(st.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []);
+    setCardOrangeFirst(st?.cardOrangeFirst || ''); setCardFullFirst(st?.cardFullFirst || '');
+    setNotes(st?.notes || ''); setResettleReason('');
+    if (st?.incomeManual) setIncomeManual(st.incomeManual);
+    if (st?.paymentManual) setPaymentManual(st.paymentManual);
+    setResettleMode(true);
+    setAlreadySettled(false);
   };
 
   const downloadMonthly = async () => {
@@ -226,16 +291,24 @@ export default function DailySettlementPage() {
           <div style={{ background:'#E6F4EB', borderRadius:12, padding:16, marginBottom:14, textAlign:'center' }}>
             <div style={{ fontSize:20, marginBottom:4 }}>✅</div>
             <div style={{ fontWeight:600, fontSize:14, color:'#2D7D46' }}>今日已完成結帳</div>
-            <div style={{ fontSize:12, color:'#666', marginTop:4 }}>{settlement?.date} · {settlement?.staffName}</div>
+            <div style={{ fontSize:12, color:'#666', marginTop:4 }}>{settlement?.date} · {settlement?.staffName}{settlement?.resettleCount ? ` · 已再次結帳 ${settlement.resettleCount} 次` : ''}</div>
           </div>
-          {/* 顯示結帳摘要 */}
-          <div style={s.card}>
-            <div style={s.cardHead}>結帳摘要</div>
-            <div style={s.row}><span style={s.label}>總收入</span><span style={{ ...s.value, color:'#8B1A1A', fontWeight:600 }}>NT${(settlement?.income?.total||0).toLocaleString()}</span></div>
-            <div style={s.row}><span style={s.label}>實際現金</span><span style={s.value}>NT${(settlement?.actualCashBalance||0).toLocaleString()}</span></div>
-            <div style={s.row}><span style={s.label}>差異</span><span style={{ ...s.value, color: Math.abs(settlement?.difference||0) > 200 ? '#A32D2D' : '#2D7D46' }}>NT${settlement?.difference || 0}</span></div>
-            <div style={s.row}><span style={s.label}>發票末號</span><span style={s.value}>{settlement?.invoiceLastNumber || '—'}</span></div>
+          {/* 結帳摘要（與確認 modal 五項一致）*/}
+          <div style={{ ...s.card, padding:'6px 16px 12px' }}>
+            <div style={{ ...s.cardHead, padding:'10px 0', marginBottom:2 }}>結帳摘要</div>
+            <SettlementSummary
+              invoiceTotal={settlement?.income?.total || 0}
+              deductions={settlement?.deductions || []}
+              netAdjust={(settlement?.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
+              actualCash={settlement?.actualCashBalance || 0}
+              difference={settlement?.difference || 0}
+              segments={(settlement?.invoiceSegments && settlement.invoiceSegments.length) ? settlement.invoiceSegments : [{ start: settlement?.invoiceStartNumber || '', last: settlement?.invoiceLastNumber || '' }]}
+              voids={settlement?.invoiceVoidNumbers ? String(settlement.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []} />
           </div>
+          <button onClick={startResettle}
+            style={{ width:'100%', height:46, borderRadius:12, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:20 }}>
+            🔁 當日再次結帳
+          </button>
         </div>
       ) : (
         <>
@@ -381,19 +454,25 @@ export default function DailySettlementPage() {
             </div>
           </div>
 
-          {/* 發票號碼 */}
+          {/* 發票號碼（多段：換發票捲時可加新序號起始）*/}
           <div style={s.card}>
-            <div style={s.cardHead}>發票管理</div>
-            <div style={s.row}>
-              <span style={s.label}>發票起始號碼</span>
-              <input value={invoiceStartNumber} onChange={e => setInvoiceStartNumber(e.target.value)}
-                placeholder="例：35371459" style={{ ...s.input, width:160 }} />
+            <div style={{ ...s.cardHead, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span>發票管理</span>
+              <button onClick={addSegment}
+                style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增發票序號</button>
             </div>
-            <div style={s.row}>
-              <span style={s.label}>最後一張發票號碼</span>
-              <input value={invoiceLastNumber} onChange={e => setInvoiceLastNumber(e.target.value)}
-                placeholder="例：35371479" style={{ ...s.input, width:160 }} />
-            </div>
+            {invoiceSegments.map((sg, i) => (
+              <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                <span style={{ ...s.label, minWidth:56 }}>{invoiceSegments.length > 1 ? `第 ${i+1} 段` : '發票號'}</span>
+                <input value={sg.start} onChange={e => setSegment(i, 'start', e.target.value)} placeholder="起始號" style={{ ...s.input, width:130 }} />
+                <span style={{ color:'#999' }}>～</span>
+                <input value={sg.last} onChange={e => setSegment(i, 'last', e.target.value)} placeholder="最後一張" style={{ ...s.input, width:130 }} />
+                {invoiceSegments.length > 1 && (
+                  <button onClick={() => removeSegment(i)}
+                    style={{ height:36, width:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#A32D2D', cursor:'pointer', fontSize:16 }}>✕</button>
+                )}
+              </div>
+            ))}
             <div style={{ ...s.row, alignItems:'flex-start' }}>
               <span style={{ ...s.label, marginTop:8 }}>作廢發票號碼</span>
               <div style={{ display:'flex', flexDirection:'column', gap:6, flex:1, maxWidth:340 }}>
@@ -454,13 +533,97 @@ export default function DailySettlementPage() {
             </div>
           </div>
 
-          {/* 確認結帳 */}
-          <button onClick={handleSettle} disabled={saving}
-            style={{ width:'100%', height:52, borderRadius:14, background: saving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor: saving?'not-allowed':'pointer', marginBottom:20 }}>
-            {saving ? '結帳中...' : '✓ 確認完成結帳'}
-          </button>
+          {resettleMode && (
+            <div style={{ background:'#FFF8E6', border:'0.5px solid #F0D98C', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#854F0B' }}>
+              🔁 當日再次結帳：將更新今日這筆結帳（保留原版稽核）。
+            </div>
+          )}
+          {/* 存暫存檔 + 完成結帳 */}
+          <div style={{ display:'flex', gap:10, marginBottom:20 }}>
+            <button onClick={saveDraft} disabled={savingDraft || saving}
+              style={{ flex:1, height:52, borderRadius:14, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:15, fontWeight:600, cursor:(savingDraft||saving)?'not-allowed':'pointer' }}>
+              {savingDraft ? '暫存中...' : '💾 存暫存檔'}
+            </button>
+            <button onClick={openConfirm} disabled={saving}
+              style={{ flex:2, height:52, borderRadius:14, background: saving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor: saving?'not-allowed':'pointer' }}>
+              {resettleMode ? '✓ 更新結帳' : '✓ 完成結帳'}
+            </button>
+          </div>
         </>
       )}
+
+      {/* 完成結帳確認 Modal（含摘要）*/}
+      {showConfirm && (
+        <Modal title={resettleMode ? '確認更新今日結帳' : '確認完成結帳'} onClose={() => !saving && setShowConfirm(false)} width={460}>
+          <SettlementSummary
+            invoiceTotal={invoiceTotal} deductions={deductions} netAdjust={netAdjust}
+            actualCash={actualCash} difference={difference}
+            segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)} />
+          {resettleMode && (
+            <div style={{ marginTop:12 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
+              <input value={resettleReason} onChange={e => setResettleReason(e.target.value)} placeholder="例：補開兩張發票 / 更正金額"
+                style={{ ...s.input, width:'100%' }} />
+            </div>
+          )}
+          <div style={{ display:'flex', gap:8, marginTop:18 }}>
+            <button onClick={() => setShowConfirm(false)} disabled={saving}
+              style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+            <button onClick={doSettle} disabled={saving}
+              style={{ flex:2, height:44, borderRadius:10, background: saving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: saving?'not-allowed':'pointer' }}>
+              {saving ? '處理中...' : (resettleMode ? '確認更新' : '確認結帳')}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
+function SettlementSummary({ invoiceTotal, deductions, netAdjust, actualCash, difference, segments, voids }) {
+  const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
+  const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
+  const bigDiff = Math.abs(difference) > 200;
+  return (
+    <div>
+      <div style={row}><span style={{ color:'#666' }}>發票總金額</span><span style={{ fontWeight:700, color:'#8B1A1A' }}>{money(invoiceTotal)}</span></div>
+      <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
+        <span style={{ color:'#666', marginBottom:4 }}>加減項</span>
+        {(!deductions || deductions.length === 0) ? (
+          <span style={{ color:'#999', textAlign:'left' }}>無</span>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+            {deductions.map((d, i) => (
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
+                <span style={{ color: d.sign === '+' ? '#2D7D46' : '#A32D2D', textAlign:'left' }}>
+                  {d.sign === '+' ? '＋' : '－'}{d.type}{d.note ? `（${d.note}）` : ''}
+                </span>
+                <span style={{ color: d.sign === '+' ? '#2D7D46' : '#A32D2D' }}>{d.sign === '+' ? '+' : '−'}{money(Math.abs(Number(d.amount) || 0))}</span>
+              </div>
+            ))}
+            <div style={{ display:'flex', justifyContent:'space-between', fontWeight:600, marginTop:2 }}>
+              <span style={{ textAlign:'left' }}>淨額小計</span>
+              <span style={{ color: netAdjust >= 0 ? '#2D7D46' : '#A32D2D' }}>{netAdjust >= 0 ? '+' : '−'}{money(Math.abs(netAdjust))}</span>
+            </div>
+          </div>
+        )}
+      </div>
+      <div style={row}><span style={{ color:'#666' }}>實際現金</span><span style={{ fontWeight:600 }}>{money(actualCash)}</span></div>
+      <div style={row}><span style={{ color:'#666' }}>差異（實際−預期）</span>
+        <span style={{ fontWeight:700, color: bigDiff ? '#A32D2D' : '#2D7D46' }}>
+          {difference >= 0 ? '+' : ''}{money(difference)}{bigDiff ? '　⚠ 將通知管理員' : ''}
+        </span>
+      </div>
+      <div style={{ ...row, flexDirection:'column', alignItems:'stretch', borderBottom:'none' }}>
+        <span style={{ color:'#666', marginBottom:4 }}>發票起末號碼</span>
+        <div style={{ display:'flex', flexDirection:'column', gap:2, textAlign:'left' }}>
+          {(segments && segments.length ? segments : [{ start:'', last:'' }]).map((sg, i) => (
+            <span key={i} style={{ fontFamily:'monospace', fontSize:12.5 }}>{segments.length > 1 ? `第${i+1}段：` : ''}{sg.start || '—'} ～ {sg.last || '—'}</span>
+          ))}
+          {voids && voids.length > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢：{voids.join('、')}</span>}
+        </div>
+      </div>
     </div>
   );
 }
