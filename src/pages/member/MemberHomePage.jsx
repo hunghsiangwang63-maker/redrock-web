@@ -132,10 +132,19 @@ export default function MemberHomePage() {
             </div>
             {banners.length > 1 && (
               <div style={{ position:'absolute', bottom:10, right:14, display:'flex', gap:4 }}>
-                {banners.map((_,i) => (
-                  <div key={i} onClick={() => setBannerIdx(i)}
-                    style={{ width:8, height:8, borderRadius:2, border:'1px solid rgba(255,255,255,.8)', background: i===bannerIdx%bannerLen ? 'rgba(255,255,255,.9)' : 'transparent', cursor:'pointer', transition:'background .3s' }}/>
-                ))}
+                {banners.map((_,i) => {
+                  const active = i === bannerIdx % bannerLen;
+                  return (
+                    <div key={i} onClick={() => setBannerIdx(i)}
+                      style={{ width:14, height:14, borderRadius:3, border:'1px solid rgba(255,255,255,.85)',
+                        background: active ? 'rgba(255,255,255,.95)' : 'transparent',
+                        display:'flex', alignItems:'center', justifyContent:'center',
+                        color:'#8B1A1A', fontSize:10, fontWeight:700, lineHeight:1,
+                        cursor:'pointer', transition:'all .2s' }}>
+                      {active ? '✓' : ''}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {/* 左右箭頭（手機上半透明） */}
