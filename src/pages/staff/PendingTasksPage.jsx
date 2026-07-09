@@ -419,17 +419,20 @@ export default function PendingTasksPage() {
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {group.tasks.map(task => {
               const cfg = TYPE_CONFIG[task.type] || TYPE_CONFIG.rental;
+              const isCashPay = task.type === 'transfer_confirm' && task.method === 'cash';
+              const badgeLabel = isCashPay ? '現金確認' : cfg.label;
+              const badgeIcon = isCashPay ? '💵' : cfg.icon;
               return (
                 <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12 }}>
                   <div style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, minWidth:0 }}>
                     {/* 圖示 */}
                     <div style={{ width:40, height:40, borderRadius:10, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
-                      {cfg.icon}
+                      {badgeIcon}
                     </div>
                     {/* 內容 */}
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
-                        <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color, flexShrink:0 }}>{cfg.label}</span>
+                        <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color, flexShrink:0 }}>{badgeLabel}</span>
                         <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
                       </div>
                       <div style={{ fontSize:12, color:'#666', ...(isMobile ? { lineHeight:1.5, wordBreak:'break-word' } : { overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }) }}>{task.desc}</div>
