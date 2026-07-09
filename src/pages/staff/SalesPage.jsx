@@ -5,6 +5,7 @@ import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
 import client from '../../api/client';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import dayjs from 'dayjs';
 
 const PAY_METHODS = [
   { key:'cash', label:'現金' },
