@@ -357,6 +357,19 @@ export default function MemberCoursesPage() {
     } finally { setLoading(false); }
   };
 
+  const handleCancelWaitlist = async (group) => {
+    if (!window.confirm(`確定要取消「${group.courseName}」的候補嗎？`)) return;
+    setLoading(true);
+    try {
+      const targetId = group.memberId || member?.id;
+      await memberClient.post(`/courses/${group.courseId}/cancel-waitlist`, { memberId: targetId });
+      showMsg('已取消候補');
+      await loadMyEnrollments();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '取消候補失敗', 'red');
+    } finally { setLoading(false); }
+  };
+
   const isEnrolled = (sessionId) => myEnrollments.some(e => e.sessionId === sessionId && e.status !== 'cancelled');
 
   const NavBar = () => (
@@ -920,12 +933,18 @@ export default function MemberCoursesPage() {
             // 按課程分組
             const byCourse = {};
             myEnrollments.forEach(e => {
-              if (!byCourse[e.courseId]) byCourse[e.courseId] = { courseName: e.courseName, courseId: e.courseId, sessions: [] };
+              if (!byCourse[e.courseId]) byCourse[e.courseId] = { courseName: e.courseName, courseId: e.courseId, memberId: e.memberId, sessions: [] };
               byCourse[e.courseId].sessions.push(e);
             });
             return Object.values(byCourse).map(group => {
               const confirmed = group.sessions.filter(s => s.status === 'confirmed');
               const onLeave = group.sessions.filter(s => s.status === 'leave');
+              const waitlist = group.sessions.filter(s => s.status === 'waitlist');
+              // 候補群組：無正取、僅候補（非正式學員，隱藏請假/退費/暫停等正取功能）
+              const isWaitlistGroup = confirmed.length === 0 && onLeave.length === 0 && waitlist.length > 0;
+              const waitlistPos = waitlist.find(s => s.waitlistPosition != null)?.waitlistPosition;
+              // 全數已取消/失效（如取消候補後）→ 不在「我的課程」顯示幽靈卡
+              if (confirmed.length === 0 && onLeave.length === 0 && waitlist.length === 0) return null;
               const today = dayjs().format('YYYY-MM-DD');
               const future = confirmed.filter(s => s.date >= today).sort((a,b) => a.date.localeCompare(b.date));
               const past = confirmed.filter(s => s.date < today).sort((a,b) => b.date.localeCompare(a.date));
@@ -943,16 +962,36 @@ export default function MemberCoursesPage() {
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
                     onClick={() => setExpandedCourseId(isExpanded ? null : group.courseId)}>
                     <div style={{ fontWeight:600, fontSize:15 }}>{group.courseName}</div>
-                    <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
-                      已報名
-                    </span>
+                    {isWaitlistGroup ? (
+                      <span style={{ fontSize:11, background:'#FAEEDA', color:'#B5651D', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
+                        候補中{waitlistPos ? `・第 ${waitlistPos} 位` : ''}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
+                        已報名
+                      </span>
+                    )}
                   </div>
-                  <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
-                    onClick={() => setExpandedCourseId(isExpanded ? null : group.courseId)}>
-                    共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span>
-                    <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
-                  </div>
+                  {isWaitlistGroup ? (
+                    <div style={{ fontSize:12, color:'#B5651D', marginBottom:8, lineHeight:1.6, textAlign:'left' }}>
+                      您已排入候補名單，等待正取名額釋出。遞補為正取後將另行通知您繳費；在此之前不需付款。
+                    </div>
+                  ) : (
+                    <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
+                      onClick={() => setExpandedCourseId(isExpanded ? null : group.courseId)}>
+                      共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span>
+                      <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
+                    </div>
+                  )}
 
+                  {isWaitlistGroup ? (
+                    <div style={{ display:'flex', gap:6, marginTop:8 }}>
+                      <button onClick={() => handleCancelWaitlist(group)} disabled={loading}
+                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:11, cursor: loading?'not-allowed':'pointer' }}>
+                        取消候補
+                      </button>
+                    </div>
+                  ) : (
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
                     <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName })}
                       disabled={pendingAdjustCourseIds.has(group.courseId)}
@@ -965,6 +1004,7 @@ export default function MemberCoursesPage() {
                       {pendingAdjustCourseIds.has(group.courseId) ? '已申請暫停' : '申請暫停'}
                     </button>
                   </div>
+                  )}
 
                   {!isExpanded && next && (
                     <div style={{ background:'#FBF5F5', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
