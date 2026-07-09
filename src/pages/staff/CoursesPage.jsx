@@ -75,6 +75,7 @@ export default function CoursesPage({ embedded = false }) {
   const [subSaving, setSubSaving] = useState(false);
   const [rosterData, setRosterData] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState(null); // 課程列表兩層：先類別總頁、再各梯次
   const [selectedSession, setSelectedSession] = useState(null);
   const [roster, setRoster] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -567,19 +568,65 @@ export default function CoursesPage({ embedded = false }) {
         )}
       </div>
 
-      {/* ── 課程列表 ── */}
-      {tab === 'courses' && (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
-          {courses.length === 0 ? (
-            <div style={{ gridColumn:'1/-1', background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-              目前沒有課程，點右上角新增
+      {/* ── 課程列表（兩層：類別總頁 → 各梯次）── */}
+      {tab === 'courses' && (courses.length === 0 ? (
+        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
+          目前沒有課程，點右上角新增
+        </div>
+      ) : (() => {
+        // 依類別分組（無類別歸「其他」）
+        const groups = {};
+        courses.forEach(c => { const k = c.categoryName || '其他'; (groups[k] = groups[k] || []).push(c); });
+        const names = Object.keys(groups).sort((a, b) => a === '其他' ? 1 : b === '其他' ? -1 : a.localeCompare(b, 'zh-Hant'));
+
+        // ── 第一層：類別總頁 ──
+        if (!selectedCategory) {
+          return (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+              {names.map(gname => {
+                const g = groups[gname];
+                const prices = g.map(c => c.price || 0);
+                const minP = Math.min(...prices), maxP = Math.max(...prices);
+                const enrolled = g.reduce((s, c) => s + (c.enrolledCount || 0), 0);
+                const cap = g.reduce((s, c) => s + (c.maxStudents || 0), 0);
+                const anyInactive = g.some(c => c.isActive === false && c.status !== 'cancelled');
+                return (
+                  <div key={gname} onClick={() => setSelectedCategory(gname)}
+                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                      <div style={{ fontWeight:700, fontSize:16 }}>{gname}</div>
+                      <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{g.length} 梯 ›</span>
+                    </div>
+                    <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:6 }}>
+                      NT${minP.toLocaleString()}{maxP !== minP && `～${maxP.toLocaleString()}`}
+                    </div>
+                    <div style={{ fontSize:12, color:'#999' }}>
+                      正取 {enrolled} / {cap} 人{anyInactive ? ' · 含已停用' : ''}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ) : courses.map(c => {
-            const st = courseStatus(c);
-            const inactive = c.isActive === false && c.status !== 'cancelled';
-            return (
-              <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer', opacity: inactive ? 0.6 : 1 }}
-                onClick={() => { setSelectedCourse(c); setTab('sessions'); }}>
+          );
+        }
+
+        // ── 第二層：某類別的各梯次 ──
+        const list = groups[selectedCategory] || [];
+        return (
+          <>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+              <button onClick={() => setSelectedCategory(null)}
+                style={{ height:32, padding:'0 12px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>← 返回課程總頁</button>
+              <div style={{ fontWeight:700, fontSize:16 }}>{selectedCategory}</div>
+              <span style={{ fontSize:12, color:'#999' }}>{list.length} 梯</span>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+              {list.map(c => {
+                const st = courseStatus(c);
+                const inactive = c.isActive === false && c.status !== 'cancelled';
+                return (
+                  <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer', opacity: inactive ? 0.6 : 1 }}
+                    onClick={() => { setSelectedCourse(c); setTab('sessions'); }}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, gap:6 }}>
                   <Tag type={c.type==='weekly'?'blue':'purple'}>{courseTypeLabel(c.type)}</Tag>
                   <div style={{ display:'flex', gap:6 }}>
@@ -637,10 +684,12 @@ export default function CoursesPage({ embedded = false }) {
                   )}
                 </div>
               </div>
-            );
-          })}
-        </div>
-      )}
+                );
+              })}
+            </div>
+          </>
+        );
+      })())}
 
       {/* ── 月曆 ── */}
       {tab === 'calendar' && (
