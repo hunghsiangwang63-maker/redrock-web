@@ -15,6 +15,9 @@ export const getCheckinStats = (params) =>
 export const getAdjustments = (params) =>
   client.get('/revenue/adjustments', { params });
 
+export const exportAdjustmentsCsv = (params) =>
+  client.get('/revenue/export-adjustments-csv', { params, responseType: 'blob' });
+
 export const exportCsv = (params) =>
   client.get('/revenue/export-csv', { params, responseType: 'blob' });
 

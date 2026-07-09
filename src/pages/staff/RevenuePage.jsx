@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getRevenueSummary, getDailyReport, getCheckinStats, getAdjustments, exportCheckinCsv } from '../../api/revenue';
+import { getRevenueSummary, getDailyReport, getCheckinStats, getAdjustments, exportCheckinCsv, exportAdjustmentsCsv } from '../../api/revenue';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -64,6 +64,20 @@ export default function RevenuePage({ embedded = false }) {
       const a = document.createElement('a');
       a.href = url;
       a.download = `checkin-${dayjs().format('YYYYMMDD')}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('匯出失敗');
+    }
+  };
+
+  const handleExportAdjustments = async () => {
+    try {
+      const res = await exportAdjustmentsCsv({ days, gymId: gymFilter });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `adjustments-${dayjs().format('YYYYMMDD')}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -204,7 +218,15 @@ export default function RevenuePage({ embedded = false }) {
               {/* 加減項（來源：每日結帳 deductions；抽屜現金加減、非銷售收入，不併入營收總數） */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden', marginTop:16 }}>
                 <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5' }}>
-                  <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>加減項（近 {days} 天結帳）</span>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                    <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>加減項（近 {days} 天結帳）</span>
+                    {adjustments.length > 0 && (
+                      <button onClick={handleExportAdjustments}
+                        style={{ height:28, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'none', fontSize:12, color:'#6b6b6b', cursor:'pointer', flexShrink:0 }}>
+                        ↓ 匯出 CSV
+                      </button>
+                    )}
+                  </div>
                   <div style={{ fontSize:11, color:'#B08A3E', marginTop:3, textAlign:'left' }}>結帳時抽屜現金的手動加／減，非銷售收入、不併入上方營收總數</div>
                 </div>
                 {adjustments.length === 0 ? (
