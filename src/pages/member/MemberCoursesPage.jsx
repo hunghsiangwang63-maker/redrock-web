@@ -69,10 +69,10 @@ export default function MemberCoursesPage() {
     setAdjustLoading(true);
     try {
       if (adjustModal.type === 'refund') {
-        const res = await requestCourseRefund(adjustModal.enrollmentId, { reason: adjustReason });
+        const res = await requestCourseRefund(adjustModal.enrollmentId, { reason: adjustReason, memberId: adjustModal.memberId });
         showMsg(`退費申請已送出（建議退款 NT$${res.data.suggestedRefund}），等待管理員審核`);
       } else {
-        await requestCoursePause(adjustModal.enrollmentId, { reason: adjustReason });
+        await requestCoursePause(adjustModal.enrollmentId, { reason: adjustReason, memberId: adjustModal.memberId });
         showMsg('暫停申請已送出，等待管理員審核');
       }
       // 記錄已申請，禁止重複申請
@@ -184,8 +184,15 @@ export default function MemberCoursesPage() {
   const loadMyEnrollments = async () => {
     if (!member?.id) return;
     try {
-      const res = await memberClient.get(`/courses/member/${member.id}/enrollments`);
-      setMyEnrollments(res.data.enrollments || []);
+      // 家長帳號：一併載入子女的報名（否則「幫家庭成員報名」的課程不會出現在我的課程）
+      let childIds = familyMembers.map(c => c.id);
+      if (childIds.length === 0) {
+        try { const r = await memberClient.get('/members/my/children'); childIds = (r.data.children || []).map(c => c.id); } catch (e) {}
+      }
+      const ids = [member.id, ...childIds];
+      const lists = await Promise.all(ids.map(id =>
+        memberClient.get(`/courses/member/${id}/enrollments`).then(r => r.data.enrollments || []).catch(() => [])));
+      setMyEnrollments(lists.flat());
     } catch (e) {}
   };
 
@@ -344,11 +351,11 @@ export default function MemberCoursesPage() {
     } finally { setLoading(false); }
   };
 
-  const handleLeave = async (enrollmentId) => {
+  const handleLeave = async (enrollmentId, forMemberId) => {
     if (!leaveReason.trim()) { showMsg('請填寫請假原因', 'red'); return; }
     setLoading(true);
     try {
-      await memberClient.post(`/courses/enrollments/${enrollmentId}/leave`, { reason: leaveReason });
+      await memberClient.post(`/courses/enrollments/${enrollmentId}/leave`, { reason: leaveReason, memberId: forMemberId });
       showMsg('請假成功');
       setLeavingId(null);
       setLeaveReason('');
@@ -954,11 +961,12 @@ export default function MemberCoursesPage() {
               尚未報名任何課程
             </div>
           ) : (() => {
-            // 按課程分組
+            // 按「課程＋報名對象」分組（家長帳號含子女報名，需分開不可合併）
             const byCourse = {};
             myEnrollments.forEach(e => {
-              if (!byCourse[e.courseId]) byCourse[e.courseId] = { courseName: e.courseName, courseId: e.courseId, memberId: e.memberId, sessions: [] };
-              byCourse[e.courseId].sessions.push(e);
+              const key = `${e.courseId}__${e.memberId}`;
+              if (!byCourse[key]) byCourse[key] = { courseName: e.courseName, courseId: e.courseId, memberId: e.memberId, memberName: e.memberName, sessions: [] };
+              byCourse[key].sessions.push(e);
             });
             return Object.values(byCourse).map(group => {
               const confirmed = group.sessions.filter(s => s.status === 'confirmed');
@@ -967,6 +975,8 @@ export default function MemberCoursesPage() {
               // 候補群組：無正取、僅候補（非正式學員，隱藏請假/退費/暫停等正取功能）
               const isWaitlistGroup = confirmed.length === 0 && onLeave.length === 0 && waitlist.length > 0;
               const waitlistPos = waitlist.find(s => s.waitlistPosition != null)?.waitlistPosition;
+              const groupKey = `${group.courseId}__${group.memberId}`;
+              const isForChild = group.memberId && member?.id && group.memberId !== member.id; // 幫子女報名的課
               // 全數已取消/失效（如取消候補後）→ 不在「我的課程」顯示幽靈卡
               if (confirmed.length === 0 && onLeave.length === 0 && waitlist.length === 0) return null;
               const today = dayjs().format('YYYY-MM-DD');
@@ -975,17 +985,20 @@ export default function MemberCoursesPage() {
               const next = future[0];
               const leaveLimit = group.sessions.find(s => s.leaveLimit != null)?.leaveLimit ?? 2;
               const leaveRemaining = group.sessions.find(s => s.leaveRemaining != null)?.leaveRemaining ?? Math.max(0, leaveLimit - onLeave.length);
-              const isExpanded = expandedCourseId === group.courseId;
+              const isExpanded = expandedCourseId === groupKey;
               const attendedLabel = (s) => {
                 if (s.attendanceStatus === 'present') return { text:'已出席', color:'#2D7D46', bg:'#E6F4EB' };
                 if (s.attendanceStatus === 'absent') return { text:'缺席', color:'#A32D2D', bg:'#FCEBEB' };
                 return { text:'已上課（未點名）', color:'#999', bg:'#F5F5F5' };
               };
               return (
-                <div key={group.courseId} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
+                <div key={groupKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
-                    onClick={() => setExpandedCourseId(isExpanded ? null : group.courseId)}>
-                    <div style={{ fontWeight:600, fontSize:15 }}>{group.courseName}</div>
+                    onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
+                    <div style={{ fontWeight:600, fontSize:15 }}>
+                      {group.courseName}
+                      {isForChild && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>👦 {group.memberName}</span>}
+                    </div>
                     {isWaitlistGroup ? (
                       <span style={{ fontSize:11, background:'#FAEEDA', color:'#B5651D', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
                         候補中{waitlistPos ? `・第 ${waitlistPos} 位` : ''}
@@ -1002,7 +1015,7 @@ export default function MemberCoursesPage() {
                     </div>
                   ) : (
                     <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
-                      onClick={() => setExpandedCourseId(isExpanded ? null : group.courseId)}>
+                      onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
                       共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span>
                       <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
                     </div>
@@ -1017,12 +1030,12 @@ export default function MemberCoursesPage() {
                     </div>
                   ) : (
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                    <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName })}
+                    <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
                       disabled={pendingAdjustCourseIds.has(group.courseId)}
                       style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#A32D2D', border:`0.5px solid ${pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: pendingAdjustCourseIds.has(group.courseId) ? 'not-allowed' : 'pointer' }}>
                       {pendingAdjustCourseIds.has(group.courseId) ? '已申請退費' : '申請退費'}
                     </button>
-                    <button onClick={() => setAdjustModal({ type:'pause', enrollmentId: group.courseId, courseName: group.courseName })}
+                    <button onClick={() => setAdjustModal({ type:'pause', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
                       disabled={pendingAdjustCourseIds.has(group.courseId)}
                       style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#8B6914', border:`0.5px solid ${pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#8B6914'}`, fontSize:11, cursor: pendingAdjustCourseIds.has(group.courseId) ? 'not-allowed' : 'pointer' }}>
                       {pendingAdjustCourseIds.has(group.courseId) ? '已申請暫停' : '申請暫停'}
@@ -1090,7 +1103,7 @@ export default function MemberCoursesPage() {
                                   <div style={{ display:'flex', gap:6 }}>
                                     <button onClick={() => { setLeavingId(null); setLeaveReason(''); }}
                                       style={{ flex:1, height:28, borderRadius:6, background:'#f5f5f5', border:'none', fontSize:11, cursor:'pointer' }}>取消</button>
-                                    <button onClick={() => handleLeave(s.id)} disabled={loading}
+                                    <button onClick={() => handleLeave(s.id, group.memberId)} disabled={loading}
                                       style={{ flex:1, height:28, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>確認請假</button>
                                   </div>
                                 </div>
@@ -1110,7 +1123,7 @@ export default function MemberCoursesPage() {
                       <div style={{ display:'flex', gap:6 }}>
                         <button onClick={() => { setLeavingId(null); setLeaveReason(''); }}
                           style={{ flex:1, height:32, borderRadius:6, background:'#f5f5f5', border:'none', fontSize:12, cursor:'pointer' }}>取消</button>
-                        <button onClick={() => handleLeave(next.id)} disabled={loading}
+                        <button onClick={() => handleLeave(next.id, group.memberId)} disabled={loading}
                           style={{ flex:1, height:32, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認請假</button>
                       </div>
                     </div>
