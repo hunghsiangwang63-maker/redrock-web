@@ -27,6 +27,7 @@ export default function MemberCoursesPage() {
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
   const [enrollSuccess, setEnrollSuccess] = useState(false); // 報名成功確認彈窗
+  const [enrollWaitlisted, setEnrollWaitlisted] = useState(false); // 該次報名是否為候補
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollSession, setEnrollSession] = useState(null);
   const [payFor, setPayFor] = useState(null); // { enrollmentId, fee, gymId }
@@ -241,11 +242,13 @@ export default function MemberCoursesPage() {
           ...extraFields,
         });
       }
+      const isWaitlisted = !!(res.data.isWaitlist);
+      setEnrollWaitlisted(isWaitlisted);
       const enrInfo = enrollSession.isCourse
         ? { id: res.data.enrollmentId, fee: res.data.fee }
         : { id: res.data.enrollment?.id, fee: res.data.enrollment?.enrollmentFee };
-      // 轉帳付款：一律建立 transferRecords（截圖或填末五碼皆可）→ 待辦頁確認收款
-      if (paymentMethod === 'transfer' && enrInfo.id) {
+      // 轉帳付款：一律建立 transferRecords（截圖或填末五碼皆可）→ 待辦頁確認收款（候補不收款、跳過）
+      if (!isWaitlisted && paymentMethod === 'transfer' && enrInfo.id) {
         try {
           const formData = new FormData();
           if (screenshot) formData.append('screenshot', screenshot);
@@ -415,9 +418,13 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => setEnrollSuccess(false)}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'28px 22px', width:320, maxWidth:'90vw', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:46, marginBottom:10 }}>✅</div>
-            <div style={{ fontSize:18, fontWeight:700, color:'#1a1a1a', marginBottom:8 }}>已報名成功</div>
-            <div style={{ fontSize:14, color:'#666', lineHeight:1.6, marginBottom:22 }}>可至「我的課程」中查詢。</div>
+            <div style={{ fontSize:46, marginBottom:10 }}>{enrollWaitlisted ? '📝' : '✅'}</div>
+            <div style={{ fontSize:18, fontWeight:700, color:'#1a1a1a', marginBottom:8 }}>{enrollWaitlisted ? '已加入候補名單' : '已報名成功'}</div>
+            <div style={{ fontSize:14, color:'#666', lineHeight:1.6, marginBottom:22 }}>
+              {enrollWaitlisted
+                ? '此班正取已額滿，您已排入候補。候補期間不需付款；遞補為正取後將另行通知繳費。可至「我的課程」查詢。'
+                : '可至「我的課程」中查詢。'}
+            </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setEnrollSuccess(false)}
                 style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>知道了</button>
@@ -615,14 +622,22 @@ export default function MemberCoursesPage() {
                 const isTeam = !!member?.isTeamMember;
                 const teamDiscount = isTeam && baseFee >= 100 ? Math.round(baseFee * 0.1) : 0;
                 const fee = baseFee - teamDiscount;
+                // 名額是否已滿（正取）→ 報名將進候補。enrolledCount 已含 reservedSlots
+                const capRemaining = (selectedCourse.maxStudents || 0) - (selectedCourse.enrolledCount || 0);
+                const isCourseFull = selectedCourse.statusLabel === 'full' || capRemaining <= 0;
 
                 return (
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                     <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
                       共 {totalCount} 堂 · 已開始 {completedCount} 堂 · 剩餘 {remainingCount} 堂
                     </div>
-                    {isLateJoin && (
-                      <div style={{ background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#854F0B' }}>
+                    {isCourseFull && !alreadyEnrolled && (
+                      <div style={{ background:'#F3E0E0', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#8B1A1A', lineHeight:1.7, textAlign:'left' }}>
+                        ⚠️ 此班正取已額滿。報名將加入<b>候補名單</b>，<b>候補期間不需付款</b>；待有名額遞補為正取後，我們會另行通知您繳費。
+                      </div>
+                    )}
+                    {isLateJoin && !isCourseFull && (
+                      <div style={{ background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#854F0B', textAlign:'left' }}>
                         插班報名：剩餘 {remainingCount}/{totalCount} 堂，費用依比例計算
                         {isBelowHalf && ` × ${surcharge}（低於一半加成）`}
                       </div>
@@ -635,6 +650,7 @@ export default function MemberCoursesPage() {
                             NT${baseFee.toLocaleString()}
                           </span>
                         )}
+                        {isCourseFull && <span style={{ fontSize:12, color:'#999', fontFamily:'inherit', marginLeft:8 }}>（遞補後收費）</span>}
                       </div>
                       {teamDiscount > 0 && (
                         <span style={{ fontSize:10, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>
@@ -648,11 +664,11 @@ export default function MemberCoursesPage() {
                       </div>
                     ) : (
                       <button onClick={() => {
-                        setEnrollSession({ id: sessions.find(s => s.courseId === selectedCourse.id && s.date >= today)?.id, courseId: selectedCourse.id, isCourse: true, fee });
+                        setEnrollSession({ id: sessions.find(s => s.courseId === selectedCourse.id && s.date >= today)?.id, courseId: selectedCourse.id, isCourse: true, fee, isWaitlist: isCourseFull });
                         setShowEnrollModal(true);
                       }}
-                        style={{ width:'100%', height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor:'pointer' }}>
-                        報名課程
+                        style={{ width:'100%', height:44, borderRadius:10, background: isCourseFull?'#B5651D':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor:'pointer' }}>
+                        {isCourseFull ? '加入候補名單' : '報名課程'}
                       </button>
                     )}
                   </div>
@@ -1054,11 +1070,11 @@ export default function MemberCoursesPage() {
             {/* Header */}
             <div style={{ padding:'16px 20px 12px', borderBottom:'0.5px solid #F0E8E8', flexShrink:0 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                <div style={{ fontWeight:600, fontSize:15 }}>確認報名 — {selectedCourse?.name}</div>
+                <div style={{ fontWeight:600, fontSize:15 }}>{enrollSession.isWaitlist ? '候補報名' : '確認報名'} — {selectedCourse?.name}</div>
                 <button onClick={resetEnrollModal} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
               </div>
               <div style={{ display:'flex', gap:6 }}>
-                {['付款資訊','健康備註','規則確認','肖像授權'].map((s,i) => (
+                {[(enrollSession.isWaitlist ? '候補說明' : '付款資訊'),'健康備註','規則確認','肖像授權'].map((s,i) => (
                   <div key={i} style={{ flex:1, height:3, borderRadius:2, background: enrollStep > i+1 ? '#2D7D46' : enrollStep === i+1 ? '#8B1A1A' : '#E8D5D5' }} />
                 ))}
               </div>
@@ -1094,6 +1110,13 @@ export default function MemberCoursesPage() {
                   {dayjs(enrollSession.date).format('MM/DD')}（{WEEKDAYS[dayjs(enrollSession.date).day()]}）{enrollSession.startTime}～{enrollSession.endTime}
                 </div>
               </div>
+              {enrollSession.isWaitlist ? (
+                <div style={{ background:'#F3E0E0', borderRadius:8, padding:'12px 14px', fontSize:13, color:'#8B1A1A', lineHeight:1.8, textAlign:'left' }}>
+                  此班正取已額滿，您將加入<b>候補名單</b>。<br/>
+                  候補期間<b>不需付款</b>；待有名額遞補為正取後，我們會另行通知您繳費，屆時再選擇付款方式。
+                  {(enrollSession?.fee || selectedCourse?.price) ? <><br/><span style={{ fontSize:12, color:'#999' }}>遞補後費用約 NT${((enrollSession?.fee || selectedCourse?.price)||0).toLocaleString()}（依實際堂數計算）</span></> : null}
+                </div>
+              ) : (<>
               <PaymentPlanChoice installment={selectedCourse?.installment} price={enrollSession?.fee || selectedCourse?.price}
                 plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
               <PaymentSection
@@ -1109,6 +1132,7 @@ export default function MemberCoursesPage() {
                   {screenshot && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {screenshot.name}</div>}
                 </div>
               )}
+              </>)}
             </>)}
 
             {/* Step 2: 健康備註 + 得知管道 */}
@@ -1215,7 +1239,7 @@ export default function MemberCoursesPage() {
               ) : (
                 <button onClick={handleEnroll} disabled={loading || !portraitSig || (targetIsMinor && !guardianSig)}
                   style={{ flex:2, height:44, borderRadius:10, background: (!portraitSig || (targetIsMinor && !guardianSig)) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: (!portraitSig) ? 'not-allowed' : 'pointer' }}>
-                  {loading ? '報名中...' : '✓ 確認報名'}
+                  {loading ? '送出中...' : (enrollSession.isWaitlist ? '✓ 確認加入候補' : '✓ 確認報名')}
                 </button>
               )}
             </div>
