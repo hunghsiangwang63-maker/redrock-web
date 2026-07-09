@@ -177,7 +177,8 @@ export default function CoursesPage({ embedded = false }) {
     setTimeout(() => setMsg(''), 3000);
   };
 
-  useEffect(() => { loadCourses(); loadCategories(); }, []);
+  // 切換館別（super_admin 頂部選單）時重新載入該館課程並回到類別總頁，避免顯示他館課程（如士林館看到新竹館小蜘蛛人）
+  useEffect(() => { loadCourses(); loadCategories(); setSelectedCategory(null); }, [effectiveGymId]);
   useEffect(() => { if (tab === 'sessions' && selectedCourse) loadSessions(selectedCourse); }, [tab]);
   useEffect(() => { if (tab === 'calendar') loadCalendarSessions(); }, [tab, calendarMonth, effectiveGymId]);
 
