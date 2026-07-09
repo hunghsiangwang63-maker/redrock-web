@@ -752,7 +752,7 @@ export default function CoursesPage({ embedded = false }) {
                       return (
                         <div key={idx} onClick={() => date && daySessions.length > 0 && setCalendarSelectedDate(date)}
                           style={{
-                            minHeight:74, borderRight:'0.5px solid #F5EFEF', borderBottom:'0.5px solid #F5EFEF',
+                            minHeight:90, borderRight:'0.5px solid #F5EFEF', borderBottom:'0.5px solid #F5EFEF',
                             padding:6, cursor: date && daySessions.length > 0 ? 'pointer' : 'default',
                             background: isSelected ? '#FBF0F0' : isToday ? '#FFFBF0' : '#fff',
                           }}>
@@ -760,8 +760,13 @@ export default function CoursesPage({ embedded = false }) {
                             <>
                               <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400, marginBottom:4 }}>{dayjs(date).date()}</div>
                               {daySessions.length > 0 && (
-                                <div style={{ fontSize:10, color:'#8B1A1A', background:'#FBF0F0', borderRadius:4, padding:'2px 4px', display:'inline-block' }}>
-                                  {daySessions.length}堂 · {totalEnrolled}人
+                                <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                                  {[...daySessions].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')).map(s => (
+                                    <div key={s.id} style={{ fontSize:9, background:'#FBF0F0', borderRadius:4, padding:'2px 3px', lineHeight:1.25, overflow:'hidden' }}>
+                                      <div style={{ fontWeight:600, color:'#8B1A1A', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.courseName}</div>
+                                      <div style={{ color:'#8B6914', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>👟{s.instructor || '—'}·{(s.registeredCount ?? s.enrolledCount ?? 0)}人</div>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </>
