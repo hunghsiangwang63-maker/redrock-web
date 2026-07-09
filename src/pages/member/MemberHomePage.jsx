@@ -136,12 +136,17 @@ export default function MemberHomePage() {
                   const active = i === bannerIdx % bannerLen;
                   return (
                     <div key={i} onClick={() => setBannerIdx(i)}
-                      style={{ width:14, height:14, borderRadius:3, border:'1px solid rgba(255,255,255,.85)',
+                      style={{ width:14, height:14, borderRadius:3, boxSizing:'border-box',
+                        border:'1px solid rgba(255,255,255,.85)',
                         background: active ? 'rgba(255,255,255,.95)' : 'transparent',
                         display:'flex', alignItems:'center', justifyContent:'center',
-                        color:'#8B1A1A', fontSize:10, fontWeight:700, lineHeight:1,
                         cursor:'pointer', transition:'all .2s' }}>
-                      {active ? '✓' : ''}
+                      {active && (
+                        // 純 CSS 打勾（不用字型字元，避免缺字變黑方塊）
+                        <span style={{ display:'block', width:3, height:6, marginTop:-1,
+                          borderRight:'2px solid #8B1A1A', borderBottom:'2px solid #8B1A1A',
+                          transform:'rotate(45deg)' }} />
+                      )}
                     </div>
                   );
                 })}
