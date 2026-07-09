@@ -631,7 +631,27 @@ export default function SalesPage({ embedded = false }) {
                       {isWarehouse && sale.gymId ? ` · ${gyms.find(g=>g.id===sale.gymId)?.shortName || sale.gymId}` : ''}
                     </div>
                     <div style={{ fontSize:13, color:'#333' }}>
-                      {(sale.items||[]).map(i => `${i.productName}${i.size?` ${i.size}`:''}×${Math.abs(i.quantity)}`).join('、')}
+                      {(sale.items||[]).map((i, idx) => {
+                        const variant = products.find(p => p.id === i.productId)?.variants?.find(v => v.id === i.variantId);
+                        const stockAt = (gid) => variant ? (gid === 'warehouse' ? (variant.warehouseStock ?? 0) : (variant.gymStock?.[gid] ?? 0)) : null;
+                        const Num = ({ label, gid }) => {
+                          const n = stockAt(gid);
+                          if (n == null) return null;
+                          return <span style={{ color: n === 0 ? '#A32D2D' : '#666', fontWeight: n === 0 ? 700 : 400 }}>{label} {n}</span>;
+                        };
+                        return (
+                          <div key={idx} style={{ marginBottom: idx < (sale.items.length-1) ? 5 : 0 }}>
+                            <span>{i.productName}{i.size ? ` ${i.size}` : ''}×{Math.abs(i.quantity)}</span>
+                            {variant && (
+                              <span style={{ fontSize:11, marginLeft:8, display:'inline-flex', gap:8, flexWrap:'wrap' }}>
+                                <span style={{ color:'#bbb' }}>存貨</span>
+                                {gyms.map(g => <Num key={g.id} label={g.shortName || g.name} gid={g.id} />)}
+                                <Num label="倉庫" gid="warehouse" />
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     {sale.isReturn && <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FBEEEE', border:'0.5px solid #E8C5C5', borderRadius:10, padding:'1px 8px', marginTop:4, display:'inline-block' }}>退貨紀錄</span>}
                     {sale.returned && <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:10, padding:'1px 8px', marginTop:4, display:'inline-block' }}>已退貨</span>}
