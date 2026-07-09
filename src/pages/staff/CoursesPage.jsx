@@ -89,6 +89,7 @@ export default function CoursesPage({ embedded = false }) {
   // 新增課程（兩步：1 選類別/類型/館別 → 2 填梯次資料）
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [createStep, setCreateStep] = useState(1);
+  const [createImageFile, setCreateImageFile] = useState(null); // 新增課程時選的海報，建立後上傳
   const [editingCourse, setEditingCourse] = useState(null);
   const [imgUploading, setImgUploading] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -281,15 +282,24 @@ export default function CoursesPage({ embedded = false }) {
         trialPrice: parseInt(courseForm.trialPrice) || 0,
         weekdays: courseForm.weekdays.map(Number),
       });
+      const newId = res.data.course?.id;
+      // 上傳課程海報（若有選；課程已建立，海報失敗不阻斷）
+      if (newId && createImageFile) {
+        try {
+          const fd = new FormData(); fd.append('file', createImageFile);
+          await client.post(`/courses/${newId}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        } catch (e) { showMsg('課程已建立，但海報上傳失敗，可到課程編輯重傳', 'red'); }
+      }
       // 週課自動產生場次
       if (courseForm.type === 'weekly' && courseForm.weekdays.length > 0 &&
           courseForm.startDate && courseForm.endDate) {
-        await generateWeeklySessions(res.data.course?.id, { confirm: true });
+        await generateWeeklySessions(newId, { confirm: true });
         showMsg('課程建立成功，場次已自動產生');
       } else {
         showMsg('課程建立成功');
       }
       setShowAddCourse(false);
+      setCreateImageFile(null);
       await loadCourses();
     } catch (err) {
       showMsg(err.response?.data?.message || '建立失敗', 'red');
@@ -560,6 +570,7 @@ export default function CoursesPage({ embedded = false }) {
         {tab === 'courses' && (
           <button onClick={() => {
             setCreateStep(1);
+            setCreateImageFile(null);
             // 若正在某類別的第二層，預先帶入該類別
             const preCat = selectedCategory ? (categories.find(c => c.name === selectedCategory)?.id || '') : '';
             setCourseForm(prev => ({ ...prev, categoryId: preCat }));
@@ -1286,11 +1297,64 @@ export default function CoursesPage({ embedded = false }) {
                 </select>
               </div>
             )}
+            {/* 課程通用資訊（同門課各梯次共用性質的設定）*/}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+              {[
+                { label:'課程名稱', key:'name', type:'text', colSpan:2 },
+                { label:'課程說明', key:'description', type:'text', colSpan:2 },
+                { label:'插班加成（低於一半堂數）', key:'midpointSurcharge', type:'number' },
+                { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
+                { label:'整期可請假/補課次數', key:'maxLeaves', type:'number', hint:'此為整期學員共用；插班學員請於該課程「查看名單」個別設定' },
+                { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
+                { label:'退費-開課後每堂扣除金額（NT$）', key:'perSessionDeduction', type:'number' },
+                { label:'退費-開課前手續費率（%）', key:'handlingFeeRate', type:'number' },
+              ].map(f => (
+                <div key={f.key} style={{ gridColumn: f.colSpan===2 ? '1/-1' : 'auto' }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
+                  <input type={f.type} value={courseForm[f.key]}
+                    onChange={e => setCourseForm({...courseForm, [f.key]: e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                  {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
+                </div>
+              ))}
+              {/* 課程海報（建立後上傳）*/}
+              <div style={{ gridColumn:'1/-1' }}>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程海報（會員端顯示，選填）</label>
+                <input type="file" accept="image/*" onChange={e => setCreateImageFile(e.target.files?.[0] || null)} style={{ fontSize:12, width:'100%' }}/>
+                {createImageFile && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {createImageFile.name}（建立課程後上傳）</div>}
+              </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:8 }}>
+                <input type="checkbox" id="allowMakeup" checked={courseForm.allowMakeup}
+                  onChange={e => setCourseForm({...courseForm, allowMakeup:e.target.checked})}/>
+                <label htmlFor="allowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
+              </div>
+              {courseForm.type === 'weekly' && (
+                <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:8 }}>
+                  <input type="checkbox" id="allowTrial" checked={courseForm.allowTrial}
+                    onChange={e => setCourseForm({...courseForm, allowTrial:e.target.checked})}/>
+                  <label htmlFor="allowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上</label>
+                </div>
+              )}
+              {courseForm.type === 'weekly' && courseForm.allowTrial && (
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費用（另收）</label>
+                  <input type="number" min={0} value={courseForm.trialPrice}
+                    onChange={e => setCourseForm({...courseForm, trialPrice:e.target.value})} placeholder="0"
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop:16 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>是否分期（分期付款規則）</label>
+              <InstallmentRuleEditor value={courseForm.installment} price={courseForm.price}
+                onChange={v => setCourseForm({...courseForm, installment: v})} />
+            </div>
             <div style={{ display:'flex', gap:8, marginTop:20 }}>
               <button onClick={() => setShowAddCourse(false)}
                 style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
               <button onClick={() => {
                 if (isSuperAdmin && !(courseForm.gymId || effectiveGymId)) { showMsg('請先選擇館別', 'red'); return; }
+                if (!courseForm.name?.trim()) { showMsg('請填課程名稱', 'red'); return; }
                 setCreateStep(2);
               }}
                 style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>下一步 →</button>
@@ -1299,58 +1363,29 @@ export default function CoursesPage({ embedded = false }) {
           ) : (
           <>
           <div style={{ fontSize:12, color:'#666', background:'#FBF5F5', borderRadius:8, padding:'8px 12px', marginBottom:14 }}>
-            類別：<strong>{categories.find(c => c.id === courseForm.categoryId)?.name || '不分類'}</strong> · {courseForm.type === 'weekly' ? '固定週課' : '單次工作坊'}
+            類別：<strong>{categories.find(c => c.id === courseForm.categoryId)?.name || '不分類'}</strong> · {courseForm.type === 'weekly' ? '固定週課' : '單次工作坊'} · {courseForm.name || '（未命名）'}
           </div>
+          <div style={{ fontSize:11, color:'#999', marginBottom:10 }}>以下為此梯次專屬資料（費用/名額/上課時段）：</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             {[
-              { label:'課程名稱（梯次名，如「週一A班」）', key:'name', type:'text', colSpan:2 },
-              { label:'課程說明', key:'description', type:'text', colSpan:2 },
               { label:'費用（NT$）', key:'price', type:'number' },
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
               { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number', colSpan:2 },
               { label:'入館有效天數', key:'gymAccessDays', type:'number' },
-              { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
-              { label:'整期可請假/補課次數', key:'maxLeaves', type:'number', hint:'此為整期學員共用；插班學員請於該課程「查看名單」個別設定' },
-              { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
               { label:'上課開始時間', key:'startTime', type:'time' },
               { label:'上課結束時間', key:'endTime', type:'time' },
               { label:'教練', key:'instructor', type:'text', colSpan:2 },
-              { label:'插班加成（低於一半堂數）', key:'midpointSurcharge', type:'number' },
-              { label:'退費-開課後每堂扣除金額（NT$）', key:'perSessionDeduction', type:'number' },
-              { label:'退費-開課前手續費率（%）', key:'handlingFeeRate', type:'number' },
             ].map(f => (
               <div key={f.key} style={{ gridColumn: f.colSpan===2 ? '1/-1' : 'auto' }}>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
                 <input type={f.type} value={courseForm[f.key]}
                   onChange={e => setCourseForm({...courseForm, [f.key]: e.target.value})}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-                {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
               </div>
             ))}
-            <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
-              <input type="checkbox" id="allowMakeup" checked={courseForm.allowMakeup}
-                onChange={e => setCourseForm({...courseForm, allowMakeup:e.target.checked})}/>
-              <label htmlFor="allowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
-            </div>
-            {courseForm.type === 'weekly' && (
-              <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
-                <input type="checkbox" id="allowTrial" checked={courseForm.allowTrial}
-                  onChange={e => setCourseForm({...courseForm, allowTrial:e.target.checked})}/>
-                <label htmlFor="allowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上</label>
-              </div>
-            )}
-            {courseForm.type === 'weekly' && courseForm.allowTrial && (
-              <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費用（另收）</label>
-                <input type="number" min={0} value={courseForm.trialPrice}
-                  onChange={e => setCourseForm({...courseForm, trialPrice:e.target.value})}
-                  placeholder="0"
-                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}/>
-              </div>
-            )}
             {courseForm.type === 'weekly' && (
               <div style={{ gridColumn:'1/-1' }}>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期（可複選）</label>
@@ -1370,11 +1405,6 @@ export default function CoursesPage({ embedded = false }) {
                 </div>
               </div>
             )}
-          </div>
-          <div style={{ marginTop:16 }}>
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>分期付款規則</label>
-            <InstallmentRuleEditor value={courseForm.installment} price={courseForm.price}
-              onChange={v => setCourseForm({...courseForm, installment: v})} />
           </div>
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
             <button onClick={() => setCreateStep(1)}
