@@ -525,10 +525,15 @@ export default function MemberCoursesPage() {
                 const prices = g.map(c => c.price || 0);
                 const minP = Math.min(...prices), maxP = Math.max(...prices);
                 const anyInstallment = g.some(c => c.installment?.enabled);
+                const poster = g.map(c => c.imageUrl).find(Boolean);
                 const single = g.length === 1;
                 return (
                   <div key={gname} onClick={() => single ? setSelectedCourse(g[0]) : setSelectedCategory(gname)}
-                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:10, cursor:'pointer' }}>
+                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:10, cursor:'pointer', overflow:'hidden' }}>
+                    {poster && (
+                      <img src={poster} alt={gname} style={{ width:'100%', display:'block', maxHeight:180, objectFit:'cover' }} />
+                    )}
+                    <div style={{ padding:16 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                       <div style={{ fontWeight:700, fontSize:16 }}>{gname}</div>
                       <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{single ? '報名 ›' : `${g.length} 梯 ›`}</span>
@@ -551,6 +556,7 @@ export default function MemberCoursesPage() {
                         每{g[0].weekdays?.map(d => WEEKDAYS[d]).join('、')} {g[0].startTime}～{g[0].endTime} · {g[0].startDate} 起
                       </div>
                     )}
+                    </div>
                   </div>
                 );
               });
@@ -563,13 +569,23 @@ export default function MemberCoursesPage() {
                   style={{ background:'none', border:'none', fontSize:20, color:'#8B1A1A', cursor:'pointer' }}>←</button>
                 <div style={{ fontWeight:600, fontSize:15 }}>{selectedCourse.name}</div>
               </div>
-              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:12 }}>
-                <div style={{ fontSize:12, color:'#666' }}>
-                  {selectedCourse.startDate} ～ {selectedCourse.endDate}
-                  {selectedCourse.instructor && ` · 講師：${selectedCourse.instructor}`}
-                </div>
-                <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
-                  每{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:12, overflow:'hidden' }}>
+                {selectedCourse.imageUrl && (
+                  <img src={selectedCourse.imageUrl} alt={selectedCourse.name} style={{ width:'100%', display:'block', objectFit:'cover' }} />
+                )}
+                <div style={{ padding:14 }}>
+                  <div style={{ fontSize:12, color:'#666' }}>
+                    {selectedCourse.startDate} ～ {selectedCourse.endDate}
+                    {selectedCourse.instructor && ` · 講師：${selectedCourse.instructor}`}
+                  </div>
+                  <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
+                    每{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}
+                  </div>
+                  {selectedCourse.description && (
+                    <div style={{ fontSize:13, color:'#555', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8, whiteSpace:'pre-wrap', lineHeight:1.7 }}>
+                      {selectedCourse.description}
+                    </div>
+                  )}
                 </div>
               </div>
 

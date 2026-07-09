@@ -4,6 +4,7 @@ import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
          generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, permanentDeleteCourse } from '../../api/courses';
 import { searchMembers } from '../../api/members';
+import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import CoachSelect from '../../components/CoachSelect';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -86,6 +87,7 @@ export default function CoursesPage({ embedded = false }) {
   // 新增課程
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
+  const [imgUploading, setImgUploading] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [copyFrom, setCopyFrom] = useState('');
   const [courseForm, setCourseForm] = useState({
@@ -295,6 +297,7 @@ export default function CoursesPage({ embedded = false }) {
       name: course.name || '',
       weekdays: course.weekdays || [],
       description: course.description || '',
+      imageUrl: course.imageUrl || '',
       price: course.price || '',
       maxStudents: course.maxStudents || 10,
       startDate: course.startDate || '',
@@ -1470,6 +1473,37 @@ export default function CoursesPage({ embedded = false }) {
                 {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
               </div>
             ))}
+            {/* 課程海報（單張，上傳存 Storage，會員卡片＋詳情顯示）*/}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程海報（會員端顯示）</label>
+              {editForm.imageUrl && (
+                <img src={editForm.imageUrl} alt="海報" style={{ width:'100%', maxHeight:200, objectFit:'contain', borderRadius:8, border:'0.5px solid #E8D5D5', marginBottom:8, background:'#FBF5F5' }}/>
+              )}
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <label style={{ fontSize:12, color:'#8B1A1A', border:'1px solid #8B1A1A', borderRadius:8, padding:'7px 14px', cursor: imgUploading?'default':'pointer', opacity: imgUploading?0.5:1 }}>
+                  {imgUploading ? '上傳中…' : (editForm.imageUrl ? '更換海報' : '上傳海報')}
+                  <input type="file" accept="image/*" disabled={imgUploading} style={{ display:'none' }}
+                    onChange={async e => {
+                      const file = e.target.files?.[0]; if (!file) return;
+                      setImgUploading(true);
+                      try {
+                        const fd = new FormData(); fd.append('file', file);
+                        const r = await client.post(`/courses/${editingCourse.id}/image`, fd, { headers:{ 'Content-Type':'multipart/form-data' } });
+                        setEditForm(prev => ({ ...prev, imageUrl: r.data.imageUrl }));
+                        setEditingCourse(prev => ({ ...prev, imageUrl: r.data.imageUrl }));
+                        showMsg('海報已上傳');
+                      } catch (err) {
+                        showMsg(err.response?.data?.message || '上傳失敗', 'red');
+                      } finally { setImgUploading(false); e.target.value = ''; }
+                    }}/>
+                </label>
+                {editForm.imageUrl && !imgUploading && (
+                  <button type="button" onClick={() => setEditForm(prev => ({ ...prev, imageUrl:'' }))}
+                    style={{ fontSize:12, color:'#999', background:'none', border:'none', cursor:'pointer' }}>移除（儲存後生效）</button>
+                )}
+              </div>
+              <div style={{ fontSize:10, color:'#999', marginTop:4 }}>上傳後即存檔生效；「移除」需按下方「儲存」才寫入。</div>
+            </div>
             <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
               <input type="checkbox" id="editAllowMakeup" checked={editForm.allowMakeup !== false}
                 onChange={e => setEditForm({...editForm, allowMakeup:e.target.checked})}/>
