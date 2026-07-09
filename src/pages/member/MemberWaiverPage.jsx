@@ -112,7 +112,7 @@ export default function MemberWaiverPage() {
           <div style={{ ...s.cardPad, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>📧</div>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>已完成您本人的簽署</div>
-            <div style={{ fontSize: 13, color: '#888', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: '#888', lineHeight: 1.6, textAlign: 'left' }}>
               因您未滿18歲，依規定還需要家長/監護人共同簽署，才能正式入場。<br />
               請提醒家長/監護人查看Email中的簽署連結（連結有效期限72小時）。
             </div>
@@ -220,11 +220,11 @@ export default function MemberWaiverPage() {
           {loading ? '送出中...' : '確認簽署'}
         </button>
         {isMinor && (
-          <div style={{ fontSize: 11, color: '#999', textAlign: 'center', marginTop: 10 }}>
+          <div style={{ fontSize: 11, color: '#999', textAlign: 'left', marginTop: 10 }}>
             送出後將發送Email通知家長/監護人完成第二階段簽署
           </div>
         )}
-        <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', marginTop: 10 }}>
+        <div style={{ fontSize: 11, color: '#bbb', textAlign: 'left', marginTop: 10 }}>
           ⚠ 本聲明書一經簽署即永久生效，不可修改
         </div>
       </div>

@@ -42,7 +42,7 @@ export default function MemberRegisterPage() {
             <div style={{ textAlign:'center', padding:'12px 0' }}>
               <div style={{ fontSize:36, marginBottom:12 }}>✅</div>
               <div style={{ fontWeight:600, fontSize:16, marginBottom:8 }}>註冊成功！</div>
-              <div style={{ fontSize:13, color:'#888', lineHeight:1.7, marginBottom:20 }}>
+              <div style={{ fontSize:13, color:'#888', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
                 請至您的Email信箱完成驗證，<br />驗證完成後即可登入使用。
               </div>
               <button onClick={() => navigate('/member/login')}

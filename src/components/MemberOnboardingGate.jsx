@@ -133,7 +133,7 @@ export default function MemberOnboardingGate({ children }) {
       <div style={{ background:'#fff', border:'1.5px solid #B3DEC0', borderRadius:18, padding:'28px 22px', textAlign:'center', boxShadow:'0 1px 4px rgba(0,0,0,.04)' }}>
         <div style={{ fontSize:44, marginBottom:12 }}>✅</div>
         <div style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>已送出墜落測驗申請</div>
-        <div style={{ fontSize:14, color:'#666', lineHeight:1.7 }}>
+        <div style={{ fontSize:14, color:'#666', lineHeight:1.7, textAlign:'left' }}>
           已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/>
           <span style={{ color:'#B5762B' }}>測驗通過前暫不可入場</span>（持當日體驗課程券者不受此限）。
         </div>

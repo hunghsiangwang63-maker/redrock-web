@@ -915,7 +915,7 @@ export default function CheckinPage() {
           <div style={{ fontSize:11, color:'#999', marginBottom:12, fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>今日統計</div>
 
           {stats?.restricted ? (
-            <div style={{ textAlign:'center', padding:'20px 8px', color:'#999', fontSize:12, lineHeight:1.7 }}>
+            <div style={{ textAlign:'left', padding:'20px 8px', color:'#999', fontSize:12, lineHeight:1.7 }}>
               個人帳號登入無法查看今日統計，<br />請使用館別電腦登入並打卡值班查看。
             </div>
           ) : (

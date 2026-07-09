@@ -156,7 +156,7 @@ export default function DailySettlementPage() {
         <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:32, textAlign:'center', maxWidth:480, margin:'40px auto' }}>
           <div style={{ fontSize:36, marginBottom:12 }}>🖥️</div>
           <div style={{ fontWeight:600, fontSize:16, marginBottom:10 }}>結帳功能僅限館別電腦</div>
-          <div style={{ fontSize:13, color:'#888', lineHeight:1.7 }}>
+          <div style={{ fontSize:13, color:'#888', lineHeight:1.7, textAlign:'left' }}>
             單日結帳必須在館別電腦帳號登入、並由值班人員打卡上班後才能使用。<br />
             個人帳號登入無法進行結帳，請於館別電腦操作。
           </div>

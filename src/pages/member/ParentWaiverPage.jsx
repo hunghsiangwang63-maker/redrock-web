@@ -142,7 +142,7 @@ export default function ParentWaiverPage() {
       <button onClick={handleSubmit} disabled={submitting} style={s.btnPrimary}>
         {submitting ? '送出中...' : '確認簽署'}
       </button>
-      <div style={{ fontSize: 11, color: '#bbb', textAlign: 'center', marginTop: 10 }}>
+      <div style={{ fontSize: 11, color: '#bbb', textAlign: 'left', marginTop: 10 }}>
         ⚠ 本聲明書一經簽署即永久生效，不可修改
       </div>
     </div></div>

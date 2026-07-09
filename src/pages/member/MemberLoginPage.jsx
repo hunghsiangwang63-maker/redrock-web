@@ -91,7 +91,7 @@ export default function MemberLoginPage() {
               <div style={{ textAlign:'center', marginBottom:16 }}>
                 <div style={{ fontSize:36, marginBottom:8 }}>✉️</div>
                 <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>請先完成 Email 驗證</div>
-                <div style={{ fontSize:13, color:'#888', lineHeight:1.7 }}>
+                <div style={{ fontSize:13, color:'#888', lineHeight:1.7, textAlign:'left' }}>
                   您的帳號尚未驗證，無法登入。<br />
                   驗證信已寄至：
                 </div>

@@ -31,7 +31,7 @@ export default function MemberForgotPasswordPage() {
           <div style={{ textAlign:'center' }}>
             <div style={{ fontSize:40, marginBottom:16 }}>📧</div>
             <div style={{ fontSize:14, color:'#2D7D46', fontWeight:500, marginBottom:8 }}>重設連結已寄出</div>
-            <div style={{ fontSize:13, color:'#666', marginBottom:24 }}>請查看 {email} 的信箱，點擊連結重設密碼（連結 1 小時內有效）</div>
+            <div style={{ fontSize:13, color:'#666', marginBottom:24, textAlign:'left' }}>請查看 {email} 的信箱，點擊連結重設密碼（連結 1 小時內有效）</div>
             <button onClick={() => navigate('/member/login')}
               style={{ width:'100%', height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, cursor:'pointer' }}>
               回到登入
