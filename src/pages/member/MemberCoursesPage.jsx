@@ -474,6 +474,11 @@ export default function MemberCoursesPage() {
                     <div><button onClick={() => setSelectedCategory(null)} style={{ marginTop:12, background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>← 返回類別</button></div>
                   </div>
                 );
+                // 梯次排序：週一→週日（週日排最後），同日再依開始時間
+                const wkKey = (c) => { const d = (c.weekdays && c.weekdays.length) ? c.weekdays[0] : 99; return d === 0 ? 7 : d; };
+                const sorted = [...cohorts].sort((a, b) => wkKey(a) - wkKey(b) || (a.startTime || '').localeCompare(b.startTime || ''));
+                const catPoster = cohorts.map(c => c.imageUrl).find(Boolean);
+                const catDesc = cohorts.map(c => c.description).find(Boolean);
                 return (
                   <>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
@@ -482,7 +487,20 @@ export default function MemberCoursesPage() {
                       <div style={{ fontWeight:700, fontSize:16 }}>{selectedCategory}</div>
                       <span style={{ fontSize:12, color:'#999' }}>{cohorts.length} 梯</span>
                     </div>
-                    {cohorts.map(c => {
+                    {/* 先看到圖片＋課程說明，再看各梯資訊 */}
+                    {(catPoster || catDesc) && (
+                      <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:14, overflow:'hidden' }}>
+                        {catPoster && (
+                          <img src={catPoster} alt={selectedCategory} style={{ width:'100%', display:'block', objectFit:'cover' }} />
+                        )}
+                        {catDesc && (
+                          <div style={{ padding:14, fontSize:13, color:'#555', whiteSpace:'pre-wrap', lineHeight:1.7, textAlign:'left' }}>
+                            {catDesc}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {sorted.map(c => {
                       const remaining = Math.max(0, (c.maxStudents || 0) - (c.enrolledCount || 0));
                       const isFull = c.statusLabel === 'full' || remaining <= 0;
                       return (
@@ -497,7 +515,7 @@ export default function MemberCoursesPage() {
                           <div style={{ fontSize:12, color:'#777', lineHeight:1.7 }}>
                             <div>🗓 每週{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>
                             <div>📅 {c.startDate} ～ {c.endDate}</div>
-                            <div>👟 教練：{c.instructor || '—'}　·　名額 {c.enrolledCount || 0}/{c.maxStudents || 0}</div>
+                            <div>👟 教練：{c.instructor || '—'}</div>
                           </div>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8 }}>
                             <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
@@ -525,14 +543,10 @@ export default function MemberCoursesPage() {
                 const prices = g.map(c => c.price || 0);
                 const minP = Math.min(...prices), maxP = Math.max(...prices);
                 const anyInstallment = g.some(c => c.installment?.enabled);
-                const poster = g.map(c => c.imageUrl).find(Boolean);
                 const single = g.length === 1;
                 return (
                   <div key={gname} onClick={() => single ? setSelectedCourse(g[0]) : setSelectedCategory(gname)}
                     style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:10, cursor:'pointer', overflow:'hidden' }}>
-                    {poster && (
-                      <img src={poster} alt={gname} style={{ width:'100%', display:'block', maxHeight:180, objectFit:'cover' }} />
-                    )}
                     <div style={{ padding:16 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                       <div style={{ fontWeight:700, fontSize:16 }}>{gname}</div>
@@ -581,11 +595,6 @@ export default function MemberCoursesPage() {
                   <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
                     每週{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}
                   </div>
-                  {selectedCourse.description && (
-                    <div style={{ fontSize:13, color:'#555', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8, whiteSpace:'pre-wrap', lineHeight:1.7 }}>
-                      {selectedCourse.description}
-                    </div>
-                  )}
                 </div>
               </div>
 
