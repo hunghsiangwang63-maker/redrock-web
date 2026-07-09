@@ -31,7 +31,7 @@ export default function GymsPage({ embedded = false }) {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddAnn, setShowAddAnn] = useState(false);
-  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'' });
+  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'' });
   const [annSaving, setAnnSaving] = useState(false);
   const [annMsg, setAnnMsg] = useState('');
   const [editingAnn, setEditingAnn] = useState(null);
@@ -90,7 +90,7 @@ export default function GymsPage({ embedded = false }) {
       }
       setShowAddAnn(false);
       setEditingAnn(null);
-      setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'' });
+      setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'' });
       const aRes = await getAnnouncements();
       setAnnouncements(aRes.data.announcements || []);
     } catch (e) {
@@ -100,7 +100,7 @@ export default function GymsPage({ embedded = false }) {
 
   const openEditAnn = (a) => {
     setEditingAnn(a);
-    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', specialOpen:a.specialOpen||'', specialClose:a.specialClose||'', showOnBanner:!!a.showOnBanner, publishAt:tsToLocalInput(a.publishAt) });
+    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', specialOpen:a.specialOpen||'', specialClose:a.specialClose||'', showOnBanner:!!a.showOnBanner, publishAt:tsToLocalInput(a.publishAt), publishUntil:tsToLocalInput(a.publishUntil) });
     setAnnMsg('');
     setShowAddAnn(true);
   };
@@ -316,8 +316,8 @@ export default function GymsPage({ embedded = false }) {
             {[
               { label:'標題', key:'title', placeholder:'公告標題', type:'text' },
               { label:'內容（選填）', key:'content', placeholder:'公告詳細內容', type:'text' },
-              { label:'開始日期', key:'effectiveFrom', placeholder:'', type:'date' },
-              { label:'結束日期（選填）', key:'effectiveTo', placeholder:'', type:'date' },
+              { label:'生效開始日期（休館／營業調整生效起）', key:'effectiveFrom', placeholder:'', type:'date' },
+              { label:'生效結束日期（選填）', key:'effectiveTo', placeholder:'', type:'date' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:12 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -370,12 +370,20 @@ export default function GymsPage({ embedded = false }) {
               首頁輪播顯示
             </label>
 
-            <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>預約發布時間（選填，留空＝立即發布）</label>
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>發布開始時間（排程上架，選填，留空＝立即發布）</label>
               <input type="datetime-local" value={annForm.publishAt}
                 onChange={e => setAnnForm(p => ({...p, publishAt: e.target.value}))}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:4 }}>設定未來時間後，會員端要到該時間才會看到此公告。</div>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>發布結束時間（選填，留空＝不自動下架）</label>
+              <input type="datetime-local" value={annForm.publishUntil}
+                onChange={e => setAnnForm(p => ({...p, publishUntil: e.target.value}))}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:4 }}>到此時間後，會員端不再顯示此公告（不影響休館生效日期）。</div>
             </div>
 
             <div style={{ display:'flex', gap:8 }}>

@@ -63,6 +63,9 @@ export default function MemberHomePage() {
     closure:'休館', special_hours:'特殊時間', route_change:'路線更換', general:'公告'
   }[type] || '公告');
 
+  // 館別標示（null=全館；勿用二元寫法，否則全館會被誤標成士林）
+  const annGymLabel = (gymId) => gymId==='gym-hsinchu' ? '新竹館' : gymId==='gym-shilin' ? '士林館' : '全館';
+
   return (
     <MemberOnboardingGate>
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
@@ -120,7 +123,7 @@ export default function MemberHomePage() {
                 {annTypeLabel(banners[bannerIdx % bannerLen]?.type)}
               </div>
               <div style={{ fontSize:16, fontWeight:600, lineHeight:1.4 }}>
-                {banners[bannerIdx % bannerLen]?.title}
+                {`【${annGymLabel(banners[bannerIdx % bannerLen]?.gymId)}】${banners[bannerIdx % bannerLen]?.title || ''}`}
               </div>
               <div style={{ fontSize:12, opacity:.8, marginTop:4 }}>
                 {banners[bannerIdx % bannerLen]?.effectiveFrom}
@@ -131,7 +134,7 @@ export default function MemberHomePage() {
               <div style={{ position:'absolute', bottom:10, right:14, display:'flex', gap:4 }}>
                 {banners.map((_,i) => (
                   <div key={i} onClick={() => setBannerIdx(i)}
-                    style={{ width: i===bannerIdx%bannerLen?16:6, height:6, borderRadius:3, background:'rgba(255,255,255,.6)', cursor:'pointer', transition:'width .3s' }}/>
+                    style={{ width:8, height:8, borderRadius:2, border:'1px solid rgba(255,255,255,.8)', background: i===bannerIdx%bannerLen ? 'rgba(255,255,255,.9)' : 'transparent', cursor:'pointer', transition:'background .3s' }}/>
                 ))}
               </div>
             )}
@@ -265,7 +268,7 @@ export default function MemberHomePage() {
                 </span>
                 <span style={{ fontSize:11, color:'#999', marginLeft:'auto' }}>{a.effectiveFrom}</span>
               </div>
-              <div style={{ fontSize:13, fontWeight:500 }}>{a.title}</div>
+              <div style={{ fontSize:13, fontWeight:500 }}>{`【${annGymLabel(a.gymId)}】${a.title}`}</div>
               {a.content && <div style={{ fontSize:12, color:'#6b6b6b', marginTop:3, lineHeight:1.5 }}>{a.content}</div>}
             </div>
           ))}
