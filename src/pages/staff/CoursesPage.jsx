@@ -85,8 +85,9 @@ export default function CoursesPage({ embedded = false }) {
   const [orphanConfirm, setOrphanConfirm] = useState(null);
   const [orphanBusy, setOrphanBusy] = useState(false);
 
-  // 新增課程
+  // 新增課程（兩步：1 選類別/類型/館別 → 2 填梯次資料）
   const [showAddCourse, setShowAddCourse] = useState(false);
+  const [createStep, setCreateStep] = useState(1);
   const [editingCourse, setEditingCourse] = useState(null);
   const [imgUploading, setImgUploading] = useState(false);
   const [editForm, setEditForm] = useState({});
@@ -555,7 +556,13 @@ export default function CoursesPage({ embedded = false }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:16 }}>
         <SegmentedTabs wrap minTabWidth={130} tabs={COURSE_TABS} value={tab} onChange={setTab} style={{ flex:'1 1 280px', minWidth:0 }} />
         {tab === 'courses' && (
-          <button onClick={() => setShowAddCourse(true)}
+          <button onClick={() => {
+            setCreateStep(1);
+            // 若正在某類別的第二層，預先帶入該類別
+            const preCat = selectedCategory ? (categories.find(c => c.name === selectedCategory)?.id || '') : '';
+            setCourseForm(prev => ({ ...prev, categoryId: preCat }));
+            setShowAddCourse(true);
+          }}
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
             ＋ 新增課程
           </button>
@@ -1210,42 +1217,91 @@ export default function CoursesPage({ embedded = false }) {
         </div>
       )}
 
-      {/* ── 新增課程 Modal ── */}
+      {/* ── 新增課程 Modal（兩步：1 選類別/類型/館別 → 2 填梯次資料）── */}
       {showAddCourse && (
-        <Modal title="新增課程" onClose={() => setShowAddCourse(false)} width={560}>
-          {courses.length > 0 && (
+        <Modal title={createStep === 1 ? '新增課程（1/2）· 選課程類別' : '新增課程（2/2）· 梯次資料'} onClose={() => setShowAddCourse(false)} width={560}>
+          {createStep === 1 ? (
+          <>
+            {courses.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>複製現有課程（選填，會帶入該課設定）</label>
+                <select value={copyFrom} onChange={e => {
+                  setCopyFrom(e.target.value);
+                  if (e.target.value) {
+                    const src = courses.find(c => c.id === e.target.value);
+                    if (src) setCourseForm(prev => ({
+                      ...prev,
+                      name: src.name + '（複製）',
+                      description: src.description || '',
+                      price: src.price || '',
+                      maxStudents: src.maxStudents || 10,
+                      maxWaitlist: src.maxWaitlist ?? '',
+                      type: src.type || 'weekly',
+                      categoryId: src.categoryId || prev.categoryId || '',
+                      gymId: src.gymId || prev.gymId || '',
+                      instructor: src.instructor || '',
+                      totalSessions: src.totalSessions || '',
+                      gymAccessDays: src.gymAccessDaysAfter || 1,
+                      leaveDeadlineHours: src.leaveDeadlineHours || 2,
+                      maxLeaves: src.maxLeaves || 2,
+                      allowMakeup: src.allowMakeup !== false,
+                      makeupDeadlineDays: src.makeupDeadlineDays || 60,
+                      midpointSurcharge: src.midpointSurcharge || 1.05,
+                      installment: src.installment || prev.installment,
+                    }));
+                  }
+                }}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                  <option value="">不複製，從頭建立</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
             <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>複製現有課程（選填）</label>
-              <select value={copyFrom} onChange={e => {
-                setCopyFrom(e.target.value);
-                if (e.target.value) {
-                  const src = courses.find(c => c.id === e.target.value);
-                  if (src) setCourseForm({
-                    name: src.name + '（複製）',
-                    description: src.description || '',
-                    price: src.price || '',
-                    maxStudents: src.maxStudents || 10,
-                    maxWaitlist: src.maxWaitlist ?? '',
-                    type: src.type || 'weekly',
-                    totalSessions: src.totalSessions || '',
-                    gymAccessDays: src.gymAccessDaysAfter || 1,
-                    leaveDeadlineHours: src.leaveDeadlineHours || 2,
-                    maxLeaves: src.maxLeaves || 2,
-                    allowMakeup: src.allowMakeup !== false,
-                    makeupDeadlineDays: src.makeupDeadlineDays || 60,
-                    midpointSurcharge: src.midpointSurcharge || 1.05,
-                  });
-                }
-              }}
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程類別（此梯次屬於哪門課）</label>
+              <select value={courseForm.categoryId || ''} onChange={e => setCourseForm({...courseForm, categoryId:e.target.value})}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                <option value="">不複製，從頭建立</option>
-                {courses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="">不分類</option>
+                {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <div style={{ fontSize:10, color:'#999', marginTop:4 }}>沒有想要的類別？到「類別管理」新增，同一門課的各梯次選同一類別即會歸在一起。</div>
+            </div>
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程類型</label>
+              <select value={courseForm.type} onChange={e => setCourseForm({...courseForm, type:e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                <option value="weekly">固定週課</option>
+                <option value="workshop">單次工作坊</option>
               </select>
             </div>
-          )}
+            {isSuperAdmin && (
+              <div style={{ marginBottom:16 }}>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>館別</label>
+                <select value={courseForm.gymId || effectiveGymId || ''} onChange={e => setCourseForm({...courseForm, gymId: e.target.value})}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                  <option value="">請選擇館別</option>
+                  {GYMS.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ display:'flex', gap:8, marginTop:20 }}>
+              <button onClick={() => setShowAddCourse(false)}
+                style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={() => {
+                if (isSuperAdmin && !(courseForm.gymId || effectiveGymId)) { showMsg('請先選擇館別', 'red'); return; }
+                setCreateStep(2);
+              }}
+                style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>下一步 →</button>
+            </div>
+          </>
+          ) : (
+          <>
+          <div style={{ fontSize:12, color:'#666', background:'#FBF5F5', borderRadius:8, padding:'8px 12px', marginBottom:14 }}>
+            類別：<strong>{categories.find(c => c.id === courseForm.categoryId)?.name || '不分類'}</strong> · {courseForm.type === 'weekly' ? '固定週課' : '單次工作坊'}
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             {[
-              { label:'課程名稱', key:'name', type:'text', colSpan:2 },
+              { label:'課程名稱（梯次名，如「週一A班」）', key:'name', type:'text', colSpan:2 },
               { label:'課程說明', key:'description', type:'text', colSpan:2 },
               { label:'費用（NT$）', key:'price', type:'number' },
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
@@ -1272,32 +1328,6 @@ export default function CoursesPage({ embedded = false }) {
                 {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
               </div>
             ))}
-            <div>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程類別</label>
-              <select value={courseForm.categoryId || ''} onChange={e => setCourseForm({...courseForm, categoryId:e.target.value})}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                <option value="">不分類</option>
-                {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-            </div>
-            {isSuperAdmin && (
-              <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>館別</label>
-                <select value={courseForm.gymId || effectiveGymId || ''} onChange={e => setCourseForm({...courseForm, gymId: e.target.value})}
-                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                  <option value="">請選擇館別</option>
-                  {GYMS.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                </select>
-              </div>
-            )}
-            <div>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程類型</label>
-              <select value={courseForm.type} onChange={e => setCourseForm({...courseForm, type:e.target.value})}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                <option value="weekly">固定週課</option>
-                <option value="workshop">單次工作坊</option>
-              </select>
-            </div>
             <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
               <input type="checkbox" id="allowMakeup" checked={courseForm.allowMakeup}
                 onChange={e => setCourseForm({...courseForm, allowMakeup:e.target.checked})}/>
@@ -1345,13 +1375,15 @@ export default function CoursesPage({ embedded = false }) {
               onChange={v => setCourseForm({...courseForm, installment: v})} />
           </div>
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
-            <button onClick={() => setShowAddCourse(false)}
-              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+            <button onClick={() => setCreateStep(1)}
+              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>← 上一步</button>
             <button onClick={handleCreateCourse} disabled={loading}
               style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
               {loading ? '建立中...' : '建立課程'}
             </button>
           </div>
+          </>
+          )}
         </Modal>
       )}
 
