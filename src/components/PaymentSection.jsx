@@ -24,8 +24,10 @@ const inp = {
   outline:'none', boxSizing:'border-box',
 };
 
-export default function PaymentSection({ value = {}, onChange, bankInfo, amount, showNote = false }) {
+export default function PaymentSection({ value = {}, onChange, bankInfo, amount, showNote = false, methods }) {
   const { method = 'cash', paymentDate = '', bankLastFive = '', bankName = '', note = '' } = value;
+  // methods（選填）：限制可選付款方式（如課程端只留 ['cash','transfer'] 隱藏電子支付）
+  const shownMethods = methods ? METHODS.filter(m => methods.includes(m.key)) : METHODS;
 
   const set = (patch) => onChange({ ...value, ...patch });
 
@@ -42,8 +44,8 @@ export default function PaymentSection({ value = {}, onChange, bankInfo, amount,
       {/* 付款方式選擇 */}
       <div style={{ marginBottom:12 }}>
         <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>付款方式</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
-          {METHODS.map(m => {
+        <div style={{ display:'grid', gridTemplateColumns:`repeat(${shownMethods.length},1fr)`, gap:6 }}>
+          {shownMethods.map(m => {
             const active = method === m.key;
             return (
               <button key={m.key} onClick={() => set({ method: m.key })}
