@@ -28,6 +28,7 @@ export default function MemberCoursesPage() {
   const [msgType, setMsgType] = useState('ok');
   const [enrollSuccess, setEnrollSuccess] = useState(false); // 報名成功確認彈窗
   const [enrollWaitlisted, setEnrollWaitlisted] = useState(false); // 該次報名是否為候補
+  const [cancelWaitlistTarget, setCancelWaitlistTarget] = useState(null); // 取消候補確認對象
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollSession, setEnrollSession] = useState(null);
   const [payFor, setPayFor] = useState(null); // { enrollmentId, fee, gymId }
@@ -358,12 +359,12 @@ export default function MemberCoursesPage() {
   };
 
   const handleCancelWaitlist = async (group) => {
-    if (!window.confirm(`確定要取消「${group.courseName}」的候補嗎？`)) return;
     setLoading(true);
     try {
       const targetId = group.memberId || member?.id;
       await memberClient.post(`/courses/${group.courseId}/cancel-waitlist`, { memberId: targetId });
       showMsg('已取消候補');
+      setCancelWaitlistTarget(null);
       await loadMyEnrollments();
     } catch (err) {
       showMsg(err.response?.data?.message || '取消候補失敗', 'red');
@@ -423,6 +424,27 @@ export default function MemberCoursesPage() {
       {msg && (
         <div style={{ margin:'12px 16px 0', background: msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color: msgType==='ok'?'#2D7D46':'#A32D2D' }}>
           {msg}
+        </div>
+      )}
+
+      {/* 取消候補確認彈窗 */}
+      {cancelWaitlistTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => { if (!loading) setCancelWaitlistTarget(null); }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消候補</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
+              確定要取消「{cancelWaitlistTarget.courseName}」的候補嗎？取消後將移出候補名單，若要再候補需重新報名。
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setCancelWaitlistTarget(null)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={() => handleCancelWaitlist(cancelWaitlistTarget)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
+                {loading ? '處理中...' : '確定取消'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -986,7 +1008,7 @@ export default function MemberCoursesPage() {
 
                   {isWaitlistGroup ? (
                     <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                      <button onClick={() => handleCancelWaitlist(group)} disabled={loading}
+                      <button onClick={() => setCancelWaitlistTarget(group)} disabled={loading}
                         style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:11, cursor: loading?'not-allowed':'pointer' }}>
                         取消候補
                       </button>
