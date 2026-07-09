@@ -7,6 +7,7 @@ const ORDER_TYPE_LABEL = {
   rental: '器材租借', team_member: '攀岩隊員',
 };
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
+const PAY_LABEL = { cash: '現金', transfer: '轉帳', linepay: 'LinePay', jkopay: '街口', taiwanpay: '台灣Pay' };
 
 const Row = ({ label, children }) => (
   <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '0.5px solid #F5EFEF', fontSize: 13 }}>
@@ -49,11 +50,19 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
           </Row>
           <Row label="金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
           <Row label="付款方式">{isCash ? '現金' : '轉帳'}</Row>
+          {record.origPaymentMethod && record.origPaymentMethod !== record.paymentMethod && (
+            <Row label="原報名選">{PAY_LABEL[record.origPaymentMethod] || record.origPaymentMethod}</Row>
+          )}
           {!isCash && <Row label="匯款銀行">{record.bankName || <span style={{ color: '#bbb' }}>—</span>}</Row>}
           {!isCash && <Row label="匯款末五碼">{record.bankLastFive ? <strong>{record.bankLastFive}</strong> : <span style={{ color: '#bbb' }}>未填（僅附截圖）</span>}</Row>}
           {!isCash && <Row label="匯款日期">{record.paymentDate || '—'}</Row>}
           <Row label="館別">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
           {ts && <Row label="報名時間">{ts.toLocaleString('zh-TW')}</Row>}
+          {record.notes && (
+            <div style={{ marginTop: 10, background: '#FFF8E8', border: '0.5px solid #F0D9A8', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#854F0B', lineHeight: 1.6 }}>
+              📝 {record.notes}
+            </div>
+          )}
           {!isCash && record.screenshotUrl && (
             <div style={{ paddingTop: 10 }}>
               <a href={record.screenshotUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#185FA5' }}>🖼️ 開啟匯款截圖</a>
