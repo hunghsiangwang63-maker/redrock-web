@@ -624,7 +624,7 @@ export default function SalesPage({ embedded = false }) {
                 <div key={sale.id} style={{ background:'#fff', border:`0.5px solid ${sale.isReturn ? '#E8C5C5' : '#E8D5D5'}`, borderRadius:10, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:12, color:'#999', marginBottom:3 }}>
-                      {dayjs(sale.soldAt?.seconds ? sale.soldAt.seconds*1000 : sale.soldAt).format('MM/DD HH:mm')}
+                      {dayjs(sale.soldAt?.seconds ? sale.soldAt.seconds*1000 : sale.soldAt?._seconds ? sale.soldAt._seconds*1000 : sale.soldAt).format('MM/DD HH:mm')}
                       {' · '}{sale.staffName}
                       {' · '}{ { cash:'現金', linepay:'Line Pay', jkopay:'街口', taiwanpay:'台灣Pay' }[sale.paymentMethod] || sale.paymentMethod }
                       {sale.memberName && sale.memberName !== '匿名' ? ` · ${sale.memberName}` : ''}
