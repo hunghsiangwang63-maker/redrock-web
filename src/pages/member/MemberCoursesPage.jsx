@@ -977,6 +977,8 @@ export default function MemberCoursesPage() {
               const waitlistPos = waitlist.find(s => s.waitlistPosition != null)?.waitlistPosition;
               const groupKey = `${group.courseId}__${group.memberId}`;
               const isForChild = group.memberId && member?.id && group.memberId !== member.id; // 幫子女報名的課
+              // 報名對象姓名：以家庭成員清單為準（enroll-all 曾把 memberName 存成家長名，不可信）
+              const childName = familyMembers.find(c => c.id === group.memberId)?.name || group.memberName;
               // 全數已取消/失效（如取消候補後）→ 不在「我的課程」顯示幽靈卡
               if (confirmed.length === 0 && onLeave.length === 0 && waitlist.length === 0) return null;
               const today = dayjs().format('YYYY-MM-DD');
@@ -997,7 +999,7 @@ export default function MemberCoursesPage() {
                     onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
                     <div style={{ fontWeight:600, fontSize:15 }}>
                       {group.courseName}
-                      {isForChild && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>👦 {group.memberName}</span>}
+                      {isForChild && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>👦 {childName}</span>}
                     </div>
                     {isWaitlistGroup ? (
                       <span style={{ fontSize:11, background:'#FAEEDA', color:'#B5651D', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
