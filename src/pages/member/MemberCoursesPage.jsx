@@ -745,7 +745,7 @@ export default function MemberCoursesPage() {
                 <div style={{ padding:14 }}>
                   <div style={{ fontSize:12, color:'#666' }}>
                     {selectedCourse.startDate} ～ {selectedCourse.endDate}
-                    {selectedCourse.instructor && ` · 講師：${selectedCourse.instructor}`}
+                    {selectedCourse.instructor && ` · 教練：${selectedCourse.instructor}`}
                   </div>
                   <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
                     每週{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}

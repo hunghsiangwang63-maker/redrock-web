@@ -1026,7 +1026,7 @@ export default function CoursesPage({ embedded = false }) {
                       </div>
                       <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
                         {selectedSession.startTime}～{selectedSession.endTime}
-                        {selectedSession.instructor && ` · 講師：${selectedSession.instructor}`}
+                        {selectedSession.instructor && ` · 教練：${selectedSession.instructor}`}
                       </div>
                     </div>
                     <button onClick={() => setShowEnroll(true)}
@@ -1431,7 +1431,7 @@ export default function CoursesPage({ embedded = false }) {
             { label:'日期', key:'date', type:'date' },
             { label:'開始時間', key:'startTime', type:'time' },
             { label:'結束時間', key:'endTime', type:'time' },
-            { label:'講師', key:'instructor', type:'text' },
+            { label:'教練', key:'instructor', type:'text' },
             { label:'備註', key:'notes', type:'text' },
           ].map(f => (
             <div key={f.key} style={{ marginBottom:12 }}>
@@ -1459,7 +1459,7 @@ export default function CoursesPage({ embedded = false }) {
             { label:'日期', key:'date', type:'date' },
             { label:'開始時間', key:'startTime', type:'time' },
             { label:'結束時間', key:'endTime', type:'time' },
-            { label:'講師', key:'instructor', type:'text' },
+            { label:'教練', key:'instructor', type:'text' },
             { label:'備註', key:'notes', type:'text' },
           ].map(f => (
             <div key={f.key} style={{ marginBottom:12 }}>
