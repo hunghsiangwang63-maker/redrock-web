@@ -299,6 +299,7 @@ export default function DailySettlementPage() {
                     invoiceTotal={h.income?.total || 0}
                     manualTotal={manualIncomeTotal(h.income, h.incomeManual)}
                     income={h.income}
+                    incomeManual={h.incomeManual || null}
                     deductions={h.deductions || []}
                     netAdjust={(h.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
                     actualCash={h.actualCashBalance || 0}
@@ -324,6 +325,7 @@ export default function DailySettlementPage() {
               invoiceTotal={settlement?.income?.total || 0}
               manualTotal={manualIncomeTotal(settlement?.income, settlement?.incomeManual)}
               income={settlement?.income}
+              incomeManual={settlement?.incomeManual || null}
               deductions={settlement?.deductions || []}
               netAdjust={(settlement?.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
               actualCash={settlement?.actualCashBalance || 0}
@@ -585,6 +587,7 @@ export default function DailySettlementPage() {
             invoiceTotal={invoiceTotal}
             manualTotal={transition.settlementManualInput ? invoiceTotal : null}
             income={settlement?.income}
+            incomeManual={transition.settlementManualInput ? incomeManual : null}
             deductions={deductions} netAdjust={netAdjust}
             actualCash={actualCash} difference={difference}
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)} />
@@ -610,19 +613,21 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, income, deductions, netAdjust, actualCash, difference, segments, voids }) {
+function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const bigDiff = Math.abs(difference) > 200;
   const sysTotal = income?.total ?? invoiceTotal ?? 0;
   const hasManual = manualTotal !== null && manualTotal !== undefined;
-  // 總金額分項（系統紀錄）：入場（含細項）/ 課程 / 裝備銷售 / 出租 / 定期票
+  const showManualCol = !!incomeManual; // 分項是否並列手動輸入
+  const manVal = (k, sysV) => (incomeManual && incomeManual[k] !== '' && incomeManual[k] != null) ? (Number(incomeManual[k]) || 0) : sysV; // 缺項回退系統
+  // 總金額分項：入場（含細項）/ 課程 / 裝備銷售 / 出租 / 定期票
   const cats = income ? [
-    { label:'入場', value: income.entry || 0, sub: income.entryItems },
-    { label:'課程', value: income.course || 0 },
-    { label:'裝備銷售', value: income.product || 0 },
-    { label:'出租', value: income.shoeRental || 0 },
-    { label:'定期票', value: income.pass || 0, sub: income.passItems },
+    { key:'entry', label:'入場', value: income.entry || 0, sub: income.entryItems },
+    { key:'course', label:'課程', value: income.course || 0 },
+    { key:'product', label:'裝備銷售', value: income.product || 0 },
+    { key:'shoeRental', label:'出租', value: income.shoeRental || 0 },
+    { key:'pass', label:'定期票', value: income.pass || 0, sub: income.passItems },
   ] : [];
   return (
     <div>
@@ -639,15 +644,25 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, deductions, netA
           </div>
         )}
       </div>
-      {/* 總金額分項（系統紀錄）*/}
+      {/* 總金額分項：手動輸入 / 系統紀錄 並列（無手動輸入則只顯示系統）*/}
       {cats.length > 0 && (
         <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
-          <span style={{ color:'#666', marginBottom:4 }}>總金額分項（系統紀錄）</span>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+            <span style={{ color:'#666' }}>總金額分項{showManualCol ? '（手動 · 系統）' : '（系統紀錄）'}</span>
+          </div>
           <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
-            {cats.map((c, i) => (
+            {cats.map((c, i) => {
+              const man = manVal(c.key, c.value);
+              const diff = showManualCol && Number(man) !== Number(c.value);
+              return (
               <div key={i}>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
-                  <span style={{ textAlign:'left' }}>{c.label}</span><span>{money(c.value)}</span>
+                  <span style={{ textAlign:'left' }}>{c.label}</span>
+                  {showManualCol ? (
+                    <span style={{ color: diff ? '#A32D2D' : undefined }}>手動 {money(man)}　·　系統 {money(c.value)}</span>
+                  ) : (
+                    <span>{money(c.value)}</span>
+                  )}
                 </div>
                 {Array.isArray(c.sub) && c.sub.filter(x => (x.value || 0) > 0).map((x, j) => (
                   <div key={j} style={{ display:'flex', justifyContent:'space-between', fontSize:11.5, color:'#999', paddingLeft:14 }}>
@@ -655,7 +670,8 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, deductions, netA
                   </div>
                 ))}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
