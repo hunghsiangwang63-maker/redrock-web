@@ -478,17 +478,34 @@ export default function MemberPassesPage() {
     (arr || []).forEach(x => (isValidTicket(x, type) ? valid : invalid).push(x));
     return { valid, invalid };
   };
-  // 已失效折疊區（放分頁底部、預設收合）— 以函式回傳 JSX（避免元件內定義元件的 remount 問題）
-  const renderExpiredSection = (items, type, render) => items.length === 0 ? null : (
-    <div style={{ marginTop:4 }}>
-      <div onClick={() => setExpiredOpen(o => ({ ...o, [type]: !o[type] }))}
-        style={{ cursor:'pointer', fontSize:12, color:'#999', padding:'12px 6px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:'0.5px solid #E8D5D5' }}>
-        <span>已失效（{items.length}）</span>
-        <span style={{ color:'#8B1A1A' }}>{expiredOpen[type] ? '收合 ▲' : '展開 ▼'}</span>
+  // 失效再細分：consumed（已消耗、有使用紀錄：已使用/已用完） vs dead（已作廢/過期：已取消/已過期/已失效）
+  const splitInvalid = (invalid, type) => {
+    const consumed = [], dead = [];
+    (invalid || []).forEach(x => (['已使用', '已用完'].includes(invalidReason(x, type)) ? consumed : dead).push(x));
+    return { consumed, dead };
+  };
+  // consumed 區「最近使用在最上」：single/bonus 依 usedAt、discount/black 依 updatedAt（Firestore Timestamp），缺欄位排後
+  const sortConsumed = (items, type) => {
+    const field = (type === 'discount' || type === 'black') ? 'updatedAt' : 'usedAt';
+    const ms = (x) => { const d = tsToDay(x?.[field]); return d ? d.valueOf() : -Infinity; };
+    return [...(items || [])].sort((a, b) => ms(b) - ms(a));
+  };
+  // 折疊區（放分頁底部、預設收合）— 以函式回傳 JSX（避免元件內定義元件的 remount 問題）
+  // keySuffix 讓「已使用」與「已失效」兩區各自獨立展開（展開 state key = `${type}:${keySuffix}`）
+  const renderCollapseSection = (items, type, keySuffix, title, render) => {
+    if (!items || items.length === 0) return null;
+    const k = `${type}:${keySuffix}`;
+    return (
+      <div style={{ marginTop:4 }}>
+        <div onClick={() => setExpiredOpen(o => ({ ...o, [k]: !o[k] }))}
+          style={{ cursor:'pointer', fontSize:12, color:'#999', padding:'12px 6px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:'0.5px solid #E8D5D5' }}>
+          <span>{title}（{items.length}）</span>
+          <span style={{ color:'#8B1A1A' }}>{expiredOpen[k] ? '收合 ▲' : '展開 ▼'}</span>
+        </div>
+        {expiredOpen[k] && <div>{items.map(it => render(it))}</div>}
       </div>
-      {expiredOpen[type] && <div>{items.map(it => render(it))}</div>}
-    </div>
-  );
+    );
+  };
   // 失效卡片小標籤（dark：深色卡如優惠卡/黑卡）
   const invalidBadge = (item, type, dark) => (
     <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background: dark ? 'rgba(255,255,255,.22)' : '#F0EDED', color: dark ? '#fff' : '#999' }}>{invalidReason(item, type)}</span>
@@ -685,10 +702,12 @@ export default function MemberPassesPage() {
             {tab === 'passes' && (() => {
               if (passes.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎫</div>目前沒有定期票</div>);
               const { valid, invalid } = splitValid(passes, 'passes');
+              const { consumed, dead } = splitInvalid(invalid, 'passes');
               return (<>
                 {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效定期票</div>}
                 {valid.map(p => renderPassCard(p, false))}
-                {renderExpiredSection(invalid, 'passes', (p) => renderPassCard(p, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'passes'), 'passes', 'used', '已使用', (p) => renderPassCard(p, true))}
+                {renderCollapseSection(dead, 'passes', 'expired', '已失效', (p) => renderPassCard(p, true))}
               </>);
             })()}
 
@@ -696,10 +715,12 @@ export default function MemberPassesPage() {
             {tab === 'discount' && (() => {
               if (discountCards.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🃏</div>目前沒有優惠卡</div>);
               const { valid, invalid } = splitValid(discountCards, 'discount');
+              const { consumed, dead } = splitInvalid(invalid, 'discount');
               return (<>
                 {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效優惠卡</div>}
                 {valid.map(c => renderDiscountCard(c, false))}
-                {renderExpiredSection(invalid, 'discount', (c) => renderDiscountCard(c, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'discount'), 'discount', 'used', '已用完', (c) => renderDiscountCard(c, true))}
+                {renderCollapseSection(dead, 'discount', 'expired', '已失效', (c) => renderDiscountCard(c, true))}
               </>);
             })()}
 
@@ -707,10 +728,12 @@ export default function MemberPassesPage() {
             {tab === 'black' && (() => {
               if (blackCards.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🖤</div>目前沒有黑卡</div>);
               const { valid, invalid } = splitValid(blackCards, 'black');
+              const { consumed, dead } = splitInvalid(invalid, 'black');
               return (<>
                 {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效黑卡</div>}
                 {valid.map(c => renderBlackCard(c, false))}
-                {renderExpiredSection(invalid, 'black', (c) => renderBlackCard(c, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'black'), 'black', 'used', '已用完', (c) => renderBlackCard(c, true))}
+                {renderCollapseSection(dead, 'black', 'expired', '已失效', (c) => renderBlackCard(c, true))}
               </>);
             })()}
 
@@ -718,10 +741,12 @@ export default function MemberPassesPage() {
             {tab === 'single' && (() => {
               if (singleTickets.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎟️</div>目前沒有單日入場券</div>);
               const { valid, invalid } = splitValid(singleTickets, 'single');
+              const { consumed, dead } = splitInvalid(invalid, 'single');
               return (<>
                 {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效單日券</div>}
                 {valid.map(t => renderSingleCard(t, false))}
-                {renderExpiredSection(invalid, 'single', (t) => renderSingleCard(t, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'single'), 'single', 'used', '已使用', (t) => renderSingleCard(t, true))}
+                {renderCollapseSection(dead, 'single', 'expired', '已失效', (t) => renderSingleCard(t, true))}
               </>);
             })()}
 
@@ -729,10 +754,12 @@ export default function MemberPassesPage() {
             {tab === 'bonus' && (() => {
               if (bonuses.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎁</div>目前沒有紅利<br/><span style={{ fontSize:12 }}>優惠卡全部次數用完後即可獲得</span></div>);
               const { valid, invalid } = splitValid(bonuses, 'bonus');
+              const { consumed, dead } = splitInvalid(invalid, 'bonus');
               return (<>
                 {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效紅利</div>}
                 {valid.map(b => renderBonusCard(b, false))}
-                {renderExpiredSection(invalid, 'bonus', (b) => renderBonusCard(b, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'bonus'), 'bonus', 'used', '已使用', (b) => renderBonusCard(b, true))}
+                {renderCollapseSection(dead, 'bonus', 'expired', '已失效', (b) => renderBonusCard(b, true))}
               </>);
             })()}
           </>
