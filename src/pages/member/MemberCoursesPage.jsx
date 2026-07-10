@@ -1446,7 +1446,7 @@ export default function MemberCoursesPage() {
               <div style={{ marginBottom:16 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>本人簽名（請以正楷書寫）</label>
                 <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
-                  <SignaturePad ref={courseSigRef} height={120}/>
+                  <SignaturePad ref={courseSigRef} height={200}/>
                 </div>
                 <div style={{ display:'flex', gap:8, marginTop:6 }}>
                   <button type="button" onClick={()=>{ courseSigRef.current?.clear(); setPortraitSig(null); }} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>清除</button>
@@ -1458,7 +1458,7 @@ export default function MemberCoursesPage() {
                 <div>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>法定代理人簽名（報名對象未滿 18 歲必填）</label>
                   <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
-                    <SignaturePad ref={courseGuardianSigRef} height={120}/>
+                    <SignaturePad ref={courseGuardianSigRef} height={200}/>
                   </div>
                   <div style={{ display:'flex', gap:8, marginTop:6 }}>
                     <button type="button" onClick={()=>{ courseGuardianSigRef.current?.clear(); setGuardianSig(null); }} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>清除</button>

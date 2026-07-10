@@ -532,7 +532,7 @@ export default function MemberCompetitionsPage() {
                 <div style={{ marginBottom:16 }}>
                   <label style={{ fontSize:13, fontWeight:500, color:'#333', display:'block', marginBottom:8 }}>本人簽名</label>
                   <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
-                    <SignaturePad ref={memberSigRef} height={130}/>
+                    <SignaturePad ref={memberSigRef} height={200}/>
                   </div>
                   <div style={{ display:'flex', gap:8, marginTop:6 }}>
                     <button type="button" onClick={()=>{ memberSigRef.current?.clear(); setMemberSig(null); }}
@@ -549,7 +549,7 @@ export default function MemberCompetitionsPage() {
                     </div>
                     <label style={{ fontSize:13, fontWeight:500, color:'#333', display:'block', marginBottom:8 }}>法定代理人簽名</label>
                     <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
-                      <SignaturePad ref={guardianSigRef} height={130}/>
+                      <SignaturePad ref={guardianSigRef} height={200}/>
                     </div>
                     <div style={{ display:'flex', gap:8, marginTop:6 }}>
                       <button type="button" onClick={()=>{ guardianSigRef.current?.clear(); setGuardianSig(null); }}
