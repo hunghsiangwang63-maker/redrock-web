@@ -5,6 +5,15 @@ import { memberClient } from '../../api/client';
 import { getMemberReasons, uploadEvidence, createPassRequest, getMyPassRequests } from '../../api/passAdjustments';
 import dayjs from 'dayjs';
 
+const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
+// Firestore Timestamp（{_seconds}/{seconds}）或 ISO 字串 → dayjs；無效回 null
+const tsToDay = (ts) => {
+  if (!ts) return null;
+  const s = ts._seconds ?? ts.seconds;
+  const d = dayjs(s ? s * 1000 : ts);
+  return d.isValid() ? d : null;
+};
+
 const BottomNav = ({ navigate }) => (
   <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50 }}>
     {[
@@ -230,17 +239,27 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
             <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:13 }}>載入中...</div>
           ) : history.length === 0 ? (
             <div style={{ textAlign:'center', padding:20, color:'#ccc', fontSize:13 }}>尚無使用紀錄</div>
-          ) : history.map((r, i) => (
-            <div key={i} style={{ padding:'10px 0', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div>
-                <div style={{ fontSize:13, fontWeight:500 }}>{r.gymName || r.gymId}</div>
-                <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
-                  {dayjs(r.checkedInAt?.seconds ? r.checkedInAt.seconds*1000 : r.checkedInAt).format('MM/DD HH:mm')}
+          ) : history.map((r, i) => {
+            const cancelled = !!r.isCancelled;
+            const when = tsToDay(cancelled ? (r.cancelledAt || r.checkedInAt) : r.checkedInAt);
+            const gymName = GYM_LABEL[r.gymId] || r.gymName || r.gymId || '—';
+            return (
+              <div key={i} style={{ padding:'10px 0', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:500 }}>
+                    {gymName}
+                    {cancelled && <span style={{ fontSize:11, fontWeight:600, color:'#B26A00', marginLeft:6 }}>入場取消返還</span>}
+                  </div>
+                  <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
+                    {when ? when.format('YYYY/MM/DD HH:mm') : '—'}
+                  </div>
                 </div>
+                <span style={{ fontSize:12, fontWeight:600, color: cancelled ? '#2D7D46' : '#8B1A1A' }}>
+                  {cancelled ? '+1 次' : '-1 次'}
+                </span>
               </div>
-              <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:500 }}>-1 次</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <div style={{ padding:'12px 0 36px', background:'#fff' }}>
