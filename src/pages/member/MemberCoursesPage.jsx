@@ -1077,7 +1077,8 @@ export default function MemberCoursesPage() {
             </div>
           )}
 
-          {myEnrollments.length === 0 ? (
+          {!myEnrollments.some(e => ['confirmed','leave','waitlist'].includes(e.status) || (e.status === 'cancelled' && e.cancelReason === 'payment_expired')) ? (
+            // 無「可顯示」報名（全部已取消/失效）→ 顯示空狀態，避免整頁空白
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
               尚未報名任何課程
             </div>
