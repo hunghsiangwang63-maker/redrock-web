@@ -1016,6 +1016,23 @@ export default function MemberCoursesPage() {
                                     )}
                                   </div>
                                 ))}
+                                {/* 快速前往報名：課程報名頁 / 體驗課程報名頁 */}
+                                <div style={{ display:'flex', gap:8, marginTop:12 }}>
+                                  <button onClick={() => {
+                                    const ci = courses.find(c => c.id === group.courseId) || null;
+                                    setSelectedCategory(null);
+                                    setSelectedCourse(ci);
+                                    setTab('browse');
+                                    window.scrollTo(0, 0);
+                                  }}
+                                    style={{ flex:1, height:38, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                                    報名課程
+                                  </button>
+                                  <button onClick={() => navigate('/member/experience')}
+                                    style={{ flex:1, height:38, borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                                    報名單次體驗
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
