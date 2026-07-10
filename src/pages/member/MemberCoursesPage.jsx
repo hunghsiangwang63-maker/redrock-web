@@ -61,6 +61,10 @@ export default function MemberCoursesPage() {
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [enrollForMemberId, setEnrollForMemberId] = useState(null); // null = 本人
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [reuploadTarget, setReuploadTarget] = useState(null); // 重新上傳轉帳：{ enrollmentId, courseName, amount, memberId, gymId }
+  const [reuploadData, setReuploadData] = useState({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
+  const [reuploadFile, setReuploadFile] = useState(null);
+  const [reuploadLoading, setReuploadLoading] = useState(false);
 
   const courseSigRef = useRef(null);
   const courseGuardianSigRef = useRef(null);
@@ -396,6 +400,49 @@ export default function MemberCoursesPage() {
 
   const isEnrolled = (sessionId) => myEnrollments.some(e => e.sessionId === sessionId && e.status !== 'cancelled');
 
+  // Firestore Timestamp（{_seconds}）或 ISO 字串 → dayjs；無則 null
+  const tsToDay = (ts) => {
+    if (!ts) return null;
+    const d = ts._seconds != null ? dayjs(ts._seconds * 1000) : dayjs(ts);
+    return d.isValid() ? d : null;
+  };
+  // 群組的主報名（掛付款期限/狀態的那筆，idx0）：優先有 paymentDeadline，其次有收費，否則第一筆
+  const primaryOf = (group) =>
+    group.sessions.find(s => s.paymentDeadline) ||
+    group.sessions.find(s => (s.enrollmentFee || 0) > 0) ||
+    group.sessions[0];
+
+  // 重新上傳轉帳（被退回後補正）：走既有 /transfers/upload，refId=主報名 id；不重設付款期限（後端沿用原值）
+  const handleReupload = async () => {
+    if (!reuploadTarget) return;
+    if (reuploadData.method === 'transfer' && !reuploadFile && !reuploadData.bankLastFive) {
+      showMsg('請上傳轉帳截圖或填寫帳號末五碼', 'red'); return;
+    }
+    setReuploadLoading(true);
+    try {
+      const fd = new FormData();
+      if (reuploadFile) fd.append('screenshot', reuploadFile);
+      fd.append('memberId', member.id);
+      fd.append('memberName', member.name || '');
+      fd.append('gymId', reuploadTarget.gymId || '');
+      fd.append('orderType', 'course');
+      fd.append('refId', reuploadTarget.enrollmentId);
+      fd.append('orderName', reuploadTarget.courseName || '');
+      fd.append('courseName', reuploadTarget.courseName || '');
+      fd.append('amount', reuploadTarget.amount || 0);
+      if (reuploadData.bankLastFive) fd.append('bankLastFive', reuploadData.bankLastFive);
+      if (reuploadData.bankName) fd.append('bankName', reuploadData.bankName);
+      if (reuploadData.paymentDate) fd.append('paymentDate', reuploadData.paymentDate);
+      await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      showMsg('已重新提交轉帳，等待工作人員確認收款');
+      setReuploadTarget(null); setReuploadFile(null);
+      setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
+      await loadMyEnrollments();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '重新提交失敗', 'red');
+    } finally { setReuploadLoading(false); }
+  };
+
   const NavBar = () => (
     <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:"env(safe-area-inset-bottom)", zIndex:50 }}>
       {[
@@ -477,6 +524,37 @@ export default function MemberCoursesPage() {
               <button onClick={() => handleCancelWaitlist(cancelWaitlistTarget)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
                 {loading ? '處理中...' : '確定取消'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 重新上傳轉帳（被退回後補正）*/}
+      {reuploadTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => { if (!reuploadLoading) setReuploadTarget(null); }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>重新上傳轉帳</div>
+            <div style={{ fontSize:12.5, color:'#666', marginBottom:14, textAlign:'left', lineHeight:1.7 }}>
+              {reuploadTarget.courseName}　應付 NT${(reuploadTarget.amount || 0).toLocaleString()}<br/>
+              <span style={{ color:'#B5651D' }}>重新上傳不會延長付款期限（沿用原報名期限）。</span>
+            </div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>匯款帳號末五碼</label>
+            <input value={reuploadData.bankLastFive} onChange={e => setReuploadData(d => ({ ...d, bankLastFive: e.target.value.replace(/\D/g,'').slice(0,5) }))} maxLength={5} placeholder="末五碼"
+              style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+            <label style={{ fontSize:12, color:'#666', display:'block', margin:'10px 0 4px', textAlign:'left' }}>匯款日期</label>
+            <input type="date" value={reuploadData.paymentDate} onChange={e => setReuploadData(d => ({ ...d, paymentDate: e.target.value }))}
+              style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+            <label style={{ fontSize:12, color:'#666', display:'block', margin:'10px 0 4px', textAlign:'left' }}>轉帳截圖（選填）</label>
+            <input type="file" accept="image/*" onChange={e => setReuploadFile(e.target.files?.[0] || null)} style={{ fontSize:12 }} />
+            <div style={{ fontSize:11, color:'#999', margin:'6px 0 14px', textAlign:'left' }}>截圖或末五碼至少填一項。</div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setReuploadTarget(null)} disabled={reuploadLoading}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+              <button onClick={handleReupload} disabled={reuploadLoading}
+                style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: reuploadLoading?'not-allowed':'pointer' }}>
+                {reuploadLoading ? '提交中...' : '確認上傳'}
               </button>
             </div>
           </div>
@@ -1009,8 +1087,26 @@ export default function MemberCoursesPage() {
               const hasFamily = familyMembers.length > 0;
               const enrolleeName = isForChild ? childName : (member?.name || '');
               const enrolleeIcon = isForChild ? '👦' : '👤';
-              // 全數已取消/失效（如取消候補後）→ 不在「我的課程」顯示幽靈卡
-              if (confirmed.length === 0 && onLeave.length === 0 && waitlist.length === 0) return null;
+              // 全數已取消/失效 → 一般不顯示幽靈卡；但「因逾期未付款自動取消」需回饋給會員（顯示已取消卡）
+              if (confirmed.length === 0 && onLeave.length === 0 && waitlist.length === 0) {
+                const expiredCancel = group.sessions.some(s => s.status === 'cancelled' && s.cancelReason === 'payment_expired');
+                if (!expiredCancel) return null;
+                const grpKey = `${group.courseId}__${group.memberId}`;
+                const eName = (familyMembers.find(c => c.id === group.memberId)?.name) || group.memberName;
+                const showChild = group.memberId && member?.id && group.memberId !== member.id;
+                return (
+                  <div key={grpKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, opacity:0.75 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                      <div style={{ fontWeight:600, fontSize:15, color:'#666' }}>
+                        {group.courseName}
+                        {familyMembers.length > 0 && eName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{showChild ? '👦' : '👤'} {eName}</span>}
+                      </div>
+                      <span style={{ fontSize:11, background:'#F0EDED', color:'#999', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>已取消</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.6 }}>因逾期未付款，此報名已自動取消、名額已釋出。如仍要上課請重新報名。</div>
+                  </div>
+                );
+              }
               const today = dayjs().format('YYYY-MM-DD');
               const future = confirmed.filter(s => s.date >= today).sort((a,b) => a.date.localeCompare(b.date));
               const past = confirmed.filter(s => s.date < today).sort((a,b) => b.date.localeCompare(a.date));
@@ -1028,6 +1124,12 @@ export default function MemberCoursesPage() {
                 if (s.attendanceStatus === 'absent') return { text:'缺席', color:'#A32D2D', bg:'#FCEBEB' };
                 return { text:'已上課（未點名）', color:'#999', bg:'#F5F5F5' };
               };
+              // 付款狀態（主報名 idx0）：待付款倒數 / 被退回待補正
+              const primary = primaryOf(group);
+              const pDeadline = tsToDay(primary?.paymentDeadline);
+              const pConfirmed = primary?.paymentConfirmed === true;
+              const isRejected = primary?.paymentStatus === 'transfer_rejected';
+              const awaitingPay = !pConfirmed && !!pDeadline && ['pending','pending_confirm'].includes(primary?.paymentStatus);
               return (
                 <div key={groupKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
@@ -1046,6 +1148,29 @@ export default function MemberCoursesPage() {
                       </span>
                     )}
                   </div>
+
+                  {/* 轉帳被退回：待補正 + 重新上傳（期限沿用原值、不延長） */}
+                  {!isWaitlistGroup && isRejected && (
+                    <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:8, padding:'10px 12px', marginBottom:8, textAlign:'left' }}>
+                      <div style={{ fontSize:12.5, color:'#A32D2D', fontWeight:600 }}>轉帳被退回{primary?.paymentRejectReason ? `：${primary.paymentRejectReason}` : ''}</div>
+                      <div style={{ fontSize:11.5, color:'#B5651D', marginTop:3, lineHeight:1.6 }}>
+                        {pDeadline ? `請於 ${pDeadline.format('YYYY-MM-DD HH:mm')} 前重新上傳轉帳，逾期未確認將自動取消報名。` : '請重新上傳轉帳。'}
+                      </div>
+                      <button onClick={() => { setReuploadTarget({ enrollmentId: primary.id, courseName: group.courseName, amount: primary.enrollmentFee || 0, memberId: group.memberId, gymId: primary.gymId }); setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' }); setReuploadFile(null); }}
+                        style={{ marginTop:8, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                        重新上傳轉帳
+                      </button>
+                    </div>
+                  )}
+                  {/* 待付款倒數 */}
+                  {!isWaitlistGroup && !isRejected && awaitingPay && (
+                    <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'9px 12px', marginBottom:8, textAlign:'left' }}>
+                      <div style={{ fontSize:12, color:'#8B6914', lineHeight:1.6 }}>
+                        ⏳ {primary?.paymentStatus === 'pending_confirm' ? '轉帳待工作人員確認' : '待付款'}：請於 <b>{pDeadline.format('YYYY-MM-DD HH:mm')}</b> 前完成付款，逾期未確認將自動取消報名、釋出名額。
+                      </div>
+                    </div>
+                  )}
+
                   {isWaitlistGroup ? (
                     <div style={{ fontSize:12, color:'#B5651D', marginBottom:8, lineHeight:1.6, textAlign:'left' }}>
                       您已排入候補名單，等待正取名額釋出。遞補為正取後將另行通知您繳費；在此之前不需付款。
