@@ -5,6 +5,7 @@ import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
+import jsQR from 'jsqr';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const ENTRY_TYPE_LABEL = {
@@ -94,6 +95,12 @@ export default function CheckinPage() {
   const [todayLoading, setTodayLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
   const [qrInput, setQrInput] = useState('');
+  const [showCamera, setShowCamera] = useState(false);   // 相機掃碼視窗
+  const [cameraError, setCameraError] = useState('');
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const rafRef = useRef(null);
+  const scanningRef = useRef(false);
   const [scanResult, setScanResult] = useState(null);
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [phoneInput, setPhoneInput] = useState('');
@@ -215,23 +222,81 @@ export default function CheckinPage() {
     } finally { setCancellingId(null); }
   };
 
-  const handleScan = async (e) => {
-    e.preventDefault();
-    if (!qrInput.trim()) { inputRef.current?.focus(); setScanResult({ error: '請將游標點入輸入框後再掃描 QR Code' }); return; }
+  // 共用掃描邏輯（掃描槍輸入框 / 相機掃碼皆走此）
+  const runScan = async (token) => {
+    const t = (token || '').trim();
+    if (!t) return;
     setLoading(true);
     setScanResult(null);
     setConfirmedCheckIn(null);
     try {
-      const res = await scanQrCode(qrInput.trim());
+      const res = await scanQrCode(t);
       setScanResult(res.data);
     } catch (err) {
       setScanResult({ error: err.response?.data?.message || '掃描失敗' });
     } finally {
       setLoading(false);
       setQrInput('');
-      inputRef.current?.focus();
     }
   };
+
+  const handleScan = async (e) => {
+    e.preventDefault();
+    if (!qrInput.trim()) { inputRef.current?.focus(); setScanResult({ error: '請將游標點入輸入框後再掃描 QR Code' }); return; }
+    await runScan(qrInput);
+    inputRef.current?.focus();
+  };
+
+  // ── 相機掃碼（iPad/手機相機，jsQR 解碼，適用 Safari）──
+  const stopCamera = () => {
+    scanningRef.current = false;
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    if (streamRef.current) { streamRef.current.getTracks().forEach(tr => tr.stop()); streamRef.current = null; }
+  };
+  const closeCamera = () => { stopCamera(); setShowCamera(false); setCameraError(''); };
+  const openCamera = async () => {
+    setCameraError('');
+    setShowCamera(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } }, audio: false,
+      });
+      streamRef.current = stream;
+      const video = videoRef.current;
+      if (!video) { stream.getTracks().forEach(t => t.stop()); return; }
+      video.setAttribute('playsinline', 'true'); // iOS 需 inline 播放
+      video.srcObject = stream;
+      await video.play();
+      scanningRef.current = true;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const tick = () => {
+        if (!scanningRef.current) return;
+        if (video.readyState === video.HAVE_ENOUGH_DATA && video.videoWidth) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+          if (code && code.data) {
+            stopCamera();
+            setShowCamera(false);
+            runScan(code.data);
+            return;
+          }
+        }
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      rafRef.current = requestAnimationFrame(tick);
+    } catch (err) {
+      const msg = err?.name === 'NotAllowedError' ? '相機權限被拒絕，請至瀏覽器設定允許相機'
+        : err?.name === 'NotFoundError' ? '找不到相機裝置'
+        : (location.protocol !== 'https:' ? '相機需在 HTTPS 環境使用' : ('無法開啟相機：' + (err?.message || err?.name || '未知錯誤')));
+      setCameraError(msg);
+      stopCamera();
+    }
+  };
+  useEffect(() => () => stopCamera(), []); // 卸載時關相機
 
   const handleConfirm = async () => {
     if (!scanResult?.qrToken) return;
@@ -432,6 +497,28 @@ export default function CheckinPage() {
                 {loading ? '...' : '掃描'}
               </button>
             </form>
+            {/* 相機掃碼（掃描槍以外，iPad/手機相機直接掃）*/}
+            <button type="button" onClick={openCamera} disabled={loading}
+              style={{ width:'100%', height:44, borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:16 }}>
+              📷 用相機掃描
+            </button>
+
+            {showCamera && (
+              <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.85)', zIndex:400, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:16 }}>
+                <div style={{ color:'#fff', fontSize:15, fontWeight:600, marginBottom:12 }}>📷 對準會員入場 QR Code</div>
+                <div style={{ position:'relative', width:'100%', maxWidth:340, aspectRatio:'1 / 1', borderRadius:16, overflow:'hidden', background:'#000' }}>
+                  <video ref={videoRef} playsInline muted autoPlay style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  <div style={{ position:'absolute', inset:'14%', border:'3px solid rgba(255,255,255,.85)', borderRadius:12, boxShadow:'0 0 0 9999px rgba(0,0,0,.25)', pointerEvents:'none' }} />
+                </div>
+                {cameraError
+                  ? <div style={{ color:'#FFB4B4', fontSize:13, marginTop:14, textAlign:'center', maxWidth:340, lineHeight:1.6 }}>{cameraError}</div>
+                  : <div style={{ fontSize:12, color:'rgba(255,255,255,.7)', marginTop:12, textAlign:'center', maxWidth:340 }}>掃到後自動帶入並顯示入場資訊，再按「確認入場」</div>}
+                <button onClick={closeCamera}
+                  style={{ marginTop:18, height:46, padding:'0 34px', borderRadius:10, background:'#fff', color:'#333', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
+                  關閉
+                </button>
+              </div>
+            )}
 
             {/* 掃描結果預覽 */}
             {scanResult && !scanResult.error && (
