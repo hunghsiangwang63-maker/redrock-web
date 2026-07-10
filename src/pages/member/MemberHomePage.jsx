@@ -16,6 +16,7 @@ export default function MemberHomePage() {
   const [announcements, setAnnouncements] = useState([]);
   const [bannerIdx, setBannerIdx] = useState(0);
   const [tab, setTab] = useState('home');
+  const [todayCheckin, setTodayCheckin] = useState(null); // { checkedIn, gymId, checkedInAt }
   const touchStartX = useRef(null);
   const bannerLen = banners.length || 1;
 
@@ -38,6 +39,10 @@ export default function MemberHomePage() {
             .sort((a,b) => a.bookingDate.localeCompare(b.bookingDate));
           setMyExperiences(upcoming);
         }).catch(() => {});
+      // 今日入場橫幅（資料源自後端 checkIns，全天顯示、隔日午夜後自然消失、取消後消失）
+      memberClient.get('/checkin/my-today')
+        .then(r => setTodayCheckin(r.data || null))
+        .catch(() => setTodayCheckin(null));
     }
   }, [member?.id]);
 
@@ -83,6 +88,17 @@ export default function MemberHomePage() {
           </div>
         </div>
       </div>
+
+      {/* 今日已入場橫幅（全天顯示；資料源自後端 my-today，隔日消失、取消後消失）*/}
+      {todayCheckin?.checkedIn && (
+        <div style={{ margin:'14px 16px 0', background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ fontSize:20 }}>✅</div>
+          <div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#2D7D46' }}>已於 {annGymLabel(todayCheckin.gymId)} 完成入場</div>
+            <div style={{ fontSize:11, color:'#5C8A6B', marginTop:2 }}>今日入場紀錄</div>
+          </div>
+        </div>
+      )}
 
       {/* Waiver 未完成提醒 */}
       {member?.blockReasons?.includes('waiver_unsigned') && (

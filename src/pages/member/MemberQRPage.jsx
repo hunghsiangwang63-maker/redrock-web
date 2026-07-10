@@ -47,6 +47,7 @@ export default function MemberQRPage() {
   const [qrExpiry, setQrExpiry] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [qrClosedReason, setQrClosedReason] = useState(null); // 'cancelled' | 'expired' → 停止輪詢並提示
 
   // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
   const [children, setChildren] = useState([]);
@@ -83,6 +84,27 @@ export default function MemberQRPage() {
 
   // 切換入場人員（或初次進入）時重新驗票
   useEffect(() => { if (member) doVerify(); /* eslint-disable-next-line */ }, [member, targetId]);
+
+  // 產生 QR 後每 3 秒輪詢入場狀態：confirmed→自動跳首頁（首頁橫幅顯示已入場）；
+  // cancelled/expired→停止並提示；元件卸載/QR 變更時清除 interval（不無限輪詢）。
+  useEffect(() => {
+    if (!qrToken) return;
+    setQrClosedReason(null);
+    const iv = setInterval(async () => {
+      try {
+        const r = await memberClient.get(`/checkin/qr/status/${qrToken}`);
+        const st = r.data?.status;
+        if (st === 'confirmed') {
+          clearInterval(iv);
+          navigate('/member/home');
+        } else if (st === 'cancelled' || st === 'expired') {
+          clearInterval(iv);
+          setQrClosedReason(st);
+        }
+      } catch (e) { /* 網路暫時錯誤：忽略，下次再試 */ }
+    }, 3000);
+    return () => clearInterval(iv);
+  }, [qrToken]); // eslint-disable-line
 
   const doVerify = async () => {
     setStep('loading');
@@ -642,9 +664,19 @@ export default function MemberQRPage() {
             </div>
             <div style={{ marginTop:8, fontSize:11, color:'#999' }}>⏱ 有效時間剩餘約 {minutesLeft} 分鐘</div>
           </div>
-          <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'10px 14px', marginTop:14, fontSize:12, color:'#185FA5', display:'flex', gap:8 }}>
-            <span>💡</span><span>請出示此 QR Code 給工作人員掃描，掃描後完成入場</span>
-          </div>
+          {qrClosedReason === 'expired' ? (
+            <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginTop:14, fontSize:12, color:'#A32D2D', display:'flex', gap:8 }}>
+              <span>⏱</span><span>此 QR Code 已逾時，請按下方「重新產生」。</span>
+            </div>
+          ) : qrClosedReason === 'cancelled' ? (
+            <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginTop:14, fontSize:12, color:'#A32D2D', display:'flex', gap:8 }}>
+              <span>⚠</span><span>此入場已被取消，請重新產生或洽櫃檯。</span>
+            </div>
+          ) : (
+            <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'10px 14px', marginTop:14, fontSize:12, color:'#185FA5', display:'flex', gap:8 }}>
+              <span>💡</span><span>請出示此 QR Code 給工作人員掃描；掃描確認後會<b>自動完成入場並跳回首頁</b>。</span>
+            </div>
+          )}
           <button onClick={doVerify}
             style={{ width:'100%', marginTop:12, height:44, borderRadius:10, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:14, fontWeight:500, cursor:'pointer' }}>
             重新產生

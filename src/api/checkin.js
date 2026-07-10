@@ -28,3 +28,11 @@ export const memberVerifyEntry = (gymId) =>
 
 export const createQrCode = (data) =>
   memberClient.post('/checkin/qr/create', data);
+
+// 會員輪詢自己 QR 的入場狀態（pending/confirmed/cancelled/expired）
+export const getQrStatus = (qrToken) =>
+  memberClient.get(`/checkin/qr/status/${qrToken}`);
+
+// 會員首頁橫幅：今日是否已入場
+export const getMyToday = () =>
+  memberClient.get('/checkin/my-today');
