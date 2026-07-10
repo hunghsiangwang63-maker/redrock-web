@@ -17,6 +17,9 @@ const DENOMINATIONS = [
 ];
 
 const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','其他退款','其他'];
+const INCOME_KEYS = ['entry', 'shoeRental', 'product', 'course', 'pass'];
+// 手計總額：各項有手動值取手動、缺項回退系統值（與 invoiceTotal 同邏輯）；無 incomeManual 回 null
+const manualIncomeTotal = (income, im) => im ? INCOME_KEYS.reduce((s, k) => s + ((im[k] !== '' && im[k] != null) ? (Number(im[k]) || 0) : (income?.[k] || 0)), 0) : null;
 
 export default function DailySettlementPage() {
   const { staff, activeGymId, operator, isStationMode, viewGym } = useAuth();
@@ -65,6 +68,7 @@ export default function DailySettlementPage() {
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
   const [history, setHistory] = useState([]);
+  const [expandedDay, setExpandedDay] = useState(null); // 歷史紀錄：展開結帳摘要的那一天 id
   const [tab, setTab] = useState('today');
 
   useEffect(() => {
@@ -269,22 +273,42 @@ export default function DailySettlementPage() {
           </div>
           {history.length === 0 ? (
             <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>尚無結帳紀錄</div>
-          ) : history.map(h => (
+          ) : history.map(h => {
+            const open = expandedDay === h.id;
+            return (
             <div key={h.id} style={s.card}>
-              <div style={{ padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div onClick={() => setExpandedDay(open ? null : h.id)}
+                style={{ padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
                 <div>
-                  <div style={{ fontWeight:600, fontSize:14 }}>{h.date}</div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>{h.date}{h.resettleCount ? <span style={{ fontSize:11, color:'#999', marginLeft:6 }}>· 再結 {h.resettleCount} 次</span> : ''}</div>
                   <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{h.staffName}</div>
                 </div>
-                <div style={{ textAlign:'right' }}>
-                  <div style={{ fontWeight:600, color:'#8B1A1A' }}>NT${(h.income?.total || 0).toLocaleString()}</div>
-                  <div style={{ fontSize:11, color: Math.abs(h.difference||0) > 200 ? '#A32D2D' : '#2D7D46', marginTop:2 }}>
-                    差異 NT${h.difference || 0}
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontWeight:600, color:'#8B1A1A' }}>NT${(h.income?.total || 0).toLocaleString()}</div>
+                    <div style={{ fontSize:11, color: Math.abs(h.difference||0) > 200 ? '#A32D2D' : '#2D7D46', marginTop:2 }}>
+                      差異 NT${h.difference || 0}
+                    </div>
                   </div>
+                  <span style={{ fontSize:12, color:'#8B1A1A', whiteSpace:'nowrap' }}>{open ? '收合 ▲' : '結帳摘要 ▼'}</span>
                 </div>
               </div>
+              {open && (
+                <div style={{ padding:'4px 16px 14px', borderTop:'0.5px solid #F5EFEF' }}>
+                  <SettlementSummary
+                    invoiceTotal={h.income?.total || 0}
+                    manualTotal={manualIncomeTotal(h.income, h.incomeManual)}
+                    income={h.income}
+                    deductions={h.deductions || []}
+                    netAdjust={(h.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
+                    actualCash={h.actualCashBalance || 0}
+                    difference={h.difference || 0}
+                    segments={(h.invoiceSegments && h.invoiceSegments.length) ? h.invoiceSegments : [{ start: h.invoiceStartNumber || '', last: h.invoiceLastNumber || '' }]}
+                    voids={h.invoiceVoidNumbers ? String(h.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []} />
+                </div>
+              )}
             </div>
-          ))}
+          );})}
         </div>
       ) : alreadySettled ? (
         <div>
@@ -298,6 +322,8 @@ export default function DailySettlementPage() {
             <div style={{ ...s.cardHead, padding:'10px 0', marginBottom:2 }}>結帳摘要</div>
             <SettlementSummary
               invoiceTotal={settlement?.income?.total || 0}
+              manualTotal={manualIncomeTotal(settlement?.income, settlement?.incomeManual)}
+              income={settlement?.income}
               deductions={settlement?.deductions || []}
               netAdjust={(settlement?.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
               actualCash={settlement?.actualCashBalance || 0}
@@ -556,7 +582,10 @@ export default function DailySettlementPage() {
       {showConfirm && (
         <Modal title={resettleMode ? '確認更新今日結帳' : '確認完成結帳'} onClose={() => !saving && setShowConfirm(false)} width={460}>
           <SettlementSummary
-            invoiceTotal={invoiceTotal} deductions={deductions} netAdjust={netAdjust}
+            invoiceTotal={invoiceTotal}
+            manualTotal={transition.settlementManualInput ? invoiceTotal : null}
+            income={settlement?.income}
+            deductions={deductions} netAdjust={netAdjust}
             actualCash={actualCash} difference={difference}
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)} />
           {resettleMode && (
@@ -581,13 +610,55 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, deductions, netAdjust, actualCash, difference, segments, voids }) {
+function SettlementSummary({ invoiceTotal, manualTotal, income, deductions, netAdjust, actualCash, difference, segments, voids }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const bigDiff = Math.abs(difference) > 200;
+  const sysTotal = income?.total ?? invoiceTotal ?? 0;
+  const hasManual = manualTotal !== null && manualTotal !== undefined;
+  // 總金額分項（系統紀錄）：入場（含細項）/ 課程 / 裝備銷售 / 出租 / 定期票
+  const cats = income ? [
+    { label:'入場', value: income.entry || 0, sub: income.entryItems },
+    { label:'課程', value: income.course || 0 },
+    { label:'裝備銷售', value: income.product || 0 },
+    { label:'出租', value: income.shoeRental || 0 },
+    { label:'定期票', value: income.pass || 0, sub: income.passItems },
+  ] : [];
   return (
     <div>
-      <div style={row}><span style={{ color:'#666' }}>發票總金額</span><span style={{ fontWeight:700, color:'#8B1A1A' }}>{money(invoiceTotal)}</span></div>
+      {/* 發票總金額：手計 + 系統紀錄並列 */}
+      <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
+        <div style={{ display:'flex', justifyContent:'space-between' }}>
+          <span style={{ color:'#666' }}>發票總金額</span>
+          <span style={{ fontWeight:700, color:'#8B1A1A' }}>{money(invoiceTotal)}</span>
+        </div>
+        {hasManual && (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4, color:'#888' }}>
+            <span>手計 {money(manualTotal)}　·　系統 {money(sysTotal)}</span>
+            {Number(manualTotal) !== Number(sysTotal) && <span style={{ color:'#A32D2D' }}>差 {money(Number(manualTotal) - Number(sysTotal))}</span>}
+          </div>
+        )}
+      </div>
+      {/* 總金額分項（系統紀錄）*/}
+      {cats.length > 0 && (
+        <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
+          <span style={{ color:'#666', marginBottom:4 }}>總金額分項（系統紀錄）</span>
+          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+            {cats.map((c, i) => (
+              <div key={i}>
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
+                  <span style={{ textAlign:'left' }}>{c.label}</span><span>{money(c.value)}</span>
+                </div>
+                {Array.isArray(c.sub) && c.sub.filter(x => (x.value || 0) > 0).map((x, j) => (
+                  <div key={j} style={{ display:'flex', justifyContent:'space-between', fontSize:11.5, color:'#999', paddingLeft:14 }}>
+                    <span style={{ textAlign:'left' }}>· {x.label}</span><span>{money(x.value)}</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
         <span style={{ color:'#666', marginBottom:4 }}>加減項</span>
         {(!deductions || deductions.length === 0) ? (
