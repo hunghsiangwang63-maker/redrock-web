@@ -40,7 +40,7 @@ export default function MemberCoursesPage() {
   const [paymentDate, setPaymentDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
   const [healthNote, setHealthNote] = useState('');
-  const [referralSource, setReferralSource] = useState('');
+  const [referralSources, setReferralSources] = useState([]); // 如何得知本課程（可複選）
   const [confirmedLeavePolicy, setConfirmedLeavePolicy] = useState(false);
   const [confirmedRefundPolicy, setConfirmedRefundPolicy] = useState(false);
   const [portraitSig, setPortraitSig] = useState(null);
@@ -223,7 +223,7 @@ export default function MemberCoursesPage() {
     setPaymentDate('');
     setBankLastFive('');
     setHealthNote('');
-    setReferralSource('');
+    setReferralSources([]);
     setConfirmedLeavePolicy(false);
     setConfirmedRefundPolicy(false);
     setPortraitSig(null);
@@ -242,7 +242,7 @@ export default function MemberCoursesPage() {
         paymentDate: paymentDate || null,
         bankLastFive: (paymentMethod === 'cash' && bankLastFive) ? bankLastFive : null,
         healthNote: healthNote || null,
-        referralSource: referralSource || null,
+        referralSource: referralSources.length ? referralSources.join('、') : null,
         confirmedLeavePolicy,
         confirmedRefundPolicy,
         portraitSignature: portraitSig || null,
@@ -1396,14 +1396,19 @@ export default function MemberCoursesPage() {
                   style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
               </div>
               <div>
-                <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:8 }}>如何得知本課程？</label>
+                <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:8 }}>如何得知本課程？<span style={{ color:'#999', fontWeight:400 }}>（可複選）</span></label>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                  {['親友介紹','Facebook粉絲頁','臉書社團','網路搜尋','櫃檯人員介紹','傳單','參加過紅石課程','參加紅石體驗'].map(src => (
-                    <label key={src} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, border:`0.5px solid ${referralSource===src?'#8B1A1A':'#E8D5D5'}`, background: referralSource===src?'#FBF5F5':'#fff', cursor:'pointer', fontSize:13 }}>
-                      <input type="radio" name="referral" value={src} checked={referralSource===src} onChange={() => setReferralSource(src)} style={{ accentColor:'#8B1A1A' }}/>
+                  {['親友介紹','Facebook粉絲頁','臉書社團','網路搜尋','櫃檯人員介紹','傳單','參加過紅石課程','參加紅石體驗'].map(src => {
+                    const checked = referralSources.includes(src);
+                    return (
+                    <label key={src} style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', borderRadius:8, border:`0.5px solid ${checked?'#8B1A1A':'#E8D5D5'}`, background: checked?'#FBF5F5':'#fff', cursor:'pointer', fontSize:13 }}>
+                      <input type="checkbox" value={src} checked={checked}
+                        onChange={() => setReferralSources(prev => prev.includes(src) ? prev.filter(s => s !== src) : [...prev, src])}
+                        style={{ accentColor:'#8B1A1A' }}/>
                       {src}
                     </label>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </>)}
