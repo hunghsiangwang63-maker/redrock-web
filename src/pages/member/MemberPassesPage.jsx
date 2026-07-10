@@ -185,7 +185,7 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
 }
 
 // 票券詳細 Modal
-function TicketDetailModal({ ticket, ticketType, onClose, onTransfer }) {
+function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfer = true }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -210,12 +210,18 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer }) {
         </div>
 
         <div style={{ flex:1, overflowY:'auto', paddingBottom:120 }}>
-          {/* 移轉按鈕 */}
+          {/* 移轉按鈕（僅本人票券可移轉；家庭成員持有的票券唯讀） */}
           {['discount_card','black_card','bonus','single_entry'].includes(ticketType) && (
-            <button onClick={onTransfer}
-              style={{ width:'100%', height:46, borderRadius:12, border:'0.5px solid #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:14, fontWeight:500, cursor:'pointer', marginBottom:16 }}>
-              📤 申請移轉給他人
-            </button>
+            canTransfer ? (
+              <button onClick={onTransfer}
+                style={{ width:'100%', height:46, borderRadius:12, border:'0.5px solid #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:14, fontWeight:500, cursor:'pointer', marginBottom:16 }}>
+                📤 申請移轉給他人
+              </button>
+            ) : (
+              <div style={{ background:'#F5EFEF', borderRadius:12, padding:'12px 14px', fontSize:12, color:'#999', textAlign:'center', marginBottom:16 }}>
+                家庭成員持有 · 僅供檢視（移轉需由持有者本人操作）
+              </div>
+            )
           )}
 
           {/* 使用紀錄 */}
@@ -277,25 +283,53 @@ export default function MemberPassesPage() {
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
 
+  // 每筆票券附上持有人資訊（供顯示標籤＋判斷是否本人）
+  const tagOwner = (arr, o) => (arr || []).map(x => ({ ...x, _ownerId: o.id, _ownerName: o.name, _isSelf: o.isSelf }));
+
+  // 載入「本人＋子會員」全部票券，攤平合併、每筆標持有人（本人優先，其次依子女順序）
+  const loadAll = async () => {
+    if (!member) return;
+    setLoading(true);
+    try {
+      let children = [];
+      try { children = (await memberClient.get('/members/my/children')).data.children || []; } catch (e) {}
+      const owners = [
+        { id: member.id, name: member.name, isSelf: true },
+        ...children.map(c => ({ id: c.id, name: c.name, isSelf: false })),
+      ];
+      const perOwner = await Promise.all(owners.map(async (o) => {
+        const [p, dc, bc, ldc, se, bn, reqs] = await Promise.all([
+          memberClient.get(`/passes/member/${o.id}`).catch(() => ({ data: { passes: [] } })),
+          memberClient.get(`/cards/discount/member/${o.id}`).catch(() => ({ data: { cards: [] } })),
+          memberClient.get(`/cards/black/member/${o.id}`).catch(() => ({ data: { cards: [] } })),
+          memberClient.get(`/cards/legacy-discount/member/${o.id}`).catch(() => ({ data: { cards: [] } })),
+          memberClient.get(`/passes/single-entry/member/${o.id}`).catch(() => ({ data: { tickets: [] } })),
+          memberClient.get(`/cards/bonus/member/${o.id}`).catch(() => ({ data: { bonuses: [] } })),
+          // 定期票異動申請：後端限本人查詢（帶子女 id 會 403）→ 僅本人載入，子女視為無
+          o.isSelf ? getMyPassRequests(o.id).catch(() => ({ data: { requests: [] } })) : Promise.resolve({ data: { requests: [] } }),
+        ]);
+        return {
+          passes: tagOwner(p.data.passes, o),
+          discount: [...tagOwner(dc.data.cards, o), ...tagOwner(ldc.data.cards, o)],
+          black: tagOwner(bc.data.cards, o),
+          single: tagOwner(se.data.tickets, o),
+          bonus: tagOwner(bn.data.bonuses, o),
+          requests: tagOwner(reqs.data.requests, o),
+        };
+      }));
+      setPasses(perOwner.flatMap(x => x.passes));
+      setDiscountCards(perOwner.flatMap(x => x.discount));
+      setBlackCards(perOwner.flatMap(x => x.black));
+      setSingleTickets(perOwner.flatMap(x => x.single));
+      setBonuses(perOwner.flatMap(x => x.bonus));
+      setMyRequests(perOwner.flatMap(x => x.requests));
+    } catch (e) {}
+    finally { setLoading(false); }
+  };
+
   useEffect(() => {
     if (!member) return;
-    Promise.all([
-      memberClient.get(`/passes/member/${member.id}`),
-      memberClient.get(`/cards/discount/member/${member.id}`),
-      memberClient.get(`/cards/black/member/${member.id}`),
-      memberClient.get(`/cards/legacy-discount/member/${member.id}`),
-      memberClient.get(`/passes/single-entry/member/${member.id}`).catch(() => ({ data: { tickets: [] } })),
-      getMyPassRequests(member.id).catch(() => ({ data: { requests: [] } })),
-      memberClient.get(`/cards/bonus/member/${member.id}`).catch(() => ({ data: { bonuses: [] } })),
-    ]).then(([p, dc, bc, ldc, se, reqs, bn]) => {
-      setPasses(p.data.passes || []);
-      setDiscountCards([...(dc.data.cards || []), ...(ldc.data.cards || [])]);
-      setBlackCards(bc.data.cards || []);
-      setSingleTickets(se.data.tickets || []);
-      setMyRequests(reqs.data.requests || []);
-      // 紅利：讀真實 discountBonuses（後端已過濾過期/已用），非從優惠卡欄位衍生
-      setBonuses(bn.data.bonuses || []);
-    }).catch(() => {}).finally(() => setLoading(false));
+    loadAll();
     loadTransfers();
   }, [member]);
 
@@ -310,14 +344,8 @@ export default function MemberPassesPage() {
       setXferOut(out.data.transfers || []);
     } catch (e) {}
   };
-  const reloadCards = async () => {
-    if (!member) return;
-    const [dc, bc] = await Promise.all([
-      memberClient.get(`/cards/discount/member/${member.id}`).catch(() => ({ data: { cards: [] } })),
-      memberClient.get(`/cards/black/member/${member.id}`).catch(() => ({ data: { cards: [] } })),
-    ]);
-    setDiscountCards(dc.data.cards || []); setBlackCards(bc.data.cards || []);
-  };
+  // 移轉/接收後重新載入：重跑完整合併（含子女），避免只刷新本人卡而漏掉家庭成員票券
+  const reloadCards = async () => { await loadAll(); };
   const acceptXfer = async (t) => {
     setXferBusy(true);
     try { await memberClient.post(`/cards/transfers/${t.id}/accept`, {}); setMsg('已接收，次數已入卡'); await loadTransfers(); await reloadCards(); }
@@ -408,6 +436,14 @@ export default function MemberPassesPage() {
     setSelectedTicketType(type);
   };
 
+  // 持有人標籤：本人不標；子女顯示「👦 姓名」。dark=true 用於深色卡片（優惠卡/黑卡）
+  const ownerTag = (t, dark = false) => (t && t._isSelf === false) ? (
+    <span style={{ fontSize:10, fontWeight:600, borderRadius:10, padding:'2px 8px', whiteSpace:'nowrap',
+      background: dark ? 'rgba(255,255,255,.22)' : '#E6F1FB', color: dark ? '#fff' : '#185FA5' }}>
+      👦 {t._ownerName}
+    </span>
+  ) : null;
+
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
       {/* 頂部 */}
@@ -483,13 +519,20 @@ export default function MemberPassesPage() {
                   <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:st.color }}/>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
                     <div><div style={{ fontWeight:600, fontSize:16 }}>{p.passTypeName}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{p.scope === 'shared' ? '全館適用' : '單館'}</div></div>
-                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:st.bg, color:st.color }}>{st.label}</span>
+                    <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                      {ownerTag(p)}
+                      <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:st.bg, color:st.color }}>{st.label}</span>
+                    </div>
                   </div>
                   <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#6b6b6b', marginBottom:8 }}><span>{p.startDate}</span><span>～</span><span>{p.endDate}</span></div>
                   <div style={{ height:5, background:'#EEE', borderRadius:3, overflow:'hidden' }}><div style={{ height:'100%', width:`${pct}%`, background:st.color, borderRadius:3 }}/></div>
                   {p.credits !== null && <div style={{ marginTop:10, fontSize:13, display:'flex', justifyContent:'space-between' }}><span style={{ color:'#6b6b6b' }}>剩餘次數</span><span style={{ fontWeight:600, fontFamily:'monospace', fontSize:16, color:'#8B1A1A' }}>{p.credits} 次</span></div>}
                   {p.status === 'active' && (
-                    hasRequestForPass(p.id) ? (
+                    p._isSelf === false ? (
+                      <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>
+                        家庭成員持有 · 僅供檢視
+                      </div>
+                    ) : hasRequestForPass(p.id) ? (
                       <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>
                         已申請過展延/退費/轉讓（限一次）
                       </div>
@@ -513,7 +556,10 @@ export default function MemberPassesPage() {
               <div key={c.id} onClick={() => handleTicketClick(c, 'discount_card')}
                 style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer' }}>
                 <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
-                <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>{c.source === 'transferred' ? '移轉優惠卡' : '優惠卡'}{c.isExpiringSoon && ' ⚠ 即將到期'}</div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                  <div style={{ fontSize:10, opacity:.75, letterSpacing:1 }}>{c.source === 'transferred' ? '移轉優惠卡' : '優惠卡'}{c.isExpiringSoon && ' ⚠ 即將到期'}</div>
+                  {ownerTag(c, true)}
+                </div>
                 <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
                 <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? `有效至 ${c.expiresAtFormatted}` : '無期限'}</div>
                 <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${(c.remainingCredits/10)*100}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
@@ -536,7 +582,10 @@ export default function MemberPassesPage() {
               <div key={c.id} onClick={() => handleTicketClick(c, 'black_card')}
                 style={{ background:'linear-gradient(135deg,#1a1a1a,#444)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer' }}>
                 <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
-                <div style={{ fontSize:10, opacity:.75, letterSpacing:1, marginBottom:4 }}>黑卡</div>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                  <div style={{ fontSize:10, opacity:.75, letterSpacing:1 }}>黑卡</div>
+                  {ownerTag(c, true)}
+                </div>
                 <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
                 <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? `有效至 ${c.expiresAtFormatted}` : '無期限'}</div>
                 <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${(c.remainingCredits/12)*100}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
@@ -557,7 +606,10 @@ export default function MemberPassesPage() {
                   <div style={{ fontWeight:600, fontSize:15 }}>單日入場券</div>
                   <div style={{ fontSize:12, color:'#999', marginTop:3 }}>有效至 {t.expiresAt ? dayjs(t.expiresAt?.seconds ? t.expiresAt.seconds*1000 : t.expiresAt).format('YYYY/MM/DD') : '—'}</div>
                 </div>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>有效</span>
+                <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                  {ownerTag(t)}
+                  <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>有效</span>
+                </div>
               </div>
             )))}
 
@@ -572,7 +624,10 @@ export default function MemberPassesPage() {
                 style={{ background:'#fff', borderRadius:14, border:'1px solid #B3DEC0', padding:16, marginBottom:12, cursor:'pointer' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                   <div style={{ fontSize:18 }}>🎁</div>
-                  <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background: b.isExpiringSoon ? '#FAEEDA' : '#E6F4EB', color: b.isExpiringSoon ? '#854F0B' : '#2D7D46' }}>{b.isExpiringSoon ? `剩 ${b.daysLeft} 天` : '有效'}</span>
+                  <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                    {ownerTag(b)}
+                    <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background: b.isExpiringSoon ? '#FAEEDA' : '#E6F4EB', color: b.isExpiringSoon ? '#854F0B' : '#2D7D46' }}>{b.isExpiringSoon ? `剩 ${b.daysLeft} 天` : '有效'}</span>
+                  </div>
                 </div>
                 <div style={{ fontWeight:600, fontSize:16, color:'#2D7D46' }}>免費入場 1 次</div>
                 <div style={{ fontSize:12, color:'#6b6b6b', marginTop:4 }}>{b.expiresAtFormatted ? `有效至 ${b.expiresAtFormatted}` : '無期限'}</div>
@@ -588,6 +643,7 @@ export default function MemberPassesPage() {
         <TicketDetailModal
           ticket={selectedTicket}
           ticketType={selectedTicketType}
+          canTransfer={selectedTicket?._isSelf !== false}
           onClose={() => setSelectedTicket(null)}
           onTransfer={() => setShowTransfer(true)}
         />
