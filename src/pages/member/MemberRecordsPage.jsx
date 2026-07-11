@@ -20,16 +20,30 @@ export default function MemberRecordsPage() {
   const [tab, setTab] = useState('checkins');
   const [records, setRecords] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [people, setPeople] = useState([]);       // 家庭成員（本人＋子女）
+  const [viewId, setViewId] = useState(null);      // 目前檢視對象
 
+  // 載入家庭成員（本人＋子女）供下拉選單
   useEffect(() => {
     if (!member?.id) return;
+    setViewId(member.id);
+    memberClient.get('/members/my/children')
+      .then(r => {
+        const children = (r.data.children || r.data || []).map(c => ({ id: c.id, name: c.name, isSelf: false }));
+        setPeople([{ id: member.id, name: member.name || '本人', isSelf: true }, ...children]);
+      })
+      .catch(() => setPeople([{ id: member.id, name: member.name || '本人', isSelf: true }]));
+  }, [member?.id]);
+
+  useEffect(() => {
+    if (!viewId) return;
     setLoading(true);
     Promise.allSettled([
-      memberClient.get('/checkin/history', { params: { memberId: member.id, limit: 50 } }),
-      memberClient.get(`/passes/member/${member.id}`),
-      memberClient.get(`/courses/member/${member.id}/enrollments`),
-      memberClient.get(`/course-adjustments/member/${member.id}`),
-      memberClient.get(`/competitions/registrations/member/${member.id}`),
+      memberClient.get('/checkin/history', { params: { memberId: viewId, limit: 50 } }),
+      memberClient.get(`/passes/member/${viewId}`),
+      memberClient.get(`/courses/member/${viewId}/enrollments`),
+      memberClient.get(`/course-adjustments/member/${viewId}`),
+      memberClient.get(`/competitions/registrations/member/${viewId}`),
     ]).then(([checkins, passes, courses, adjustments, comps]) => {
       setRecords({
         checkins: checkins.status==='fulfilled' ? checkins.value.data.checkIns || checkins.value.data || [] : [],
@@ -39,7 +53,7 @@ export default function MemberRecordsPage() {
         competitions: comps.status==='fulfilled' ? comps.value.data.registrations || [] : [],
       });
     }).finally(() => setLoading(false));
-  }, [member?.id]);
+  }, [viewId]);
 
   const NavBar = () => (
     <div style={{ position:'fixed', bottom:0, left:0, right:0, background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50 }}>
@@ -59,6 +73,19 @@ export default function MemberRecordsPage() {
         <button onClick={()=>navigate('/member/profile')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
         <div style={{ fontSize:18, fontWeight:700 }}>📋 我的紀錄</div>
       </div>
+
+      {/* 家庭成員下拉（有子女才顯示） */}
+      {people.length > 1 && (
+        <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', padding:'10px 16px', display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ fontSize:12, color:'#666', flexShrink:0 }}>檢視對象</span>
+          <select value={viewId || ''} onChange={e => setViewId(e.target.value)}
+            style={{ flex:1, padding:'8px 10px', borderRadius:8, border:'0.5px solid #D9C4C4', background:'#FBF5F5', fontSize:13, color:'#333' }}>
+            {people.map(p => (
+              <option key={p.id} value={p.id}>{p.isSelf ? p.name : `👦 ${p.name}`}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Tab */}
       <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto', gap:0 }}>
