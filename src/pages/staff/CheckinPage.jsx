@@ -1051,9 +1051,9 @@ export default function CheckinPage() {
               <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>載入中...</div>
             );
             const typeLabel = {
-              monthly_pass:'定期票', pass:'定期票', new_discount_card:'新優惠卡',
-              legacy_discount_card:'舊優惠卡', discount_card:'優惠卡', black_card:'黑卡',
-              bonus:'紅利入場', single_ticket:'單次', single_entry_ticket:'單次券',
+              monthly_pass:'定期票', pass:'定期票', buy_pass:'購買定期票', new_discount_card:'新優惠卡',
+              legacy_discount_card:'舊優惠卡', discount_card:'優惠卡', buy_discount_card:'購買優惠折扣券', black_card:'黑卡',
+              bonus:'紅利入場', single_ticket:'單次', single_entry_ticket:'單次券', vip:'VIP',
               course_access:'課程學員', child_free:'兒童免費', student_free:'學生免費', other:'其他',
             };
             return (
