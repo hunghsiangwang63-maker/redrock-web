@@ -537,6 +537,23 @@ export default function CheckinPage() {
                   <span style={{ color:'#666' }}>入場資格</span>
                   <span style={{ fontWeight:600 }}>{ENTRY_TYPE_LABEL[scanResult.entryType] || scanResult.entryType}</span>
                 </div>
+                {/* 購買定期票：標示票種與金額 */}
+                {scanResult.buyPass && (
+                  <>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, fontSize:13 }}>
+                      <span style={{ color:'#666' }}>購買票種</span>
+                      <span style={{ fontWeight:600 }}>{scanResult.buyPass.passTypeName}</span>
+                    </div>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, fontSize:13 }}>
+                      <span style={{ color:'#666' }}>票種金額</span>
+                      <span style={{ fontWeight:600 }}>
+                        {scanResult.buyPass.plan === 'installment'
+                          ? <>分期首期 NT${scanResult.buyPass.dueNow}<span style={{ color:'#999', fontWeight:400 }}>（全額 NT${scanResult.buyPass.fullPrice}）</span></>
+                          : <>NT${scanResult.buyPass.fullPrice}</>}
+                      </span>
+                    </div>
+                  </>
+                )}
                 {scanResult.paymentMethod && (
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, fontSize:13 }}>
                     <span style={{ color:'#666' }}>付款方式</span>
