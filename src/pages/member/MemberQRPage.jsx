@@ -171,6 +171,10 @@ export default function MemberQRPage() {
         payload.isTeamDiscount = selectedEntry.teamDiscount || false;
         if (pvActive) payload.partnerVendor = true;
       }
+      // 免費入場但有加租器材（岩鞋/粉袋）：帶「租借付款方式」（供結帳付款方式正確歸類，不再一律現金）
+      if (selectedEntry.freeEntry && (shoes || chalk)) {
+        payload.paymentMethod = selectedPayment || 'cash';
+      }
       // 續約附加（免費入場定期票、到期前14天）：帶要續約的票 + 分期選擇 + 續約款付款方式
       if (renewOptIn && renewal?.passId) {
         payload.renewPassId = renewal.passId;
@@ -605,14 +609,35 @@ export default function MemberQRPage() {
               {(!rentShoes && !rentChalk) && <span style={{ color:'#fff', fontSize:14 }}>✓</span>}
             </div>
           </div>
-          {error && <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
-          {renewOptIn && !selectedPayment && (
-            <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', textAlign:'center' }}>請先選擇續約付款方式</div>
+          {/* 免費入場但有加租器材 → 選租借付款方式（不再一律現金）*/}
+          {selectedEntry?.freeEntry && (rentShoes || rentChalk) && (
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>租借付款方式</div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                {PAYMENT_METHODS.map(pm => (
+                  <div key={pm.key} onClick={() => setSelectedPayment(pm.key)}
+                    style={{ padding:'8px 14px', borderRadius:20, border:`1.5px solid ${selectedPayment===pm.key?'#8B1A1A':'#E8D5D5'}`, background: selectedPayment===pm.key?'#8B1A1A':'#fff', color: selectedPayment===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                    {pm.label}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-          <button onClick={() => handleGenerateQR(rentShoes, rentChalk)} disabled={loading || (renewOptIn && !selectedPayment)}
-            style={{ width:'100%', height:50, borderRadius:12, background: (renewOptIn && !selectedPayment) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor: (renewOptIn && !selectedPayment) ? 'not-allowed' : 'pointer' }}>
-            {loading ? '...' : `確認${(renewDueNow + (rentShoes?100:0) + (rentChalk?50:0)) > 0 ? `（+NT$${(renewDueNow + (rentShoes?100:0)+(rentChalk?50:0)).toLocaleString()}）` : ''}`}
-          </button>
+          {error && <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
+          {(() => {
+            const needPay = (renewOptIn || (selectedEntry?.freeEntry && (rentShoes || rentChalk))) && !selectedPayment;
+            return (<>
+              {needPay && (
+                <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', textAlign:'center' }}>
+                  請先選擇{renewOptIn ? '續約' : '租借'}付款方式
+                </div>
+              )}
+              <button onClick={() => handleGenerateQR(rentShoes, rentChalk)} disabled={loading || needPay}
+                style={{ width:'100%', height:50, borderRadius:12, background: needPay ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor: needPay ? 'not-allowed' : 'pointer' }}>
+                {loading ? '...' : `確認${(renewDueNow + (rentShoes?100:0) + (rentChalk?50:0)) > 0 ? `（+NT$${(renewDueNow + (rentShoes?100:0)+(rentChalk?50:0)).toLocaleString()}）` : ''}`}
+              </button>
+            </>);
+          })()}
         </div>
       </div>
     </>
