@@ -302,7 +302,7 @@ export default function MemberQRPage() {
             </div>
             <div style={{ fontSize:13, color: isAlreadyIn ? '#2D7D46' : '#A32D2D', opacity:.8, textAlign:'left' }}>
               {isAlreadyIn ? verifyResult?.message :
-               needsWaiver ? '請先完成 Waiver 免責聲明書簽署，才能入場' :
+               needsWaiver ? '請先完成 Waiver 風險安全聲明書簽署，才能入場' :
                verifyResult?.reason === 'parent_waiver_pending' ? '已送出，等待家長/監護人完成線上簽署' :
                verifyResult?.reason === 'fall_test_required' ? '請先至服務台完成安全墜落測驗同意書簽署及墜落測驗' :
                verifyResult?.reason === 'fall_test_expired' ? '墜落測驗已到期，請至服務台重新進行測驗' :

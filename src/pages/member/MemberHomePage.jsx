@@ -104,7 +104,7 @@ export default function MemberHomePage() {
       {member?.blockReasons?.includes('waiver_unsigned') && (
         <div onClick={() => navigate('/member/waiver')}
           style={{ margin:'14px 16px 0', background:'#FCEBEB', border:'0.5px solid #F09595', borderRadius:12, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
-          <div style={{ fontSize:13, color:'#A32D2D' }}>🚫 您尚未簽署免責聲明書，請先完成簽署才能入場</div>
+          <div style={{ fontSize:13, color:'#A32D2D' }}>🚫 您尚未簽署風險安全聲明書，請先完成簽署才能入場</div>
           <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, whiteSpace:'nowrap', marginLeft:8 }}>立即簽署 →</div>
         </div>
       )}

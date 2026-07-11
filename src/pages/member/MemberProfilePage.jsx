@@ -210,9 +210,9 @@ export default function MemberProfilePage() {
         )}
         {/* Waiver */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>Waiver 免責聲明書</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>Waiver 風險安全聲明書</div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div><div style={{ fontSize:13, fontWeight:500 }}>免責聲明書</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>入場必要條件</div></div>
+            <div><div style={{ fontSize:13, fontWeight:500 }}>風險安全聲明書</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>入場必要條件</div></div>
             {member?.blockReasons?.includes('waiver_unsigned') ? (
               <div><span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>未完成</span>
                 <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>立即簽署</button></div>
@@ -324,11 +324,11 @@ export default function MemberProfilePage() {
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   {/* Waiver 狀態 */}
                   {c.waiverSigned ? (
-                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>✓ 已簽免責聲明</span>
+                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>✓ 已簽風險安全聲明</span>
                   ) : (
                     <button onClick={() => navigate(`/member/waiver?forChild=${c.id}&childName=${encodeURIComponent(c.name)}`)}
                       style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'none', cursor:'pointer' }}>
-                      ⚠ 代簽免責聲明
+                      ⚠ 代簽風險安全聲明
                     </button>
                   )}
                   {/* 墜落測驗同意書（代簽）狀態：以「同意書是否已簽」判斷，而非測驗是否通過 */}
@@ -608,7 +608,7 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 0', width:'100%', maxHeight:'80vh', display:'flex', flexDirection:'column' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:16, textAlign:'left' }}>已簽署的免責聲明書</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:16, textAlign:'left' }}>已簽署的風險安全聲明書</div>
             <div style={{ flex:1, overflowY:'auto', paddingBottom:36 }}>
               {waiverLoading ? (
                 <div style={{ textAlign:'center', padding:'40px 0', color:'#999', fontSize:14 }}>載入中...</div>

@@ -105,7 +105,7 @@ export default function ParentWaiverPage() {
     <div style={s.page}><div style={s.container}>
       <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
       <div style={{ textAlign: 'center', fontSize: 13, color: '#666', marginBottom: 16 }}>
-        家長/監護人簽署 — {info?.memberName ? `為「${info.memberName}」簽署安全免責聲明書` : ''}
+        家長/監護人簽署 — {info?.memberName ? `為「${info.memberName}」簽署安全風險安全聲明書` : ''}
       </div>
 
       <div style={s.card}>
@@ -130,7 +130,7 @@ export default function ParentWaiverPage() {
         <div style={s.cardPad}>
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: '#555', marginBottom: 14, cursor: 'pointer' }}>
             <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0 }} />
-            本人作為家長/監護人，已閱讀並理解上述免責聲明書內容，同意子女承擔攀岩活動之相關風險。
+            本人作為家長/監護人，已閱讀並理解上述風險安全聲明書內容，同意子女承擔攀岩活動之相關風險。
           </label>
           <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>請於下方簽名：</div>
           <SignaturePad ref={sigRef} height={160} />

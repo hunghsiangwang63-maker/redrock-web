@@ -682,7 +682,7 @@ export default function MembersPage() {
                 {detail.member?.isMinor && <Tag type="blue">未成年</Tag>}
                 {detail.member?.isTeamMember && <Tag type="warn">🏔️ 隊員</Tag>}
                 {(detail.member?.blockReasons || []).map(r => {
-                  const label = { waiver_unsigned:'待簽免責聲明', parent_waiver_pending:'待家長簽署', fall_test_required:'待通過墜落測驗', fall_test_expired:'墜測已過期・待重新測驗', email_unverified:'待驗證 Email' }[r] || r;
+                  const label = { waiver_unsigned:'待簽風險安全聲明', parent_waiver_pending:'待家長簽署', fall_test_required:'待通過墜落測驗', fall_test_expired:'墜測已過期・待重新測驗', email_unverified:'待驗證 Email' }[r] || r;
                   return <Tag key={r} type="red">⚠️ {label}</Tag>;
                 })}
               </div>

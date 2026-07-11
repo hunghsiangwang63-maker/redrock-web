@@ -8,7 +8,7 @@ import { getMyFallTestBookings, createFallTestBooking } from '../api/fallTestBoo
 
 /**
  * 新會員入場前置流程（全屏硬卡）：
- *   email 認證 → ① 簽免責聲明書 + ② 簽墜落測驗同意書（兩大方框）
+ *   email 認證 → ① 簽風險安全聲明書 + ② 簽墜落測驗同意書（兩大方框）
  *   → ③ 安排墜落測驗（選場館）→ ④ 等待站台測驗 → 完成後自動解除，顯示正常主畫面。
  *
  * 阻擋條件：登入會員本人尚未完成上述任一項。完成（含墜測通過）即 render children。
@@ -119,7 +119,7 @@ export default function MemberOnboardingGate({ children }) {
         done={consentSigned} doneText="已簽署同意書" onClick={() => navigate('/member/fall-test?onboarding=1')} />
       {parentPending && (
         <div style={{ background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', fontSize:13, color:'#B5762B', marginTop:4 }}>
-          📧 免責聲明書已送出，等待家長 / 監護人完成簽署。
+          📧 風險安全聲明書已送出，等待家長 / 監護人完成簽署。
         </div>
       )}
     </>);

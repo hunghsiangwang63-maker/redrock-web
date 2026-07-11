@@ -133,7 +133,7 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
           <Row label="場館">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
         </div>
 
-        <DocBlock title="免責聲明書（Waiver）" status={waiverStatus} doneText="已完成簽署"
+        <DocBlock title="風險安全聲明書（Waiver）" status={waiverStatus} doneText="已完成簽署"
           signedAt={fmtTime(waiver?.memberSignedAt)}
           content={waiver?.contentSnapshot?.zh}
           images={[{ label: '會員簽名', src: waiver?.memberSignatureUrl }, { label: '家長/監護人簽名', src: waiver?.parentSignatureUrl }]}

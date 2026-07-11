@@ -106,7 +106,7 @@ export default function MemberWaiverPage() {
       <div style={s.page}>
         <div style={s.header}>
           <div style={s.back} onClick={() => navigate('/member/profile')}>←</div>
-          <div style={s.title}>Waiver 免責聲明書</div>
+          <div style={s.title}>Waiver 風險安全聲明書</div>
         </div>
         <div style={s.card}>
           <div style={{ ...s.cardPad, textAlign: 'center' }}>
@@ -130,7 +130,7 @@ export default function MemberWaiverPage() {
     <div style={s.page}>
       <div style={s.header}>
         <div style={s.back} onClick={() => navigate('/member/profile')}>←</div>
-        <div style={s.title}>簽署免責聲明書</div>
+        <div style={s.title}>簽署風險安全聲明書</div>
       </div>
 
       <div style={s.card}>

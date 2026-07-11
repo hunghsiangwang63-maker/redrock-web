@@ -511,7 +511,7 @@ export default function MemberCompetitionsPage() {
                 </div>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${agreedWaiver?'#2D7D46':'#E8D5D5'}`, background:agreedWaiver?'#E6F4EB':'#fff', cursor:'pointer', marginBottom:12 }}>
                   <input type="checkbox" checked={agreedWaiver} onChange={e=>setAgreedWaiver(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color:agreedWaiver?'#2D7D46':'#444' }}>本人已詳細閱讀並同意上述參賽規定與免責聲明</span>
+                  <span style={{ fontSize:13, fontWeight:500, color:agreedWaiver?'#2D7D46':'#444' }}>本人已詳細閱讀並同意上述參賽規定與風險安全聲明</span>
                 </label>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${agreedPhoto?'#2D7D46':'#E8D5D5'}`, background:agreedPhoto?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={agreedPhoto} onChange={e=>setAgreedPhoto(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
