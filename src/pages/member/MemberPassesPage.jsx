@@ -397,7 +397,14 @@ export default function MemberPassesPage() {
     return { color:'#2D7D46', label:'有效', bg:'#E6F4EB' };
   };
 
-  const hasRequestForPass = (passId) => myRequests.some(r => r.passId === passId);
+  // 定期票申請狀態：只有「核准(佔用限一次額度)」或「審核中(有待審)」才擋再次申請；
+  // 「退回(rejected)」不佔額度、無待審 → 可再次申請（與後端一致）。
+  const passRequestState = (passId) => {
+    const reqs = myRequests.filter(r => r.passId === passId);
+    if (reqs.some(r => r.status === 'approved')) return 'used';
+    if (reqs.some(r => r.status === 'pending')) return 'pending';
+    return 'none';
+  };
 
   const openRequest = async (pass) => {
     setRequestingPass(pass);
@@ -572,14 +579,17 @@ export default function MemberPassesPage() {
         {!dim && p.status === 'active' && (
           p._isSelf === false ? (
             <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>家庭成員持有 · 僅供檢視</div>
-          ) : hasRequestForPass(p.id) ? (
-            <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>已申請過展延/退費/轉讓（限一次）</div>
-          ) : (
-            <button onClick={(e) => { e.stopPropagation(); openRequest(p); }}
-              style={{ width:'100%', marginTop:10, height:34, borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
-              申請展延／退費／轉讓
-            </button>
-          )
+          ) : (() => {
+            const rs = passRequestState(p.id);
+            if (rs === 'used') return <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>已申請過展延/退費/轉讓（限一次）</div>;
+            if (rs === 'pending') return <div style={{ marginTop:10, fontSize:11, color:'#854F0B', textAlign:'center' }}>申請審核中，請等待審核結果</div>;
+            return (
+              <button onClick={(e) => { e.stopPropagation(); openRequest(p); }}
+                style={{ width:'100%', marginTop:10, height:34, borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
+                申請展延／退費／轉讓
+              </button>
+            );
+          })()
         )}
         <div style={{ marginTop:8, fontSize:11, color:'#8B1A1A', opacity:.65, textAlign:'right' }}>點擊查看使用紀錄 →</div>
       </div>
