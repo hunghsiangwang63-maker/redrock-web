@@ -50,6 +50,7 @@ export default function MemberProfilePage() {
   const [childGender, setChildGender] = useState('');
   const [addingChild, setAddingChild] = useState(false);
   const [familyMsg, setFamilyMsg] = useState('');
+  const [ageLimitModal, setAgeLimitModal] = useState(null); // 超過 18 歲提示：{ age }
   const [childBookings, setChildBookings] = useState({}); // memberId -> pending booking
   const [ftBusyChild, setFtBusyChild] = useState(null);
 
@@ -110,7 +111,8 @@ export default function MemberProfilePage() {
     if (!childName.trim()) { setFamilyMsg('請填寫姓名'); return; }
     if (!childBirthday) { setFamilyMsg('請填寫生日（用於判斷入場資格）'); return; }
     if (isUnder5(childBirthday)) { setFamilyMsg('未滿 5 歲無法成為會員'); return; }
-    if (dayjs().diff(dayjs(childBirthday), 'year') >= 18) { setFamilyMsg('家庭成員僅限未滿 18 歲，滿 18 歲請註冊正式會員'); return; }
+    const childAge = dayjs().diff(dayjs(childBirthday), 'year');
+    if (childAge >= 18) { setAgeLimitModal({ age: childAge }); return; } // 超齡 → 跳 modal
     setAddingChild(true);
     try {
       const r = await memberClient.post('/members/my/children', {
@@ -378,7 +380,10 @@ export default function MemberProfilePage() {
               </button>
             ) : (
               <div style={{ background:'#FBF5F5', borderRadius:12, padding:16, marginTop:8 }}>
-                <div style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>新增家庭成員</div>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>新增家庭成員</div>
+                <div style={{ fontSize:12, color:'#8B1A1A', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:12, lineHeight:1.6, textAlign:'left', fontWeight:600 }}>
+                  ⚠️ 家庭成員僅限「未滿 18 歲」，滿 18 歲請改註冊正式會員。
+                </div>
                 <div style={{ marginBottom:10 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>姓名 *</label>
                   <input value={childName} onChange={e=>setChildName(e.target.value)} placeholder="請填寫真實姓名"
@@ -386,7 +391,7 @@ export default function MemberProfilePage() {
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>生日 *</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>生日 *（未滿 18 歲）</label>
                     <input type="date" value={childBirthday} onChange={e=>setChildBirthday(e.target.value)}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                   </div>
@@ -413,6 +418,24 @@ export default function MemberProfilePage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 超過年齡限制提示（家庭成員需未滿 18 歲）*/}
+      {ageLimitModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:340, textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.2)' }}>
+            <div style={{ fontSize:40, marginBottom:8 }}>🔞</div>
+            <div style={{ fontSize:17, fontWeight:700, marginBottom:10 }}>超過年齡限制</div>
+            <div style={{ fontSize:13.5, color:'#555', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
+              家庭成員（子會員）僅限<strong>未滿 18 歲</strong>。您填寫的生日為 <strong>{ageLimitModal.age} 歲</strong>，已達成年，無法新增為家庭成員。<br/>
+              滿 18 歲請改<strong>註冊正式會員</strong >帳號。
+            </div>
+            <button onClick={() => setAgeLimitModal(null)}
+              style={{ width:'100%', height:46, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
+              我知道了
+            </button>
           </div>
         </div>
       )}
