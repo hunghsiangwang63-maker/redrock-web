@@ -6,6 +6,7 @@ import { requestCourseRefund, requestCoursePause } from '../../api/courseAdjustm
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import { isUnder5 } from '../../utils/age';
+import { gymPrefix } from '../../utils/gymLabel';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
@@ -639,7 +640,7 @@ export default function MemberCoursesPage() {
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
                       <button onClick={() => setSelectedCategory(null)}
                         style={{ background:'none', border:'none', fontSize:20, color:'#8B1A1A', cursor:'pointer' }}>←</button>
-                      <div style={{ fontWeight:700, fontSize:16 }}>{selectedCategory}</div>
+                      <div style={{ fontWeight:700, fontSize:16 }}>{(() => { const ids = [...new Set(cohorts.map(c => c.gymId))]; return ids.length === 1 ? gymPrefix(ids[0]) : ''; })()}{selectedCategory}</div>
                       <span style={{ fontSize:12, color:'#999' }}>{cohorts.length} 梯</span>
                     </div>
                     {/* 先看到圖片＋課程說明，再看各梯資訊 */}
@@ -662,7 +663,7 @@ export default function MemberCoursesPage() {
                         <div key={c.id} onClick={() => setSelectedCourse(c)}
                           style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, cursor:'pointer' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                            <div style={{ fontWeight:600, fontSize:15 }}>{c.name}</div>
+                            <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(c.gymId)}{c.name}</div>
                             {isFull
                               ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E0E0', color:'#8B1A1A' }}>額滿</span>
                               : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>剩 {remaining} 位</span>}
@@ -699,12 +700,15 @@ export default function MemberCoursesPage() {
                 const minP = Math.min(...prices), maxP = Math.max(...prices);
                 const anyInstallment = g.some(c => c.installment?.enabled);
                 const single = g.length === 1;
+                // 類別若全屬同一館 → 前綴該館別；跨館（全部館別檢視）則不前綴
+                const catGymIds = [...new Set(g.map(c => c.gymId))];
+                const catPrefix = catGymIds.length === 1 ? gymPrefix(catGymIds[0]) : '';
                 return (
                   <div key={gname} onClick={() => single ? setSelectedCourse(g[0]) : setSelectedCategory(gname)}
                     style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:10, cursor:'pointer', overflow:'hidden' }}>
                     <div style={{ padding:16 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                      <div style={{ fontWeight:700, fontSize:16 }}>{gname}</div>
+                      <div style={{ fontWeight:700, fontSize:16 }}>{catPrefix}{gname}</div>
                       <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{single ? '報名 ›' : `${g.length} 梯 ›`}</span>
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -736,7 +740,7 @@ export default function MemberCoursesPage() {
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                 <button onClick={() => setSelectedCourse(null)}
                   style={{ background:'none', border:'none', fontSize:20, color:'#8B1A1A', cursor:'pointer' }}>←</button>
-                <div style={{ fontWeight:600, fontSize:15 }}>{selectedCourse.name}</div>
+                <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(selectedCourse.gymId)}{selectedCourse.name}</div>
               </div>
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:12, overflow:'hidden' }}>
                 {selectedCourse.imageUrl && (
@@ -1070,7 +1074,7 @@ export default function MemberCoursesPage() {
             const byCourse = {};
             myEnrollments.forEach(e => {
               const key = `${e.courseId}__${e.memberId}`;
-              if (!byCourse[key]) byCourse[key] = { courseName: e.courseName, courseId: e.courseId, memberId: e.memberId, memberName: e.memberName, sessions: [] };
+              if (!byCourse[key]) byCourse[key] = { courseName: e.courseName, courseId: e.courseId, gymId: e.gymId, memberId: e.memberId, memberName: e.memberName, sessions: [] };
               byCourse[key].sessions.push(e);
             });
             return Object.values(byCourse).map(group => {
@@ -1099,7 +1103,7 @@ export default function MemberCoursesPage() {
                   <div key={grpKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, opacity:0.75 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                       <div style={{ fontWeight:600, fontSize:15, color:'#666' }}>
-                        {group.courseName}
+                        {gymPrefix(group.gymId)}{group.courseName}
                         {familyMembers.length > 0 && eName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{showChild ? '👦' : '👤'} {eName}</span>}
                       </div>
                       <span style={{ fontSize:11, background:'#F0EDED', color:'#999', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>已取消</span>
@@ -1136,7 +1140,7 @@ export default function MemberCoursesPage() {
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
                     onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
                     <div style={{ fontWeight:600, fontSize:15 }}>
-                      {group.courseName}
+                      {gymPrefix(group.gymId)}{group.courseName}
                       {hasFamily && enrolleeName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{enrolleeIcon} {enrolleeName}</span>}
                     </div>
                     {isWaitlistGroup ? (

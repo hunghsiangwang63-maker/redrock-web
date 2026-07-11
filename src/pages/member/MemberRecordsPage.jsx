@@ -4,6 +4,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import { entryTypeLabel } from '../../utils/entryLabel';
+import { gymPrefix } from '../../utils/gymLabel';
 
 const TABS = [
   { key:'checkins',    icon:'🚪', label:'入場紀錄' },
@@ -152,7 +153,7 @@ export default function MemberRecordsPage() {
               <Card key={i}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{e.courseName}{e.isMakeup?' 🔄 補課':''}</div>
+                    <div style={{ fontSize:13, fontWeight:500 }}>{gymPrefix(e.gymId)}{e.courseName}{e.isMakeup?' 🔄 補課':''}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{e.date} {e.startTime}</div>
                   </div>
                   <StatusBadge status={e.status} labels={{ confirmed:'已報名', leave:'已請假', cancelled:'已取消', course_cancelled:'課程已取消' }}/>

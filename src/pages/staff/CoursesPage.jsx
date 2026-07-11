@@ -7,6 +7,7 @@ import { searchMembers } from '../../api/members';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import CoachSelect from '../../components/CoachSelect';
+import { gymPrefix } from '../../utils/gymLabel';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
@@ -610,11 +611,13 @@ export default function CoursesPage({ embedded = false }) {
                 const enrolled = g.reduce((s, c) => s + (c.enrolledCount || 0), 0);
                 const cap = g.reduce((s, c) => s + (c.maxStudents || 0), 0);
                 const anyInactive = g.some(c => c.isActive === false && c.status !== 'cancelled');
+                const catGymIds = [...new Set(g.map(c => c.gymId))];
+                const catPrefix = catGymIds.length === 1 ? gymPrefix(catGymIds[0]) : '';
                 return (
                   <div key={gname} onClick={() => setSelectedCategory(gname)}
                     style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                      <div style={{ fontWeight:700, fontSize:16 }}>{gname}</div>
+                      <div style={{ fontWeight:700, fontSize:16 }}>{catPrefix}{gname}</div>
                       <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{g.length} 梯 ›</span>
                     </div>
                     <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:6 }}>
@@ -637,7 +640,7 @@ export default function CoursesPage({ embedded = false }) {
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
               <button onClick={() => setSelectedCategory(null)}
                 style={{ height:32, padding:'0 12px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>← 返回課程總頁</button>
-              <div style={{ fontWeight:700, fontSize:16 }}>{selectedCategory}</div>
+              <div style={{ fontWeight:700, fontSize:16 }}>{(() => { const ids = [...new Set(list.map(c => c.gymId))]; return ids.length === 1 ? gymPrefix(ids[0]) : ''; })()}{selectedCategory}</div>
               <span style={{ fontSize:12, color:'#999' }}>{list.length} 梯</span>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
@@ -654,7 +657,7 @@ export default function CoursesPage({ embedded = false }) {
                     <Tag type={st.type}>{st.label}</Tag>
                   </div>
                 </div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{c.name}</div>
+                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{gymPrefix(c.gymId)}{c.name}</div>
                 <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:8 }}>
                   NT${(c.price||0).toLocaleString()}
                 </div>
@@ -879,7 +882,7 @@ export default function CoursesPage({ embedded = false }) {
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:20, width:440, maxWidth:'95vw', maxHeight:'80vh', overflowY:'auto', border:'0.5px solid #E8D5D5' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
               <div>
-                <div style={{ fontWeight:600, fontSize:15 }}>{rosterSession.courseName}</div>
+                <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(rosterSession.gymId)}{rosterSession.courseName}</div>
                 <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{rosterSession.date} {rosterSession.startTime}～{rosterSession.endTime}</div>
               </div>
               <button onClick={() => setRosterSession(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
@@ -942,7 +945,7 @@ export default function CoursesPage({ embedded = false }) {
               {courses.map(c => (
                 <div key={c.id} onClick={() => { setSelectedCourse(c); setSelectedSession(null); setRoster(null); loadSessions(c); }}
                   style={{ padding:'8px 10px', borderRadius:8, marginBottom:4, cursor:'pointer', background: selectedCourse?.id===c.id ? '#F5E8E8' : 'none', color: selectedCourse?.id===c.id ? '#8B1A1A' : '#1a1a1a', fontSize:13, fontWeight: selectedCourse?.id===c.id ? 600 : 400 }}>
-                  {c.name}
+                  {gymPrefix(c.gymId)}{c.name}
                 </div>
               ))}
             </div>
@@ -1022,7 +1025,7 @@ export default function CoursesPage({ embedded = false }) {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
                       <div style={{ fontWeight:600, fontSize:16 }}>
-                        {selectedCourse?.name} — {dayjs(selectedSession.date).format('MM/DD')}（{WEEKDAYS[dayjs(selectedSession.date).day()]}）
+                        {gymPrefix(selectedCourse?.gymId)}{selectedCourse?.name} — {dayjs(selectedSession.date).format('MM/DD')}（{WEEKDAYS[dayjs(selectedSession.date).day()]}）
                       </div>
                       <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
                         {selectedSession.startTime}～{selectedSession.endTime}
