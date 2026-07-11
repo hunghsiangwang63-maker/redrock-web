@@ -399,7 +399,7 @@ export default function DailySettlementPage() {
                 </div>
                 {/* 入場收入：固定六分類（＋其他有系統值的分類）逐列，預設就顯示；手動模式各類給輸入框 */}
                 {item.key === 'entry' && entryCatList(settlement?.income).map((cat, j) => (
-                  <div key={j} style={{ ...s.row, padding:'4px 0 4px 22px' }}>
+                  <div key={j} style={{ ...s.row, padding:'4px 16px 4px 22px' }}>
                     <span style={{ ...s.label, fontSize:12, color:'#999' }}>· {cat}</span>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       {transition.settlementManualInput && (
@@ -413,7 +413,7 @@ export default function DailySettlementPage() {
                 ))}
                 {/* 其他項（定期票細項）保留原顯示 */}
                 {item.key !== 'entry' && Array.isArray(item.sub) && item.sub.length > 0 && item.sub.map((x, j) => (
-                  <div key={j} style={{ ...s.row, padding:'4px 0 4px 22px' }}>
+                  <div key={j} style={{ ...s.row, padding:'4px 16px 4px 22px' }}>
                     <span style={{ ...s.label, fontSize:12, color:'#999' }}>· {x.label}</span>
                     <span style={{ ...s.value, fontSize:12, color:'#999' }}>NT${(x.value||0).toLocaleString()}</span>
                   </div>
