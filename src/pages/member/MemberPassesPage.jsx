@@ -196,6 +196,7 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
 // 票券詳細 Modal
 function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfer = true }) {
   const [history, setHistory] = useState([]);
+  const [transfers, setTransfers] = useState([]); // 移轉紀錄（優惠卡/黑卡）
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -204,6 +205,12 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
       .then(r => setHistory(r.data.records || []))
       .catch(() => setHistory([]))
       .finally(() => setLoading(false));
+    // 載入移轉紀錄（僅優惠卡/舊折扣卡/黑卡走卡片移轉）
+    if (['discount_card', 'legacy_discount', 'black_card'].includes(ticketType)) {
+      memberClient.get(`/cards/transfers/history/${ticket.id}`)
+        .then(r => setTransfers(r.data.records || []))
+        .catch(() => setTransfers([]));
+    }
   }, [ticket.id]);
 
   return (
@@ -233,6 +240,29 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
                 家庭成員持有 · 僅供檢視（移轉需由持有者本人操作）
               </div>
             )
+          )}
+
+          {/* 移轉紀錄（優惠卡/黑卡：轉入/轉出，含對方姓名） */}
+          {['discount_card','legacy_discount','black_card'].includes(ticketType) && transfers.length > 0 && (
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontWeight:600, fontSize:13, color:'#666', marginBottom:10 }}>移轉紀錄</div>
+              {transfers.map((t, i) => {
+                const when = tsToDay(t.at);
+                return (
+                  <div key={i} style={{ padding:'10px 0', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:500, color: t.direction==='in' ? '#185FA5' : '#8B1A1A' }}>
+                        {t.direction === 'in' ? `🔽 由 ${t.memberName || '他人'} 轉入` : `🔼 轉出給 ${t.memberName || '他人'}`}
+                      </div>
+                      <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{when ? when.format('YYYY/MM/DD HH:mm') : '—'}</div>
+                    </div>
+                    <span style={{ fontSize:12, fontWeight:600, color: t.direction==='in' ? '#2D7D46' : '#8B1A1A' }}>
+                      {t.direction==='in' ? '+' : '-'}{t.credits} 次
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           )}
 
           {/* 使用紀錄（定期票＝入場紀錄，無限次不顯示扣次） */}
