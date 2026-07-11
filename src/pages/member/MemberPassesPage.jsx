@@ -306,6 +306,8 @@ export default function MemberPassesPage() {
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [transferToPhone, setTransferToPhone] = useState('');
+  const [suspendStart, setSuspendStart] = useState(''); // 展延：停用開始日
+  const [suspendEnd, setSuspendEnd] = useState('');      // 展延：停用結束日
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
 
@@ -404,6 +406,7 @@ export default function MemberPassesPage() {
     setReasonDetail('');
     setEvidenceFile(null);
     setTransferToPhone('');
+    setSuspendStart(''); setSuspendEnd('');
     setRequestError('');
     if (reasons.length === 0) {
       try {
@@ -418,6 +421,18 @@ export default function MemberPassesPage() {
     if (!reasonKey) { setRequestError('請選擇符合的事由'); return; }
     if (!evidenceFile) { setRequestError('請上傳證明文件'); return; }
     if (requestType === 'transfer' && !transferToPhone.trim()) { setRequestError('請輸入轉讓對象的手機號碼'); return; }
+    // 展延：停用期間驗證（後端仍為權威，前端先友善擋）
+    if (requestType === 'extension') {
+      const today = dayjs().format('YYYY-MM-DD');
+      if (!suspendStart || !suspendEnd) { setRequestError('請填寫停用期間（起訖日）'); return; }
+      if (suspendStart < today) { setRequestError('停用開始日不可早於今天'); return; }
+      const days = dayjs(suspendEnd).diff(dayjs(suspendStart), 'day');
+      if (days <= 0) { setRequestError('停用結束日必須晚於開始日'); return; }
+      const origEnd = requestingPass.endDate;
+      const newEnd = dayjs(origEnd).add(days, 'day').format('YYYY-MM-DD');
+      const maxEnd = dayjs(origEnd).add(6, 'month').format('YYYY-MM-DD');
+      if (newEnd > maxEnd) { setRequestError(`展延後到期日（${newEnd}）不可比原到期日（${origEnd}）晚超過 6 個月`); return; }
+    }
 
     setRequestSubmitting(true);
     try {
@@ -435,6 +450,8 @@ export default function MemberPassesPage() {
         reasonDetail,
         evidenceUrl: uploadRes.data.url,
         transferToPhone: requestType === 'transfer' ? transferToPhone.trim() : undefined,
+        suspendStart: requestType === 'extension' ? suspendStart : undefined,
+        suspendEnd: requestType === 'extension' ? suspendEnd : undefined,
       });
 
       setMsg('申請已送出，請等待館方審核');
@@ -817,9 +834,35 @@ export default function MemberPassesPage() {
                 </div>
               )}
               {requestType === 'extension' && (
-                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
-                  展延以一次為限，展延期間不得逾 6 個月。經審核通過後，票期自原到期日順延。
-                </div>
+                <>
+                  <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
+                    展延以一次為限。請填寫停用期間（起訖日）：開始日不可早於今天；票期依停用天數自原到期日順延，且展延後到期日不可比原到期日晚超過 6 個月。
+                  </div>
+                  <div style={{ marginBottom:14 }}>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>停用期間 *</label>
+                    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                      <input type="date" value={suspendStart} min={dayjs().format('YYYY-MM-DD')}
+                        onChange={e => setSuspendStart(e.target.value)}
+                        style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+                      <span style={{ color:'#999', fontSize:13 }}>至</span>
+                      <input type="date" value={suspendEnd} min={suspendStart || dayjs().format('YYYY-MM-DD')}
+                        onChange={e => setSuspendEnd(e.target.value)}
+                        style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+                    </div>
+                    {suspendStart && suspendEnd && dayjs(suspendEnd).diff(dayjs(suspendStart), 'day') > 0 && (() => {
+                      const days = dayjs(suspendEnd).diff(dayjs(suspendStart), 'day');
+                      const origEnd = requestingPass?.endDate;
+                      const newEnd = dayjs(origEnd).add(days, 'day').format('YYYY-MM-DD');
+                      const over = newEnd > dayjs(origEnd).add(6, 'month').format('YYYY-MM-DD');
+                      return (
+                        <div style={{ fontSize:11.5, marginTop:6, color: over ? '#A32D2D' : '#2D7D46', textAlign:'left' }}>
+                          停用 {days} 天 → 到期日 {origEnd} 順延為 <strong>{newEnd}</strong>
+                          {over && '（超過原到期日 +6 個月上限，請縮短停用期間）'}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </>
               )}
               {requestType === 'transfer' && (
                 <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import dayjs from 'dayjs';
 import Modal from '../Modal';
 import { approvePassRequest, rejectPassRequest } from '../../api/passAdjustments';
 
@@ -51,13 +52,22 @@ export default function PassRequestReviewModal({ request, onClose, onDone }) {
         )}
       </div>
 
-      {request.type === 'extension' && (
+      {request.type === 'extension' && (Number(request.extensionDays) > 0 ? (
+        // 新制：會員已填停用期間，後端據此順延（唯讀顯示，核准即生效）
+        <div style={{ marginBottom:16, background:'#E6F1FB', borderRadius:8, padding:'10px 12px', fontSize:12.5, color:'#185FA5', lineHeight:1.7 }}>
+          會員申請停用期間：<strong>{request.suspendStart} ~ {request.suspendEnd}</strong>（{request.extensionDays} 天）<br/>
+          {request.passEndDateAtRequest && (
+            <>到期日：{request.passEndDateAtRequest} → <strong>{dayjs(request.passEndDateAtRequest).add(Number(request.extensionDays), 'day').format('YYYY-MM-DD')}</strong></>
+          )}
+        </div>
+      ) : (
+        // 舊制相容：無停用期間的舊申請 → 店員填月數
         <div style={{ marginBottom:16 }}>
           <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>展延月數（最長6個月）</label>
           <input type="number" min="1" max="6" value={extensionMonths} onChange={e => setExtensionMonths(e.target.value)}
             style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
         </div>
-      )}
+      ))}
 
       {request.type === 'refund' && (
         <div style={{ marginBottom:16 }}>
