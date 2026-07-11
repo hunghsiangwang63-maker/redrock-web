@@ -4,6 +4,15 @@ import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
 
+// 日報表分類欄位（入場/租借/定期票 拆開）
+const DAILY_COLS = [
+  { key: 'checkin', label: '入場' },
+  { key: 'rental',  label: '租借' },
+  { key: 'pass',    label: '定期票' },
+  { key: 'course',  label: '課程' },
+  { key: 'product', label: '商品' },
+];
+
 const ENTRY_LABEL = {
   pass: '定期票', vip: 'VIP', course_access: '課程學員',
   discount_card: '優惠折扣券', black_card: '黑卡',
@@ -169,49 +178,51 @@ export default function RevenuePage({ embedded = false }) {
                 {daily.length === 0 ? (
                   <div style={{ padding:32, textAlign:'center', color:'#999', fontSize:13 }}>此期間無交易紀錄</div>
                 ) : (
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                  <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13, minWidth:560 }}>
                     <thead>
                       <tr style={{ background:'#FBF5F5' }}>
-                        {['日期', '入場', '課程', '商品', '合計', '筆數'].map((h, i) => (
-                          <th key={i} style={{ padding:'8px 14px', textAlign: i===0?'left':'right', fontSize:10, color:'#999', fontWeight:500 }}>{h}</th>
+                        {['日期', ...DAILY_COLS.map(c => c.label), '合計', '筆數'].map((h, i) => (
+                          <th key={i} style={{ padding:'8px 10px', textAlign: i===0?'left':'right', fontSize:10, color:'#999', fontWeight:500, whiteSpace:'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {daily.map((d, i) => (
                         <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
-                          <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12, fontWeight:500 }}>
+                          <td style={{ padding:'10px 10px', fontFamily:'monospace', fontSize:12, fontWeight:500, whiteSpace:'nowrap' }}>
                             {dayjs(d.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(d.date).day()]}）
                           </td>
-                          <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontSize:12, color: d.byType?.checkin > 0 ? '#1a1a1a' : '#ccc' }}>
-                            {NT(d.byType?.checkin || 0)}
-                          </td>
-                          <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontSize:12, color: d.byType?.course > 0 ? '#1a1a1a' : '#ccc' }}>
-                            {NT(d.byType?.course || 0)}
-                          </td>
-                          <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontSize:12, color: d.byType?.product > 0 ? '#1a1a1a' : '#ccc' }}>
-                            {NT(d.byType?.product || 0)}
-                          </td>
-                          <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#8B1A1A', fontSize:14 }}>
+                          {DAILY_COLS.map(c => (
+                            <td key={c.key} style={{ padding:'10px 10px', textAlign:'right', fontFamily:'monospace', fontSize:12, whiteSpace:'nowrap', color: (d.byType?.[c.key] || 0) !== 0 ? '#1a1a1a' : '#ccc' }}>
+                              {NT(d.byType?.[c.key] || 0)}
+                            </td>
+                          ))}
+                          <td style={{ padding:'10px 10px', textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#8B1A1A', fontSize:14, whiteSpace:'nowrap' }}>
                             {NT(d.total)}
                           </td>
-                          <td style={{ padding:'10px 14px', textAlign:'right', color:'#999', fontSize:12 }}>{d.count} 筆</td>
+                          <td style={{ padding:'10px 10px', textAlign:'right', color:'#999', fontSize:12, whiteSpace:'nowrap' }}>{d.count} 筆</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop:'2px solid #E8D5D5', background:'#FBF5F5' }}>
-                        <td style={{ padding:'10px 14px', fontWeight:600 }}>{days}天合計</td>
-                        <td colSpan={3}></td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:700, fontSize:15, color:'#8B1A1A' }}>
+                        <td style={{ padding:'10px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{days}天合計</td>
+                        {DAILY_COLS.map(c => (
+                          <td key={c.key} style={{ padding:'10px 10px', textAlign:'right', fontFamily:'monospace', fontSize:12, whiteSpace:'nowrap', color:'#666' }}>
+                            {NT(daily.reduce((a, b) => a + (b.byType?.[c.key] || 0), 0))}
+                          </td>
+                        ))}
+                        <td style={{ padding:'10px 10px', textAlign:'right', fontFamily:'monospace', fontWeight:700, fontSize:15, color:'#8B1A1A', whiteSpace:'nowrap' }}>
                           {NT(daily.reduce((a, b) => a + b.total, 0))}
                         </td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', color:'#999', fontSize:12 }}>
+                        <td style={{ padding:'10px 10px', textAlign:'right', color:'#999', fontSize:12, whiteSpace:'nowrap' }}>
                           {daily.reduce((a, b) => a + b.count, 0)} 筆
                         </td>
                       </tr>
                     </tfoot>
                   </table>
+                  </div>
                 )}
               </div>
 
