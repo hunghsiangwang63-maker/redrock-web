@@ -806,19 +806,24 @@ export default function MemberPassesPage() {
                 ))}
               </div>
 
+              {/* 共用：四法定事由 + 需檢附證明、經審核（三種申請皆適用，集中寫一次）*/}
+              <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:8, lineHeight:1.6, textAlign:'left' }}>
+                展延／退費／轉讓皆須符合下列法定事由並檢附證明文件，經館方審核通過後生效：
+                ① 出國逾 2 個月以上 ② 傷害／疾病／身體不適不宜運動 ③ 懷孕或育養未逾 6 個月嬰兒 ④ 職務異動或遷居致難以行使權利。
+              </div>
               {requestType === 'refund' && (
-                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6 }}>
-                  退費需持發票正本親至櫃檯辦理，扣除手續費NT$600後依剩餘天數比例退費（四捨五入）。
+                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
+                  退費需持發票正本親至櫃檯辦理，扣除手續費 NT$600 後依剩餘天數比例退費（四捨五入）。經審核通過後由櫃檯人工退款（非即時到帳）；退費核准後，該定期票即失效。
                 </div>
               )}
               {requestType === 'extension' && (
-                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6 }}>
-                  展延以一次為限，展延期間不得逾6個月。
+                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
+                  展延以一次為限，展延期間不得逾 6 個月。經審核通過後，票期自原到期日順延。
                 </div>
               )}
               {requestType === 'transfer' && (
-                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6 }}>
-                  轉讓需收取手續費NT$300，原權益不變。
+                <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
+                  轉讓需收取手續費 NT$300，效期與剩餘次數等原權益不變。經審核通過後移轉予指定對象（請於下方填寫對方手機號碼）。
                 </div>
               )}
 
