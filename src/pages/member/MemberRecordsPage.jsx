@@ -108,17 +108,25 @@ export default function MemberRecordsPage() {
         {!loading && tab==='checkins' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {!records?.checkins?.length && <Empty text="無入場紀錄"/>}
-            {(records?.checkins||[]).map((c,i) => (
-              <Card key={i}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{c.gymId==='gym-hsinchu'?'新竹館':'士林館'}</div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryTypeLabel(c.entryType)}</div>
+            {(records?.checkins||[]).map((c,i) => {
+              const cancelled = c.isCancelled === true || c.status === 'cancelled';
+              return (
+                <Card key={i}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', opacity: cancelled ? 0.6 : 1 }}>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:6 }}>
+                        <span style={{ textDecoration: cancelled ? 'line-through' : 'none', color: cancelled ? '#999' : '#333' }}>
+                          {c.gymId==='gym-hsinchu'?'新竹館':'士林館'}
+                        </span>
+                        {cancelled && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'#F0EDED', color:'#999', fontWeight:600 }}>已取消</span>}
+                      </div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryTypeLabel(c.entryType)}</div>
+                    </div>
+                    <div style={{ fontSize:12, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date}</div>
                   </div>
-                  <div style={{ fontSize:12, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date}</div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
 
