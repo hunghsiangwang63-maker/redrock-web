@@ -602,6 +602,12 @@ export default function MemberPassesPage() {
         </div>
         <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#6b6b6b', marginBottom:8 }}><span>{p.startDate}</span><span>～</span><span>{p.endDate}</span></div>
         <div style={{ height:5, background:'#EEE', borderRadius:3, overflow:'hidden' }}><div style={{ height:'100%', width:`${pct}%`, background:st.color, borderRadius:3 }}/></div>
+        {/* 轉入註記：這張票是由他人轉讓進來的 */}
+        {p.transferredFrom && (
+          <div style={{ marginTop:10, fontSize:11, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'5px 9px', display:'inline-block' }}>
+            🔄 由 {p.transferredFromName || '他人'} 轉入{p.transferredAt ? `（${p.transferredAt}）` : ''}
+          </div>
+        )}
         {p.credits !== null && <div style={{ marginTop:10, fontSize:13, display:'flex', justifyContent:'space-between' }}><span style={{ color:'#6b6b6b' }}>剩餘次數</span><span style={{ fontWeight:600, fontFamily:'monospace', fontSize:16, color:'#8B1A1A' }}>{p.credits} 次</span></div>}
         {!dim && p.status === 'active' && (
           p._isSelf === false ? (
@@ -754,14 +760,30 @@ export default function MemberPassesPage() {
           <>
             {/* 定期票 */}
             {tab === 'passes' && (() => {
-              if (passes.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎫</div>目前沒有定期票</div>);
+              // 轉出紀錄（本人已核准的轉讓申請）：票已離開帳號、以紀錄呈現
+              const transferOut = (myRequests || []).filter(r => r.type === 'transfer' && r.status === 'approved');
+              if (passes.length === 0 && transferOut.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎫</div>目前沒有定期票</div>);
               const { valid, invalid } = splitValid(passes, 'passes');
               const { consumed, dead } = splitInvalid(invalid, 'passes');
               return (<>
-                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效定期票</div>}
+                {passes.length > 0 && valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效定期票</div>}
                 {valid.map(p => renderPassCard(p, false))}
                 {renderCollapseSection(sortConsumed(consumed, 'passes'), 'passes', 'used', '已使用', (p) => renderPassCard(p, true))}
                 {renderCollapseSection(dead, 'passes', 'expired', '已失效', (p) => renderPassCard(p, true))}
+                {transferOut.length > 0 && (
+                  <div style={{ marginTop:12 }}>
+                    <div style={{ fontSize:12, color:'#999', padding:'12px 6px 8px', borderTop:'0.5px solid #E8D5D5' }}>轉出紀錄（{transferOut.length}）</div>
+                    {transferOut.map(r => (
+                      <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:10, opacity:.85 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                          <span style={{ fontSize:14, fontWeight:600 }}>{r.passTypeName || '定期票'}</span>
+                          <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#F0EDED', color:'#999' }}>已轉出</span>
+                        </div>
+                        <div style={{ fontSize:12, color:'#185FA5', marginTop:6 }}>↗ 已轉出給 {r.transferToName || '他人'}{(() => { const d = tsToDay(r.reviewedAt || r.createdAt); return d ? `（${d.format('YYYY/MM/DD')}）` : ''; })()}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>);
             })()}
 
