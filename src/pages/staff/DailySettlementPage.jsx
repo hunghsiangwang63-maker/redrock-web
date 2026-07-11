@@ -434,6 +434,7 @@ export default function DailySettlementPage() {
               { key:'linePay', label:'Line Pay', value: settlement?.payment?.linePay || 0 },
               { key:'jko', label:'街口支付', value: settlement?.payment?.jko || 0 },
               { key:'taiwanPay', label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
+              { key:'transfer', label:'轉帳', value: settlement?.payment?.transfer || 0 },
             ].map((item, i) => (
               <div key={i} style={s.row}>
                 <span style={s.label}>{item.label}</span>
