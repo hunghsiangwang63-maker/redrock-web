@@ -947,7 +947,7 @@ export default function CheckinPage() {
                   <div>
                     <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                      {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {c.entryType}
+                      {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {ENTRY_TYPE_LABEL[c.entryType] || c.entryType}
                       {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
                     </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>

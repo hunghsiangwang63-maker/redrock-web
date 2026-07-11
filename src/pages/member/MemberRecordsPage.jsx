@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
+import { entryTypeLabel } from '../../utils/entryLabel';
 
 const TABS = [
   { key:'checkins',    icon:'🚪', label:'入場紀錄' },
@@ -85,7 +86,7 @@ export default function MemberRecordsPage() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div>
                     <div style={{ fontSize:13, fontWeight:500 }}>{c.gymId==='gym-hsinchu'?'新竹館':'士林館'}</div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{c.entryType}</div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryTypeLabel(c.entryType)}</div>
                   </div>
                   <div style={{ fontSize:12, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date}</div>
                 </div>
