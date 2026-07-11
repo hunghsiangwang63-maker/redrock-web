@@ -326,7 +326,8 @@ export default function MemberPassesPage() {
         if (cancelled) return;
         const list = (res.data.recipients || []).filter(r => r.id !== member?.id); // 不能轉給自己
         setTransferRecipients(list);
-        setTransferPickId(list.length ? list[0].id : '');
+        const selectable = list.filter(r => !r.under13); // 未滿13歲不可接收定期票
+        setTransferPickId(selectable.length ? selectable[0].id : '');
         setTransferLookupDone(true);
       } catch { if (!cancelled) { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(true); } }
     }, 400);
@@ -927,26 +928,36 @@ export default function MemberPassesPage() {
                   <input type="tel" value={transferToPhone} onChange={e => setTransferToPhone(e.target.value)}
                     placeholder="0912345678"
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-                  {/* 查該電話的會員（含家庭成員）供確認/選擇；查無則擋 */}
-                  {transferToPhone.trim().length >= 10 && (
-                    transferRecipients.length === 0 ? (
-                      transferLookupDone
+                  {/* 查該電話的會員（含家庭成員）供確認/選擇；未滿13歲不可接收、查無則擋 */}
+                  {transferToPhone.trim().length >= 10 && (() => {
+                    const selectable = transferRecipients.filter(r => !r.under13); // 未滿13歲不可接收定期票
+                    if (transferRecipients.length === 0) {
+                      return transferLookupDone
                         ? <div style={{ fontSize:12, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的可轉讓會員（不可轉給自己）</div>
-                        : <div style={{ fontSize:12, color:'#999', marginTop:8 }}>查詢中…</div>
-                    ) : transferRecipients.length === 1 ? (
-                      <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>
-                        ✅ 接收人：{transferRecipients[0].name}{transferRecipients[0].isChildAccount ? '（子女）' : '（家長）'}
-                      </div>
-                    ) : (
+                        : <div style={{ fontSize:12, color:'#999', marginTop:8 }}>查詢中…</div>;
+                    }
+                    if (selectable.length === 0) {
+                      return <div style={{ fontSize:12, color:'#A32D2D', marginTop:8 }}>此電話的會員未滿 13 歲，無法接收定期票轉讓。</div>;
+                    }
+                    if (selectable.length === 1) {
+                      const r = selectable[0];
+                      return (
+                        <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>
+                          ✅ 接收人：{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}
+                        </div>
+                      );
+                    }
+                    return (
                       <div style={{ marginTop:8 }}>
                         <div style={{ fontSize:12, color:'#666', marginBottom:5 }}>此電話有多位家庭成員，請選擇接收對象：</div>
                         <select value={transferPickId} onChange={e => setTransferPickId(e.target.value)}
                           style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                          {transferRecipients.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}</option>)}
+                          {selectable.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}</option>)}
                         </select>
+                        {transferRecipients.some(r => r.under13) && <div style={{ fontSize:11, color:'#999', marginTop:5 }}>※ 未滿 13 歲的家庭成員不可接收定期票，已排除。</div>}
                       </div>
-                    )
-                  )}
+                    );
+                  })()}
                 </div>
               )}
 
