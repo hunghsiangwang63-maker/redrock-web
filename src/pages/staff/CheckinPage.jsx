@@ -535,7 +535,10 @@ export default function CheckinPage() {
                 </div>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, fontSize:13 }}>
                   <span style={{ color:'#666' }}>入場資格</span>
-                  <span style={{ fontWeight:600 }}>{ENTRY_TYPE_LABEL[scanResult.entryType] || scanResult.entryType}</span>
+                  <span style={{ fontWeight:600 }}>
+                    {ENTRY_TYPE_LABEL[scanResult.entryType] || scanResult.entryType}
+                    {scanResult.usePass && <span style={{ color:'#185FA5' }}>（{scanResult.usePass.passTypeName}）</span>}
+                  </span>
                 </div>
                 {/* 購買定期票：標示票種與金額 */}
                 {scanResult.buyPass && (
