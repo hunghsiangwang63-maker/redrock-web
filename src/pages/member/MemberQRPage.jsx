@@ -38,6 +38,7 @@ export default function MemberQRPage() {
   const [selectedCard, setSelectedCard] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [buyPassPlan, setBuyPassPlan] = useState('full'); // 購定期票：'full' | 'installment'
+  const [partnerVendor, setPartnerVendor] = useState(false); // 特約廠商優惠（−20，需出示證件；後端權威）
   const [renewOptIn, setRenewOptIn] = useState(false);    // 續約：是否順便續約
   const [renewPlan, setRenewPlan] = useState('full');     // 續約：'full' | 'installment'
   const [rentShoes, setRentShoes] = useState(false);
@@ -163,8 +164,12 @@ export default function MemberQRPage() {
       if (!selectedEntry.freeEntry) {
         payload.paymentMethod = selectedPayment;
         payload.originalAmount = selectedEntry.price || 0;
-        payload.amount = selectedEntry.discountedPrice ?? selectedEntry.price ?? 0;
+        // 特約廠商（全票/學生票、非隊員、一般付款）：−20（後端權威覆核，前端僅顯示一致）
+        const pvActive = selectedEntry.kind === 'pay' && selectedEntry.partnerVendorEligible === true && partnerVendor;
+        const pvCut = pvActive ? (verifyResult?.partnerVendorDiscount || 20) : 0;
+        payload.amount = Math.max(0, (selectedEntry.discountedPrice ?? selectedEntry.price ?? 0) - pvCut);
         payload.isTeamDiscount = selectedEntry.teamDiscount || false;
+        if (pvActive) payload.partnerVendor = true;
       }
       // 續約附加（免費入場定期票、到期前14天）：帶要續約的票 + 分期選擇 + 續約款付款方式
       if (renewOptIn && renewal?.passId) {
@@ -364,7 +369,7 @@ export default function MemberQRPage() {
     const basePrice = t.discountedPrice ?? t.price ?? 0;       // 一般付款（含隊員折扣）
     const methods = [
       { kind:'pay', type:t.type, baseEntryType:t.type, label:'一般付款', price:t.price, discountedPrice:basePrice,
-        teamDiscount:t.teamDiscount, freeEntry:false, requiresPayment:true },
+        teamDiscount:t.teamDiscount, partnerVendorEligible:t.partnerVendorEligible === true, freeEntry:false, requiresPayment:true },
     ];
     if (inst.discountCard?.available) {
       const dp = Math.round((t.price || 0) * (inst.discountCard.rate || 0.8));
@@ -403,6 +408,7 @@ export default function MemberQRPage() {
             <div key={m.kind}
               onClick={() => {
                 const cardId = m.cards && m.cards.length === 1 ? m.cards[0].id : (m.cards && m.cards.length ? m.cards[0].id : null);
+                setPartnerVendor(false); // 換方式時重置特約勾選
                 setSelectedEntry({ ...m, baseEntryType: m.baseEntryType || m.type, cardId });
                 setStep(m.requiresPayment ? 'select_payment' : 'shoes');
               }}
@@ -447,7 +453,12 @@ export default function MemberQRPage() {
     );
   }
 
-  if (step === 'select_payment') return wrap(
+  if (step === 'select_payment') {
+   const pvDiscount = verifyResult?.partnerVendorDiscount || 20;
+   const pvEligible = selectedEntry?.kind === 'pay' && selectedEntry?.partnerVendorEligible === true && !selectedEntry?.freeEntry;
+   const basePayPrice = selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0;
+   const pvShownPrice = basePayPrice - ((pvEligible && partnerVendor) ? pvDiscount : 0);
+   return wrap(
     <>
       <Header title="選擇付款方式" onBack={() => setStep('select_method')} />
       <MemberSelector />
@@ -456,11 +467,24 @@ export default function MemberQRPage() {
           <div style={{ color:'#999', marginBottom:4 }}>入場方式</div>
           <div style={{ fontWeight:600 }}>{selectedEntry?.label}</div>
           {selectedEntry?.discountedPrice !== undefined ? (
-            <div style={{ color:'#8B1A1A', fontWeight:700, fontSize:16, marginTop:4 }}>NT${selectedEntry.discountedPrice}</div>
+            <div style={{ color:'#8B1A1A', fontWeight:700, fontSize:16, marginTop:4 }}>NT${pvShownPrice}</div>
           ) : selectedEntry?.price > 0 ? (
-            <div style={{ color:'#8B1A1A', fontWeight:700, fontSize:16, marginTop:4 }}>NT${selectedEntry.price}</div>
+            <div style={{ color:'#8B1A1A', fontWeight:700, fontSize:16, marginTop:4 }}>NT${pvShownPrice}</div>
           ) : null}
         </div>
+        {/* 特約廠商優惠（全票/學生票、非隊員、非票券）：勾選 −NT$20，需櫃檯出示證件；金額後端權威 */}
+        {pvEligible && (
+          <div onClick={() => setPartnerVendor(v => !v)}
+            style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'12px 14px', marginBottom:16, borderRadius:12, border:`1.5px solid ${partnerVendor?'#8B1A1A':'#E8D5D5'}`, background: partnerVendor?'#FBF5F5':'#fff', cursor:'pointer' }}>
+            <div style={{ width:22, height:22, borderRadius:6, border:`1.5px solid ${partnerVendor?'#8B1A1A':'#ccc'}`, background:partnerVendor?'#8B1A1A':'#fff', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}>
+              {partnerVendor && <span style={{ color:'#fff', fontSize:14, fontWeight:700 }}>✓</span>}
+            </div>
+            <div style={{ flex:1, textAlign:'left' }}>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>特約廠商優惠（−NT${pvDiscount}）</div>
+              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>需於櫃檯出示特約廠商證件核對，未出示或不符將以原價計。</div>
+            </div>
+          </div>
+        )}
         {selectedEntry?.type === 'buy_pass' && selectedEntry?.installment?.enabled && (
           <PaymentPlanChoice installment={selectedEntry.installment} price={selectedEntry.price}
             plan={buyPassPlan} hideMethod onChange={({ plan }) => setBuyPassPlan(plan)} />
@@ -477,7 +501,8 @@ export default function MemberQRPage() {
         ))}
       </div>
     </>
-  );
+   );
+  }
 
   if (step === 'shoes') return wrap(
     <>
@@ -600,7 +625,9 @@ export default function MemberQRPage() {
     const firstPeriod = bpInst
       ? Math.round((selectedEntry.price || 0) * (Number(selectedEntry.installment.periods[0].percent) || 0) / 100)
       : null;
-    const entryPrice = selectedEntry?.freeEntry ? 0 : (bpInst ? firstPeriod : (selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0));
+    const pvActive = selectedEntry?.kind === 'pay' && selectedEntry?.partnerVendorEligible === true && partnerVendor && !selectedEntry?.freeEntry;
+    const pvCut = pvActive ? (verifyResult?.partnerVendorDiscount || 20) : 0;
+    const entryPrice = selectedEntry?.freeEntry ? 0 : (bpInst ? firstPeriod : Math.max(0, (selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0) - pvCut));
     const totalAmount = entryPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0) + renewDueNow;
     const minutesLeft = qrExpiry ? Math.max(0, dayjs(qrExpiry).diff(dayjs(), 'minute')) : 0;
     return wrap(
@@ -618,7 +645,7 @@ export default function MemberQRPage() {
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? '折扣優惠券' : selectedEntry?.type === 'buy_pass' ? (bpInst ? '定期票（頭款・第1期）' : '定期票') : '入場費'}</span>
+                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? '折扣優惠券' : selectedEntry?.type === 'buy_pass' ? (bpInst ? '定期票（頭款・第1期）' : '定期票') : (pvActive ? '入場費（特約 −'+pvCut+'）' : '入場費')}</span>
                   <span>NT${entryPrice}</span>
                 </div>
               )}
