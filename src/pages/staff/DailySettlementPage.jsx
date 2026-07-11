@@ -18,8 +18,33 @@ const DENOMINATIONS = [
 
 const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','其他退款','其他'];
 const INCOME_KEYS = ['entry', 'shoeRental', 'product', 'course', 'pass'];
-// 手計總額：各項有手動值取手動、缺項回退系統值（與 invoiceTotal 同邏輯）；無 incomeManual 回 null
-const manualIncomeTotal = (income, im) => im ? INCOME_KEYS.reduce((s, k) => s + ((im[k] !== '' && im[k] != null) ? (Number(im[k]) || 0) : (income?.[k] || 0)), 0) : null;
+
+// ── 入場費固定六分類（結帳畫面預設就顯示、可逐類手動輸入）──────────────────
+const ENTRY_CATS = ['成人', '學生', '兒童', '個別使用優惠券', '隊員折扣', '隊員＋優惠券'];
+// 某分類的系統值（自 income.entryItems 取；無則 0）
+const sysEntryVal = (income, cat) => (income?.entryItems || []).find(x => x.label === cat)?.value || 0;
+// 顯示用分類清單：固定六類 ＋ 其他有系統值的分類（如 VIP/定期票入場/單次入場券）
+const entryCatList = (income) => {
+  const extra = (income?.entryItems || []).map(x => x.label).filter(l => l && !ENTRY_CATS.includes(l));
+  return [...ENTRY_CATS, ...extra];
+};
+// 某分類的手動值（存於 incomeManual.entryItems[label]）
+const manEntryVal = (im, cat) => im?.entryItems?.[cat];
+// 入場費手計總額：有 entryItems 逐類 Σ(手動 ?? 系統)；無則回退舊單一 entry 手動值
+const entryManualTotal = (income, im) => {
+  if (im?.entryItems && typeof im.entryItems === 'object') {
+    return entryCatList(income).reduce((s, cat) => {
+      const m = manEntryVal(im, cat);
+      return s + ((m !== '' && m != null) ? (Number(m) || 0) : sysEntryVal(income, cat));
+    }, 0);
+  }
+  return (im?.entry !== '' && im?.entry != null) ? (Number(im.entry) || 0) : (income?.entry || 0);
+};
+// 手計總額：入場走逐類加總，其餘項有手動值取手動、缺項回退系統；無 incomeManual 回 null
+const manualIncomeTotal = (income, im) => im
+  ? entryManualTotal(income, im) + ['shoeRental', 'product', 'course', 'pass']
+      .reduce((s, k) => s + ((im[k] !== '' && im[k] != null) ? (Number(im[k]) || 0) : (income?.[k] || 0)), 0)
+  : null;
 
 export default function DailySettlementPage() {
   const { staff, activeGymId, operator, isStationMode, viewGym } = useAuth();
@@ -136,9 +161,9 @@ export default function DailySettlementPage() {
   const effectiveCash = manualCashVal != null ? manualCashVal : (settlement?.payment?.cash || 0);
   const expectedCash = (settlement?.prevCashBalance || 0) + effectiveCash + netAdjust;
   const difference = actualCash - expectedCash;
-  // 發票總金額＝income 各項合計（轉換期手動開啟時取手動值，缺項回退系統值）
+  // 發票總金額＝income 各項合計（轉換期手動開啟時：入場逐類加總、其餘取手動缺項回退系統）
   const invoiceTotal = transition.settlementManualInput
-    ? ['entry', 'shoeRental', 'product', 'course', 'pass'].reduce((sum, k) => sum + ((incomeManual[k] !== '' && incomeManual[k] != null) ? (Number(incomeManual[k]) || 0) : (settlement?.income?.[k] || 0)), 0)
+    ? manualIncomeTotal(settlement?.income, incomeManual)
     : (settlement?.income?.total || 0);
 
   const addDeduction = () => setDeductions(prev => [...prev, { sign: '-', type: DEDUCTION_TYPES[0], amount: '', note: '' }]);
@@ -349,7 +374,7 @@ export default function DailySettlementPage() {
           <div style={s.card}>
             <div style={s.cardHead}>今日收入{transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : '（系統自動帶入）'}</div>
             {[
-              { key:'entry', label:'入場收入', value: settlement?.income?.entry || 0, sub: settlement?.income?.entryItems },
+              { key:'entry', label:'入場收入', value: settlement?.income?.entry || 0 },
               { key:'shoeRental', label:'岩鞋租借', value: settlement?.income?.shoeRental || 0 },
               { key:'product', label:'商品銷售', value: settlement?.income?.product || 0 },
               { key:'course', label:'課程收入', value: settlement?.income?.course || 0 },
@@ -359,15 +384,35 @@ export default function DailySettlementPage() {
                 <div style={s.row}>
                   <span style={s.label}>{item.label}</span>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    {transition.settlementManualInput && (
+                    {/* 入場收入：手動輸入改逐分類（下方各列），此處總額＝各類加總、不放單一輸入框 */}
+                    {transition.settlementManualInput && item.key !== 'entry' && (
                       <input type="number" value={incomeManual[item.key] ?? ''} placeholder="手動"
                         onChange={e => setIncomeManual(p => ({ ...p, [item.key]: e.target.value }))}
                         style={{ width:88, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
                     )}
-                    <span style={{ ...s.value, color: transition.settlementManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>NT${item.value.toLocaleString()}</span>
+                    <span style={{ ...s.value, color: transition.settlementManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>
+                      NT${(item.key === 'entry' && transition.settlementManualInput
+                        ? entryManualTotal(settlement?.income, incomeManual)
+                        : item.value).toLocaleString()}
+                    </span>
                   </div>
                 </div>
-                {Array.isArray(item.sub) && item.sub.length > 0 && item.sub.map((x, j) => (
+                {/* 入場收入：固定六分類（＋其他有系統值的分類）逐列，預設就顯示；手動模式各類給輸入框 */}
+                {item.key === 'entry' && entryCatList(settlement?.income).map((cat, j) => (
+                  <div key={j} style={{ ...s.row, padding:'4px 0 4px 22px' }}>
+                    <span style={{ ...s.label, fontSize:12, color:'#999' }}>· {cat}</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      {transition.settlementManualInput && (
+                        <input type="number" value={incomeManual.entryItems?.[cat] ?? ''} placeholder="手動"
+                          onChange={e => setIncomeManual(p => ({ ...p, entryItems: { ...(p.entryItems || {}), [cat]: e.target.value } }))}
+                          style={{ width:76, height:26, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
+                      )}
+                      <span style={{ ...s.value, fontSize:12, color:'#999', minWidth:64, textAlign:'right' }}>{transition.settlementManualInput ? '系統 ' : 'NT$'}{sysEntryVal(settlement?.income, cat).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+                {/* 其他項（定期票細項）保留原顯示 */}
+                {item.key !== 'entry' && Array.isArray(item.sub) && item.sub.length > 0 && item.sub.map((x, j) => (
                   <div key={j} style={{ ...s.row, padding:'4px 0 4px 22px' }}>
                     <span style={{ ...s.label, fontSize:12, color:'#999' }}>· {x.label}</span>
                     <span style={{ ...s.value, fontSize:12, color:'#999' }}>NT${(x.value||0).toLocaleString()}</span>
@@ -377,7 +422,7 @@ export default function DailySettlementPage() {
             ))}
             <div style={{ ...s.row, background:'#FBF5F5' }}>
               <span style={{ ...s.label, fontWeight:600, color:'#1a1a1a' }}>總計</span>
-              <span style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${(settlement?.income?.total||0).toLocaleString()}</span>
+              <span style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${(transition.settlementManualInput ? manualIncomeTotal(settlement?.income, incomeManual) : (settlement?.income?.total || 0)).toLocaleString()}</span>
             </div>
           </div>
 
@@ -652,7 +697,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
             {cats.map((c, i) => {
-              const man = manVal(c.key, c.value);
+              const man = c.key === 'entry' ? entryManualTotal(income, incomeManual) : manVal(c.key, c.value);
               const diff = showManualCol && Number(man) !== Number(c.value);
               return (
               <div key={i}>
@@ -664,7 +709,21 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
                     <span>{money(c.value)}</span>
                   )}
                 </div>
-                {Array.isArray(c.sub) && c.sub.filter(x => (x.value || 0) > 0).map((x, j) => (
+                {/* 入場：固定六分類（＋其他有系統值）逐列——手動模式全列(即使0)、純系統檢視只列>0 */}
+                {c.key === 'entry' && entryCatList(income).map((cat, j) => {
+                  const sysV = sysEntryVal(income, cat);
+                  const mv = manEntryVal(incomeManual, cat);
+                  const manV = (mv !== '' && mv != null) ? (Number(mv) || 0) : sysV;
+                  if (!showManualCol && sysV <= 0) return null;
+                  return (
+                    <div key={j} style={{ display:'flex', justifyContent:'space-between', fontSize:11.5, color:'#999', paddingLeft:14 }}>
+                      <span style={{ textAlign:'left' }}>· {cat}</span>
+                      {showManualCol ? <span style={{ color: Number(manV) !== Number(sysV) ? '#A32D2D' : undefined }}>{money(manV)}　·　{money(sysV)}</span> : <span>{money(sysV)}</span>}
+                    </div>
+                  );
+                })}
+                {/* 其他（定期票）細項 */}
+                {c.key !== 'entry' && Array.isArray(c.sub) && c.sub.filter(x => (x.value || 0) > 0).map((x, j) => (
                   <div key={j} style={{ display:'flex', justifyContent:'space-between', fontSize:11.5, color:'#999', paddingLeft:14 }}>
                     <span style={{ textAlign:'left' }}>· {x.label}</span><span>{money(x.value)}</span>
                   </div>
