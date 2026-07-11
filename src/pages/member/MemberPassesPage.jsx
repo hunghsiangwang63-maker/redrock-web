@@ -306,10 +306,32 @@ export default function MemberPassesPage() {
   const [evidenceFile, setEvidenceFile] = useState(null);
   const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [transferToPhone, setTransferToPhone] = useState('');
+  const [transferRecipients, setTransferRecipients] = useState([]); // 轉讓：該電話對應的家庭成員
+  const [transferPickId, setTransferPickId] = useState('');          // 選定接收會員 id
+  const [transferLookupDone, setTransferLookupDone] = useState(false);
   const [suspendStart, setSuspendStart] = useState(''); // 展延：停用開始日
   const [suspendEnd, setSuspendEnd] = useState('');      // 展延：停用結束日
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
+
+  // 轉讓：輸入電話 → 查該電話的會員（含家庭成員），供選定接收對象（排除本人）
+  useEffect(() => {
+    if (requestType !== 'transfer') { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(false); return; }
+    const phone = (transferToPhone || '').trim();
+    if (phone.length < 10) { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(false); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const res = await memberClient.get('/ticket-transfers/recipients', { params: { phone } });
+        if (cancelled) return;
+        const list = (res.data.recipients || []).filter(r => r.id !== member?.id); // 不能轉給自己
+        setTransferRecipients(list);
+        setTransferPickId(list.length ? list[0].id : '');
+        setTransferLookupDone(true);
+      } catch { if (!cancelled) { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(true); } }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [transferToPhone, requestType, member?.id]);
 
   // 每筆票券附上持有人資訊（供顯示標籤＋判斷是否本人）
   const tagOwner = (arr, o) => (arr || []).map(x => ({ ...x, _ownerId: o.id, _ownerName: o.name, _isSelf: o.isSelf }));
@@ -412,7 +434,7 @@ export default function MemberPassesPage() {
     setReasonKey('');
     setReasonDetail('');
     setEvidenceFile(null);
-    setTransferToPhone('');
+    setTransferToPhone(''); setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(false);
     setSuspendStart(''); setSuspendEnd('');
     setRequestError('');
     if (reasons.length === 0) {
@@ -427,7 +449,10 @@ export default function MemberPassesPage() {
     setRequestError('');
     if (!reasonKey) { setRequestError('請選擇符合的事由'); return; }
     if (!evidenceFile) { setRequestError('請上傳證明文件'); return; }
-    if (requestType === 'transfer' && !transferToPhone.trim()) { setRequestError('請輸入轉讓對象的手機號碼'); return; }
+    if (requestType === 'transfer') {
+      if (!transferToPhone.trim()) { setRequestError('請輸入轉讓對象的手機號碼'); return; }
+      if (!transferPickId) { setRequestError('請確認轉讓對象（查無此電話的會員或尚未選擇）'); return; }
+    }
     // 展延：停用期間驗證（後端仍為權威，前端先友善擋）
     if (requestType === 'extension') {
       const today = dayjs().format('YYYY-MM-DD');
@@ -457,6 +482,7 @@ export default function MemberPassesPage() {
         reasonDetail,
         evidenceUrl: uploadRes.data.url,
         transferToPhone: requestType === 'transfer' ? transferToPhone.trim() : undefined,
+        transferToMemberId: requestType === 'transfer' ? transferPickId : undefined,
         suspendStart: requestType === 'extension' ? suspendStart : undefined,
         suspendEnd: requestType === 'extension' ? suspendEnd : undefined,
       });
@@ -901,6 +927,26 @@ export default function MemberPassesPage() {
                   <input type="tel" value={transferToPhone} onChange={e => setTransferToPhone(e.target.value)}
                     placeholder="0912345678"
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                  {/* 查該電話的會員（含家庭成員）供確認/選擇；查無則擋 */}
+                  {transferToPhone.trim().length >= 10 && (
+                    transferRecipients.length === 0 ? (
+                      transferLookupDone
+                        ? <div style={{ fontSize:12, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的可轉讓會員（不可轉給自己）</div>
+                        : <div style={{ fontSize:12, color:'#999', marginTop:8 }}>查詢中…</div>
+                    ) : transferRecipients.length === 1 ? (
+                      <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>
+                        ✅ 接收人：{transferRecipients[0].name}{transferRecipients[0].isChildAccount ? '（子女）' : '（家長）'}
+                      </div>
+                    ) : (
+                      <div style={{ marginTop:8 }}>
+                        <div style={{ fontSize:12, color:'#666', marginBottom:5 }}>此電話有多位家庭成員，請選擇接收對象：</div>
+                        <select value={transferPickId} onChange={e => setTransferPickId(e.target.value)}
+                          style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                          {transferRecipients.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}</option>)}
+                        </select>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
 

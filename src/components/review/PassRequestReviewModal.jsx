@@ -80,8 +80,9 @@ export default function PassRequestReviewModal({ request, onClose, onDone }) {
       )}
 
       {request.type === 'transfer' && (
-        <div style={{ marginBottom:16, fontSize:12, color:'#999' }}>
-          將轉讓至電話 {request.transferToPhone} 的會員，需收取NT$300手續費（手續費收取請於櫃檯另行處理）。
+        <div style={{ marginBottom:16, background:'#E6F1FB', borderRadius:8, padding:'10px 12px', fontSize:12.5, color:'#185FA5', lineHeight:1.7 }}>
+          將轉讓至：<strong>{request.transferToName || '（未指定）'}</strong>{request.transferToPhone ? `（電話 ${request.transferToPhone}）` : ''}<br/>
+          需收取 NT$300 手續費（請於櫃檯另行收取）。核准前請與會員確認接收對象無誤。
         </div>
       )}
 
