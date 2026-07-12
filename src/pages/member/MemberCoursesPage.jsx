@@ -57,7 +57,9 @@ export default function MemberCoursesPage() {
   const [leavingId, setLeavingId] = useState(null);
   const [expandedCourseId, setExpandedCourseId] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null); // { type:'refund'|'pause', enrollmentId, courseName }
-  const [pendingAdjustCourseIds, setPendingAdjustCourseIds] = useState(new Set()); // 已申請退費/暫停的課程
+  // 審核中的退費/暫停申請：key=`${courseId}__${memberId}` → 'refund'|'pause'（載入時從後端回填，跨重整持續）
+  const [pendingAdjust, setPendingAdjust] = useState(new Map());
+  const adjKey = (courseId, memberId) => `${courseId}__${memberId}`;
   const [adjustReason, setAdjustReason] = useState('');
   const [adjustLoading, setAdjustLoading] = useState(false);
   const [enrollForMemberId, setEnrollForMemberId] = useState(null); // null = 本人
@@ -81,10 +83,11 @@ export default function MemberCoursesPage() {
         await requestCoursePause(adjustModal.enrollmentId, { reason: adjustReason, memberId: adjustModal.memberId });
         showMsg('暫停申請已送出，等待管理員審核');
       }
-      // 記錄已申請，禁止重複申請
-      setPendingAdjustCourseIds(prev => new Set([...prev, adjustModal.enrollmentId]));
+      // 記錄已申請，禁止重複申請（key 含報名對象，家長/子女分開）
+      setPendingAdjust(prev => new Map(prev).set(adjKey(adjustModal.enrollmentId, adjustModal.memberId), adjustModal.type));
       setAdjustModal(null);
       setAdjustReason('');
+      loadMyEnrollments(); // 退費凍結旗標已寫入 → 重載讓請假/補課等 UI 即時隱藏
     } catch (err) {
       showMsg(err.response?.data?.message || '申請失敗', 'red');
       // 即使失敗也關閉 modal，避免卡住
@@ -212,6 +215,14 @@ export default function MemberCoursesPage() {
       const lists = await Promise.all(ids.map(id =>
         memberClient.get(`/courses/member/${id}/enrollments`).then(r => r.data.enrollments || []).catch(() => [])));
       setMyEnrollments(lists.flat());
+
+      // 回填審核中的退費/暫停申請（跨重整持續禁止重複申請＋退費凍結顯示）
+      const reqLists = await Promise.all(ids.map(id =>
+        memberClient.get(`/course-adjustments/member/${id}`).then(r => r.data.requests || []).catch(() => [])));
+      const m = new Map();
+      reqLists.flat().filter(r => r.status === 'pending')
+        .forEach(r => m.set(adjKey(r.courseId, r.memberId), r.type));
+      setPendingAdjust(m);
     } catch (e) {}
   };
 
@@ -1047,20 +1058,28 @@ export default function MemberCoursesPage() {
               <div style={{ fontWeight:600, fontSize:13, color:'#854F0B', marginBottom:8 }}>
                 📋 補課資格（{makeupRights.filter(m => m.status === 'available').length} 筆）
               </div>
-              {makeupRights.filter(m => m.status === 'available').map(m => (
-                <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8, background:'#fff', borderRadius:8, padding:'8px 12px' }}>
+              {makeupRights.filter(m => m.status === 'available').map(m => {
+                // 該課退費審核中 → 凍結補課資格（後端亦權威擋 REFUND_PENDING）
+                const frozen = pendingAdjust.get(adjKey(m.courseId, m.memberId || member?.id)) === 'refund';
+                return (
+                <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8, background:'#fff', borderRadius:8, padding:'8px 12px', opacity: frozen ? 0.55 : 1 }}>
                   <div>
                     <div style={{ fontSize:13, fontWeight:500 }}>{m.courseName}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                       有效期至 {dayjs(m.expiresAt?._seconds ? new Date(m.expiresAt._seconds * 1000) : m.expiresAt).format('MM/DD')}
                     </div>
                   </div>
+                  {frozen ? (
+                    <span style={{ fontSize:11, color:'#A32D2D', fontWeight:600, flexShrink:0 }}>退費審核中</span>
+                  ) : (
                   <button onClick={() => openMakeupModal(m)}
                     style={{ height:32, padding:'0 14px', borderRadius:8, background:'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
                     選擇補課
                   </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -1131,6 +1150,9 @@ export default function MemberCoursesPage() {
               };
               // 付款狀態（主報名 idx0）：待付款倒數 / 被退回待補正
               const primary = primaryOf(group);
+              // 審核中的申請：退費審核中＝凍結（隱藏請假等操作、入場資格後端已即時取消）
+              const adjType = pendingAdjust.get(adjKey(group.courseId, group.memberId));
+              const refundFrozen = adjType === 'refund' || group.sessions.some(s => s.refundPending === true);
               const pDeadline = tsToDay(primary?.paymentDeadline);
               const pConfirmed = primary?.paymentConfirmed === true;
               const isRejected = primary?.paymentStatus === 'transfer_rejected';
@@ -1142,6 +1164,7 @@ export default function MemberCoursesPage() {
                     <div style={{ fontWeight:600, fontSize:15 }}>
                       {gymPrefix(group.gymId)}{group.courseName}
                       {hasFamily && enrolleeName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{enrolleeIcon} {enrolleeName}</span>}
+                      {refundFrozen && <span style={{ fontSize:11, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>退費審核中</span>}
                     </div>
                     {isWaitlistGroup ? (
                       <span style={{ fontSize:11, background:'#FAEEDA', color:'#B5651D', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
@@ -1202,17 +1225,24 @@ export default function MemberCoursesPage() {
                     </div>
                   ) : (
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
+                    {(() => { const dis = !!adjType || refundFrozen; return (<>
                     <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
-                      disabled={pendingAdjustCourseIds.has(group.courseId)}
-                      style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#A32D2D', border:`0.5px solid ${pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: pendingAdjustCourseIds.has(group.courseId) ? 'not-allowed' : 'pointer' }}>
-                      {pendingAdjustCourseIds.has(group.courseId) ? '已申請退費' : '申請退費'}
+                      disabled={dis}
+                      style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#A32D2D', border:`0.5px solid ${dis ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
+                      {refundFrozen ? '退費審核中' : '申請退費'}
                     </button>
                     <button onClick={() => setAdjustModal({ type:'pause', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
-                      disabled={pendingAdjustCourseIds.has(group.courseId)}
-                      style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#8B6914', border:`0.5px solid ${pendingAdjustCourseIds.has(group.courseId) ? '#ccc' : '#8B6914'}`, fontSize:11, cursor: pendingAdjustCourseIds.has(group.courseId) ? 'not-allowed' : 'pointer' }}>
-                      {pendingAdjustCourseIds.has(group.courseId) ? '已申請暫停' : '申請暫停'}
+                      disabled={dis}
+                      style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#8B6914', border:`0.5px solid ${dis ? '#ccc' : '#8B6914'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
+                      {adjType === 'pause' ? '暫停審核中' : '申請暫停'}
                     </button>
+                    </>); })()}
                   </div>
+                  )}
+                  {refundFrozen && (
+                    <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:8, padding:'9px 12px', marginTop:8, fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.6 }}>
+                      退費申請審核中：此課程的入場學員資格與上課、請假、補課、暫停等操作已暫停；若申請被退回將自動恢復。
+                    </div>
                   )}
 
                   {!isExpanded && next && (
@@ -1260,14 +1290,14 @@ export default function MemberCoursesPage() {
                             <div key={s.id} style={{ padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                                 <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
-                                {leavingId !== s.id && (
+                                {leavingId !== s.id && !refundFrozen && (
                                   <button onClick={() => setLeavingId(s.id)}
                                     style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
                                     申請請假
                                   </button>
                                 )}
                               </div>
-                              {leavingId === s.id && (
+                              {leavingId === s.id && !refundFrozen && (
                                 <div style={{ marginTop:6 }}>
                                   <input value={leaveReason} onChange={ev => setLeaveReason(ev.target.value)}
                                     placeholder="請假原因"
@@ -1287,7 +1317,7 @@ export default function MemberCoursesPage() {
                     </div>
                   )}
 
-                  {!isExpanded && next && leavingId === next.id ? (
+                  {!isExpanded && next && !refundFrozen && leavingId === next.id ? (
                     <div>
                       <input value={leaveReason} onChange={ev => setLeaveReason(ev.target.value)}
                         placeholder="請假原因（下一堂）"
@@ -1299,7 +1329,7 @@ export default function MemberCoursesPage() {
                           style={{ flex:1, height:32, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認請假</button>
                       </div>
                     </div>
-                  ) : !isExpanded && next && (
+                  ) : !isExpanded && next && !refundFrozen && (
                     <button onClick={() => setLeavingId(next.id)}
                       style={{ width:'100%', height:32, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
                       申請請假（下一堂）
