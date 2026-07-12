@@ -3,6 +3,7 @@ import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteP
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import client from '../../api/client';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
@@ -72,6 +73,7 @@ const VariantForm = ({ variants, onChange }) => {
 };
 
 export default function SalesPage({ embedded = false }) {
+  const enabledPay = useEnabledPayments();
   const { staff, activeGymId, viewGym } = useAuth();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const fileRef = useRef();
@@ -598,7 +600,7 @@ export default function SalesPage({ embedded = false }) {
                 <div style={{ marginTop:8, marginBottom:8 }}>
                   <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>付款方式</div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                    {PAY_METHODS.map(pm => (
+                    {filterPayments(PAY_METHODS, enabledPay).map(pm => (
                       <button key={pm.key} onClick={() => setPaymentMethod(pm.key)}
                         style={{ height:28, padding:'0 10px', borderRadius:8, border:`0.5px solid ${paymentMethod===pm.key?'#8B1A1A':'#E8D5D5'}`, background: paymentMethod===pm.key?'#8B1A1A':'#fff', color: paymentMethod===pm.key?'#fff':'#666', fontSize:11, cursor:'pointer' }}>
                         {pm.label}

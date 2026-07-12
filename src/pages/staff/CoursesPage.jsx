@@ -6,6 +6,7 @@ import { getCourses, createCourse, getSessions, createSession,
 import { searchMembers } from '../../api/members';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import CoachSelect from '../../components/CoachSelect';
 import { gymPrefix } from '../../utils/gymLabel';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -47,6 +48,7 @@ const PAYMENT_METHODS = [
 ];
 
 export default function CoursesPage({ embedded = false }) {
+  const enabledPay = useEnabledPayments();
   const { staff, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
   // super_admin 走頂部「檢視場館」選單 viewGym（全館＝''）；一般員工用自己館別
@@ -1539,7 +1541,7 @@ export default function CoursesPage({ embedded = false }) {
           <div style={{ marginBottom:16 }}>
             <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>付款方式</label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-              {PAYMENT_METHODS.map(pm => (
+              {filterPayments(PAYMENT_METHODS, enabledPay).map(pm => (
                 <button key={pm.key} onClick={() => setEnrollPayment(pm.key)}
                   style={{ height:34, padding:'0 14px', borderRadius:8, border:`0.5px solid ${enrollPayment===pm.key?'#8B1A1A':'#E8D5D5'}`, background: enrollPayment===pm.key?'#8B1A1A':'#fff', color: enrollPayment===pm.key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
                   {pm.label}

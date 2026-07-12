@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration } from '../../api/competitions';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
@@ -11,6 +12,7 @@ import PaymentSection from '../../components/PaymentSection';
 const STEPS = ['基本資料', '付款資訊', '同意書', '簽名'];
 
 export default function MemberCompetitionsPage() {
+  const enabledPay = useEnabledPayments();
   const { member } = useMember();
   const [competitions, setCompetitions] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
@@ -468,7 +470,7 @@ export default function MemberCompetitionsPage() {
                 <div style={{ marginBottom:14 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8, fontWeight:500 }}>付款方式</label>
                   <div style={{ display:'flex', gap:8 }}>
-                    {[{k:'transfer',l:'銀行轉帳'},{k:'cash',l:'臨櫃現金'},{k:'linepay',l:'Line Pay'},{k:'jkopay',l:'街口'},{k:'taiwanpay',l:'台灣Pay'}].map(pm=>(
+                    {filterPayments([{k:'transfer',l:'銀行轉帳'},{k:'cash',l:'臨櫃現金'},{k:'linepay',l:'Line Pay'},{k:'jkopay',l:'街口'},{k:'taiwanpay',l:'台灣Pay'}], enabledPay).map(pm=>(
                       <button key={pm.k} onClick={()=>setPaymentMethod(pm.k)}
                         style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${paymentMethod===pm.k?'#8B1A1A':'#E8D5D5'}`, background:paymentMethod===pm.k?'#FBF5F5':'#fff', color:paymentMethod===pm.k?'#8B1A1A':'#666', fontSize:12, fontWeight:paymentMethod===pm.k?600:400, cursor:'pointer' }}>
                         {pm.l}

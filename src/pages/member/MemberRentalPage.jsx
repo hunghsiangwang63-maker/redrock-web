@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getRentalSettings, applyRental, getMyRentals } from '../../api/rentals';
 import { memberClient } from '../../api/client';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
@@ -17,6 +18,7 @@ const STATUS_LABEL = {
 };
 
 export default function MemberRentalPage() {
+  const enabledPay = useEnabledPayments();
   const { member } = useMember();
   const navigate = useNavigate();
   const location = useLocation();
@@ -358,7 +360,7 @@ export default function MemberRentalPage() {
             <div style={{ marginBottom:14 }}>
               <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>付款方式</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {[{k:'transfer',l:'現金/轉帳'},{k:'linepay',l:'Line Pay'},{k:'jkopay',l:'街口'},{k:'taiwanpay',l:'台灣Pay'}].map(pm => (
+                {filterPayments([{k:'transfer',l:'現金/轉帳'},{k:'linepay',l:'Line Pay'},{k:'jkopay',l:'街口'},{k:'taiwanpay',l:'台灣Pay'}], enabledPay).map(pm => (
                   <button key={pm.k} onClick={() => setPayMethod(pm.k)}
                     style={{ height:36, padding:'0 14px', borderRadius:8, border:`1.5px solid ${payMethod===pm.k?'#8B1A1A':'#E8D5D5'}`, background:payMethod===pm.k?'#FBF5F5':'#fff', color:payMethod===pm.k?'#8B1A1A':'#666', fontSize:12, fontWeight:payMethod===pm.k?600:400, cursor:'pointer' }}>
                     {pm.l}

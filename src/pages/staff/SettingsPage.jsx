@@ -27,6 +27,7 @@ const TAB_GROUPS = [
       { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借' },
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
       { key: 'partnerVendor',icon: '🤝', label: '特約廠商優惠', superAdminOnly: true },
+      { key: 'paymentMethods',icon: '💳', label: '付款方式', superAdminOnly: true },
     ],
   },
 ];
@@ -139,6 +140,7 @@ export default function SettingsPage() {
     if (activeTab === 'gyms') getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(()=>{});
     if (activeTab === 'bonus' && isSuperAdmin) loadBonus();
     if (activeTab === 'partnerVendor' && isSuperAdmin) loadPartnerVendor();
+    if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
   }, [activeTab]);
 
   const openAddStation = () => {
@@ -356,6 +358,27 @@ export default function SettingsPage() {
       showMsg('紅利使用期限已儲存');
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
+  };
+
+  // ─── 付款方式開關（現金/轉帳/LinePay/街口/台灣Pay）────────────────
+  const PAY_KEYS = [
+    { key:'cash', label:'現金', note:'櫃檯現金收款' },
+    { key:'transfer', label:'轉帳', note:'銀行轉帳（會員上傳末五碼、待確認收款）' },
+    { key:'linepay', label:'Line Pay', note:'待金流 API 對接後開放' },
+    { key:'jkopay', label:'街口支付', note:'待金流 API 對接後開放' },
+    { key:'taiwanpay', label:'台灣 Pay', note:'待金流 API 對接後開放' },
+  ];
+  const [payMethods, setPayMethods] = useState({ cash:true, transfer:true, linepay:false, jkopay:false, taiwanpay:false });
+  const [payMethodsDirty, setPayMethodsDirty] = useState(false);
+  const loadPayMethods = async () => {
+    try { const res = await client.get('/settings/payment-methods'); setPayMethods(res.data.enabled || {}); setPayMethodsDirty(false); } catch (e) {}
+  };
+  const handleSavePayMethods = async () => {
+    try {
+      const res = await client.put('/settings/payment-methods', { enabled: payMethods });
+      setPayMethods(res.data.enabled); setPayMethodsDirty(false);
+      showMsg('付款方式設定已儲存');
+    } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'red'); }
   };
 
   // ─── 特約廠商入場優惠（啟用 + 折扣金額）──────────────────────────
@@ -736,6 +759,33 @@ export default function SettingsPage() {
                 style={{ ...s.input, width:'100%' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 0～1000 元，預設 20 元。停用或金額 0 時，會員端不顯示特約選項。</div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'paymentMethods' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>💳 付款方式開關</span>
+            <SaveButton onSave={handleSavePayMethods} isDirty={payMethodsDirty} label='儲存付款方式' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16, textAlign:'left' }}>
+              控制<strong>全站所有付款頁</strong>（入場、課程、體驗、比賽、租借、定期票、分期、商品銷售…）可選的付款方式。
+              關閉的方式各付款頁一律不顯示。LinePay／街口／台灣 Pay 請於金流 API 對接完成後再開放。
+            </div>
+            {PAY_KEYS.map(pk => (
+              <label key={pk.key} onClick={() => { setPayMethods(p => ({ ...p, [pk.key]: !p[pk.key] })); setPayMethodsDirty(true); }}
+                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', borderRadius:10, border:'0.5px solid #E8D5D5', marginBottom:10, cursor:'pointer' }}>
+                <span style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:14, fontWeight:600, display:'block' }}>{pk.label}</span>
+                  <span style={{ fontSize:11, color:'#999' }}>{pk.note}</span>
+                </span>
+                <span style={{ width:44, height:26, borderRadius:13, background: payMethods[pk.key] ? '#2D7D46' : '#ccc', position:'relative', transition:'.2s', flexShrink:0 }}>
+                  <span style={{ position:'absolute', top:3, left: payMethods[pk.key] ? 21 : 3, width:20, height:20, borderRadius:10, background:'#fff', transition:'.2s' }} />
+                </span>
+              </label>
+            ))}
           </div>
         </div>
       )}

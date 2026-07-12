@@ -10,6 +10,8 @@
  *   showNote     boolean // 是否顯示備註欄
  */
 
+import { useEnabledPayments } from '../utils/paymentMethods';
+
 const METHODS = [
   { key:'cash',      label:'現金',    icon:'💵' },
   { key:'transfer',  label:'轉帳',    icon:'🏦' },
@@ -26,8 +28,10 @@ const inp = {
 
 export default function PaymentSection({ value = {}, onChange, bankInfo, amount, showNote = false, methods }) {
   const { method = 'cash', paymentDate = '', bankLastFive = '', bankName = '', note = '' } = value;
+  const enabledPay = useEnabledPayments(); // 系統設定的付款方式開關（未開放者全站隱藏）
   // methods（選填）：限制可選付款方式（如課程端只留 ['cash','transfer'] 隱藏電子支付）
-  const shownMethods = methods ? METHODS.filter(m => methods.includes(m.key)) : METHODS;
+  const shownMethods = (methods ? METHODS.filter(m => methods.includes(m.key)) : METHODS)
+    .filter(m => enabledPay[m.key] !== false);
 
   const set = (patch) => onChange({ ...value, ...patch });
 

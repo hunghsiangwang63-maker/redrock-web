@@ -1,5 +1,7 @@
 // 報名/購買時的「一次付清 / 分期」選擇（僅在該課程/票種有開分期規則時顯示）
 // 用法：<PaymentPlanChoice installment={course.installment} price={fee} plan={plan} paymentMethod={pm} onChange={({plan,paymentMethod})=>...} />
+import { useEnabledPayments, filterPayments } from '../utils/paymentMethods';
+
 const PAY = [{ k: 'cash', l: '現金' }, { k: 'transfer', l: '轉帳' }, { k: 'linepay', l: 'Line Pay' }, { k: 'jkopay', l: '街口支付' }, { k: 'taiwanpay', l: '台灣Pay' }];
 
 function previewPeriods(installment, price) {
@@ -15,6 +17,7 @@ function previewPeriods(installment, price) {
 }
 
 export default function PaymentPlanChoice({ installment, price, plan, paymentMethod, onChange, hideMethod = false }) {
+  const enabledPay = useEnabledPayments();
   const has = installment?.enabled && (installment.periods?.length >= 2);
   if (!has) return null;
   const rows = previewPeriods(installment, price);
@@ -42,7 +45,7 @@ export default function PaymentPlanChoice({ installment, price, plan, paymentMet
                 <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>頭款（第一期）收款方式</div>
                 <select value={paymentMethod || 'cash'} onChange={e => onChange({ plan, paymentMethod: e.target.value })}
                   style={{ width: '100%', height: 34, borderRadius: 7, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, background: '#fff', color: '#1a1a1a' }}>
-                  {PAY.map(m => <option key={m.k} value={m.k}>{m.l}</option>)}
+                  {filterPayments(PAY, enabledPay).map(m => <option key={m.k} value={m.k}>{m.l}</option>)}
                 </select>
               </div>
             )}

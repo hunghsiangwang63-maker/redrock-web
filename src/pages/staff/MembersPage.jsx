@@ -3,6 +3,7 @@ import PasswordInput from '../../components/PasswordInput';
 import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import VipPage from './VipPage';
@@ -173,6 +174,7 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名' }) 
 };
 
 export default function MembersPage() {
+  const enabledPay = useEnabledPayments();
   const { staff, activeGymId, station, operator, viewGym } = useAuth();
   // super_admin 不綁館、也無 activeGymId（未打卡值班）；沿用其在畫面上選的檢視館別（viewGym）
   // 作為操作館別，與 CheckinPage 一致，否則快速入場會誤報「無法判斷操作館別」。
@@ -942,7 +944,7 @@ export default function MembersPage() {
             <div style={{ marginBottom:20 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8 }}>付款方式</label>
               <div style={{ display:'flex', gap:6 }}>
-                {[{key:'cash',label:'現金'},{key:'linepay',label:'Line Pay'},{key:'jkopay',label:'街口'},{key:'taiwanpay',label:'台灣Pay'}].map(pm => (
+                {filterPayments([{key:'cash',label:'現金'},{key:'linepay',label:'Line Pay'},{key:'jkopay',label:'街口'},{key:'taiwanpay',label:'台灣Pay'}], enabledPay).map(pm => (
                   <button key={pm.key} onClick={() => setCheckinPayment(pm.key)}
                     style={{ flex:1, height:34, borderRadius:8, border: checkinPayment===pm.key?'none':'0.5px solid #E8D5D5', background: checkinPayment===pm.key?'#185FA5':'#fff', color: checkinPayment===pm.key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
                     {pm.label}

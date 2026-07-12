@@ -6,6 +6,7 @@ import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import QRCode from 'qrcode';
 import dayjs from 'dayjs';
 import { isChild } from '../../utils/age';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 
 const PAYMENT_METHODS = [
   { key: 'cash',      label: '現金' },
@@ -31,6 +32,8 @@ export default function MemberQRPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const enabledPay = useEnabledPayments(); // 付款方式開關（系統設定）
+  const SHOWN_PAYMENTS = filterPayments(PAYMENT_METHODS, enabledPay);
   const [step, setStep] = useState('loading');
   const [verifyResult, setVerifyResult] = useState(null);
   const [selectedType, setSelectedType] = useState(null);   // 第一段：身分（入場類型）
@@ -530,7 +533,7 @@ export default function MemberQRPage() {
         <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
           {selectedEntry?.type === 'buy_pass' && buyPassPlan === 'installment' ? '請選擇「頭款（第一期）」付款方式' : '請選擇付款方式'}
         </div>
-        {PAYMENT_METHODS.map(pm => (
+        {SHOWN_PAYMENTS.map(pm => (
           <div key={pm.key} onClick={() => { if (loading) return; setSelectedPayment(pm.key); handleGenerateQR(rentShoes, rentChalk, pm.key); }}
             style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor: loading?'wait':'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', opacity: loading?0.6:1 }}>
             <div style={{ fontWeight:500, fontSize:14 }}>{pm.label}</div>
@@ -592,7 +595,7 @@ export default function MemberQRPage() {
                   {renewPlan === 'installment' ? '續約頭款（第一期）付款方式' : '續約付款方式'}
                 </div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                  {PAYMENT_METHODS.map(pm => (
+                  {SHOWN_PAYMENTS.map(pm => (
                     <div key={pm.key} onClick={() => setSelectedPayment(pm.key)}
                       style={{ padding:'8px 14px', borderRadius:20, border:`1.5px solid ${selectedPayment===pm.key?'#8B1A1A':'#E8D5D5'}`, background: selectedPayment===pm.key?'#8B1A1A':'#fff', color: selectedPayment===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
                       {pm.label}
@@ -648,7 +651,7 @@ export default function MemberQRPage() {
             <div style={{ marginBottom:16 }}>
               <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>租借付款方式</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {PAYMENT_METHODS.map(pm => (
+                {SHOWN_PAYMENTS.map(pm => (
                   <div key={pm.key} onClick={() => setSelectedPayment(pm.key)}
                     style={{ padding:'8px 14px', borderRadius:20, border:`1.5px solid ${selectedPayment===pm.key?'#8B1A1A':'#E8D5D5'}`, background: selectedPayment===pm.key?'#8B1A1A':'#fff', color: selectedPayment===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
                     {pm.label}

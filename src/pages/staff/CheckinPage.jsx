@@ -3,6 +3,7 @@ import client from '../../api/client';
 import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 import jsQR from 'jsqr';
@@ -19,6 +20,7 @@ const ENTRY_TYPE_LABEL = {
 const PAYMENT_LABEL = { cash:'現金', linepay:'Line Pay', jkopay:'街口支付', taiwanpay:'台灣 Pay' };
 
 export default function CheckinPage() {
+  const enabledPay = useEnabledPayments();
   const { staff, operator, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
   // 入場動作限值班(operator)/管理員（與後端 requireManagerOrStation 一致）；報表 tab 不限
@@ -775,7 +777,7 @@ export default function CheckinPage() {
                     <>
                       <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>付款方式</div>
                       <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
-                        {[{key:'cash',label:'現金'},{key:'linepay',label:'Line Pay'},{key:'jkopay',label:'街口'},{key:'taiwanpay',label:'台灣Pay'}].map(p => (
+                        {filterPayments([{key:'cash',label:'現金'},{key:'linepay',label:'Line Pay'},{key:'jkopay',label:'街口'},{key:'taiwanpay',label:'台灣Pay'}], enabledPay).map(p => (
                           <button key={p.key} onClick={() => setPhonePayment(p.key)}
                             style={{ height:30, padding:'0 10px', borderRadius:8, border:`0.5px solid ${phonePayment===p.key?'#185FA5':'#E8D5D5'}`, background: phonePayment===p.key?'#185FA5':'#fff', color: phonePayment===p.key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
                             {p.label}

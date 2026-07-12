@@ -3,6 +3,7 @@ import { createInstallmentPlan, markInstallmentPaid, getAllInstallments, runOver
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -37,6 +38,7 @@ const STATUS_LABEL = {
 };
 
 export default function InstallmentsPage({ embedded = false }) {
+  const enabledPay = useEnabledPayments();
   const { staff } = useAuth();
   const [plans, setPlans] = useState([]);
   const [statusFilter, setStatusFilter] = useState('');
@@ -319,7 +321,7 @@ export default function InstallmentsPage({ embedded = false }) {
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>頭款收款方式（第一期自動收）</label>
               <select value={planForm.firstPaymentMethod} onChange={e => setPlanForm({...planForm, firstPaymentMethod:e.target.value})}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                {PAY_METHODS.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+                {filterPayments(PAY_METHODS, enabledPay).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                 <option value="">不自動收（各期手動）</option>
               </select>
             </div>
@@ -374,7 +376,7 @@ export default function InstallmentsPage({ embedded = false }) {
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8 }}>收款方式</label>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-              {PAY_METHODS.map(pm => (
+              {filterPayments(PAY_METHODS, enabledPay).map(pm => (
                 <button key={pm.key} onClick={() => setPayMethod(pm.key)}
                   style={{ height:38, borderRadius:8, border: payMethod===pm.key?'none':'0.5px solid #E8D5D5', background: payMethod===pm.key?'#8B1A1A':'#fff', color: payMethod===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
                   {pm.label}
