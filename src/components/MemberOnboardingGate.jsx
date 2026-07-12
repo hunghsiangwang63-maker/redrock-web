@@ -90,6 +90,9 @@ export default function MemberOnboardingGate({ children }) {
   }
 
   const { needsWaiver, parentPending, consentSigned, testPassed, booking } = state;
+  // 家長 email 只在「本人 waiver + 墜測同意書皆簽完」後才寄出（後端 maybeSendParentSignEmail）。
+  // parentPending＝本人 waiver 已簽、家長未簽；再加 consentSigned＝兩份皆簽完＝家長已被通知簽署。
+  const awaitingParent = parentPending && consentSigned;
 
   // 階段一：兩大方框（waiver + 墜測同意書）尚未都完成
   if (needsWaiver || !consentSigned) {
@@ -112,15 +115,18 @@ export default function MemberOnboardingGate({ children }) {
       <div style={{ fontSize:15, color:'#666', lineHeight:1.7, marginBottom:18 }}>
         入場前請先簽署 <strong>風險安全聲明（Waiver）</strong> 與 <strong>安全墜落測驗同意書</strong>，兩者皆完成後即可安排墜落測驗。
       </div>
+      {/* 未成年：本人 waiver + 墜測同意書「兩份都簽完」才寄家長 email → 兩份都簽完才顯示「待家長簽署」 */}
       <Box icon="📝" title="風險安全聲明" sub="RedRock 攀岩館入場免責與安全聲明書"
         done={!needsWaiver || parentPending}
-        doneText={parentPending ? '已簽署（待家長簽署）' : '已完成簽署'}
+        doneText={!needsWaiver ? '已完成簽署' : (awaitingParent ? '已簽署（待家長簽署）' : '已簽署')}
         onClick={() => navigate('/member/waiver?onboarding=1')} />
       <Box icon="🧗" title="安全墜落測驗同意書" sub="觀看安全影片並簽署墜落測驗同意書"
-        done={consentSigned} doneText="已簽署同意書" onClick={() => navigate('/member/fall-test?onboarding=1')} />
-      {parentPending && (
-        <div style={{ background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', fontSize:13, color:'#B5762B', marginTop:4 }}>
-          📧 風險安全聲明書已送出，等待家長 / 監護人完成簽署。
+        done={consentSigned}
+        doneText={awaitingParent ? '已簽署（待家長簽署）' : '已簽署同意書'}
+        onClick={() => navigate('/member/fall-test?onboarding=1')} />
+      {awaitingParent && (
+        <div style={{ background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', fontSize:13, color:'#B5762B', marginTop:4, lineHeight:1.6 }}>
+          📧 兩份文件已完成本人簽署，並已寄送 email 給家長／監護人。請家長點連結於同一頁面一次簽署完成即可入場。
         </div>
       )}
     </>);
