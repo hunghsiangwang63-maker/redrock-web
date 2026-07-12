@@ -2,13 +2,14 @@ import { useState } from 'react';
 import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
 import { memberSelfRegister } from '../../api/memberAuth';
-import { isUnder5 } from '../../utils/age';
+import { isUnder5, isMinor } from '../../utils/age';
 
 const inputStyle = { width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:15, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const labelStyle = { fontSize:12, color:'#6b6b6b', display:'block', marginBottom:5 };
 
 export default function MemberRegisterPage() {
-  const [form, setForm] = useState({ name:'', phone:'', email:'', password:'', birthday:'' });
+  const [form, setForm] = useState({ name:'', phone:'', email:'', password:'', birthday:'', parentName:'', parentPhone:'', parentRelation:'' });
+  const minor = isMinor(form.birthday);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
@@ -24,10 +25,15 @@ export default function MemberRegisterPage() {
       setError('未滿 5 歲無法成為會員');
       return;
     }
+    // 未滿 18 歲：家長姓名/電話/關係皆必填
+    if (minor && (!form.parentName.trim() || !form.parentPhone.trim() || !form.parentRelation.trim())) {
+      setError('未滿 18 歲需填寫家長姓名、電話與關係');
+      return;
+    }
     setLoading(true);
     try {
       const payload = { ...form };
-      if (!payload.birthday) delete payload.birthday;
+      if (!minor) { delete payload.parentName; delete payload.parentPhone; delete payload.parentRelation; }
       await memberSelfRegister(payload);
       setDone(true);
     } catch (err) {
@@ -75,10 +81,31 @@ export default function MemberRegisterPage() {
                 <label style={labelStyle}>密碼（至少8碼）</label>
                 <PasswordInput value={form.password} onChange={set('password')} placeholder="••••••••" required minLength={8} style={inputStyle} />
               </div>
-              <div style={{ marginBottom:20 }}>
-                <label style={labelStyle}>生日（選填）</label>
-                <input type="date" value={form.birthday} onChange={set('birthday')} style={inputStyle} />
+              <div style={{ marginBottom: minor ? 14 : 20 }}>
+                <label style={labelStyle}>生日</label>
+                <input type="date" value={form.birthday} onChange={set('birthday')} required style={inputStyle} />
+                <div style={{ fontSize:11, color:'#8B1A1A', marginTop:6, lineHeight:1.6, textAlign:'left' }}>
+                  ※ 未滿 18 歲需家長／法定代理人簽署風險安全聲明書，並填寫下方家長資料。
+                </div>
               </div>
+
+              {minor && (
+                <div style={{ background:'#FBF3F3', border:'0.5px solid #EAD3D3', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:10 }}>家長／法定代理人資料（未滿 18 歲必填）</div>
+                  <div style={{ marginBottom:12 }}>
+                    <label style={labelStyle}>家長姓名</label>
+                    <input value={form.parentName} onChange={set('parentName')} placeholder="王大明" required={minor} style={inputStyle} />
+                  </div>
+                  <div style={{ marginBottom:12 }}>
+                    <label style={labelStyle}>家長電話</label>
+                    <input type="tel" value={form.parentPhone} onChange={set('parentPhone')} placeholder="0912345678" required={minor} style={inputStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>與會員關係</label>
+                    <input value={form.parentRelation} onChange={set('parentRelation')} placeholder="父/母/監護人" required={minor} style={inputStyle} />
+                  </div>
+                </div>
+              )}
 
               {error && (
                 <div style={{ background:'#FCEBEB', border:'0.5px solid #F5C4C4', borderRadius:8, padding:'9px 12px', fontSize:12, color:'#A32D2D', marginBottom:14 }}>

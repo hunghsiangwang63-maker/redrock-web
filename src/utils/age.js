@@ -20,3 +20,9 @@ export const isChild = (memberOrBirthday) => {
   const a = ageOf(memberOrBirthday);
   return a !== null && a < 13;
 };
+
+// 未成年：未滿 18 歲（需家長/法定代理人簽名）——有生日才判斷
+export const isMinor = (memberOrBirthday) => {
+  const a = ageOf(memberOrBirthday);
+  return a !== null && a < 18;
+};
