@@ -124,9 +124,7 @@ export default function MemberFallTestPage() {
     if (!canSign) { setError(`請先觀看至少 ${requiredPercent}% 的影片內容`); return; }
     if (!allAgreed) { setError('請閱讀並勾選所有條款後再簽署'); return; }
     if (!sigRef.current || sigRef.current.isEmpty()) { setError('請先完成本人簽名'); return; }
-    if (needGuardian && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) {
-      setError('未滿18歲需要家長/監護人一同簽名'); return;
-    }
+    // 未滿 18 歲：家長簽名改為遠端——本人簽完後系統寄 email 給家長，於同一連結一次簽署兩份文件
 
     setLoading(true);
     try {
@@ -136,7 +134,6 @@ export default function MemberFallTestPage() {
         signatureData: sigRef.current.toDataURL(),
         watchPercent,
         agreedParagraphs: Array.from(agreedParagraphs),
-        guardianSignatureData: needGuardian ? guardianSigRef.current.toDataURL() : null,
       });
       if (onboarding) { navigate('/member/home'); return; }  // 回 gate → 自動走到下一步（安排墜落測驗）
       const [st, sig] = await Promise.all([
@@ -267,15 +264,14 @@ export default function MemberFallTestPage() {
           <button onClick={() => sigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>清除重簽</button>
         </div>
 
-        {/* 家長簽名（未滿18歲） */}
+        {/* 家長簽名（未滿18歲）：改為遠端 email 簽署，不在現場簽 */}
         {needGuardian && (
           <div style={{ ...s.card, border: '1px solid #F0D9A8', background: '#FFFBF0' }}>
-            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>👨‍👩‍👧 家長/監護人簽名（未滿18歲必填）</div>
-            <div style={{ fontSize: 12, color: '#854F0B', marginBottom: 12, lineHeight: 1.6 }}>
-              本會員未滿18歲，需由家長或法定監護人一同簽署同意。
+            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>👨‍👩‍👧 家長/監護人簽名（未滿18歲）</div>
+            <div style={{ fontSize: 12, color: '#854F0B', lineHeight: 1.7 }}>
+              本會員未滿 18 歲，需家長／法定代理人同意。<strong>完成本人簽署後</strong>，系統會寄一封 email 給家長，家長點連結即可於<strong>同一頁面一次簽署</strong>「風險安全聲明書」與「墜落測驗同意書」兩份文件。<br/>
+              （若風險安全聲明書尚未簽署，家長 email 會等兩份本人簽署都完成後才寄出。）
             </div>
-            <SignaturePad ref={guardianSigRef} />
-            <button onClick={() => guardianSigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>清除重簽</button>
           </div>
         )}
 

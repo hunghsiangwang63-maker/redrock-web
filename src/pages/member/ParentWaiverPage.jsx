@@ -105,7 +105,7 @@ export default function ParentWaiverPage() {
     <div style={s.page}><div style={s.container}>
       <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
       <div style={{ textAlign: 'left', fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
-        家長/監護人簽署 — {info?.memberName ? `為「${info.memberName}」簽署安全風險安全聲明書` : ''}
+        家長/監護人簽署 — 為「{info?.memberName || ''}」簽署<strong>風險安全聲明書</strong>{info?.fallTest ? ' 與 ' : ''}{info?.fallTest ? <strong>墜落測驗同意書</strong> : ''}。於下方簽一次名即可完成{info?.fallTest ? '兩份文件' : ''}。
       </div>
 
       <div style={s.card}>
@@ -116,13 +116,26 @@ export default function ParentWaiverPage() {
           </div>
         </div>
         <div style={{ padding: '0 18px 18px' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#8B1A1A', marginBottom: 6 }}>一、風險安全聲明書</div>
           <div style={{
-            maxHeight: 260, overflowY: 'auto', fontSize: 13, lineHeight: 1.7, color: '#333',
+            maxHeight: 220, overflowY: 'auto', fontSize: 13, lineHeight: 1.7, color: '#333',
             whiteSpace: 'pre-wrap', background: '#FBF5F5', borderRadius: 10, padding: 14,
             border: '0.5px solid #F0E4E4',
           }}>
             {waiverText[lang] || '（尚未設定聲明書內容，請聯絡館方）'}
           </div>
+          {info?.fallTest && (
+            <>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#8B1A1A', margin: '14px 0 6px' }}>二、墜落測驗同意書</div>
+              <div style={{
+                maxHeight: 220, overflowY: 'auto', fontSize: 13, lineHeight: 1.7, color: '#333',
+                whiteSpace: 'pre-wrap', background: '#FBF5F5', borderRadius: 10, padding: 14,
+                border: '0.5px solid #F0E4E4',
+              }}>
+                {info.fallTest.content?.[lang] || '（尚未設定墜落測驗同意書內容，請聯絡館方）'}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -130,7 +143,7 @@ export default function ParentWaiverPage() {
         <div style={s.cardPad}>
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: '#555', marginBottom: 14, cursor: 'pointer' }}>
             <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0 }} />
-            本人作為家長/監護人，已閱讀並理解上述風險安全聲明書內容，同意子女承擔攀岩活動之相關風險。
+            本人作為家長/監護人，已閱讀並理解上述{info?.fallTest ? '風險安全聲明書與墜落測驗同意書' : '風險安全聲明書'}內容，同意子女承擔攀岩活動之相關風險{info?.fallTest ? '並參加墜落測驗' : ''}。
           </label>
           <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>請於下方簽名：</div>
           <SignaturePad ref={sigRef} height={160} />
