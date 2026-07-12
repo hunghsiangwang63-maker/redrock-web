@@ -638,7 +638,13 @@ export default function MemberProfilePage() {
                     ) : <div style={{ fontSize:13, color:'#999' }}>無簽名圖檔</div>}
                   </div>
                   <div style={{ fontSize:13, color:'#666', marginBottom:8 }}>
-                    簽署時間：{myWaiver.memberSignedAt ? dayjs(myWaiver.memberSignedAt?.seconds ? myWaiver.memberSignedAt.seconds*1000 : myWaiver.memberSignedAt).format('YYYY/MM/DD HH:mm') : '—'}
+                    簽署時間：{(() => {
+                      const t = myWaiver.memberSignedAt;
+                      if (!t) return '—';
+                      const secs = t._seconds ?? t.seconds; // Firestore Timestamp 序列化為 {_seconds}
+                      const d = secs != null ? dayjs(secs * 1000) : dayjs(t);
+                      return d.isValid() ? d.format('YYYY/MM/DD HH:mm') : '—';
+                    })()}
                   </div>
                   {myWaiver.parentRequired && (
                     <div style={{ marginTop:16, paddingTop:16, borderTop:'0.5px solid #F5EFEF' }}>
