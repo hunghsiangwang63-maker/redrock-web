@@ -761,6 +761,13 @@ export default function MemberQRPage() {
             </div>
             <div style={{ marginTop:8, fontSize:11, color:'#999' }}>⏱ 有效時間剩餘約 {minutesLeft} 分鐘</div>
           </div>
+          {/* 特約廠商 / 學生入場：提醒會員入場時於櫃檯出示證件（櫃檯員工端亦有查驗提醒）*/}
+          {(pvActive || selectedEntry?.type === 'student_free') && (
+            <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:10, padding:'12px 14px', marginTop:14, fontSize:13, color:'#8A5A00', fontWeight:600, display:'flex', gap:8, textAlign:'left', alignItems:'flex-start' }}>
+              <span style={{ flexShrink:0 }}>🪪</span>
+              <span>入場時請於櫃檯出示{[selectedEntry?.type === 'student_free' && '學生證', pvActive && '特約廠商證件'].filter(Boolean).join('、')}供核對，未出示或不符將以原價計。</span>
+            </div>
+          )}
           {qrClosedReason === 'expired' ? (
             <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginTop:14, fontSize:12, color:'#A32D2D', display:'flex', gap:8 }}>
               <span>⏱</span><span>此 QR Code 已逾時，請按下方「重新產生」。</span>
