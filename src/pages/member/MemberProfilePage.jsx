@@ -656,6 +656,7 @@ export default function MemberProfilePage() {
                           style={{ width:'100%', maxWidth:280, border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', marginBottom:8 }}/>
                       ) : <div style={{ fontSize:13, color:'#999', marginBottom:8 }}>尚未簽署</div>}
                       {myWaiver.parentName && <div style={{ fontSize:13, color:'#666' }}>簽署人：{myWaiver.parentName}（{myWaiver.parentRelation || '監護人'}）</div>}
+                      {myWaiver.parentSignedAt && <div style={{ fontSize:13, color:'#666', marginTop:4 }}>簽署時間：{fmtTs(myWaiver.parentSignedAt)}</div>}
                     </div>
                   )}
                 </>
