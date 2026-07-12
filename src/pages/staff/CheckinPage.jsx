@@ -589,6 +589,11 @@ export default function CheckinPage() {
                     ⚠ 特約廠商優惠（−20）：請會員出示特約廠商證件確認後再放行
                   </div>
                 )}
+                {scanResult.entryType === 'student_free' && (
+                  <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#8A5A00', fontWeight:600 }}>
+                    🎓 學生入場：請查驗學生證後再放行
+                  </div>
+                )}
 
                 {scanResult.confirmError && (
                   <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', marginBottom:8, fontSize:12, color:'#A32D2D' }}>
