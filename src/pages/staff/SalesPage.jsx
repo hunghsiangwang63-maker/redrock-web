@@ -437,10 +437,9 @@ export default function SalesPage({ embedded = false }) {
     return (
       <div key={p.id} onClick={() => totalStock > 0 && setSelectedProduct(p)}
         style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 14px', borderBottom:'0.5px solid #F5EFEF', cursor: totalStock > 0 ? 'pointer' : 'not-allowed', opacity: totalStock > 0 ? 1 : 0.55 }}>
-        <div style={{ flex:1, minWidth:0 }}>
-          {p.brand && <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A' }}>{p.brand}</div>}
-          <div style={{ fontWeight:600, fontSize:14, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.name}</div>
-        </div>
+        {/* 品牌獨立固定寬欄：每列品牌/名稱起始位置一致，不受右側庫存寬度影響 */}
+        <div style={{ width:92, flexShrink:0, fontSize:13, fontWeight:600, color:'#8B1A1A', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.brand || ''}</div>
+        <div style={{ flex:1, minWidth:0, fontWeight:600, fontSize:14, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', textAlign:'left' }}>{p.name}</div>
         <div style={{ textAlign:'right', flexShrink:0 }}>
           <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{getProductPriceRange(p)}</div>
           <div style={{ fontSize:13, color:'#888' }}>
