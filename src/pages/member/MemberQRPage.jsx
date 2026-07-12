@@ -56,7 +56,15 @@ export default function MemberQRPage() {
   const entrant = (targetId && children.find(c => c.id === targetId)) || member;
   const isChildTarget = !!entrant && !!member && entrant.id !== member.id;
 
-  const gymId = member?.defaultGymId || 'gym-hsinchu';
+  // 入場場館：會員自選（兩館），記住上次選擇。QR 依此館 verify＋產碼，站台掃碼須同館。
+  const [gymId, setGymId] = useState(() => {
+    try { return localStorage.getItem('memberEntryGymId') || 'gym-hsinchu'; } catch { return 'gym-hsinchu'; }
+  });
+  const changeGym = (id) => {
+    if (id === gymId) return;
+    try { localStorage.setItem('memberEntryGymId', id); } catch (e) {}
+    setGymId(id);
+  };
 
   // 續約資訊（到期前14天由後端 verify 回傳）；分期各期前 n-1 照原價比例、折扣集中末期（與後端 buildRenewalPeriods 一致）
   const renewal = verifyResult?.renewal || null;
@@ -83,8 +91,8 @@ export default function MemberQRPage() {
       .catch(() => {});
   }, [member]);
 
-  // 切換入場人員（或初次進入）時重新驗票
-  useEffect(() => { if (member) doVerify(); /* eslint-disable-next-line */ }, [member, targetId]);
+  // 切換入場人員 / 場館（或初次進入）時重新驗票
+  useEffect(() => { if (member) doVerify(); /* eslint-disable-next-line */ }, [member, targetId, gymId]);
 
   // 產生 QR 後每 3 秒輪詢入場狀態：confirmed→自動跳首頁（首頁橫幅顯示已入場）；
   // cancelled/expired→停止並提示；元件卸載/QR 變更時清除 interval（不無限輪詢）。
@@ -231,6 +239,27 @@ export default function MemberQRPage() {
     </div>
   );
 
+  // 入場場館選擇器（兩館皆可入場；選定後 QR 依此館產生，須至同館掃碼）。QR 已產生後不顯示。
+  const GymSelector = () => {
+    if (step === 'qr') return null;
+    return (
+    <div style={{ padding:'14px 20px 0' }}>
+      <div style={{ fontSize:11, color:'#999', marginBottom:6 }}>選擇入場場館</div>
+      <div style={{ display:'flex', gap:8 }}>
+        {[{ id:'gym-hsinchu', name:'新竹館' }, { id:'gym-shilin', name:'士林館' }].map(g => {
+          const active = gymId === g.id;
+          return (
+            <button key={g.id} type="button" onClick={() => changeGym(g.id)}
+              style={{ flex:1, height:38, borderRadius:10, border:`1.5px solid ${active?'#8B1A1A':'#E8D5D5'}`, background: active?'#8B1A1A':'#fff', color: active?'#fff':'#666', fontSize:14, fontWeight: active?600:400, cursor:'pointer' }}>
+              {g.name}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+    );
+  };
+
   // 入場人員選擇器（僅當帳號底下有子會員時顯示）
   const MemberSelector = () => {
     if (!member || children.length === 0) return null;
@@ -257,7 +286,7 @@ export default function MemberQRPage() {
   if (step === 'loading') return wrap(
     <>
       <Header title="入場 QR Code" onBack={() => navigate('/member/home')} />
-      <MemberSelector />
+      <GymSelector /><MemberSelector />
       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:60, gap:16 }}>
         <div style={{ fontSize:32 }}>⏳</div>
         <div style={{ fontSize:14, color:'#999' }}>驗票中...</div>
@@ -293,7 +322,7 @@ export default function MemberQRPage() {
     return wrap(
       <>
         <Header title="入場 QR Code" onBack={() => navigate('/member/home')} />
-        <MemberSelector />
+        <GymSelector /><MemberSelector />
         <div style={{ padding:20 }}>
           <div style={{ background: isAlreadyIn ? '#E6F4EB' : '#FCEBEB', borderRadius:12, border: `0.5px solid ${isAlreadyIn ? '#B3DEC0' : '#F09595'}`, padding:24, textAlign:'center' }}>
             <div style={{ fontSize:40, marginBottom:12 }}>{isAlreadyIn ? '✅' : pendingParent ? '📧' : '🚫'}</div>
@@ -345,7 +374,7 @@ export default function MemberQRPage() {
     return wrap(
       <>
         <Header title="選擇身分" onBack={() => navigate('/member/home')} />
-        <MemberSelector />
+        <GymSelector /><MemberSelector />
         <div style={{ padding:20 }}>
           {verifyResult?.member?.isTeamMember && (
             <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'10px 14px', marginBottom:14, fontSize:12, color:'#185FA5' }}>
@@ -404,7 +433,7 @@ export default function MemberQRPage() {
     return wrap(
       <>
         <Header title="選擇付款方式" onBack={() => setStep('select_entry')} />
-        <MemberSelector />
+        <GymSelector /><MemberSelector />
         <div style={{ padding:20 }}>
           <div style={{ fontSize:13, color:'#666', marginBottom:4 }}>身分：<b>{t.label}</b></div>
           <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>請選擇付款方式或使用票券</div>
@@ -465,7 +494,7 @@ export default function MemberQRPage() {
    return wrap(
     <>
       <Header title="選擇付款方式" onBack={() => setStep('select_method')} />
-      <MemberSelector />
+      <GymSelector /><MemberSelector />
       <div style={{ padding:20 }}>
         <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:13 }}>
           <div style={{ color:'#999', marginBottom:4 }}>入場方式</div>
@@ -515,7 +544,7 @@ export default function MemberQRPage() {
         else if (selectedType) setStep('select_method');
         else doVerify();
       }} />
-      <MemberSelector />
+      <GymSelector /><MemberSelector />
       <div style={{ padding:20 }}>
         {/* 續約（定期票到期前14天）*/}
         {renewal && (
@@ -658,7 +687,7 @@ export default function MemberQRPage() {
     return wrap(
       <>
         <Header title="入場 QR Code" onBack={() => navigate('/member/home')} />
-        <MemberSelector />
+        <GymSelector /><MemberSelector />
         <div style={{ padding:20 }}>
           <div style={{ background:'#fff', borderRadius:16, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', boxShadow:'0 4px 20px rgba(0,0,0,.06)' }}>
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:16, color:'#8B1A1A', marginBottom:16 }}>RedRock</div>
