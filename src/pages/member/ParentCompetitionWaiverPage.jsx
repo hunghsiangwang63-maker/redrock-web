@@ -101,7 +101,7 @@ export default function ParentCompetitionWaiverPage() {
   return (
     <div style={s.page}><div style={s.container}>
       <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
-      <div style={{ textAlign: 'center', fontSize: 13, color: '#666', marginBottom: 16 }}>
+      <div style={{ textAlign: 'left', fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
         家長/監護人簽署 — 為「{info?.memberName}」簽署「{info?.competitionName}」比賽風險聲明書
       </div>
 

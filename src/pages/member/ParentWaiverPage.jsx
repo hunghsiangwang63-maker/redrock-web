@@ -104,7 +104,7 @@ export default function ParentWaiverPage() {
   return (
     <div style={s.page}><div style={s.container}>
       <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
-      <div style={{ textAlign: 'center', fontSize: 13, color: '#666', marginBottom: 16 }}>
+      <div style={{ textAlign: 'left', fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
         家長/監護人簽署 — {info?.memberName ? `為「${info.memberName}」簽署安全風險安全聲明書` : ''}
       </div>
 
