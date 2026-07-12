@@ -55,7 +55,8 @@ const VariantForm = ({ variants, onChange }) => {
               <div key={f.key} style={{ gridColumn: f.key==='size'||f.key==='color' ? 'auto' : f.key==='stock'?'1/-1':'auto' }}>
                 <label style={{ fontSize:10, color:'#666', display:'block', marginBottom:3 }}>{f.label}</label>
                 <input type={f.type||'text'} value={v[f.key]||''} placeholder={f.placeholder}
-                  onChange={e => updateVariant(i, f.key, e.target.value)}
+                  min={f.type==='number' ? 0 : undefined}
+                  onChange={e => { let val = e.target.value; if (f.type==='number' && val !== '' && Number(val) < 0) val = '0'; updateVariant(i, f.key, val); }}
                   style={{ width:'100%', height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
               </div>
             ))}
@@ -235,7 +236,7 @@ export default function SalesPage({ embedded = false }) {
     try {
       await createProduct({ ...productForm, gymId: isWarehouse ? null : targetGymId,
         variants: productForm.variants.map(v => {
-          const stockNum = parseInt(v.stock)||0;
+          const stockNum = Math.max(0, parseInt(v.stock)||0);
           // 倉庫模式：初始庫存放倉庫；具體館模式：放該館
           return isWarehouse
             ? { ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: 0, gymStock: {}, warehouseStock: stockNum }
@@ -254,7 +255,7 @@ export default function SalesPage({ embedded = false }) {
     try {
       // 編輯的 stock 對應「目前操作對象」：倉庫模式→warehouseStock；具體館→該館 gymStock（重算跨館總量避免不同步）
       const variants = (productForm.variants || []).map(v => {
-        const stockNum = parseInt(v.stock) || 0;
+        const stockNum = Math.max(0, parseInt(v.stock) || 0);
         if (isWarehouse) return { ...v, price: parseInt(v.price) || 0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, warehouseStock: stockNum };
         const gymStock = { ...(v.gymStock || {}), [targetGymId]: stockNum };
         const total = Object.values(gymStock).reduce((s, n) => s + (Number(n) || 0), 0);
