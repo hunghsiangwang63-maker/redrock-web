@@ -77,6 +77,7 @@ export default function SalesPage({ embedded = false }) {
   const [tab, setTab] = useState('sell');
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
+  const [confirmClear, setConfirmClear] = useState(false); // 清空購物車二次確認
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [memberQuery, setMemberQuery] = useState('');
   const [memberResults, setMemberResults] = useState([]);
@@ -176,6 +177,7 @@ export default function SalesPage({ embedded = false }) {
   };
 
   const addToCart = (product, variant) => {
+    setConfirmClear(false); // 加新品 → 取消殘留的清空確認
     const key = `${product.id}_${variant.id}`;
     const existing = cart.find(c => c.key === key);
     if (existing) {
@@ -521,7 +523,20 @@ export default function SalesPage({ embedded = false }) {
 
           {/* 購物車 */}
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, height:'fit-content' }}>
-            <div style={{ fontWeight:600, fontSize:14, marginBottom:14 }}>購物車</div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontWeight:600, fontSize:14 }}>購物車{cart.length > 0 && <span style={{ color:'#999', fontWeight:400, marginLeft:6 }}>（{cart.reduce((s,c)=>s+c.quantity,0)} 件）</span>}</div>
+              {cart.length > 0 && (confirmClear ? (
+                <span style={{ display:'flex', gap:6, alignItems:'center' }}>
+                  <button onClick={() => { setCart([]); setConfirmClear(false); }}
+                    style={{ height:26, padding:'0 10px', borderRadius:6, border:'none', background:'#A32D2D', color:'#fff', fontSize:11, cursor:'pointer' }}>確定清空</button>
+                  <button onClick={() => setConfirmClear(false)}
+                    style={{ height:26, padding:'0 8px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', fontSize:11, cursor:'pointer' }}>取消</button>
+                </span>
+              ) : (
+                <button onClick={() => setConfirmClear(true)}
+                  style={{ background:'none', border:'none', color:'#A32D2D', fontSize:12, cursor:'pointer', padding:0 }}>🗑 清空購物車</button>
+              ))}
+            </div>
             <div style={{ marginBottom:12 }}>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>會員（選填）</label>
               <input value={memberQuery} onChange={e => searchMember(e.target.value)} placeholder="搜尋姓名或手機..."
