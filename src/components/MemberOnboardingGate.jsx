@@ -113,8 +113,9 @@ export default function MemberOnboardingGate({ children }) {
         入場前請先簽署 <strong>風險安全聲明（Waiver）</strong> 與 <strong>安全墜落測驗同意書</strong>，兩者皆完成後即可安排墜落測驗。
       </div>
       <Box icon="📝" title="風險安全聲明" sub="RedRock 攀岩館入場免責與安全聲明書"
-        done={!needsWaiver} doneText={parentPending ? '' : '已完成簽署'}
-        waiting={parentPending} onClick={() => navigate('/member/waiver?onboarding=1')} />
+        done={!needsWaiver || parentPending}
+        doneText={parentPending ? '已簽署（待家長簽署）' : '已完成簽署'}
+        onClick={() => navigate('/member/waiver?onboarding=1')} />
       <Box icon="🧗" title="安全墜落測驗同意書" sub="觀看安全影片並簽署墜落測驗同意書"
         done={consentSigned} doneText="已簽署同意書" onClick={() => navigate('/member/fall-test?onboarding=1')} />
       {parentPending && (
