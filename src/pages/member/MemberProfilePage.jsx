@@ -13,6 +13,14 @@ import { entryTypeLabel } from '../../utils/entryLabel';
 const FT_GYMS = [{ id:'gym-hsinchu', name:'新竹館' }, { id:'gym-shilin', name:'士林館' }];
 const ftGymName = (id) => FT_GYMS.find(g => g.id === id)?.name || id;
 
+// 安全格式化 Firestore Timestamp（序列化為 {_seconds}）／ISO 字串／毫秒；無效回 fallback（不顯示 Invalid date）
+const fmtTs = (t, format = 'YYYY/MM/DD HH:mm', fallback = '—') => {
+  if (!t) return fallback;
+  const secs = t._seconds ?? t.seconds; // JSON 化 Timestamp 為 {_seconds}
+  const d = secs != null ? dayjs(secs * 1000) : dayjs(t);
+  return d.isValid() ? d.format(format) : fallback;
+};
+
 const BottomNav = ({ navigate }) => (
   <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:"env(safe-area-inset-bottom)", zIndex:50 }}>
     {[
@@ -586,7 +594,7 @@ export default function MemberProfilePage() {
                 <div key={i} style={{ padding:'12px 0', borderBottom:'0.5px solid #F5EFEF' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
                     <span style={{ fontSize:13, fontWeight:500 }}>{r.gymName || r.gymId}</span>
-                    <span style={{ fontSize:12, color:'#999' }}>{dayjs(r.checkedInAt?.seconds ? r.checkedInAt.seconds*1000 : r.checkedInAt).format('MM/DD HH:mm')}</span>
+                    <span style={{ fontSize:12, color:'#999' }}>{fmtTs(r.checkedInAt, 'MM/DD HH:mm', '')}</span>
                   </div>
                   <div style={{ fontSize:12, color:'#666', display:'flex', gap:8 }}>
                     <span>{entryTypeLabel(r.entryType)}</span>
@@ -638,13 +646,7 @@ export default function MemberProfilePage() {
                     ) : <div style={{ fontSize:13, color:'#999' }}>無簽名圖檔</div>}
                   </div>
                   <div style={{ fontSize:13, color:'#666', marginBottom:8 }}>
-                    簽署時間：{(() => {
-                      const t = myWaiver.memberSignedAt;
-                      if (!t) return '—';
-                      const secs = t._seconds ?? t.seconds; // Firestore Timestamp 序列化為 {_seconds}
-                      const d = secs != null ? dayjs(secs * 1000) : dayjs(t);
-                      return d.isValid() ? d.format('YYYY/MM/DD HH:mm') : '—';
-                    })()}
+                    簽署時間：{fmtTs(myWaiver.memberSignedAt)}
                   </div>
                   {myWaiver.parentRequired && (
                     <div style={{ marginTop:16, paddingTop:16, borderTop:'0.5px solid #F5EFEF' }}>
