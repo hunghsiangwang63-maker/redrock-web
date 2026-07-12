@@ -584,10 +584,10 @@ export default function SalesPage({ embedded = false }) {
                   </div>
                   <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                     <button onClick={() => updateQty(item.key, item.quantity-1)}
-                      style={{ width:22, height:22, borderRadius:11, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:13 }}>−</button>
-                    <span style={{ fontSize:12, minWidth:18, textAlign:'center' }}>{item.quantity}</span>
+                      style={{ width:22, height:22, borderRadius:11, border:'0.5px solid #E8D5D5', background:'#fff', color:'#333', cursor:'pointer', fontSize:15, lineHeight:1, fontWeight:600 }}>−</button>
+                    <span style={{ fontSize:12, minWidth:18, textAlign:'center', color:'#1a1a1a' }}>{item.quantity}</span>
                     <button onClick={() => updateQty(item.key, item.quantity+1)}
-                      style={{ width:22, height:22, borderRadius:11, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:13 }}>＋</button>
+                      style={{ width:22, height:22, borderRadius:11, border:'0.5px solid #E8D5D5', background:'#fff', color:'#333', cursor:'pointer', fontSize:15, lineHeight:1, fontWeight:600 }}>＋</button>
                     <button onClick={() => removeFromCart(item.key)}
                       style={{ width:22, height:22, borderRadius:11, border:'none', background:'#FCEBEB', color:'#A32D2D', cursor:'pointer', fontSize:11 }}>✕</button>
                   </div>
