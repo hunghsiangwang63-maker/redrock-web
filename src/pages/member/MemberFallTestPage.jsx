@@ -4,6 +4,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { getFallTestSettings, signFallTestAgreement, getFallTestSignature, getMyFallTestStatus } from '../../api/fallTests';
 import SignaturePad from '../../components/SignaturePad';
 import dayjs from 'dayjs';
+import { isMinor } from '../../utils/age';
 
 const extractYoutubeId = (url) => {
   if (!url) return null;
@@ -42,9 +43,8 @@ export default function MemberFallTestPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const isUnder12 = member?.birthday
-    ? dayjs().diff(dayjs(member.birthday), 'year') < 12
-    : false;
+  // 未滿 18 歲（未成年）需家長/監護人一同簽署（與聲明書/課程/比賽/註冊一致）
+  const needGuardian = isMinor(member?.birthday);
 
   useEffect(() => {
     if (!member) return;
@@ -124,8 +124,8 @@ export default function MemberFallTestPage() {
     if (!canSign) { setError(`請先觀看至少 ${requiredPercent}% 的影片內容`); return; }
     if (!allAgreed) { setError('請閱讀並勾選所有條款後再簽署'); return; }
     if (!sigRef.current || sigRef.current.isEmpty()) { setError('請先完成本人簽名'); return; }
-    if (isUnder12 && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) {
-      setError('未滿12歲需要家長/監護人一同簽名'); return;
+    if (needGuardian && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) {
+      setError('未滿18歲需要家長/監護人一同簽名'); return;
     }
 
     setLoading(true);
@@ -136,7 +136,7 @@ export default function MemberFallTestPage() {
         signatureData: sigRef.current.toDataURL(),
         watchPercent,
         agreedParagraphs: Array.from(agreedParagraphs),
-        guardianSignatureData: isUnder12 ? guardianSigRef.current.toDataURL() : null,
+        guardianSignatureData: needGuardian ? guardianSigRef.current.toDataURL() : null,
       });
       if (onboarding) { navigate('/member/home'); return; }  // 回 gate → 自動走到下一步（安排墜落測驗）
       const [st, sig] = await Promise.all([
@@ -267,12 +267,12 @@ export default function MemberFallTestPage() {
           <button onClick={() => sigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>清除重簽</button>
         </div>
 
-        {/* 家長簽名（未滿12歲） */}
-        {isUnder12 && (
+        {/* 家長簽名（未滿18歲） */}
+        {needGuardian && (
           <div style={{ ...s.card, border: '1px solid #F0D9A8', background: '#FFFBF0' }}>
-            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>👨‍👩‍👧 家長/監護人簽名（未滿12歲必填）</div>
+            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>👨‍👩‍👧 家長/監護人簽名（未滿18歲必填）</div>
             <div style={{ fontSize: 12, color: '#854F0B', marginBottom: 12, lineHeight: 1.6 }}>
-              本會員未滿12歲，需由家長或法定監護人一同簽署同意。
+              本會員未滿18歲，需由家長或法定監護人一同簽署同意。
             </div>
             <SignaturePad ref={guardianSigRef} />
             <button onClick={() => guardianSigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>清除重簽</button>
