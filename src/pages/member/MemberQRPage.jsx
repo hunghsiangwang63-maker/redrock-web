@@ -141,7 +141,7 @@ export default function MemberQRPage() {
     }
   };
 
-  const handleGenerateQR = async (shoes, chalk = false) => {
+  const handleGenerateQR = async (shoes, chalk = false, payMethod = selectedPayment) => {
     setLoading(true);
     setError(null);
     try {
@@ -170,7 +170,7 @@ export default function MemberQRPage() {
         if (selectedEntry.instrumentKind === 'bonus') payload.bonusId = cardId;
       }
       if (!selectedEntry.freeEntry) {
-        payload.paymentMethod = selectedPayment;
+        payload.paymentMethod = payMethod;
         payload.originalAmount = selectedEntry.price || 0;
         // 特約廠商（全票/學生票、非隊員、一般付款）：−20（後端權威覆核，前端僅顯示一致）
         const pvActive = selectedEntry.kind === 'pay' && selectedEntry.partnerVendorEligible === true && partnerVendor;
@@ -181,13 +181,13 @@ export default function MemberQRPage() {
       }
       // 免費入場但有加租器材（岩鞋/粉袋）：帶「租借付款方式」（供結帳付款方式正確歸類，不再一律現金）
       if (selectedEntry.freeEntry && (shoes || chalk)) {
-        payload.paymentMethod = selectedPayment || 'cash';
+        payload.paymentMethod = payMethod || 'cash';
       }
       // 續約附加（免費入場定期票、到期前14天）：帶要續約的票 + 分期選擇 + 續約款付款方式
       if (renewOptIn && renewal?.passId) {
         payload.renewPassId = renewal.passId;
         payload.renewPaymentPlan = renewPlan;
-        payload.paymentMethod = selectedPayment || 'cash';
+        payload.paymentMethod = payMethod || 'cash';
       }
 
       const res = await memberClient.post('/checkin/qr/create', payload);
@@ -428,7 +428,8 @@ export default function MemberQRPage() {
         label:`購買定期票：${pt.name}`, note:[dur, scopeLabel].filter(Boolean).join('・'),
         price:pt.price, discountedPrice:pt.price, freeEntry:false, requiresPayment:true,
         installment:pt.installment || null });
-      setStep('select_payment');
+      setSelectedPayment(null);
+      setStep('shoes'); // 先問租借器材，付費方式改到租借之後
     };
     return wrap(
       <>
@@ -442,8 +443,9 @@ export default function MemberQRPage() {
               onClick={() => {
                 const cardId = m.cards && m.cards.length === 1 ? m.cards[0].id : (m.cards && m.cards.length ? m.cards[0].id : null);
                 setPartnerVendor(false); // 換方式時重置特約勾選
+                setSelectedPayment(null);
                 setSelectedEntry({ ...m, baseEntryType: m.baseEntryType || m.type, cardId });
-                setStep(m.requiresPayment ? 'select_payment' : 'shoes');
+                setStep('shoes'); // 先問租借器材，付費方式改到租借之後
               }}
               style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div style={{ flex:1, minWidth:0 }}>
@@ -493,17 +495,20 @@ export default function MemberQRPage() {
    const pvShownPrice = basePayPrice - ((pvEligible && partnerVendor) ? pvDiscount : 0);
    return wrap(
     <>
-      <Header title="選擇付款方式" onBack={() => setStep('select_method')} />
+      <Header title="選擇付款方式" onBack={() => setStep('shoes')} />
       <GymSelector /><MemberSelector />
       <div style={{ padding:20 }}>
         <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 16px', marginBottom:16, fontSize:13 }}>
           <div style={{ color:'#999', marginBottom:4 }}>入場方式</div>
           <div style={{ fontWeight:600 }}>{selectedEntry?.label}</div>
-          {selectedEntry?.discountedPrice !== undefined ? (
+          {(selectedEntry?.discountedPrice !== undefined || selectedEntry?.price > 0) && (
             <div style={{ color:'#8B1A1A', fontWeight:700, fontSize:16, marginTop:4 }}>NT${pvShownPrice}</div>
-          ) : selectedEntry?.price > 0 ? (
-            <div style={{ color:'#8B1A1A', fontWeight:700, fontSize:16, marginTop:4 }}>NT${pvShownPrice}</div>
-          ) : null}
+          )}
+          {(rentShoes || rentChalk) && (
+            <div style={{ fontSize:12, color:'#666', marginTop:6 }}>
+              ＋租借器材 NT${(rentShoes?100:0)+(rentChalk?50:0)}（{[rentShoes&&'岩鞋',rentChalk&&'粉袋'].filter(Boolean).join('、')}）
+            </div>
+          )}
         </div>
         {/* 特約廠商優惠（全票/學生票、非隊員、非票券）：勾選 −NT$20，需櫃檯出示證件；金額後端權威 */}
         {pvEligible && (
@@ -526,12 +531,13 @@ export default function MemberQRPage() {
           {selectedEntry?.type === 'buy_pass' && buyPassPlan === 'installment' ? '請選擇「頭款（第一期）」付款方式' : '請選擇付款方式'}
         </div>
         {PAYMENT_METHODS.map(pm => (
-          <div key={pm.key} onClick={() => { setSelectedPayment(pm.key); setStep('shoes'); }}
-            style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div key={pm.key} onClick={() => { if (loading) return; setSelectedPayment(pm.key); handleGenerateQR(rentShoes, rentChalk, pm.key); }}
+            style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', marginBottom:10, cursor: loading?'wait':'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', opacity: loading?0.6:1 }}>
             <div style={{ fontWeight:500, fontSize:14 }}>{pm.label}</div>
             <div style={{ fontSize:18, color:'#ccc' }}>›</div>
           </div>
         ))}
+        {error && <div style={{ marginTop:10, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
       </div>
     </>
    );
@@ -540,8 +546,7 @@ export default function MemberQRPage() {
   if (step === 'shoes') return wrap(
     <>
       <Header title="租借器材" onBack={() => {
-        if (selectedPayment) setStep('select_payment');
-        else if (selectedType) setStep('select_method');
+        if (selectedType) setStep('select_method');
         else doVerify();
       }} />
       <GymSelector /><MemberSelector />
@@ -654,6 +659,17 @@ export default function MemberQRPage() {
           )}
           {error && <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
           {(() => {
+            // 付費入場（一般付款/優惠券/購券/購定期票）：租借選完 → 下一步「選擇付款方式」
+            const needsMainPayment = selectedEntry?.requiresPayment && !selectedEntry?.freeEntry;
+            if (needsMainPayment) {
+              return (
+                <button onClick={() => setStep('select_payment')} disabled={loading}
+                  style={{ width:'100%', height:50, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor:'pointer' }}>
+                  下一步：選擇付款方式 →
+                </button>
+              );
+            }
+            // 免費入場（含加租器材 / 續約）：需先選租借/續約付款方式後才可產生 QR
             const needPay = (renewOptIn || (selectedEntry?.freeEntry && (rentShoes || rentChalk))) && !selectedPayment;
             return (<>
               {needPay && (
