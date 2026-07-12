@@ -76,7 +76,7 @@ export default function ParentWaiverPage() {
         <div style={s.card}>
           <div style={{ ...s.cardPad, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>⚠️</div>
-            <div style={{ fontSize: 14, color: '#A32D2D', lineHeight: 1.6 }}>{errorMsg}</div>
+            <div style={{ fontSize: 14, color: '#A32D2D', lineHeight: 1.6, textAlign: 'left' }}>{errorMsg}</div>
           </div>
         </div>
       </div></div>
@@ -91,7 +91,7 @@ export default function ParentWaiverPage() {
           <div style={{ ...s.cardPad, textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
             <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>簽署完成，謝謝您！</div>
-            <div style={{ fontSize: 13, color: '#888', lineHeight: 1.6 }}>
+            <div style={{ fontSize: 13, color: '#888', lineHeight: 1.6, textAlign: 'left' }}>
               {info?.memberName ? `${info.memberName} 的帳號已解除入場限制。` : '帳號已解除入場限制。'}
             </div>
           </div>
@@ -151,7 +151,7 @@ export default function ParentWaiverPage() {
         </div>
       </div>
 
-      {errorMsg && <div style={{ color: '#A32D2D', fontSize: 12, marginBottom: 10, textAlign: 'center' }}>{errorMsg}</div>}
+      {errorMsg && <div style={{ color: '#A32D2D', fontSize: 12, marginBottom: 10, textAlign: 'left' }}>{errorMsg}</div>}
       <button onClick={handleSubmit} disabled={submitting} style={s.btnPrimary}>
         {submitting ? '送出中...' : '確認簽署'}
       </button>
