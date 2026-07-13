@@ -1746,7 +1746,7 @@ export default function CoursesPage({ embedded = false }) {
             </div>
             <div>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放補課</label>
-              <select value={editForm.allowMakeup === true ? 'true' : editForm.allowMakeup === false ? 'false' : ''}
+              <select value={editForm.allowMakeup == null || editForm.allowMakeup === '' ? '' : String(editForm.allowMakeup)}
                 onChange={e => setEditForm({...editForm, allowMakeup: e.target.value})}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
                 <option value="">班別預設</option>
@@ -1757,7 +1757,7 @@ export default function CoursesPage({ embedded = false }) {
             {(editForm.type || editingCourse?.type) === 'weekly' && (
               <div>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放試上</label>
-                <select value={editForm.allowTrial === true ? 'true' : editForm.allowTrial === false ? 'false' : ''}
+                <select value={editForm.allowTrial == null || editForm.allowTrial === '' ? '' : String(editForm.allowTrial)}
                   onChange={e => setEditForm({...editForm, allowTrial: e.target.value})}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
                   <option value="">班別預設</option>
