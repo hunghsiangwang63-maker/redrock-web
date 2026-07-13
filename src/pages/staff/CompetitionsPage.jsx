@@ -380,7 +380,7 @@ export default function CompetitionsPage() {
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                         <Tag type={ps.type}>{ps.label}</Tag>
-                        {r.isComplete ? <Tag type="ok">已簽署</Tag> : <Tag type="warn">待家長簽</Tag>}
+                        {r.isComplete ? <Tag type="ok">已簽署</Tag> : <Tag type="warn">待法定代理人簽</Tag>}
                         {r.refundRequested && r.status==='cancelled' && <Tag type="red">退費申請中</Tag>}
                       </div>
                     </div>

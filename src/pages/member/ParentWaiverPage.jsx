@@ -105,7 +105,7 @@ export default function ParentWaiverPage() {
     <div style={s.page}><div style={s.container}>
       <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
       <div style={{ textAlign: 'left', fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
-        家長/監護人簽署 — 為「{info?.memberName || ''}」簽署<strong>風險安全聲明書</strong>{info?.fallTest ? ' 與 ' : ''}{info?.fallTest ? <strong>墜落測驗同意書</strong> : ''}。於下方簽一次名即可完成{info?.fallTest ? '兩份文件' : ''}。
+        法定代理人簽署 — 為「{info?.memberName || ''}」簽署<strong>風險安全聲明書</strong>{info?.fallTest ? ' 與 ' : ''}{info?.fallTest ? <strong>墜落測驗同意書</strong> : ''}。於下方簽一次名即可完成{info?.fallTest ? '兩份文件' : ''}。
       </div>
 
       <div style={s.card}>
@@ -143,9 +143,9 @@ export default function ParentWaiverPage() {
         <div style={s.cardPad}>
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: '#555', marginBottom: 14, cursor: 'pointer' }}>
             <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0 }} />
-            本人作為家長/監護人，已閱讀並理解上述{info?.fallTest ? '風險安全聲明書與墜落測驗同意書' : '風險安全聲明書'}內容，同意子女承擔攀岩活動之相關風險{info?.fallTest ? '並參加墜落測驗' : ''}。
+            本人作為法定代理人（家長／監護人），已閱讀並理解上述{info?.fallTest ? '風險安全聲明書與墜落測驗同意書' : '風險安全聲明書'}內容，同意子女承擔攀岩活動之相關風險{info?.fallTest ? '並參加墜落測驗' : ''}。
           </label>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>請於下方簽名：</div>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>法定代理人簽名：</div>
           <SignaturePad ref={sigRef} height={160} />
           <button onClick={() => sigRef.current?.clear()} style={{ marginTop: 8, fontSize: 12, color: '#8B1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>清除重簽</button>
         </div>

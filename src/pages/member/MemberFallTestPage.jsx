@@ -202,8 +202,8 @@ export default function MemberFallTestPage() {
           )}
           {signature.guardianSignatureData && (
             <div style={{ marginTop: 20 }}>
-              <div style={s.sectionTitle}>家長/監護人簽名</div>
-              <img src={signature.guardianSignatureData} alt="家長簽名" style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
+              <div style={s.sectionTitle}>法定代理人簽名</div>
+              <img src={signature.guardianSignatureData} alt="法定代理人簽名" style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
             </div>
           )}
         </div>
@@ -267,10 +267,10 @@ export default function MemberFallTestPage() {
         {/* 家長簽名（未滿18歲）：改為遠端 email 簽署，不在現場簽 */}
         {needGuardian && (
           <div style={{ ...s.card, border: '1px solid #F0D9A8', background: '#FFFBF0' }}>
-            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>👨‍👩‍👧 家長/監護人簽名（未滿18歲）</div>
+            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>👨‍👩‍👧 法定代理人簽名（未滿18歲）</div>
             <div style={{ fontSize: 12, color: '#854F0B', lineHeight: 1.7 }}>
-              本會員未滿 18 歲，需家長／法定代理人同意。<strong>完成本人簽署後</strong>，系統會寄一封 email 給家長，家長點連結即可於<strong>同一頁面一次簽署</strong>「風險安全聲明書」與「墜落測驗同意書」兩份文件。<br/>
-              （若風險安全聲明書尚未簽署，家長 email 會等兩份本人簽署都完成後才寄出。）
+              本會員未滿 18 歲，需家長／法定代理人同意。<strong>完成本人簽署後</strong>，系統會寄一封 email 給法定代理人（家長／監護人），點連結即可於<strong>同一頁面一次簽署</strong>「風險安全聲明書」與「墜落測驗同意書」兩份文件。<br/>
+              （若風險安全聲明書尚未簽署，法定代理人 email 會等兩份本人簽署都完成後才寄出。）
             </div>
           </div>
         )}

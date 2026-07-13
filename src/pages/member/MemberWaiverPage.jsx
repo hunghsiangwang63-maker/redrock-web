@@ -56,7 +56,7 @@ export default function MemberWaiverPage() {
     setError('');
     if (!allAgreed) { setError('請閱讀並勾選所有段落後再簽署'); return; }
     if (!sigRef.current || sigRef.current.isEmpty()) { setError('請先簽名'); return; }
-    if (isMinor && !parentEmail.trim()) { setError('請填寫家長/監護人 Email'); return; }
+    if (isMinor && !parentEmail.trim()) { setError('請填寫法定代理人 Email'); return; }
 
     setLoading(true);
     try {
@@ -79,7 +79,7 @@ export default function MemberWaiverPage() {
     setError('');
     try {
       await memberClient.post(`/members/${member.id}/waiver/resend-parent`);
-      alert('已重新發送Email通知家長/監護人');
+      alert('已重新發送Email通知法定代理人');
     } catch (err) {
       setError(err.response?.data?.message || '發送失敗，請稍後再試');
     } finally {
@@ -113,8 +113,8 @@ export default function MemberWaiverPage() {
             <div style={{ fontSize: 36, marginBottom: 10 }}>📧</div>
             <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>已完成您本人的簽署</div>
             <div style={{ fontSize: 13, color: '#888', lineHeight: 1.6, textAlign: 'left' }}>
-              因您未滿18歲，依規定還需要家長/監護人共同簽署，才能正式入場。<br />
-              請提醒家長/監護人查看Email中的簽署連結（連結有效期限72小時）。
+              因您未滿18歲，依規定還需要法定代理人（家長／監護人）共同簽署，才能正式入場。<br />
+              請提醒法定代理人查看Email中的簽署連結（連結有效期限72小時）。
             </div>
             {error && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 12 }}>{error}</div>}
             <button onClick={handleResend} disabled={resending} style={{ ...s.btnSecondary, marginTop: 18 }}>
@@ -173,14 +173,14 @@ export default function MemberWaiverPage() {
       {isMinor && (
         <div style={s.card}>
           <div style={s.cardPad}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>家長/監護人資訊（未成年必填）</div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>法定代理人資訊（未成年必填）</div>
             <div style={{ marginBottom: 10 }}>
-              <label style={s.label}>家長/監護人 Email（簽署連結將發送至此）*</label>
+              <label style={s.label}>法定代理人 Email（簽署連結將發送至此）*</label>
               <input style={s.input} type="email" value={parentEmail} onChange={e => setParentEmail(e.target.value)} placeholder="parent@example.com" />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
-                <label style={s.label}>家長姓名</label>
+                <label style={s.label}>法定代理人姓名</label>
                 <input style={s.input} value={parentName} onChange={e => setParentName(e.target.value)} placeholder="選填" />
               </div>
               <div>
@@ -189,7 +189,7 @@ export default function MemberWaiverPage() {
               </div>
             </div>
             <div>
-              <label style={s.label}>家長聯絡電話</label>
+              <label style={s.label}>法定代理人聯絡電話</label>
               <input style={s.input} value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder="選填" />
             </div>
           </div>
@@ -224,7 +224,7 @@ export default function MemberWaiverPage() {
         </button>
         {isMinor && (
           <div style={{ fontSize: 11, color: '#999', textAlign: 'left', marginTop: 10 }}>
-            送出後將發送Email通知家長/監護人完成第二階段簽署
+            送出後將發送Email通知法定代理人完成第二階段簽署
           </div>
         )}
         <div style={{ fontSize: 11, color: '#bbb', textAlign: 'left', marginTop: 10 }}>

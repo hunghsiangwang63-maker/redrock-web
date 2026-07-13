@@ -165,7 +165,7 @@ export default function MemberHomePage() {
       {member?.blockReasons?.includes('parent_waiver_pending') && (
         <div onClick={() => navigate('/member/waiver')}
           style={{ margin:'14px 16px 0', background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
-          <div style={{ fontSize:13, color:'#B5762B' }}>📧 等待家長/監護人完成簽署，才能入場</div>
+          <div style={{ fontSize:13, color:'#B5762B' }}>📧 等待法定代理人完成簽署，才能入場</div>
           <div style={{ fontSize:12, color:'#B5762B', fontWeight:600, whiteSpace:'nowrap', marginLeft:8 }}>查看狀態 →</div>
         </div>
       )}

@@ -136,12 +136,12 @@ export default function FallTestBookingModal({ record, onClose, onDone }) {
         <DocBlock title="風險安全聲明書（Waiver）" status={waiverStatus} doneText="已完成簽署"
           signedAt={fmtTime(waiver?.memberSignedAt)}
           content={waiver?.contentSnapshot?.zh}
-          images={[{ label: '會員簽名', src: waiver?.memberSignatureUrl }, { label: '家長/監護人簽名', src: waiver?.parentSignatureUrl }]}
+          images={[{ label: '會員簽名', src: waiver?.memberSignatureUrl }, { label: '法定代理人簽名', src: waiver?.parentSignatureUrl }]}
           open={openDoc === 'waiver'} onToggle={() => toggle('waiver')} />
         <DocBlock title="墜落測驗同意書" status={consentStatus} doneText="已簽署同意書"
           signedAt={fmtTime(signature?.signedAt)}
           content={signature?.contentSnapshot?.zh}
-          images={[{ label: '會員簽名', src: signature?.signatureData }, { label: `家長/監護人簽名${signature?.guardianName ? `（${signature.guardianName}）` : ''}`, src: signature?.guardianSignatureData }]}
+          images={[{ label: '會員簽名', src: signature?.signatureData }, { label: `法定代理人簽名${signature?.guardianName ? `（${signature.guardianName}）` : ''}`, src: signature?.guardianSignatureData }]}
           open={openDoc === 'consent'} onToggle={() => toggle('consent')} />
 
         {error && <div style={{ background: '#FCEBEB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#A32D2D', margin: '4px 0 12px' }}>{error}</div>}

@@ -572,7 +572,7 @@ export default function MemberCompetitionsPage() {
                       <button type="button" onClick={()=>{ const d=guardianSigRef.current?.toDataURL(); setGuardianSig(d||null); }}
                         style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>儲存簽名</button>
                     </div>
-                    {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 監護人已儲存簽名</div>}
+                    {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 法定代理人已儲存簽名</div>}
                   </div>
                 )}
               </>)}

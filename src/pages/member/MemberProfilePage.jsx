@@ -228,7 +228,7 @@ export default function MemberProfilePage() {
               </div>
             ) : member?.blockReasons?.includes('parent_waiver_pending') ? (
               <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FFF3E0', color:'#B5762B' }}>等待家長簽署</span>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FFF3E0', color:'#B5762B' }}>等待法定代理人簽署</span>
                 <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>查看狀態</button></div>
               </div>
             ) : (
@@ -650,12 +650,12 @@ export default function MemberProfilePage() {
                   </div>
                   {myWaiver.parentRequired && (
                     <div style={{ marginTop:16, paddingTop:16, borderTop:'0.5px solid #F5EFEF' }}>
-                      <div style={{ fontSize:11, color:'#999', marginBottom:6 }}>家長/監護人共同簽署</div>
+                      <div style={{ fontSize:11, color:'#999', marginBottom:6 }}>法定代理人簽名</div>
                       {myWaiver.parentSignatureUrl ? (
-                        <img src={myWaiver.parentSignatureUrl} alt="家長簽名"
+                        <img src={myWaiver.parentSignatureUrl} alt="法定代理人簽名"
                           style={{ width:'100%', maxWidth:280, border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', marginBottom:8 }}/>
                       ) : <div style={{ fontSize:13, color:'#999', marginBottom:8 }}>尚未簽署</div>}
-                      {myWaiver.parentName && <div style={{ fontSize:13, color:'#666' }}>簽署人：{myWaiver.parentName}（{myWaiver.parentRelation || '監護人'}）</div>}
+                      {myWaiver.parentName && <div style={{ fontSize:13, color:'#666' }}>簽署人：{myWaiver.parentName}（{myWaiver.parentRelation || '法定代理人'}）</div>}
                       {myWaiver.parentSignedAt && <div style={{ fontSize:13, color:'#666', marginTop:4 }}>簽署時間：{fmtTs(myWaiver.parentSignedAt)}</div>}
                     </div>
                   )}

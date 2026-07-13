@@ -102,7 +102,7 @@ export default function ParentCompetitionWaiverPage() {
     <div style={s.page}><div style={s.container}>
       <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
       <div style={{ textAlign: 'left', fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
-        家長/監護人簽署 — 為「{info?.memberName}」簽署「{info?.competitionName}」比賽風險聲明書
+        法定代理人簽署 — 為「{info?.memberName}」簽署「{info?.competitionName}」比賽風險聲明書
       </div>
 
       <div style={s.card}>
@@ -127,9 +127,9 @@ export default function ParentCompetitionWaiverPage() {
         <div style={s.cardPad}>
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: '#555', marginBottom: 14, cursor: 'pointer' }}>
             <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0 }} />
-            本人作為家長/監護人，已閱讀並理解上述比賽風險聲明書內容，同意子女參加此項賽事。
+            本人作為法定代理人（家長／監護人），已閱讀並理解上述比賽風險聲明書內容，同意子女參加此項賽事。
           </label>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>請於下方簽名：</div>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>法定代理人簽名：</div>
           <SignaturePad ref={sigRef} height={160} />
           <button onClick={() => sigRef.current?.clear()} style={{ marginTop: 8, fontSize: 12, color: '#8B1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>清除重簽</button>
         </div>

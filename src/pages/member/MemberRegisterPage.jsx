@@ -27,7 +27,7 @@ export default function MemberRegisterPage() {
     }
     // 未滿 18 歲：家長姓名/電話/關係皆必填
     if (minor && (!form.parentName.trim() || !form.parentPhone.trim() || !form.parentRelation.trim())) {
-      setError('未滿 18 歲需填寫家長姓名、電話與關係');
+      setError('未滿 18 歲需填寫法定代理人姓名、電話與關係');
       return;
     }
     setLoading(true);
@@ -85,19 +85,19 @@ export default function MemberRegisterPage() {
                 <label style={labelStyle}>生日</label>
                 <input type="date" value={form.birthday} onChange={set('birthday')} required style={inputStyle} />
                 <div style={{ fontSize:11, color:'#8B1A1A', marginTop:6, lineHeight:1.6, textAlign:'left' }}>
-                  ※ 未滿 18 歲需家長／法定代理人簽署風險安全聲明書，並填寫下方家長資料。
+                  ※ 未滿 18 歲需法定代理人（家長／監護人）簽署風險安全聲明書，並填寫下方法定代理人資料。
                 </div>
               </div>
 
               {minor && (
                 <div style={{ background:'#FBF3F3', border:'0.5px solid #EAD3D3', borderRadius:10, padding:'12px 14px', marginBottom:20 }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:10 }}>家長／法定代理人資料（未滿 18 歲必填）</div>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:10 }}>法定代理人資料（未滿 18 歲必填）</div>
                   <div style={{ marginBottom:12 }}>
-                    <label style={labelStyle}>家長姓名</label>
+                    <label style={labelStyle}>法定代理人姓名</label>
                     <input value={form.parentName} onChange={set('parentName')} placeholder="王大明" required={minor} style={inputStyle} />
                   </div>
                   <div style={{ marginBottom:12 }}>
-                    <label style={labelStyle}>家長電話</label>
+                    <label style={labelStyle}>法定代理人電話</label>
                     <input type="tel" value={form.parentPhone} onChange={set('parentPhone')} placeholder="0912345678" required={minor} style={inputStyle} />
                   </div>
                   <div>

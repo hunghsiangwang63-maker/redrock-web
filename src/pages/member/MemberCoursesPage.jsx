@@ -1504,7 +1504,7 @@ export default function MemberCoursesPage() {
                     <button type="button" onClick={()=>{ courseGuardianSigRef.current?.clear(); setGuardianSig(null); }} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>清除</button>
                     <button type="button" onClick={()=>setGuardianSig(courseGuardianSigRef.current?.toDataURL()||null)} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>儲存簽名</button>
                   </div>
-                  {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 監護人已儲存</div>}
+                  {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 法定代理人已儲存</div>}
                 </div>
               )}
             </>)}
