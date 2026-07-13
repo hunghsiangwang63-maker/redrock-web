@@ -188,11 +188,11 @@ export default function SalesPage({ embedded = false }) {
       setCart(cart.map(c => c.key === key ? {...c, quantity: c.quantity+1} : c));
     } else {
       if (variant.stock <= 0) { showMsg('庫存不足', 'red'); return; }
-      const unitPrice = (variant.promoActive && variant.promoPrice) ? variant.promoPrice : variant.price;
+      const unitPrice = variant.promoPrice ? variant.promoPrice : variant.price;  // 有填促銷價即生效
       setCart([...cart, { key, productId: product.id, variantId: variant.id,
         productName: product.name, brand: product.brand,
         size: variant.size, color: variant.color,
-        price: variant.price, promoPrice: variant.promoPrice, promoActive: variant.promoActive,
+        price: variant.price, promoPrice: variant.promoPrice,
         unitPrice, quantity: 1, maxStock: variant.stock }]);
     }
     setSelectedProduct(null);
@@ -267,13 +267,6 @@ export default function SalesPage({ embedded = false }) {
       showMsg('商品已更新'); setEditingProduct(null); await loadProducts();
     } catch (err) { showMsg('更新失敗', 'red'); }
     finally { setLoading(false); }
-  };
-
-  const handleTogglePromo = async (productId, variantId, current) => {
-    try {
-      await client.put(`/products/${productId}/variants/${variantId}/promo`, { promoActive: !current });
-      await loadProducts();
-    } catch (e) {}
   };
 
   const handleRestock = async () => {
@@ -359,7 +352,7 @@ export default function SalesPage({ embedded = false }) {
   // 計算商品最低價
   const getProductPriceRange = (product) => {
     if (!product.variants?.length) return '—';
-    const prices = product.variants.map(v => (v.promoActive && v.promoPrice) ? v.promoPrice : v.price);
+    const prices = product.variants.map(v => v.promoPrice ? v.promoPrice : v.price);
     const min = Math.min(...prices), max = Math.max(...prices);
     return min === max ? `NT$${min}` : `NT$${min}～${max}`;
   };
@@ -569,7 +562,7 @@ export default function SalesPage({ embedded = false }) {
                     <div style={{ fontSize:13, fontWeight:500 }}>{item.productName}</div>
                     <div style={{ fontSize:11, color:'#999' }}>
                       {[item.size, item.color].filter(Boolean).join(' / ')}
-                      {item.promoActive && item.promoPrice && (
+                      {item.promoPrice && (
                         <span style={{ color:'#A32D2D', marginLeft:4 }}>促銷 NT${item.promoPrice}</span>
                       )}
                     </div>
@@ -788,10 +781,7 @@ export default function SalesPage({ embedded = false }) {
                     )}
                     <div>
                       {v.promoPrice ? (
-                        <button onClick={() => handleTogglePromo(p.id, v.id, v.promoActive)}
-                          style={{ height:22, padding:'0 8px', borderRadius:6, background: v.promoActive ? '#8B1A1A' : '#f5f5f5', color: v.promoActive ? '#fff' : '#999', border:'none', fontSize:10, cursor:'pointer', fontWeight:500 }}>
-                          {v.promoActive ? '促銷中' : '開啟'}
-                        </button>
+                        <span style={{ display:'inline-block', height:22, lineHeight:'22px', padding:'0 8px', borderRadius:6, background:'#8B1A1A', color:'#fff', fontSize:10, fontWeight:500 }}>促銷中</span>
                       ) : <span style={{ fontSize:10, color:'#ccc' }}>無促銷價</span>}
                     </div>
                   </div>
@@ -871,7 +861,7 @@ export default function SalesPage({ embedded = false }) {
         <Modal title={`選擇規格 — ${selectedProduct.name}`} onClose={() => setSelectedProduct(null)} width={400}>
           {selectedProduct.brand && <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{selectedProduct.brand}</div>}
           {sortedVariants(selectedProduct).map(v => {
-            const unitPrice = (v.promoActive && v.promoPrice) ? v.promoPrice : v.price;
+            const unitPrice = v.promoPrice ? v.promoPrice : v.price;
             const inCart = cart.find(c => c.variantId === v.id);
             return (
               <div key={v.id} onClick={() => v.stock > 0 && addToCart(selectedProduct, v)}
@@ -881,7 +871,7 @@ export default function SalesPage({ embedded = false }) {
                   <div style={{ fontSize:11, color:'#999', marginTop:2 }}>庫存：{v.stock} 件</div>
                 </div>
                 <div style={{ textAlign:'right' }}>
-                  {v.promoActive && v.promoPrice ? (
+                  {v.promoPrice ? (
                     <>
                       <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>NT${v.promoPrice}</div>
                       <div style={{ fontSize:11, color:'#999', textDecoration:'line-through' }}>NT${v.price}</div>
