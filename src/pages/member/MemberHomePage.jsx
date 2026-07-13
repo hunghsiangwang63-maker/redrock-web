@@ -86,6 +86,12 @@ export default function MemberHomePage() {
           <div>
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:20, color:'#8B1A1A' }}>RedRock</div>
             <div style={{ fontSize:12, color:'#999', marginTop:1 }}>嗨，{member?.name} 👋</div>
+            {identity?.fallTest?.status === 'passed' && (
+              <div style={{ fontSize:11, color:'#8AA79A', marginTop:2 }}>🧗 墜落測驗有效至 {identity.fallTest.expiresAt}</div>
+            )}
+            {identity?.fallTest?.status === 'expired' && (
+              <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>🧗 墜落測驗已到期，請重新測驗</div>
+            )}
           </div>
           <div style={{ width:38, height:38, borderRadius:'50%', background:'#F5E8E8', color:'#8B1A1A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:600, cursor:'pointer' }}
             onClick={() => navigate('/member/profile')}>
