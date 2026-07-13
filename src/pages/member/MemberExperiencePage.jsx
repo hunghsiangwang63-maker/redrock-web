@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { isUnder5 } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
+import TransferReuploadModal from '../../components/TransferReuploadModal';
 
 // 參加者生日為民國格式（如 "920110"＝民國92年）；相容 ISO。未滿 5 歲回 true。
 const participantUnder5 = (s) => {
@@ -40,6 +41,7 @@ export default function MemberExperiencePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [myBookings, setMyBookings] = useState([]);
+  const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
   const [courseSettings, setCourseSettings] = useState(null);
   const [tab, setTab] = useState('apply');
   const [loading, setLoading] = useState(false);
@@ -472,12 +474,30 @@ export default function MemberExperiencePage() {
                   <div style={{ fontSize:11, color:'#999' }}>
                     {(b.participants||[]).map((p,i)=>`${p.name}`).join('、')}
                   </div>
+                  {/* 轉帳被退回 → 補正 */}
+                  {b.paymentStatus==='transfer_rejected' && b.status!=='cancelled' && (
+                    <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
+                      <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>轉帳被退回{b.paymentRejectReason?`：${b.paymentRejectReason}`:''}</div>
+                      <button onClick={()=>setReupTarget({ orderType:'experience', refId:b.id, orderName:`體驗預約 ${b.bookingDate}`, amount:b.totalFee, gymId:b.gymId, reason:b.paymentRejectReason })}
+                        style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                        重新上傳轉帳
+                      </button>
+                    </div>
+                  )}
+                  {b.paymentStatus==='pending_confirm' && b.status!=='cancelled' && (
+                    <div style={{ marginTop:8, fontSize:11, color:'#854F0B' }}>轉帳已重新送出，等待館方確認</div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+      {reupTarget && (
+        <TransferReuploadModal target={reupTarget} memberName={member?.name}
+          onClose={()=>setReupTarget(null)}
+          onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])).catch(()=>{}); }} />
+      )}
       <NavBar/>
     </div>
   );

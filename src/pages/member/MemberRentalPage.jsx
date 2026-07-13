@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getRentalSettings, applyRental, getMyRentals } from '../../api/rentals';
+import TransferReuploadModal from '../../components/TransferReuploadModal';
 import { memberClient } from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import dayjs from 'dayjs';
@@ -26,6 +27,7 @@ export default function MemberRentalPage() {
   const [tab, setTab] = useState('apply'); // apply | history
   const [settings, setSettings] = useState(null);
   const [myRentals, setMyRentals] = useState([]);
+  const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
   const [payFor, setPayFor] = useState(null); // { rentalId, total, gymId }
@@ -321,6 +323,19 @@ export default function MemberRentalPage() {
                       租金 NT${r.totalRentalFee}　押金 NT${r.totalDeposit}
                       {r.depositReturned ? '　✓ 押金已退回' : ''}
                     </div>
+                    {/* 轉帳被退回 → 補正 */}
+                    {r.paymentStatus==='transfer_rejected' && r.status!=='cancelled' && (
+                      <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
+                        <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>轉帳被退回{r.paymentRejectReason?`：${r.paymentRejectReason}`:''}</div>
+                        <button onClick={()=>setReupTarget({ orderType:'rental', refId:r.id, orderName:'裝備租借', amount:(r.totalRentalFee||0)+(r.totalDeposit||0), gymId:r.gymId, reason:r.paymentRejectReason })}
+                          style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                          重新上傳轉帳
+                        </button>
+                      </div>
+                    )}
+                    {r.paymentStatus==='pending_confirm' && r.status!=='cancelled' && (
+                      <div style={{ marginTop:8, fontSize:11, color:'#854F0B' }}>轉帳已重新送出，等待館方確認</div>
+                    )}
                   </div>
                 );
               })}
@@ -406,6 +421,11 @@ export default function MemberRentalPage() {
         </div>
       )}
 
+      {reupTarget && (
+        <TransferReuploadModal target={reupTarget} memberName={member?.name}
+          onClose={()=>setReupTarget(null)}
+          onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); getMyRentals().then(rr=>setMyRentals(rr.data.rentals||[])).catch(()=>{}); }} />
+      )}
       <NavBar />
     </div>
   );

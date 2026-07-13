@@ -8,6 +8,7 @@ import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlo
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
+import TransferReuploadModal from '../../components/TransferReuploadModal';
 
 const STEPS = ['基本資料', '付款資訊', '同意書', '簽名'];
 
@@ -16,6 +17,7 @@ export default function MemberCompetitionsPage() {
   const { member } = useMember();
   const [competitions, setCompetitions] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
+  const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('open'); // open | my
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
@@ -230,6 +232,8 @@ export default function MemberCompetitionsPage() {
   const payStatusBadge = (r) => {
     if (r.paymentStatus === 'confirmed') return { bg:'#E6F4EB', color:'#2D7D46', text:'已確認付款' };
     if (r.paymentStatus === 'refunded') return { bg:'#F0EDED', color:'#666', text:'已退費' };
+    if (r.paymentStatus === 'transfer_rejected') return { bg:'#FCEBEB', color:'#A32D2D', text:'轉帳被退回' };
+    if (r.paymentStatus === 'pending_confirm') return { bg:'#FAEEDA', color:'#854F0B', text:'轉帳確認中' };
     return { bg:'#FAEEDA', color:'#854F0B', text:'待確認付款' };
   };
 
@@ -312,6 +316,15 @@ export default function MemberCompetitionsPage() {
                       {r.paymentStatus==='pending' && r.paymentMethod==='transfer' && r.status !== 'cancelled' && (
                         <div style={{ marginTop:10, background:'#FFF8E6', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8B6914' }}>
                           請匯款後等待館方確認，確認後即保留名額
+                        </div>
+                      )}
+                      {r.paymentStatus==='transfer_rejected' && r.status !== 'cancelled' && (
+                        <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>轉帳被退回{r.paymentRejectReason?`：${r.paymentRejectReason}`:''}</div>
+                          <button onClick={()=>setReupTarget({ orderType:'competition', refId:r.id, orderName:r.competitionName, amount:r.registrationFee, gymId:r.gymId, reason:r.paymentRejectReason })}
+                            style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                            重新上傳轉帳
+                          </button>
                         </div>
                       )}
                       {r.status !== 'cancelled' && (
@@ -667,6 +680,11 @@ export default function MemberCompetitionsPage() {
         </div>
       )}
 
+      {reupTarget && (
+        <TransferReuploadModal target={reupTarget} memberName={member?.name}
+          onClose={()=>setReupTarget(null)}
+          onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); member?.id && getMemberRegistrations(member.id).then(r=>setMyRegistrations(r.data.registrations||[])).catch(()=>{}); }} />
+      )}
       <NavBar />
     </div>
   );
