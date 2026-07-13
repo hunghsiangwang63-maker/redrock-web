@@ -97,7 +97,7 @@ export default function CoursesPage({ embedded = false }) {
   const [orphanConfirm, setOrphanConfirm] = useState(null);
   const [orphanBusy, setOrphanBusy] = useState(false);
 
-  // 新增課程（兩步：1 選類別/類型/館別 → 2 填梯次資料）
+  // 加開梯次（兩步：1 選班別/類型/館別＋梯次名稱 → 2 梯次資料＋覆寫規則）
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [createStep, setCreateStep] = useState(1);
   const [createImageFile, setCreateImageFile] = useState(null); // 新增課程時選的海報，建立後上傳
@@ -640,7 +640,7 @@ export default function CoursesPage({ embedded = false }) {
             setShowAddCourse(true);
           }}
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-            ＋ 新增課程
+            ＋ 加開梯次
           </button>
         )}
         {tab === 'sessions' && selectedCourse && (
