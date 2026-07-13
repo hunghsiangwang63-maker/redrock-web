@@ -118,9 +118,17 @@ export default function VipPage({ embedded = false, section = null }) {
     setEditForm({
       memberName: app.memberName || '', memberPhone: app.memberPhone || '', primaryGym: app.primaryGym || '',
       paymentAmount: app.paymentAmount ?? '', paymentDate: app.paymentDate || '', bankLastFive: app.bankLastFive || '',
-      jerseySize: app.jerseySize || '', noJersey: !!app.noJersey,
+      jerseySize: app.jerseySize || '', noJersey: !!app.noJersey, jerseyReceived: !!app.jerseyReceived,
       paymentStatus: app.paymentStatus || 'pending', status: app.status || 'pending',
     });
+  };
+
+  // 隊服領取：名單列直接點 ✅/❌ 切換
+  const toggleJersey = async (a) => {
+    try {
+      await updateTeamApplication(a.id, { jerseyReceived: !a.jerseyReceived });
+      setTeamMembers(list => list.map(x => x.id === a.id ? { ...x, jerseyReceived: !a.jerseyReceived } : x));
+    } catch (e) { alert(e.response?.data?.message || '更新失敗'); }
   };
 
   const handleSaveEdit = async () => {
@@ -463,9 +471,10 @@ export default function VipPage({ embedded = false, section = null }) {
             <thead>
               <tr style={{ background:'#FBF5F5' }}>
                 <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>會員</th>
-                <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>繳費</th>
-                <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>隊服</th>
-                <th style={{ padding:'10px 16px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>狀態</th>
+                <th style={{ padding:'10px 12px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>繳費</th>
+                <th style={{ padding:'10px 8px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>已收款</th>
+                <th style={{ padding:'10px 8px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>正式隊員</th>
+                <th style={{ padding:'10px 8px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>隊服領取</th>
                 <th style={{ padding:'10px 16px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>操作</th>
               </tr>
             </thead>
@@ -483,20 +492,21 @@ export default function VipPage({ embedded = false, section = null }) {
                       <div style={{ fontWeight:600 }}>{a.memberName || '—'}</div>
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.memberPhone}{a.primaryGym ? ` · ${a.primaryGym}` : ''}</div>
                     </td>
-                    <td style={{ padding:'12px 16px', fontSize:12 }}>
-                      <div>應繳 NT${a.expectedFee ?? '—'}{a.paymentAmount ? `／實繳 NT$${a.paymentAmount}` : ''}</div>
-                      <div style={{ color:'#999', marginTop:2 }}>{a.paymentDate || '—'}{a.bankLastFive ? ` · 末五碼 ${a.bankLastFive}` : ''}</div>
+                    <td style={{ padding:'10px 12px', fontSize:11, color:'#666', whiteSpace:'nowrap' }}>
+                      NT${a.paymentAmount || a.expectedFee || 0}{a.paymentDate ? ` · ${a.paymentDate}` : ''}
                     </td>
-                    <td style={{ padding:'12px 16px', fontSize:12 }}>
-                      {a.noJersey ? <span style={{ color:'#999' }}>不拿隊服</span> : (a.jerseySize || '—')}
+                    <td style={{ padding:'10px 8px', textAlign:'center', fontSize:14 }} title={paid ? '已收款' : '待確認付款'}>
+                      {paid ? '✅' : '❌'}
                     </td>
-                    <td style={{ padding:'12px 16px' }}>
-                      <div style={{ display:'flex', flexDirection:'column', gap:4, alignItems:'flex-start' }}>
-                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: paid ? '#E6F4EB' : '#FAEEDA', color: paid ? '#2D7D46' : '#854F0B' }}>
-                          {paid ? '已收款' : '待確認付款'}
-                        </span>
-                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: stTag.bg, color: stTag.color }}>{stTag.t}</span>
-                      </div>
+                    <td style={{ padding:'10px 8px', textAlign:'center', fontSize:14 }}
+                      title={stTag.t}>
+                      {a.status === 'active' ? '✅' : '❌'}
+                    </td>
+                    <td style={{ padding:'10px 8px', textAlign:'center', fontSize:14, cursor: a.noJersey ? 'default' : 'pointer' }}
+                      title={a.noJersey ? '不拿隊服' : (a.jerseyReceived ? '已領取（點擊改未領）' : '未領取（點擊標記已領）')}
+                      onClick={() => !a.noJersey && toggleJersey(a)}>
+                      {a.noJersey ? <span style={{ fontSize:11, color:'#bbb' }}>—</span> : (a.jerseyReceived ? '✅' : '❌')}
+                      {!a.noJersey && a.jerseySize && <div style={{ fontSize:9, color:'#999' }}>{a.jerseySize}</div>}
                     </td>
                     <td style={{ padding:'12px 16px', textAlign:'center' }}>
                       <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', alignItems:'center' }}>
@@ -585,6 +595,9 @@ export default function VipPage({ embedded = false, section = null }) {
               <div style={{ display:'flex', alignItems:'flex-end' }}>
                 <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, color:'#666', height:40, cursor:'pointer' }}>
                   <input type="checkbox" checked={editForm.noJersey} onChange={e=>setEditForm(f=>({...f, noJersey:e.target.checked}))} /> 不拿隊服
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, marginTop:6, opacity: editForm.noJersey ? 0.4 : 1 }}>
+                  <input type="checkbox" checked={!!editForm.jerseyReceived} disabled={editForm.noJersey} onChange={e=>setEditForm(f=>({...f, jerseyReceived:e.target.checked}))} /> 隊服已領取
                 </label>
               </div>
               <div><label style={feeLabel}>付款狀態</label>
