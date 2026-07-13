@@ -110,7 +110,11 @@ export default function MemberExperiencePage() {
       loadTrialSessions();
       memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
       if (trialPay.method==='online' && ONLINE_PAYMENT_ENABLED) setPayFor({ bookingId, fee, gymId: trialModal.gymId });
-      else showMsg('試上預約已送出！請完成匯款，待館方確認');
+      else if (res.data.isWaitlist) showMsg('此場次已額滿，已為您排入候補；名額釋出將依序轉正', 'orange');
+      else {
+        const dl = res.data.paymentDeadline ? dayjs(res.data.paymentDeadline).format('MM/DD HH:mm') : '';
+        showMsg(`名額已保留！請於${dl ? ` ${dl} 前` : '期限內'}完成付款，逾期名額將釋出`);
+      }
       setTab('my');
     } catch (e) { showMsg(e.response?.data?.message || '送出失敗','red'); }
     finally { setTrialSubmitting(false); }
@@ -438,7 +442,11 @@ export default function MemberExperiencePage() {
                   <div style={{ fontSize:12, color:'#666', marginTop:3 }}>
                     {dayjs(s.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(s.date).day()]}）{s.startTime}～{s.endTime}{s.instructor?` · 👟 ${s.instructor}`:''}
                   </div>
-                  <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginTop:3 }}>試上費 NT${(s.trialPrice||0).toLocaleString()} · 剩餘 {s.remaining} 位</div>
+                  <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginTop:3 }}>
+                    試上費 NT${(s.trialPrice||0).toLocaleString()} · {s.isFull || s.remaining <= 0
+                      ? <span style={{ color:'#B5651D' }}>額滿・可候補</span>
+                      : `剩餘 ${s.remaining} 位`}
+                  </div>
                 </div>
                 <button onClick={()=>{ setTrialModal(s); setTrialConsent(false); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' }); }}
                   style={{ height:38, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', flexShrink:0 }}>試上</button>
