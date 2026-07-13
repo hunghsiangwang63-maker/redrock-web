@@ -29,6 +29,7 @@ import StaffLayout from './components/StaffLayout';
 // Member imports
 import MemberLoginPage from './pages/member/MemberLoginPage';
 import MemberRegisterPage from './pages/member/MemberRegisterPage';
+import MemberVerifyResultPage from './pages/member/MemberVerifyResultPage';
 import MemberHomePage from './pages/member/MemberHomePage';
 import MemberQRPage from './pages/member/MemberQRPage';
 import MemberPassesPage from './pages/member/MemberPassesPage';
@@ -97,6 +98,7 @@ function MemberRoutes() {
       <Route path="/member/forgot-password"  element={<MemberForgotPasswordPage />} />
       <Route path="/member/reset-password"   element={<MemberResetPasswordPage />} />
       <Route path="/member/register" element={<MemberRegisterPage />} />
+      <Route path="/member/verify"   element={<MemberVerifyResultPage />} />
       <Route path="/member/home"    element={<MemberRoute><MemberHomePage /></MemberRoute>} />
       <Route path="/member/qr"      element={<MemberRoute><MemberQRPage /></MemberRoute>} />
       <Route path="/member/passes"  element={<MemberRoute><MemberPassesPage /></MemberRoute>} />
