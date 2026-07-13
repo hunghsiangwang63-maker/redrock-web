@@ -71,7 +71,7 @@ export default function MemberRegisterPage() {
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={labelStyle}>手機號碼</label>
-                <input type="tel" value={form.phone} onChange={set('phone')} placeholder="0912345678" required style={inputStyle} />
+                <input type="tel" value={form.phone} onChange={set('phone')} placeholder="0912345678（外籍：+ 開頭國際格式）" required style={inputStyle} />
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={labelStyle}>Email</label>
