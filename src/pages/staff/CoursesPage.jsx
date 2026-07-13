@@ -1250,7 +1250,7 @@ export default function CoursesPage({ embedded = false }) {
                       </div>
                       <div style={{ display:'flex', gap:6, flexShrink:0 }}>
                         <button onClick={() => openEditCategory(c)}
-                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#444', fontSize:11, cursor:'pointer' }}>
                           編輯
                         </button>
                         <button onClick={() => handleDeleteCategory(c.id, c.name)}
