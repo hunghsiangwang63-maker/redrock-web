@@ -502,7 +502,11 @@ export default function VipPage({ embedded = false, section = null }) {
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.primaryGym || '—'}</div>
                     </td>
                     <td style={{ padding:'10px 12px', fontSize:11, whiteSpace:'nowrap', verticalAlign:'middle' }}>
-                      <div style={{ fontWeight:600, color:'#333' }}>NT${(a.paymentAmount || a.expectedFee || 0).toLocaleString()}</div>
+                      {a.paymentAmount > 0 ? (
+                        <div style={{ fontWeight:600, color:'#333' }}>NT${a.paymentAmount.toLocaleString()}</div>
+                      ) : (
+                        <div style={{ fontWeight:600, color:'#B5762B' }}>應繳 NT${(a.expectedFee || 0).toLocaleString()}</div>
+                      )}
                       <div style={{ color:'#999', marginTop:2 }}>{a.paymentDate || '—'}</div>
                     </td>
                     <td style={{ padding:'10px 8px', textAlign:'center', fontSize:14 }} title={paid ? '已收款' : '待確認付款'}>
