@@ -123,7 +123,7 @@ export default function MemberFallTestPage() {
     setError('');
     if (!canSign) { setError(`請先觀看至少 ${requiredPercent}% 的影片內容`); return; }
     if (!allAgreed) { setError('請閱讀並勾選所有條款後再簽署'); return; }
-    if (!sigRef.current || sigRef.current.isEmpty()) { setError('請先完成本人簽名'); return; }
+    if (!sigRef.current || sigRef.current.isEmpty()) { setError(forChildId ? '請先完成法定代理人簽名' : '請先完成本人簽名'); return; }
     // 未滿 18 歲：家長簽名改為遠端——本人簽完後系統寄 email 給家長，於同一連結一次簽署兩份文件
 
     setLoading(true);
@@ -196,7 +196,7 @@ export default function MemberFallTestPage() {
           ))}
           {signature.signatureData && (
             <div style={{ marginTop: 20 }}>
-              <div style={s.sectionTitle}>本人簽名</div>
+              <div style={s.sectionTitle}>{forChildId ? '法定代理人簽名' : '本人簽名'}</div>
               <img src={signature.signatureData} alt="簽名" style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
             </div>
           )}
@@ -259,7 +259,7 @@ export default function MemberFallTestPage() {
 
         {/* 本人簽名 */}
         <div style={s.card}>
-          <div style={s.sectionTitle}>✍️ 本人簽名</div>
+          <div style={s.sectionTitle}>{forChildId ? '✍️ 法定代理人簽名' : '✍️ 本人簽名'}</div>
           <SignaturePad ref={sigRef} />
           <button onClick={() => sigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>清除重簽</button>
         </div>

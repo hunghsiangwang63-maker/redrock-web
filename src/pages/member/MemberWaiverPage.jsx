@@ -207,6 +207,9 @@ export default function MemberWaiverPage() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#2D7D46', marginBottom: 14, fontWeight: 500 }}>
                 ✓ 已確認閱讀並同意全部條款，請於下方簽名：
               </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 8, textAlign: 'left' }}>
+                {forChildId ? '✍️ 法定代理人簽名' : '✍️ 本人簽名'}
+              </div>
               <SignaturePad ref={sigRef} height={160} />
               <button onClick={() => sigRef.current?.clear()} style={{ marginTop: 8, fontSize: 12, color: '#8B1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>清除重簽</button>
             </>

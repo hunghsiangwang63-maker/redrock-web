@@ -1006,7 +1006,7 @@ export default function MembersPage() {
             <div style={{ fontSize:12, color:'#999' }}>
               簽署時間：{waiverData.memberSignedAt ? dayjs(waiverData.memberSignedAt._seconds * 1000).format('YYYY/MM/DD HH:mm') : '-'}
             </div>
-            <button onClick={() => { const w=window.open('','_blank'); const fmt=(x)=>x?._seconds?new Date(x._seconds*1000).toLocaleString('zh-TW'):'-'; const body=waiverData.contentSnapshot?.zh||''; const memberSig=waiverData.memberSignatureUrl?'<img src="'+waiverData.memberSignatureUrl+'" style="max-width:300px">':''; const parentBlock=waiverData.parentSignatureUrl?('<h3>家長／監護人簽名</h3><p style="color:#666;font-size:12px">'+(waiverData.parentName?'簽署人：'+waiverData.parentName+'（'+(waiverData.parentRelation||'監護人')+'）　':'')+'簽署時間：'+fmt(waiverData.parentSignedAt)+'</p><img src="'+waiverData.parentSignatureUrl+'" style="max-width:300px">'):''; w.document.write('<html><head><title>Waiver</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 Waiver</h2><p style="color:#666;font-size:12px">簽署時間：'+fmt(waiverData.memberSignedAt)+'</p><hr><pre style="white-space:pre-wrap;font-size:13px">'+body+'</pre><h3>本人簽名</h3>'+memberSig+parentBlock+'</body></html>'); w.document.close(); w.print(); }}
+            <button onClick={() => { const w=window.open('','_blank'); const fmt=(x)=>x?._seconds?new Date(x._seconds*1000).toLocaleString('zh-TW'):'-'; const body=waiverData.contentSnapshot?.zh||''; const memberSig=waiverData.memberSignatureUrl?'<img src="'+waiverData.memberSignatureUrl+'" style="max-width:300px">':''; const parentBlock=waiverData.parentSignatureUrl?('<h3>家長／監護人簽名</h3><p style="color:#666;font-size:12px">'+(waiverData.parentName?'簽署人：'+waiverData.parentName+'（'+(waiverData.parentRelation||'監護人')+'）　':'')+'簽署時間：'+fmt(waiverData.parentSignedAt)+'</p><img src="'+waiverData.parentSignatureUrl+'" style="max-width:300px">'):''; w.document.write('<html><head><title>Waiver</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 Waiver</h2><p style="color:#666;font-size:12px">簽署時間：'+fmt(waiverData.memberSignedAt)+'</p><hr><pre style="white-space:pre-wrap;font-size:13px">'+body+'</pre><h3>'+(detail?.member?.isChildAccount?'法定代理人簽名':'本人簽名')+'</h3>'+memberSig+parentBlock+'</body></html>'); w.document.close(); w.print(); }}
               style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
               🖨️ 列印/PDF
             </button>
@@ -1021,7 +1021,7 @@ export default function MembersPage() {
           )}
           {waiverData.memberSignatureUrl && (
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>本人簽名</div>
+              <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>{detail?.member?.isChildAccount ? '法定代理人簽名' : '本人簽名'}</div>
               <img src={waiverData.memberSignatureUrl} alt="簽名" style={{ width:'100%', maxWidth:340, border:'0.5px solid #E8D5D5', borderRadius:8 }} />
             </div>
           )}
@@ -1070,7 +1070,7 @@ export default function MembersPage() {
                   const body = fallTestSigData.contentSnapshot?.zh || '';
                   const sig = fallTestSigData.signatureData ? '<img src="' + fallTestSigData.signatureData + '" style="max-width:300px;border:1px solid #ddd;border-radius:4px">' : '';
                   const gsig = fallTestSigData.guardianSignatureData ? '<h3>家長/監護人簽名</h3><img src="' + fallTestSigData.guardianSignatureData + '" style="max-width:300px;border:1px solid #ddd;border-radius:4px">' : '';
-                  w.document.write('<html><head><title>墜落測驗同意書</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 — 墜落測驗同意書</h2><p style="color:#666;font-size:12px">簽署時間：' + t + '</p><hr><pre style="white-space:pre-wrap;font-size:13px;line-height:1.8">' + body + '</pre><h3>本人簽名</h3>' + sig + gsig + '</body></html>');
+                  w.document.write('<html><head><title>墜落測驗同意書</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 — 墜落測驗同意書</h2><p style="color:#666;font-size:12px">簽署時間：' + t + '</p><hr><pre style="white-space:pre-wrap;font-size:13px;line-height:1.8">' + body + '</pre><h3>' + (detail?.member?.isChildAccount ? '法定代理人簽名' : '本人簽名') + '</h3>' + sig + gsig + '</body></html>');
                   w.document.close(); w.print();
                 }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
                   🖨️ 列印/PDF
@@ -1086,7 +1086,7 @@ export default function MembersPage() {
               )}
               {fallTestSigData.signatureData && (
                 <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>本人簽名</div>
+                  <div style={{ fontSize:12, color:'#6b6b6b', marginBottom:6 }}>{detail?.member?.isChildAccount ? '法定代理人簽名' : '本人簽名'}</div>
                   <img src={fallTestSigData.signatureData} alt="簽名" style={{ width:'100%', maxWidth:340, border:'0.5px solid #E8D5D5', borderRadius:8 }} />
                 </div>
               )}
