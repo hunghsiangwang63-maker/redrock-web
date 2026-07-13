@@ -111,29 +111,22 @@ export default function MemberHomePage() {
         </div>
       )}
 
-      {/* 身份別與效期（效期內才顯示：攀岩隊員 / 課程學員）*/}
-      {(identity?.teamMember || (identity?.courseAccess?.length > 0)) && (
-        <div style={{ margin:'14px 16px 0', display:'flex', flexDirection:'column', gap:8 }}>
+      {/* 身份別與效期（單一方框、10px：攀岩隊員 / 課程學員 / 定期票；效期內才顯示）*/}
+      {(identity?.teamMember || identity?.courseAccess?.length > 0 || identity?.passes?.length > 0) && (
+        <div style={{ margin:'14px 16px 0', background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'10px 14px', display:'flex', flexDirection:'column', gap:5 }}>
           {identity?.teamMember && (
-            <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ fontSize:20 }}>🏅</div>
-              <div style={{ textAlign:'left' }}>
-                <div style={{ fontSize:13, fontWeight:700, color:'#185FA5' }}>攀岩隊員</div>
-                <div style={{ fontSize:11, color:'#4A7FB0', marginTop:2 }}>
-                  效期 {identity.teamMember.since || '—'} ～ {identity.teamMember.until || '—'}
-                </div>
-              </div>
+            <div style={{ fontSize:10, color:'#185FA5', textAlign:'left' }}>
+              🏅 <span style={{ fontWeight:700 }}>攀岩隊員</span>　效期 {identity.teamMember.since || '—'} ～ {identity.teamMember.until || '—'}
             </div>
           )}
           {(identity?.courseAccess || []).map((c, i) => (
-            <div key={i} style={{ background:'#FAF3E6', border:'0.5px solid #EBD9B4', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ fontSize:20 }}>📚</div>
-              <div style={{ textAlign:'left' }}>
-                <div style={{ fontSize:13, fontWeight:700, color:'#8A6A1F' }}>課程學員 · {c.courseName}</div>
-                <div style={{ fontSize:11, color:'#A98C4C', marginTop:2 }}>
-                  入館效期 {c.gymAccessStart || '—'} ～ {c.gymAccessEnd || '—'}
-                </div>
-              </div>
+            <div key={`ca${i}`} style={{ fontSize:10, color:'#8A6A1F', textAlign:'left' }}>
+              📚 <span style={{ fontWeight:700 }}>課程學員 · {c.courseName}</span>　入館效期 {c.gymAccessStart || '—'} ～ {c.gymAccessEnd || '—'}
+            </div>
+          ))}
+          {(identity?.passes || []).map((p, i) => (
+            <div key={`ps${i}`} style={{ fontSize:10, color:'#8B1A1A', textAlign:'left' }}>
+              🎫 <span style={{ fontWeight:700 }}>{p.passTypeName}</span>　有效至 {p.endDate || '—'}{p.credits != null ? `（剩 ${p.credits} 次）` : ''}
             </div>
           ))}
         </div>
