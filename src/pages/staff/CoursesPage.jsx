@@ -371,6 +371,7 @@ export default function CoursesPage({ embedded = false }) {
       maxStudents: course.maxStudents || 10,
       maxWaitlist: course.maxWaitlist ?? '',
       reservedSlots: course.reservedSlots ?? '',
+      reservedSlotsNote: course.reservedSlotsNote || '',
       startDate: course.startDate || '',
       endDate: course.endDate || '',
       startTime: course.startTime || '',
@@ -735,7 +736,12 @@ export default function CoursesPage({ embedded = false }) {
                       </div>
                     </div>
                     <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', width:90, textAlign:'right' }}>NT${(c.price||0).toLocaleString()}</div>
-                    <div style={{ fontSize:12, color:'#666', width:80, textAlign:'right' }}>{c.enrolledCount || 0}/{c.maxStudents} 人</div>
+                    <div style={{ fontSize:12, color:'#666', width:150, textAlign:'right' }} title={c.reservedSlotsNote || ''}>
+                      <span style={{ fontWeight:600 }}>{c.enrolledCount || 0}/{c.maxStudents} 人</span>
+                      {(c.reservedSlots || 0) > 0 && (
+                        <div style={{ fontSize:10, color:'#B5762B' }}>系統 {c.realEnrolled ?? ((c.enrolledCount||0)-(c.reservedSlots||0))}＋佔用 {c.reservedSlots} ⓘ</div>
+                      )}
+                    </div>
                     <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setSelectedCourse(c); setTab('sessions'); }}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>場次</button>
@@ -761,7 +767,7 @@ export default function CoursesPage({ embedded = false }) {
                 );
               })}
             </div>
-            <div style={{ fontSize:11, color:'#999', marginTop:8 }}>點擊梯次列即可編輯；「場次」進場次管理、「名單」看報名學員。</div>
+            <div style={{ fontSize:11, color:'#999', marginTop:8 }}>點擊梯次列即可編輯；「場次」進場次管理、「名單」看報名學員。人數＝系統報名＋外部佔用（佔用＝舊系統/BeClass 帶入的既有報名，滑鼠停在人數上可看佔用說明；到編輯視窗可調整佔用數與說明）。</div>
           </>
         );
       })())}
@@ -1437,7 +1443,8 @@ export default function CoursesPage({ embedded = false }) {
               { label:'費用（NT$）', key:'price', type:'number' },
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
-              { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number', colSpan:2 },
+              { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number' },
+              { label:'佔用說明（為何被佔用／來源）', key:'reservedSlotsNote', type:'text' },
               { label:'入館有效天數', key:'gymAccessDays', type:'number' },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
