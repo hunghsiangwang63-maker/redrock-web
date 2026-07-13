@@ -674,7 +674,7 @@ export default function CoursesPage({ embedded = false }) {
               {GROUP_ORDER.filter(gk => byGroup[gk]?.length).map(gk => (
                 <div key={gk} style={{ marginBottom:20 }}>
                   <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', margin:'0 0 10px 2px' }}>{GROUP_LABEL[gk]}</div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                     {byGroup[gk].map(gname => {
                       const g = groups[gname];
                       const prices = g.map(c => c.price || 0);
@@ -686,17 +686,14 @@ export default function CoursesPage({ embedded = false }) {
                       const catPrefix = catGymIds.length === 1 ? gymPrefix(catGymIds[0]) : '';
                       return (
                         <div key={gname} onClick={() => setSelectedCategory(gname)}
-                          style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                            <div style={{ fontWeight:700, fontSize:16 }}>{catPrefix}{gname}</div>
-                            <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{g.length} 梯 ›</span>
-                          </div>
-                          <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:6 }}>
+                          style={{ display:'flex', alignItems:'center', gap:14, padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', cursor:'pointer' }}>
+                          <div style={{ fontWeight:600, fontSize:14, flex:'1 1 200px', minWidth:0 }}>{catPrefix}{gname}</div>
+                          <div style={{ fontSize:12, color:'#666', width:60, textAlign:'right' }}>{g.length} 梯</div>
+                          <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', width:150, textAlign:'right' }}>
                             NT${minP.toLocaleString()}{maxP !== minP && `～${maxP.toLocaleString()}`}
                           </div>
-                          <div style={{ fontSize:12, color:'#999' }}>
-                            正取 {enrolled} / {cap} 人{anyInactive ? ' · 含已停用' : ''}
-                          </div>
+                          <div style={{ fontSize:12, color:'#999', width:130, textAlign:'right' }}>正取 {enrolled}/{cap}{anyInactive ? ' · 含停用' : ''}</div>
+                          <span style={{ color:'#8B1A1A', fontWeight:600 }}>›</span>
                         </div>
                       );
                     })}
@@ -718,73 +715,53 @@ export default function CoursesPage({ embedded = false }) {
               <div style={{ fontWeight:700, fontSize:16 }}>{(() => { const ids = [...new Set(list.map(c => c.gymId))]; return ids.length === 1 ? gymPrefix(ids[0]) : ''; })()}{selectedCategory}</div>
               <span style={{ fontSize:12, color:'#999' }}>{list.length} 梯</span>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
               {list.map(c => {
                 const st = courseStatus(c);
                 const inactive = c.isActive === false && c.status !== 'cancelled';
+                const wk = (c.weekdays || []).map(d => '日一二三四五六'[d]).join('、');
                 return (
-                  <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer', opacity: inactive ? 0.6 : 1 }}
-                    onClick={() => { setSelectedCourse(c); setTab('sessions'); }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, gap:6 }}>
-                  <Tag type={c.type==='weekly'?'blue':'purple'}>{courseTypeLabel(c.type)}</Tag>
-                  <div style={{ display:'flex', gap:6 }}>
-                    {inactive && <Tag type="gray">已停用</Tag>}
-                    <Tag type={st.type}>{st.label}</Tag>
+                  <div key={c.id} onClick={() => c.status !== 'cancelled' && handleEditCourse(c)}
+                    style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', cursor: c.status !== 'cancelled' ? 'pointer' : 'default', opacity: inactive ? 0.55 : 1, flexWrap:'wrap' }}>
+                    <div style={{ flex:'1 1 220px', minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                        <span style={{ fontWeight:600, fontSize:14 }}>{gymPrefix(c.gymId)}{c.name}</span>
+                        <Tag type={c.type==='weekly'?'blue':'purple'}>{courseTypeLabel(c.type)}</Tag>
+                        {inactive && <Tag type="gray">已停用</Tag>}
+                        <Tag type={st.type}>{st.label}</Tag>
+                      </div>
+                      <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
+                        {wk ? `每週${wk} ` : ''}{c.startTime}~{c.endTime} · {c.startDate}~{c.endDate} · 👟{c.instructor || '—'}
+                      </div>
+                    </div>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', width:90, textAlign:'right' }}>NT${(c.price||0).toLocaleString()}</div>
+                    <div style={{ fontSize:12, color:'#666', width:80, textAlign:'right' }}>{c.enrolledCount || 0}/{c.maxStudents} 人</div>
+                    <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                      <button onClick={() => { setSelectedCourse(c); setTab('sessions'); }}
+                        style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>場次</button>
+                      <button onClick={() => loadCourseRoster(c)}
+                        style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>名單</button>
+                      {c.status !== 'cancelled' && (inactive ? (
+                        <button onClick={() => handleToggleCourseActive(c, true)}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>啟用</button>
+                      ) : (
+                        <button onClick={() => handleToggleCourseActive(c, false)}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #B5762B', color:'#B5762B', fontSize:11, cursor:'pointer' }}>停用</button>
+                      ))}
+                      {c.status !== 'cancelled' && (
+                        <button onClick={() => handleDeleteCourse(c)}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>取消</button>
+                      )}
+                      {isSuperAdmin && (
+                        <button onClick={() => handlePermanentDelete(c)}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#A32D2D', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>刪除</button>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{gymPrefix(c.gymId)}{c.name}</div>
-                <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:8 }}>
-                  NT${(c.price||0).toLocaleString()}
-                </div>
-                <div style={{ fontSize:12, color:'#999' }}>
-                  {c.enrolledCount || 0} / {c.maxStudents} 人 · {c.totalSessions ? `共 ${c.totalSessions} 堂` : ''}
-                </div>
-                {c.description && (
-                  <div style={{ fontSize:12, color:'#666', marginTop:8, borderTop:'0.5px solid #F5EFEF', paddingTop:8 }}>
-                    {c.description.slice(0,50)}{c.description.length>50?'...':''}
-                  </div>
-                )}
-                <div style={{ marginTop:10, display:'flex', gap:6, flexWrap:'wrap' }} onClick={e => e.stopPropagation()}>
-                  {c.status !== 'cancelled' && (
-                    <button onClick={() => handleEditCourse(c)}
-                      style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
-                      編輯
-                    </button>
-                  )}
-                  {c.status !== 'cancelled' && (
-                    inactive ? (
-                      <button onClick={() => handleToggleCourseActive(c, true)}
-                        style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>
-                        啟用
-                      </button>
-                    ) : (
-                      <button onClick={() => handleToggleCourseActive(c, false)}
-                        style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #B5762B', color:'#B5762B', fontSize:11, cursor:'pointer' }}>
-                        停用
-                      </button>
-                    )
-                  )}
-                  {c.status !== 'cancelled' && (
-                    <button onClick={() => handleDeleteCourse(c)}
-                      style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>
-                      取消課程
-                    </button>
-                  )}
-                  <button onClick={() => loadCourseRoster(c)}
-                    style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>
-                    查看名單
-                  </button>
-                  {isSuperAdmin && (
-                    <button onClick={() => handlePermanentDelete(c)}
-                      style={{ flex:1, minWidth:60, height:28, borderRadius:6, background:'#A32D2D', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>
-                      刪除
-                    </button>
-                  )}
-                </div>
-              </div>
                 );
               })}
             </div>
+            <div style={{ fontSize:11, color:'#999', marginTop:8 }}>點擊梯次列即可編輯；「場次」進場次管理、「名單」看報名學員。</div>
           </>
         );
       })())}
