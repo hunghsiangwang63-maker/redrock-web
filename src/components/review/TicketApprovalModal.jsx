@@ -50,6 +50,8 @@ export default function TicketApprovalModal({ record, onClose, onDone }) {
           <Row label="開立日">{record.issuedAt || '—'}</Row>
           <Row label="有效期限">{record.expiresAt || '—'}</Row>
           <Row label="館別">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
+          <Row label="發放人員">{record.soldByStaffName || '—'} <span style={{ color:'#999', fontSize:11 }}>（值班登記）</span></Row>
+          <Row label="備註說明">{record.notes ? <span style={{ color:'#5B2D8B', fontWeight:600 }}>{record.notes}</span> : <span style={{ color:'#A32D2D' }}>（未填寫）</span>}</Row>
           {deadline && <Row label="審核期限">{deadline}</Row>}
         </div>
 

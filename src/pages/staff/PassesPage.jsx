@@ -386,6 +386,7 @@ export default function PassesPage() {
 
   const handleIssueTicket = async () => {
     if (!ticketMember) return;
+    if (!ticketNotes.trim()) { showMsg('請填寫備註說明（發放原因）', 'red'); return; }
     setLoading(true);
     try {
       await issueSingleEntryTicket({ memberId: ticketMember.id, notes: ticketNotes });
@@ -963,8 +964,8 @@ export default function PassesPage() {
             <div style={{ fontSize:13, color:'#666' }}>有效期：發放日起 1 年</div>
           </div>
           <div style={{ marginBottom:20 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>備註（選填）</label>
-            <input value={ticketNotes} onChange={e => setTicketNotes(e.target.value)} placeholder="如：活動贈送、比賽獎勵..."
+            <label style={{ fontSize:11, color:'#8B1A1A', display:'block', marginBottom:5 }}>備註說明（必填，發放原因；管理員審核時會看到）</label>
+            <input value={ticketNotes} onChange={e => setTicketNotes(e.target.value)} placeholder="如：活動贈送、比賽獎勵、補償票券..."
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }}/>
           </div>
           <div style={{ display:'flex', gap:8 }}>
