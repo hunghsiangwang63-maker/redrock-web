@@ -6,9 +6,10 @@ import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
 
 const STATUS = {
-  pending:   { bg:'#FAEEDA', color:'#854F0B', text:'待確認付款' },
+  pending:   { bg:'#FAEEDA', color:'#854F0B', text:'待審核' },
   active:    { bg:'#E6F4EB', color:'#2D7D46', text:'正式隊員' },
   cancelled: { bg:'#FCEBEB', color:'#A32D2D', text:'已退隊' },
+  rejected:  { bg:'#FCEBEB', color:'#A32D2D', text:'已退回' },
 };
 
 export default function MemberTeamPage() {
@@ -27,6 +28,27 @@ export default function MemberTeamPage() {
   const [idNumber, setIdNumber] = useState('');
   const [address, setAddress] = useState('');
   const [primaryGym, setPrimaryGym] = useState('新竹紅石');
+  // 入隊轉帳被退回 → 重新上傳
+  const [reupDate, setReupDate] = useState('');
+  const [reupLast5, setReupLast5] = useState('');
+  const [reupBusy, setReupBusy] = useState(false);
+  const handleReupload = async () => {
+    if (!reupLast5.trim()) { alert('請填寫匯款帳號末五碼'); return; }
+    setReupBusy(true);
+    try {
+      const { submitTransferRecord } = await import('../../api/transfers');
+      await submitTransferRecord({
+        orderType: 'team_member', refId: currentYearRecord.id,
+        orderName: `攀岩隊年費（${currentYearRecord.year}）`,
+        amount: currentYearRecord.expectedFee || 0,
+        gymId: currentYearRecord.primaryGym === '士林紅石' ? 'gym-shilin' : 'gym-hsinchu',
+        memberName: member?.name || '', bankLastFive: reupLast5.trim(), paymentDate: reupDate.trim(),
+      });
+      alert('已重新送出，等待工作人員確認收款');
+      window.location.reload();
+    } catch (e) { alert(e.response?.data?.message || '送出失敗'); }
+    finally { setReupBusy(false); }
+  };
   const [lineId, setLineId] = useState(member?.lineId || '');
   const [joinReasons, setJoinReasons] = useState([]);
   const [trainingContent, setTrainingContent] = useState('');
@@ -215,6 +237,22 @@ export default function MemberTeamPage() {
             <div style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:16, textAlign:'center' }}>
               <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46', marginBottom:4 }}>✓ 已申請 {year} 年度</div>
               <div style={{ fontSize:13, color:'#666' }}>狀態：{STATUS[currentYearRecord.status]?.text}</div>
+              {currentYearRecord.status === 'rejected' && (
+                <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginTop:10, fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.7 }}>
+                  轉帳資料確認未通過{currentYearRecord.paymentRejectReason ? `：${currentYearRecord.paymentRejectReason}` : ''}。
+                  請於下方重新上傳轉帳資料，或聯絡櫃檯協助。
+                  <div style={{ display:'flex', gap:6, marginTop:8 }}>
+                    <input placeholder="匯款日期 YYYY-MM-DD" value={reupDate} onChange={e=>setReupDate(e.target.value)}
+                      style={{ flex:1, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
+                    <input placeholder="末五碼" value={reupLast5} onChange={e=>setReupLast5(e.target.value)}
+                      style={{ width:90, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
+                  </div>
+                  <button onClick={handleReupload} disabled={reupBusy}
+                    style={{ width:'100%', height:36, marginTop:8, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
+                    {reupBusy ? '送出中…' : '重新上傳轉帳'}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>

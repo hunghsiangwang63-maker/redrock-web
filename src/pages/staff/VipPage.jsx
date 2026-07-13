@@ -493,6 +493,8 @@ export default function VipPage({ embedded = false, section = null }) {
                   ? { bg:'#E6F4EB', color:'#2D7D46', t:'正式隊員' }
                   : a.status === 'cancelled'
                   ? { bg:'#FCEBEB', color:'#A32D2D', t:'已退隊' }
+                  : a.status === 'rejected'
+                  ? { bg:'#FCEBEB', color:'#A32D2D', t:'已退回（轉帳未通過）' }
                   : { bg:'#FAEEDA', color:'#854F0B', t:'待審核' };
                 return (
                   <tr key={a.id} style={{ borderTop:'0.5px solid #F5EFEF', cursor:'pointer' }} onClick={() => setActionTarget(a)}>
@@ -542,7 +544,7 @@ export default function VipPage({ embedded = false, section = null }) {
             </div>
             <div style={{ fontSize:12, color:'#666', background:'#FBF5F5', borderRadius:10, padding:'10px 12px', marginBottom:16, textAlign:'left', lineHeight:1.8 }}>
               收款：{actionTarget.paymentStatus === 'confirmed' ? '✅ 已收款' : '❌ 待確認付款'}<br/>
-              隊籍：{actionTarget.status === 'active' ? '✅ 正式隊員' : actionTarget.status === 'cancelled' ? '❌ 已退隊' : '❌ 待審核'}<br/>
+              隊籍：{actionTarget.status === 'active' ? '✅ 正式隊員' : actionTarget.status === 'cancelled' ? '❌ 已退隊' : actionTarget.status === 'rejected' ? '❌ 已退回' : '❌ 待審核'}<br/>
               隊服：{actionTarget.noJersey ? '不拿隊服' : `${actionTarget.jerseyReceived ? '✅ 已領取' : '❌ 未領取'}${actionTarget.jerseySize ? `（${actionTarget.jerseySize}）` : ''}`}
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -640,7 +642,7 @@ export default function VipPage({ embedded = false, section = null }) {
               </div>
               <div><label style={feeLabel}>隊員狀態</label>
                 <select style={feeInput} value={editForm.status} onChange={e=>setEditForm(f=>({...f, status:e.target.value}))}>
-                  <option value="pending">待審核</option><option value="active">正式隊員</option><option value="cancelled">已退隊</option>
+                  <option value="pending">待審核</option><option value="active">正式隊員</option><option value="cancelled">已退隊</option><option value="rejected">已退回</option>
                 </select>
               </div>
             </div>
