@@ -65,7 +65,15 @@ export default function CoursesPage({ embedded = false }) {
   const [courses, setCourses] = useState([]);
   const [categories, setCategories] = useState([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
-  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', color: '#8B1A1A' });
+  const EMPTY_CAT_FORM = {
+    name: '', group: 'adult', description: '', color: '#8B1A1A', makeupGroup: '',
+    allowTrial: false, trialPrice: '', leaveDeadlineHours: 2, maxLeaves: 2,
+    allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 5,
+  };
+  const [categoryForm, setCategoryForm] = useState(EMPTY_CAT_FORM);
+  const [catImageFile, setCatImageFile] = useState(null);      // 班別廣告照片（建立/編輯後上傳）
+  const GROUP_LABEL = { adult: '成人班', youth: '青少年兒童班', special: '專班課程', workshop: '工作坊' };
+  const GROUP_ORDER = ['adult', 'youth', 'special', 'workshop'];
   const [sessions, setSessions] = useState([]);
   const [calendarMonth, setCalendarMonth] = useState(dayjs().format('YYYY-MM'));
   const [calendarSessions, setCalendarSessions] = useState([]);
@@ -97,17 +105,19 @@ export default function CoursesPage({ embedded = false }) {
   const [imgUploading, setImgUploading] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [copyFrom, setCopyFrom] = useState('');
-  const [courseForm, setCourseForm] = useState({
-    name: '', description: '', price: '', maxStudents: 6, maxWaitlist: 2, reservedSlots: '', categoryId: '',
+  const EMPTY_COURSE_FORM = {
+    cohortName: '', name: '', price: '', maxStudents: 6, maxWaitlist: 2, reservedSlots: '', categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
-    gymAccessDays: 1, leaveDeadlineHours: 2,
-    maxLeaves: 2, allowMakeup: true, makeupDeadlineDays: 60, midpointSurcharge: 1.05,
-    allowTrial: false, trialPrice: '',
+    gymAccessDays: 1, midpointSurcharge: 1.05,
+    // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
+    leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
+    allowTrial: '', trialPrice: '', perSessionDeduction: '', handlingFeeRate: '',
     unlimitedPracticeStart: '', unlimitedPracticeEnd: '',
-    perSessionDeduction: 850, handlingFeeRate: 5,
     installment: { enabled: false, periods: [] },
-  });
+  };
+  const [courseForm, setCourseForm] = useState(EMPTY_COURSE_FORM);
+  const [showOverrideRules, setShowOverrideRules] = useState(false);
 
   // 新增場次
   const [showAddSession, setShowAddSession] = useState(false);
@@ -194,12 +204,33 @@ export default function CoursesPage({ embedded = false }) {
     } catch (e) {}
   };
 
+  // 班別表單 → API payload（規則空值＝null 用系統預設；手續費率 % → 小數）
+  const catPayload = () => ({
+    name: categoryForm.name, group: categoryForm.group,
+    description: categoryForm.description || '', color: categoryForm.color || '#8B1A1A',
+    makeupGroup: categoryForm.makeupGroup || undefined,
+    allowTrial: !!categoryForm.allowTrial,
+    trialPrice: categoryForm.trialPrice === '' ? null : Number(categoryForm.trialPrice),
+    leaveDeadlineHours: categoryForm.leaveDeadlineHours === '' ? null : Number(categoryForm.leaveDeadlineHours),
+    maxLeaves: categoryForm.maxLeaves === '' ? null : Number(categoryForm.maxLeaves),
+    allowMakeup: !!categoryForm.allowMakeup,
+    makeupDeadlineDays: categoryForm.makeupDeadlineDays === '' ? null : Number(categoryForm.makeupDeadlineDays),
+    perSessionDeduction: categoryForm.perSessionDeduction === '' ? null : Number(categoryForm.perSessionDeduction),
+    handlingFeeRate: categoryForm.handlingFeeRate === '' ? null : Number(categoryForm.handlingFeeRate) / 100,
+  });
+  const uploadCatImage = async (catId) => {
+    if (!catImageFile) return;
+    const fd = new FormData(); fd.append('file', catImageFile);
+    await client.post(`/course-categories/${catId}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+  };
   const handleCreateCategory = async () => {
+    if (!categoryForm.name?.trim()) { showMsg('請填班別名稱', 'red'); return; }
     try {
-      await createCategory(categoryForm);
-      showMsg('類別建立成功');
+      const res = await createCategory(catPayload());
+      try { await uploadCatImage(res.data.category.id); } catch (e) { showMsg('班別已建立，但照片上傳失敗', 'red'); }
+      showMsg('班別建立成功');
       setShowAddCategory(false);
-      setCategoryForm({ name: '', description: '', color: '#8B1A1A' });
+      setCategoryForm(EMPTY_CAT_FORM); setCatImageFile(null);
       await loadCategories();
     } catch (err) {
       showMsg(err.response?.data?.message || '建立失敗', 'red');
@@ -207,12 +238,25 @@ export default function CoursesPage({ embedded = false }) {
   };
 
   const [editingCategory, setEditingCategory] = useState(null);
+  const openEditCategory = (c) => {
+    setEditingCategory(c); setCatImageFile(null);
+    setCategoryForm({
+      name: c.name || '', group: c.group || 'adult', description: c.description || '', color: c.color || '#8B1A1A',
+      makeupGroup: c.makeupGroup && c.makeupGroup !== c.id ? c.makeupGroup : '',
+      allowTrial: c.allowTrial === true, trialPrice: c.trialPrice ?? '',
+      leaveDeadlineHours: c.leaveDeadlineHours ?? 2, maxLeaves: c.maxLeaves ?? 2,
+      allowMakeup: c.allowMakeup !== false, makeupDeadlineDays: c.makeupDeadlineDays ?? 60,
+      perSessionDeduction: c.perSessionDeduction ?? 850,
+      handlingFeeRate: c.handlingFeeRate != null ? Math.round(c.handlingFeeRate * 100) : 5,
+    });
+  };
   const handleUpdateCategory = async () => {
     try {
-      await updateCategory(editingCategory.id, categoryForm);
-      showMsg('類別已更新');
+      await updateCategory(editingCategory.id, catPayload());
+      try { await uploadCatImage(editingCategory.id); } catch (e) { showMsg('已更新，但照片上傳失敗', 'red'); }
+      showMsg('班別已更新');
       setEditingCategory(null);
-      setCategoryForm({ name: '', description: '', color: '#8B1A1A' });
+      setCategoryForm(EMPTY_CAT_FORM); setCatImageFile(null);
       await loadCategories();
     } catch (err) {
       showMsg(err.response?.data?.message || '更新失敗', 'red');
@@ -268,21 +312,31 @@ export default function CoursesPage({ embedded = false }) {
   const handleCreateCourse = async () => {
     setLoading(true);
     try {
+      const catName = categories.find(c => c.id === courseForm.categoryId)?.name || '';
+      // 覆寫規則：只送有填的欄位（空＝繼承班別）
+      const ov = {};
+      const num = (v) => (v === '' || v === null || v === undefined) ? undefined : Number(v);
+      if (num(courseForm.leaveDeadlineHours) !== undefined) ov.leaveDeadlineHours = num(courseForm.leaveDeadlineHours);
+      if (num(courseForm.maxLeaves) !== undefined) ov.maxLeaves = num(courseForm.maxLeaves);
+      if (courseForm.allowMakeup !== '') ov.allowMakeup = courseForm.allowMakeup === true || courseForm.allowMakeup === 'true';
+      if (num(courseForm.makeupDeadlineDays) !== undefined) ov.makeupDeadlineDays = num(courseForm.makeupDeadlineDays);
+      if (courseForm.allowTrial !== '') ov.allowTrial = courseForm.allowTrial === true || courseForm.allowTrial === 'true';
+      if (num(courseForm.trialPrice) !== undefined) ov.trialPrice = num(courseForm.trialPrice);
+      if (num(courseForm.perSessionDeduction) !== undefined) ov.perSessionDeduction = num(courseForm.perSessionDeduction);
+      if (num(courseForm.handlingFeeRate) !== undefined) ov.handlingFeeRate = num(courseForm.handlingFeeRate) / 100;
       const res = await createCourse({
         ...courseForm,
+        leaveDeadlineHours: undefined, maxLeaves: undefined, allowMakeup: undefined, makeupDeadlineDays: undefined,
+        allowTrial: undefined, trialPrice: undefined, perSessionDeduction: undefined, handlingFeeRate: undefined,
+        ...ov,
+        cohortName: courseForm.cohortName,
+        name: catName ? `${catName} ${courseForm.cohortName}` : courseForm.cohortName,
         price: parseInt(courseForm.price),
         maxStudents: parseInt(courseForm.maxStudents),
         totalSessions: parseInt(courseForm.totalSessions) || 0,
         gymAccessDays: parseInt(courseForm.gymAccessDays),
         gymAccessDaysAfter: parseInt(courseForm.gymAccessDays),
-        leaveDeadlineHours: parseInt(courseForm.leaveDeadlineHours),
-        maxLeaves: parseInt(courseForm.maxLeaves),
-        makeupDeadlineDays: parseInt(courseForm.makeupDeadlineDays),
         midpointSurcharge: parseFloat(courseForm.midpointSurcharge) || 1.05,
-        perSessionDeduction: parseInt(courseForm.perSessionDeduction) || 850,
-        handlingFeeRate: (parseFloat(courseForm.handlingFeeRate) || 5) / 100,
-        allowTrial: courseForm.type === 'weekly' && !!courseForm.allowTrial,
-        trialPrice: parseInt(courseForm.trialPrice) || 0,
         weekdays: courseForm.weekdays.map(Number),
       });
       const newId = res.data.course?.id;
@@ -311,10 +365,8 @@ export default function CoursesPage({ embedded = false }) {
 
   const handleEditCourse = (course) => {
     setEditForm({
-      name: course.name || '',
+      cohortName: course.cohortName || course.name || '',
       weekdays: course.weekdays || [],
-      description: course.description || '',
-      imageUrl: course.imageUrl || '',
       price: course.price || '',
       maxStudents: course.maxStudents || 10,
       maxWaitlist: course.maxWaitlist ?? '',
@@ -325,16 +377,17 @@ export default function CoursesPage({ embedded = false }) {
       endTime: course.endTime || '',
       instructor: course.instructor || '',
       totalSessions: course.totalSessions || '',
-      leaveDeadlineHours: course.leaveDeadlineHours || 2,
-      maxLeaves: course.maxLeaves || 2,
-      makeupDeadlineDays: course.makeupDeadlineDays || 60,
+      // 規則覆寫（''＝用班別預設）：只有梯次真的有覆寫值才顯示
+      leaveDeadlineHours: course.leaveDeadlineHours ?? '',
+      maxLeaves: course.maxLeaves ?? '',
+      makeupDeadlineDays: course.makeupDeadlineDays ?? '',
+      perSessionDeduction: course.perSessionDeduction ?? '',
+      handlingFeeRate: course.handlingFeeRate != null ? Math.round(course.handlingFeeRate * 100) : '',
+      allowMakeup: course.allowMakeup ?? '',
+      allowTrial: course.allowTrial ?? '',
+      trialPrice: course.trialPrice ?? '',
       midpointSurcharge: course.midpointSurcharge || 1.05,
-      perSessionDeduction: course.perSessionDeduction ?? 850,
-      handlingFeeRate: Math.round((course.handlingFeeRate ?? 0.05) * 100),
-      allowMakeup: course.allowMakeup !== false,
       type: course.type || 'weekly',
-      allowTrial: course.allowTrial === true,
-      trialPrice: course.trialPrice || '',
       unlimitedPracticeStart: course.unlimitedPracticeStart || course.startDate || '',
       unlimitedPracticeEnd: course.unlimitedPracticeEnd || course.endDate || '',
       installment: course.installment || { enabled: false, periods: [] },
@@ -355,19 +408,25 @@ export default function CoursesPage({ embedded = false }) {
       editForm.weekdays?.length > 0 && editForm.startDate && editForm.endDate;
     try {
       const { updateCourse } = await import('../../api/courses');
+      const ovNum = (v) => (v === '' || v === null || v === undefined) ? null : Number(v);
+      const ovBool = (v) => (v === '' || v === null || v === undefined) ? null : (v === true || v === 'true');
       await updateCourse(editingCourse.id, {
         ...editForm,
+        name: undefined,                       // 顯示名由後端依 班別名+梯次名 重組
+        cohortName: editForm.cohortName,
         price: parseInt(editForm.price),
         maxStudents: parseInt(editForm.maxStudents),
         totalSessions: parseInt(editForm.totalSessions) || 0,
-        leaveDeadlineHours: parseInt(editForm.leaveDeadlineHours),
-        maxLeaves: parseInt(editForm.maxLeaves),
-        makeupDeadlineDays: parseInt(editForm.makeupDeadlineDays),
         midpointSurcharge: parseFloat(editForm.midpointSurcharge) || 1.05,
-        perSessionDeduction: parseInt(editForm.perSessionDeduction) || 850,
-        handlingFeeRate: (parseFloat(editForm.handlingFeeRate) || 5) / 100,
-        allowTrial: (editForm.type || editingCourse?.type) === 'weekly' && !!editForm.allowTrial,
-        trialPrice: parseInt(editForm.trialPrice) || 0,
+        // 規則：空＝null（清除覆寫、回到班別預設）
+        leaveDeadlineHours: ovNum(editForm.leaveDeadlineHours),
+        maxLeaves: ovNum(editForm.maxLeaves),
+        makeupDeadlineDays: ovNum(editForm.makeupDeadlineDays),
+        perSessionDeduction: ovNum(editForm.perSessionDeduction),
+        handlingFeeRate: editForm.handlingFeeRate === '' ? null : (parseFloat(editForm.handlingFeeRate) || 0) / 100,
+        allowMakeup: ovBool(editForm.allowMakeup),
+        allowTrial: ovBool(editForm.allowTrial),
+        trialPrice: ovNum(editForm.trialPrice),
       });
       showMsg(needRegen ? '課程已更新，正在依新課表重排場次…' : '課程已更新');
       setEditingCourse(null);
@@ -557,7 +616,7 @@ export default function CoursesPage({ embedded = false }) {
     { key:'courses',    icon:'📚', label:'課程列表' },
     { key:'calendar',   icon:'📅', label:'月曆' },
     { key:'sessions',   icon:'🕐', label:'場次管理' },
-    { key:'categories', icon:'🏷️', label:'類別管理' },
+    { key:'categories', icon:'🏷️', label:'班別管理' },
   ];
 
   return (
@@ -576,7 +635,8 @@ export default function CoursesPage({ embedded = false }) {
             setCreateImageFile(null);
             // 若正在某類別的第二層，預先帶入該類別
             const preCat = selectedCategory ? (categories.find(c => c.name === selectedCategory)?.id || '') : '';
-            setCourseForm(prev => ({ ...prev, categoryId: preCat }));
+            setCourseForm({ ...EMPTY_COURSE_FORM, weekdays: [], categoryId: preCat });
+            setCopyFrom(''); setCreateStep(1); setShowOverrideRules(false); setCreateImageFile(null);
             setShowAddCourse(true);
           }}
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
@@ -597,41 +657,54 @@ export default function CoursesPage({ embedded = false }) {
           目前沒有課程，點右上角新增
         </div>
       ) : (() => {
-        // 依類別分組（無類別歸「其他」）
+        // 依班別分組（無班別歸「其他」），班別再依大類分區
         const groups = {};
         courses.forEach(c => { const k = c.categoryName || '其他'; (groups[k] = groups[k] || []).push(c); });
         const names = Object.keys(groups).sort((a, b) => a === '其他' ? 1 : b === '其他' ? -1 : a.localeCompare(b, 'zh-Hant'));
 
-        // ── 第一層：類別總頁 ──
+        // ── 第一層：大類 → 班別卡 ──
         if (!selectedCategory) {
+          const byGroup = {};
+          names.forEach(gname => {
+            const gk = groups[gname][0]?.categoryGroup || 'special';
+            (byGroup[gk] = byGroup[gk] || []).push(gname);
+          });
           return (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
-              {names.map(gname => {
-                const g = groups[gname];
-                const prices = g.map(c => c.price || 0);
-                const minP = Math.min(...prices), maxP = Math.max(...prices);
-                const enrolled = g.reduce((s, c) => s + (c.enrolledCount || 0), 0);
-                const cap = g.reduce((s, c) => s + (c.maxStudents || 0), 0);
-                const anyInactive = g.some(c => c.isActive === false && c.status !== 'cancelled');
-                const catGymIds = [...new Set(g.map(c => c.gymId))];
-                const catPrefix = catGymIds.length === 1 ? gymPrefix(catGymIds[0]) : '';
-                return (
-                  <div key={gname} onClick={() => setSelectedCategory(gname)}
-                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                      <div style={{ fontWeight:700, fontSize:16 }}>{catPrefix}{gname}</div>
-                      <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{g.length} 梯 ›</span>
-                    </div>
-                    <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:6 }}>
-                      NT${minP.toLocaleString()}{maxP !== minP && `～${maxP.toLocaleString()}`}
-                    </div>
-                    <div style={{ fontSize:12, color:'#999' }}>
-                      正取 {enrolled} / {cap} 人{anyInactive ? ' · 含已停用' : ''}
-                    </div>
+            <>
+              {GROUP_ORDER.filter(gk => byGroup[gk]?.length).map(gk => (
+                <div key={gk} style={{ marginBottom:20 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', margin:'0 0 10px 2px' }}>{GROUP_LABEL[gk]}</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+                    {byGroup[gk].map(gname => {
+                      const g = groups[gname];
+                      const prices = g.map(c => c.price || 0);
+                      const minP = Math.min(...prices), maxP = Math.max(...prices);
+                      const enrolled = g.reduce((s, c) => s + (c.enrolledCount || 0), 0);
+                      const cap = g.reduce((s, c) => s + (c.maxStudents || 0), 0);
+                      const anyInactive = g.some(c => c.isActive === false && c.status !== 'cancelled');
+                      const catGymIds = [...new Set(g.map(c => c.gymId))];
+                      const catPrefix = catGymIds.length === 1 ? gymPrefix(catGymIds[0]) : '';
+                      return (
+                        <div key={gname} onClick={() => setSelectedCategory(gname)}
+                          style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, cursor:'pointer' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                            <div style={{ fontWeight:700, fontSize:16 }}>{catPrefix}{gname}</div>
+                            <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{g.length} 梯 ›</span>
+                          </div>
+                          <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:6 }}>
+                            NT${minP.toLocaleString()}{maxP !== minP && `～${maxP.toLocaleString()}`}
+                          </div>
+                          <div style={{ fontSize:12, color:'#999' }}>
+                            正取 {enrolled} / {cap} 人{anyInactive ? ' · 含已停用' : ''}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+              ))}
+              {Object.keys(byGroup).filter(gk => !GROUP_ORDER.includes(gk)).length > 0 && null}
+            </>
           );
         }
 
@@ -1142,122 +1215,166 @@ export default function CoursesPage({ embedded = false }) {
         </div>
       )}
 
-      {/* ── 類別管理 tab ── */}
+      {/* ── 班別管理 tab（樹：大類 → 班別；介紹/照片/規則為同班別所有梯次共用預設）── */}
       {tab === 'categories' && (
         <div>
           <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
-            <button onClick={() => setShowAddCategory(true)}
+            <button onClick={() => { setCategoryForm(EMPTY_CAT_FORM); setCatImageFile(null); setShowAddCategory(true); }}
               style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
-              ＋ 新增類別
+              ＋ 新增班別
             </button>
           </div>
-          <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-            {categories.filter(c => c.isActive).length === 0 ? (
-              <div style={{ padding:32, textAlign:'center', color:'#999', fontSize:13 }}>尚無類別，點右上角新增</div>
-            ) : categories.filter(c => c.isActive).map(c => (
-              <div key={c.id} style={{ padding:'14px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:12, height:12, borderRadius:6, background: c.color || '#8B1A1A' }}/>
+          {GROUP_ORDER.map(g => {
+            const list = categories.filter(c => c.isActive && (c.group || 'special') === g);
+            return (
+              <div key={g} style={{ marginBottom:16 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'0 0 8px 2px' }}>{GROUP_LABEL[g]}</div>
+                <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
+                  {list.length === 0 ? (
+                    <div style={{ padding:'14px 16px', color:'#bbb', fontSize:12 }}>（尚無班別）</div>
+                  ) : list.map(c => (
+                    <div key={c.id} style={{ padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
+                        {c.imageUrl
+                          ? <img src={c.imageUrl} alt="" style={{ width:36, height:36, borderRadius:8, objectFit:'cover', flexShrink:0 }}/>
+                          : <div style={{ width:12, height:12, borderRadius:6, background: c.color || '#8B1A1A', flexShrink:0 }}/>}
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontWeight:600, fontSize:14 }}>{c.name}
+                            {c.allowTrial === true && <span style={{ fontSize:10, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>試上 ${c.trialPrice ?? 0}</span>}
+                            {c.makeupGroup && c.makeupGroup !== c.id && <span style={{ fontSize:10, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>補課群組 {c.makeupGroup}</span>}
+                          </div>
+                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費 每堂扣{c.perSessionDeduction ?? 850}/費率{Math.round((c.handlingFeeRate ?? 0.05) * 100)}%
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                        <button onClick={() => openEditCategory(c)}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>
+                          編輯
+                        </button>
+                        <button onClick={() => handleDeleteCategory(c.id, c.name)}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>
+                          停用
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {(showAddCategory || editingCategory) && (
+            <Modal title={editingCategory ? `編輯班別 — ${editingCategory.name}` : '新增班別'} width={560}
+              onClose={() => { setShowAddCategory(false); setEditingCategory(null); }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>所屬大類</label>
+                  <select value={categoryForm.group} onChange={e => setCategoryForm({...categoryForm, group:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                    {GROUP_ORDER.map(g => <option key={g} value={g}>{GROUP_LABEL[g]}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>班別名稱</label>
+                  <input value={categoryForm.name} onChange={e => setCategoryForm({...categoryForm, name:e.target.value})}
+                    placeholder="如：入門班、小蜘蛛人入門班"
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程介紹（同班別所有梯次共用）</label>
+                  <textarea value={categoryForm.description} onChange={e => setCategoryForm({...categoryForm, description:e.target.value})} rows={4}
+                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', resize:'vertical' }}/>
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>廣告照片（同班別所有梯次共用）</label>
+                  {editingCategory?.imageUrl && !catImageFile && (
+                    <img src={editingCategory.imageUrl} alt="" style={{ width:'100%', maxHeight:120, objectFit:'cover', borderRadius:8, marginBottom:6 }}/>
+                  )}
+                  <input type="file" accept="image/*" onChange={e => setCatImageFile(e.target.files?.[0] || null)} style={{ fontSize:12, width:'100%' }}/>
+                  {catImageFile && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {catImageFile.name}（儲存後上傳）</div>}
+                </div>
+                <div style={{ gridColumn:'1/-1', borderTop:'0.5px solid #F0E5E5', paddingTop:10, fontSize:12, fontWeight:700, color:'#8B1A1A' }}>規則（此班別所有梯次的預設，梯次可個別覆寫）</div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>請假截止（上課前 N 小時）</label>
+                  <input type="number" value={categoryForm.leaveDeadlineHours} onChange={e => setCategoryForm({...categoryForm, leaveDeadlineHours:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>整期可請假次數</label>
+                  <input type="number" value={categoryForm.maxLeaves} onChange={e => setCategoryForm({...categoryForm, maxLeaves:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <input type="checkbox" id="catAllowMakeup" checked={categoryForm.allowMakeup}
+                    onChange={e => setCategoryForm({...categoryForm, allowMakeup:e.target.checked})}/>
+                  <label htmlFor="catAllowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>補課期限（課程結束後 N 天）</label>
+                  <input type="number" value={categoryForm.makeupDeadlineDays} onChange={e => setCategoryForm({...categoryForm, makeupDeadlineDays:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：開課後每堂扣除（NT$）</label>
+                  <input type="number" value={categoryForm.perSessionDeduction} onChange={e => setCategoryForm({...categoryForm, perSessionDeduction:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：開課前手續費率（%）</label>
+                  <input type="number" value={categoryForm.handlingFeeRate} onChange={e => setCategoryForm({...categoryForm, handlingFeeRate:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <input type="checkbox" id="catAllowTrial" checked={categoryForm.allowTrial}
+                    onChange={e => setCategoryForm({...categoryForm, allowTrial:e.target.checked})}/>
+                  <label htmlFor="catAllowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上（發單日體驗券、不卡墜測）</label>
+                </div>
+                {categoryForm.allowTrial && (
                   <div>
-                    <div style={{ fontWeight:600, fontSize:14 }}>{c.name}</div>
-                    {c.description && <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{c.description}</div>}
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（NT$）</label>
+                    <input type="number" value={categoryForm.trialPrice} onChange={e => setCategoryForm({...categoryForm, trialPrice:e.target.value})}
+                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                   </div>
-                </div>
-                <div style={{ display:'flex', gap:6 }}>
-                  <button onClick={() => { setEditingCategory(c); setCategoryForm({ name:c.name, description:c.description||'', color:c.color||'#8B1A1A' }); }}
-                    style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>
-                    編輯
-                  </button>
-                  <button onClick={() => handleDeleteCategory(c.id, c.name)}
-                    style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>
-                    停用
-                  </button>
+                )}
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>補課群組（選填）</label>
+                  <input value={categoryForm.makeupGroup} onChange={e => setCategoryForm({...categoryForm, makeupGroup:e.target.value})}
+                    placeholder="留空＝只能補本班別；多個班別填同一組名即可互相補課（如：makeup-spider）"
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {showAddCategory && (
-            <Modal title="新增課程類別" onClose={() => setShowAddCategory(false)}>
-              <div style={{ marginBottom:12 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>類別名稱</label>
-                <input value={categoryForm.name} onChange={e => setCategoryForm({...categoryForm, name:e.target.value})}
-                  placeholder="如：初級、進階、工作坊"
-                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-              </div>
-              <div style={{ marginBottom:12 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>說明（選填）</label>
-                <input value={categoryForm.description} onChange={e => setCategoryForm({...categoryForm, description:e.target.value})}
-                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-              </div>
-              <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>顏色</label>
-                <div style={{ display:'flex', gap:8 }}>
-                  {['#8B1A1A','#185FA5','#2D7D46','#854F0B','#533AB7','#0F6E56'].map(c => (
-                    <div key={c} onClick={() => setCategoryForm({...categoryForm, color:c})}
-                      style={{ width:32, height:32, borderRadius:16, background:c, cursor:'pointer', border: categoryForm.color===c ? '3px solid #1a1a1a' : 'none' }}/>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display:'flex', gap:8 }}>
-                <button onClick={() => setShowAddCategory(false)}
+              <div style={{ display:'flex', gap:8, marginTop:18 }}>
+                <button onClick={() => { setShowAddCategory(false); setEditingCategory(null); }}
                   style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
-                <button onClick={handleCreateCategory}
-                  style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>建立類別</button>
-              </div>
-            </Modal>
-          )}
-
-          {editingCategory && (
-            <Modal title={`編輯類別 — ${editingCategory.name}`} onClose={() => setEditingCategory(null)}>
-              <div style={{ marginBottom:12 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>類別名稱</label>
-                <input value={categoryForm.name} onChange={e => setCategoryForm({...categoryForm, name:e.target.value})}
-                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-              </div>
-              <div style={{ marginBottom:12 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>說明（選填）</label>
-                <input value={categoryForm.description} onChange={e => setCategoryForm({...categoryForm, description:e.target.value})}
-                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-              </div>
-              <div style={{ marginBottom:20 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>顏色</label>
-                <div style={{ display:'flex', gap:8 }}>
-                  {['#8B1A1A','#185FA5','#2D7D46','#854F0B','#533AB7','#0F6E56'].map(c => (
-                    <div key={c} onClick={() => setCategoryForm({...categoryForm, color:c})}
-                      style={{ width:32, height:32, borderRadius:16, background:c, cursor:'pointer', border: categoryForm.color===c ? '3px solid #1a1a1a' : 'none' }}/>
-                  ))}
-                </div>
-              </div>
-              <div style={{ display:'flex', gap:8 }}>
-                <button onClick={() => setEditingCategory(null)}
-                  style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
-                <button onClick={handleUpdateCategory}
-                  style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>儲存變更</button>
+                <button onClick={editingCategory ? handleUpdateCategory : handleCreateCategory}
+                  style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                  {editingCategory ? '儲存變更' : '建立班別'}
+                </button>
               </div>
             </Modal>
           )}
         </div>
       )}
 
-      {/* ── 新增課程 Modal（兩步：1 選類別/類型/館別 → 2 填梯次資料）── */}
+      {/* ── 加開梯次 Modal（兩步：1 選班別/類型/館別＋梯次名稱 → 2 梯次資料＋覆寫規則）── */}
       {showAddCourse && (
-        <Modal title={createStep === 1 ? '新增課程（1/2）· 選課程類別' : '新增課程（2/2）· 梯次資料'} onClose={() => setShowAddCourse(false)} width={560}>
+        <Modal title={createStep === 1 ? '加開梯次（1/2）· 選班別' : '加開梯次（2/2）· 梯次資料'} onClose={() => setShowAddCourse(false)} width={560}>
           {createStep === 1 ? (
           <>
             {courses.length > 0 && (
               <div style={{ marginBottom:16 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>複製現有課程（選填，會帶入該課設定）</label>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>複製現有梯次（選填，帶入該梯設定）</label>
                 <select value={copyFrom} onChange={e => {
                   setCopyFrom(e.target.value);
                   if (e.target.value) {
                     const src = courses.find(c => c.id === e.target.value);
                     if (src) setCourseForm(prev => ({
                       ...prev,
-                      name: src.name + '（複製）',
-                      description: src.description || '',
+                      cohortName: (src.cohortName || src.name) + '（複製）',
                       price: src.price || '',
-                      maxStudents: src.maxStudents || 10,
+                      maxStudents: src.maxStudents || 6,
                       maxWaitlist: src.maxWaitlist ?? '',
                       type: src.type || 'weekly',
                       categoryId: src.categoryId || prev.categoryId || '',
@@ -1265,11 +1382,8 @@ export default function CoursesPage({ embedded = false }) {
                       instructor: src.instructor || '',
                       totalSessions: src.totalSessions || '',
                       gymAccessDays: src.gymAccessDaysAfter || 1,
-                      leaveDeadlineHours: src.leaveDeadlineHours || 2,
-                      maxLeaves: src.maxLeaves || 2,
-                      allowMakeup: src.allowMakeup !== false,
-                      makeupDeadlineDays: src.makeupDeadlineDays || 60,
                       midpointSurcharge: src.midpointSurcharge || 1.05,
+                      weekdays: src.weekdays || [],
                       installment: src.installment || prev.installment,
                     }));
                   }
@@ -1281,13 +1395,29 @@ export default function CoursesPage({ embedded = false }) {
               </div>
             )}
             <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程類別（此梯次屬於哪門課）</label>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>班別（此梯次屬於哪個班別）</label>
               <select value={courseForm.categoryId || ''} onChange={e => setCourseForm({...courseForm, categoryId:e.target.value})}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                <option value="">不分類</option>
-                {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="">請選擇班別</option>
+                {GROUP_ORDER.map(g => {
+                  const list = categories.filter(c => c.isActive && (c.group || 'special') === g);
+                  return list.length ? (
+                    <optgroup key={g} label={GROUP_LABEL[g]}>
+                      {list.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </optgroup>
+                  ) : null;
+                })}
               </select>
-              <div style={{ fontSize:10, color:'#999', marginTop:4 }}>沒有想要的類別？到「類別管理」新增，同一門課的各梯次選同一類別即會歸在一起。</div>
+              <div style={{ fontSize:10, color:'#999', marginTop:4 }}>介紹/照片/試上/請假/補課/退費規則由班別提供（到「班別管理」設定）；梯次可於下一步覆寫規則。</div>
+            </div>
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>梯次名稱</label>
+              <input value={courseForm.cohortName} onChange={e => setCourseForm({...courseForm, cohortName:e.target.value})}
+                placeholder="如：週日A班、9-10月平日班"
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              {courseForm.categoryId && courseForm.cohortName && (
+                <div style={{ fontSize:10, color:'#2D7D46', marginTop:4 }}>顯示名稱：{categories.find(c => c.id === courseForm.categoryId)?.name} {courseForm.cohortName}</div>
+              )}
             </div>
             <div style={{ marginBottom:16 }}>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程類型</label>
@@ -1307,64 +1437,13 @@ export default function CoursesPage({ embedded = false }) {
                 </select>
               </div>
             )}
-            {/* 課程通用資訊（同門課各梯次共用性質的設定）*/}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              {[
-                { label:'課程名稱', key:'name', type:'text', colSpan:2 },
-                { label:'課程說明', key:'description', type:'text', colSpan:2 },
-                { label:'插班加成（低於一半堂數）', key:'midpointSurcharge', type:'number' },
-                { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
-                { label:'整期可請假/補課次數', key:'maxLeaves', type:'number', hint:'此為整期學員共用；插班學員請於該課程「查看名單」個別設定' },
-                { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
-                { label:'退費-開課後每堂扣除金額（NT$）', key:'perSessionDeduction', type:'number' },
-                { label:'退費-開課前手續費率（%）', key:'handlingFeeRate', type:'number' },
-              ].map(f => (
-                <div key={f.key} style={{ gridColumn: f.colSpan===2 ? '1/-1' : 'auto' }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
-                  <input type={f.type} value={courseForm[f.key]}
-                    onChange={e => setCourseForm({...courseForm, [f.key]: e.target.value})}
-                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-                  {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
-                </div>
-              ))}
-              {/* 課程海報（建立後上傳）*/}
-              <div style={{ gridColumn:'1/-1' }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程海報（會員端顯示，選填）</label>
-                <input type="file" accept="image/*" onChange={e => setCreateImageFile(e.target.files?.[0] || null)} style={{ fontSize:12, width:'100%' }}/>
-                {createImageFile && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {createImageFile.name}（建立課程後上傳）</div>}
-              </div>
-              <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:8 }}>
-                <input type="checkbox" id="allowMakeup" checked={courseForm.allowMakeup}
-                  onChange={e => setCourseForm({...courseForm, allowMakeup:e.target.checked})}/>
-                <label htmlFor="allowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
-              </div>
-              {courseForm.type === 'weekly' && (
-                <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:8 }}>
-                  <input type="checkbox" id="allowTrial" checked={courseForm.allowTrial}
-                    onChange={e => setCourseForm({...courseForm, allowTrial:e.target.checked})}/>
-                  <label htmlFor="allowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上</label>
-                </div>
-              )}
-              {courseForm.type === 'weekly' && courseForm.allowTrial && (
-                <div style={{ gridColumn:'1/-1' }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費用（另收）</label>
-                  <input type="number" min={0} value={courseForm.trialPrice}
-                    onChange={e => setCourseForm({...courseForm, trialPrice:e.target.value})} placeholder="0"
-                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-                </div>
-              )}
-            </div>
-            <div style={{ marginTop:16 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>是否分期（分期付款規則）</label>
-              <InstallmentRuleEditor value={courseForm.installment} price={courseForm.price}
-                onChange={v => setCourseForm({...courseForm, installment: v})} />
-            </div>
             <div style={{ display:'flex', gap:8, marginTop:20 }}>
               <button onClick={() => setShowAddCourse(false)}
                 style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
               <button onClick={() => {
                 if (isSuperAdmin && !(courseForm.gymId || effectiveGymId)) { showMsg('請先選擇館別', 'red'); return; }
-                if (!courseForm.name?.trim()) { showMsg('請填課程名稱', 'red'); return; }
+                if (!courseForm.categoryId) { showMsg('請選擇班別', 'red'); return; }
+                if (!courseForm.cohortName?.trim()) { showMsg('請填梯次名稱', 'red'); return; }
                 setCreateStep(2);
               }}
                 style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>下一步 →</button>
@@ -1373,7 +1452,7 @@ export default function CoursesPage({ embedded = false }) {
           ) : (
           <>
           <div style={{ fontSize:12, color:'#666', background:'#FBF5F5', borderRadius:8, padding:'8px 12px', marginBottom:14 }}>
-            類別：<strong>{categories.find(c => c.id === courseForm.categoryId)?.name || '不分類'}</strong> · {courseForm.type === 'weekly' ? '固定週課' : '單次工作坊'} · {courseForm.name || '（未命名）'}
+            班別：<strong>{categories.find(c => c.id === courseForm.categoryId)?.name || '—'}</strong> · {courseForm.type === 'weekly' ? '固定週課' : '單次工作坊'} · 梯次「{courseForm.cohortName || '（未命名）'}」
           </div>
           <div style={{ fontSize:11, color:'#999', marginBottom:10 }}>以下為此梯次專屬資料（費用/名額/上課時段）：</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -1415,6 +1494,66 @@ export default function CoursesPage({ embedded = false }) {
                 </div>
               </div>
             )}
+          </div>
+          <div style={{ marginTop:14 }}>
+            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>插班加成（剩餘堂數低於一半時的加成係數）</label>
+            <input type="number" step="0.01" value={courseForm.midpointSurcharge}
+              onChange={e => setCourseForm({...courseForm, midpointSurcharge: e.target.value})}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ marginTop:14 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>是否分期（分期付款規則）</label>
+            <InstallmentRuleEditor value={courseForm.installment} price={courseForm.price}
+              onChange={v => setCourseForm({...courseForm, installment: v})} />
+          </div>
+          {/* 覆寫班別規則（收合；空＝用班別預設）*/}
+          <div style={{ marginTop:14, border:'0.5px solid #E8D5D5', borderRadius:10, overflow:'hidden' }}>
+            <div onClick={() => setShowOverrideRules(v => !v)}
+              style={{ padding:'10px 14px', background:'#FBF5F5', fontSize:13, fontWeight:600, cursor:'pointer', display:'flex', justifyContent:'space-between' }}>
+              <span>⚙ 覆寫班別規則（選填）</span><span>{showOverrideRules ? '▲' : '▼ 目前使用班別預設'}</span>
+            </div>
+            {showOverrideRules && (() => {
+              const cat = categories.find(c => c.id === courseForm.categoryId) || {};
+              const ph = (v, d) => `班別預設 ${v ?? d}`;
+              return (
+                <div style={{ padding:14, display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                  <div style={{ gridColumn:'1/-1', fontSize:11, color:'#999' }}>留空＝使用班別預設；填了＝此梯次個別覆寫。</div>
+                  {[
+                    { label:'請假截止（小時前）', key:'leaveDeadlineHours', p: ph(cat.leaveDeadlineHours, 2) },
+                    { label:'整期可請假次數', key:'maxLeaves', p: ph(cat.maxLeaves, 2) },
+                    { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', p: ph(cat.makeupDeadlineDays, 60) },
+                    { label:'試上費（NT$）', key:'trialPrice', p: ph(cat.trialPrice, 0) },
+                    { label:'退費：每堂扣除（NT$）', key:'perSessionDeduction', p: ph(cat.perSessionDeduction, 850) },
+                    { label:'退費：手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.05) * 100)}` },
+                  ].map(f => (
+                    <div key={f.key}>
+                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
+                      <input type="number" value={courseForm[f.key]} placeholder={f.p}
+                        onChange={e => setCourseForm({...courseForm, [f.key]: e.target.value})}
+                        style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                    </div>
+                  ))}
+                  <div>
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放補課</label>
+                    <select value={courseForm.allowMakeup} onChange={e => setCourseForm({...courseForm, allowMakeup: e.target.value})}
+                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}>
+                      <option value="">班別預設（{cat.allowMakeup === false ? '關閉' : '開放'}）</option>
+                      <option value="true">開放</option>
+                      <option value="false">關閉</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放試上</label>
+                    <select value={courseForm.allowTrial} onChange={e => setCourseForm({...courseForm, allowTrial: e.target.value})}
+                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}>
+                      <option value="">班別預設（{cat.allowTrial === true ? '開放' : '關閉'}）</option>
+                      <option value="true">開放</option>
+                      <option value="false">關閉</option>
+                    </select>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
             <button onClick={() => setCreateStep(1)}
@@ -1577,8 +1716,7 @@ export default function CoursesPage({ embedded = false }) {
         <Modal title={`編輯課程 — ${editingCourse.name}`} onClose={() => setEditingCourse(null)} width={560}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             {[
-              { label:'課程名稱', key:'name', type:'text', colSpan:2 },
-              { label:'課程說明', key:'description', type:'text', colSpan:2 },
+              { label:'梯次名稱（顯示名＝班別名＋梯次名）', key:'cohortName', type:'text', colSpan:2 },
               { label:'費用（NT$）', key:'price', type:'number' },
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
@@ -1589,68 +1727,50 @@ export default function CoursesPage({ embedded = false }) {
               { label:'上課結束時間', key:'endTime', type:'time' },
               { label:'教練', key:'instructor', type:'text', colSpan:2 },
               { label:'插班加成', key:'midpointSurcharge', type:'number' },
-              { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number' },
-              { label:'整期可請假/補課次數', key:'maxLeaves', type:'number', hint:'此為整期學員共用；插班學員請於該課程「查看名單」個別設定' },
-              { label:'補課期限（天）', key:'makeupDeadlineDays', type:'number' },
-              { label:'退費-開課後每堂扣除金額（NT$）', key:'perSessionDeduction', type:'number' },
-              { label:'退費-開課前手續費率（%）', key:'handlingFeeRate', type:'number' },
+              { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number', ph:'留空＝班別預設' },
+              { label:'整期可請假次數', key:'maxLeaves', type:'number', ph:'留空＝班別預設', hint:'留空＝用班別預設；插班學員可於「查看名單」個別設定' },
+              { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', type:'number', ph:'留空＝班別預設' },
+              { label:'退費-每堂扣除（NT$）', key:'perSessionDeduction', type:'number', ph:'留空＝班別預設' },
+              { label:'退費-手續費率（%）', key:'handlingFeeRate', type:'number', ph:'留空＝班別預設' },
             ].map(f => (
               <div key={f.key} style={{ gridColumn: f.colSpan===2 ? '1/-1' : 'auto' }}>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
-                <input type={f.type} value={editForm[f.key] || ''}
+                <input type={f.type} value={editForm[f.key] ?? ''} placeholder={f.ph || ''}
                   onChange={e => setEditForm({...editForm, [f.key]: e.target.value})}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 {f.hint && <div style={{ fontSize:10, color:'#999', marginTop:4, lineHeight:1.4 }}>{f.hint}</div>}
               </div>
             ))}
-            {/* 課程海報（單張，上傳存 Storage，會員卡片＋詳情顯示）*/}
-            <div style={{ gridColumn:'1/-1' }}>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程海報（會員端顯示）</label>
-              {editForm.imageUrl && (
-                <img src={editForm.imageUrl} alt="海報" style={{ width:'100%', maxHeight:200, objectFit:'contain', borderRadius:8, border:'0.5px solid #E8D5D5', marginBottom:8, background:'#FBF5F5' }}/>
-              )}
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <label style={{ fontSize:12, color:'#8B1A1A', border:'1px solid #8B1A1A', borderRadius:8, padding:'7px 14px', cursor: imgUploading?'default':'pointer', opacity: imgUploading?0.5:1 }}>
-                  {imgUploading ? '上傳中…' : (editForm.imageUrl ? '更換海報' : '上傳海報')}
-                  <input type="file" accept="image/*" disabled={imgUploading} style={{ display:'none' }}
-                    onChange={async e => {
-                      const file = e.target.files?.[0]; if (!file) return;
-                      setImgUploading(true);
-                      try {
-                        const fd = new FormData(); fd.append('file', file);
-                        const r = await client.post(`/courses/${editingCourse.id}/image`, fd, { headers:{ 'Content-Type':'multipart/form-data' } });
-                        setEditForm(prev => ({ ...prev, imageUrl: r.data.imageUrl }));
-                        setEditingCourse(prev => ({ ...prev, imageUrl: r.data.imageUrl }));
-                        showMsg('海報已上傳');
-                      } catch (err) {
-                        showMsg(err.response?.data?.message || '上傳失敗', 'red');
-                      } finally { setImgUploading(false); e.target.value = ''; }
-                    }}/>
-                </label>
-                {editForm.imageUrl && !imgUploading && (
-                  <button type="button" onClick={() => setEditForm(prev => ({ ...prev, imageUrl:'' }))}
-                    style={{ fontSize:12, color:'#999', background:'none', border:'none', cursor:'pointer' }}>移除（儲存後生效）</button>
-                )}
-              </div>
-              <div style={{ fontSize:10, color:'#999', marginTop:4 }}>上傳後即存檔生效；「移除」需按下方「儲存」才寫入。</div>
+            <div style={{ gridColumn:'1/-1', fontSize:11, color:'#999', background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+              課程介紹與廣告照片改由「班別管理」設定（同班別所有梯次共用）。
             </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
-              <input type="checkbox" id="editAllowMakeup" checked={editForm.allowMakeup !== false}
-                onChange={e => setEditForm({...editForm, allowMakeup:e.target.checked})}/>
-              <label htmlFor="editAllowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
+            <div>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放補課</label>
+              <select value={editForm.allowMakeup === true ? 'true' : editForm.allowMakeup === false ? 'false' : ''}
+                onChange={e => setEditForm({...editForm, allowMakeup: e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                <option value="">班別預設</option>
+                <option value="true">開放</option>
+                <option value="false">關閉</option>
+              </select>
             </div>
             {(editForm.type || editingCourse?.type) === 'weekly' && (
-              <div style={{ display:'flex', alignItems:'center', gap:8, paddingTop:20 }}>
-                <input type="checkbox" id="editAllowTrial" checked={editForm.allowTrial === true}
-                  onChange={e => setEditForm({...editForm, allowTrial:e.target.checked})}/>
-                <label htmlFor="editAllowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上</label>
+              <div>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放試上</label>
+                <select value={editForm.allowTrial === true ? 'true' : editForm.allowTrial === false ? 'false' : ''}
+                  onChange={e => setEditForm({...editForm, allowTrial: e.target.value})}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                  <option value="">班別預設</option>
+                  <option value="true">開放</option>
+                  <option value="false">關閉</option>
+                </select>
               </div>
             )}
-            {(editForm.type || editingCourse?.type) === 'weekly' && editForm.allowTrial && (
+            {(editForm.type || editingCourse?.type) === 'weekly' && (
               <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費用（另收）</label>
-                <input type="number" min={0} value={editForm.trialPrice || ''}
-                  onChange={e => setEditForm({...editForm, trialPrice:e.target.value})} placeholder="0"
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（留空＝班別預設）</label>
+                <input type="number" min={0} value={editForm.trialPrice ?? ''}
+                  onChange={e => setEditForm({...editForm, trialPrice:e.target.value})} placeholder="班別預設"
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
               </div>
             )}

@@ -24,11 +24,9 @@ const participantUnder5 = (s) => {
   return d.isValid() && dayjs().diff(d, 'year') < 5;
 };
 
+// 只留抱石體驗課程；小蜘蛛人（兒童）/抱石技巧班已併入「課程試上」報名
 const FALLBACK_COURSE_TYPES = [
   { id:'general',    label:'抱石體驗課程（依人數計費）' },
-  { id:'children',   label:'小蜘蛛人（兒童）600元/人' },
-  { id:'skill_fri',  label:'抱石技巧班（週五20:00）1075元/人' },
-  { id:'skill_sun14',label:'抱石技巧班（週日14:00）900元/人' },
 ];
 const GENERAL_PRICE = { 1:975, 2:875, 3:875 };
 const getGeneralPrice = (n) => n>=9?775:n>=6?775:n>=4?825:n>=3?875:n>=2?875:975;

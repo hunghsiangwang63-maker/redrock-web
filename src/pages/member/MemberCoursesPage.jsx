@@ -644,8 +644,8 @@ export default function MemberCoursesPage() {
                 // 梯次排序：週一→週日（週日排最後），同日再依開始時間
                 const wkKey = (c) => { const d = (c.weekdays && c.weekdays.length) ? c.weekdays[0] : 99; return d === 0 ? 7 : d; };
                 const sorted = [...cohorts].sort((a, b) => wkKey(a) - wkKey(b) || (a.startTime || '').localeCompare(b.startTime || ''));
-                const catPoster = cohorts.map(c => c.imageUrl).find(Boolean);
-                const catDesc = cohorts.map(c => c.description).find(Boolean);
+                const catPoster = cohorts.map(c => c.categoryImageUrl || c.imageUrl).find(Boolean);
+                const catDesc = cohorts.map(c => c.categoryDescription || c.description).find(Boolean);
                 return (
                   <>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
@@ -704,8 +704,15 @@ export default function MemberCoursesPage() {
                 );
               }
 
-              // ── 第一層：每個類別一張卡（僅一梯者點卡直接進報名，跳過中間層）──
-              return names.map(gname => {
+              // ── 第一層：大類分區 → 每個班別一張卡（僅一梯者點卡直接進報名，跳過中間層）──
+              const GROUP_LABEL = { adult: '成人班', youth: '青少年兒童班', special: '專班課程', workshop: '工作坊' };
+              const GROUP_ORDER = ['adult', 'youth', 'special', 'workshop'];
+              const byGroup = {};
+              names.forEach(gname => {
+                const gk = GROUP_ORDER.includes(groups[gname][0]?.categoryGroup) ? groups[gname][0].categoryGroup : 'special';
+                (byGroup[gk] = byGroup[gk] || []).push(gname);
+              });
+              const renderCatCard = (gname) => {
                 const g = groups[gname];
                 const prices = g.map(c => c.price || 0);
                 const minP = Math.min(...prices), maxP = Math.max(...prices);
@@ -743,7 +750,13 @@ export default function MemberCoursesPage() {
                     </div>
                   </div>
                 );
-              });
+              };
+              return GROUP_ORDER.filter(gk => byGroup[gk]?.length).map(gk => (
+                <div key={gk} style={{ marginBottom:18 }}>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', margin:'0 0 8px 2px', textAlign:'left' }}>{GROUP_LABEL[gk]}</div>
+                  {byGroup[gk].map(gname => renderCatCard(gname))}
+                </div>
+              ));
             })()
           ) : (
             // 場次列表
@@ -754,8 +767,8 @@ export default function MemberCoursesPage() {
                 <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(selectedCourse.gymId)}{selectedCourse.name}</div>
               </div>
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:12, overflow:'hidden' }}>
-                {selectedCourse.imageUrl && (
-                  <img src={selectedCourse.imageUrl} alt={selectedCourse.name} style={{ width:'100%', display:'block', objectFit:'cover' }} />
+                {(selectedCourse.categoryImageUrl || selectedCourse.imageUrl) && (
+                  <img src={selectedCourse.categoryImageUrl || selectedCourse.imageUrl} alt={selectedCourse.name} style={{ width:'100%', display:'block', objectFit:'cover' }} />
                 )}
                 <div style={{ padding:14 }}>
                   <div style={{ fontSize:12, color:'#666' }}>
