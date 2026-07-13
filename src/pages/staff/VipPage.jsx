@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getVipList, addVip, updateVip, removeVip } from '../../api/vip';
-import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, createTeamMember, updateTeamApplication, deleteTeamApplication, downloadTeamFile } from '../../api/team';
+import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, createTeamMember, updateTeamApplication, deleteTeamApplication, confirmTeamPayment, downloadTeamFile } from '../../api/team';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -121,6 +121,15 @@ export default function VipPage({ embedded = false, section = null }) {
       jerseySize: app.jerseySize || '', noJersey: !!app.noJersey, jerseyReceived: !!app.jerseyReceived,
       paymentStatus: app.paymentStatus || 'pending', status: app.status || 'pending',
     });
+  };
+
+  const [actionTarget, setActionTarget] = useState(null); // 點會員列 → 動作 Modal（編輯/確認收款/刪除）
+  const handleConfirmTeamPay = async (a) => {
+    try {
+      await confirmTeamPayment(a.id);
+      setActionTarget(null);
+      await loadTeamMembers();
+    } catch (e) { alert(e.response?.data?.message || '確認收款失敗'); }
   };
 
   // 隊服領取：名單列直接點 ✅/❌ 切換
@@ -475,7 +484,6 @@ export default function VipPage({ embedded = false, section = null }) {
                 <th style={{ padding:'10px 8px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>已收款</th>
                 <th style={{ padding:'10px 8px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>正式隊員</th>
                 <th style={{ padding:'10px 8px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>隊服領取</th>
-                <th style={{ padding:'10px 16px', textAlign:'center', fontWeight:500, color:'#999', fontSize:11 }}>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -487,7 +495,7 @@ export default function VipPage({ embedded = false, section = null }) {
                   ? { bg:'#FCEBEB', color:'#A32D2D', t:'已退隊' }
                   : { bg:'#FAEEDA', color:'#854F0B', t:'待審核' };
                 return (
-                  <tr key={a.id} style={{ borderTop:'0.5px solid #F5EFEF' }}>
+                  <tr key={a.id} style={{ borderTop:'0.5px solid #F5EFEF', cursor:'pointer' }} onClick={() => setActionTarget(a)}>
                     <td style={{ padding:'12px 16px' }}>
                       <div style={{ fontWeight:600 }}>{a.memberName || '—'}</div>
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.memberPhone}{a.primaryGym ? ` · ${a.primaryGym}` : ''}</div>
@@ -504,20 +512,9 @@ export default function VipPage({ embedded = false, section = null }) {
                     </td>
                     <td style={{ padding:'10px 8px', textAlign:'center', fontSize:14, cursor: a.noJersey ? 'default' : 'pointer' }}
                       title={a.noJersey ? '不拿隊服' : (a.jerseyReceived ? '已領取（點擊改未領）' : '未領取（點擊標記已領）')}
-                      onClick={() => !a.noJersey && toggleJersey(a)}>
+                      onClick={(e) => { e.stopPropagation(); if (!a.noJersey) toggleJersey(a); }}>
                       {a.noJersey ? <span style={{ fontSize:11, color:'#bbb' }}>—</span> : (a.jerseyReceived ? '✅' : '❌')}
                       {!a.noJersey && a.jerseySize && <div style={{ fontSize:9, color:'#999' }}>{a.jerseySize}</div>}
-                    </td>
-                    <td style={{ padding:'12px 16px', textAlign:'center' }}>
-                      <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', alignItems:'center' }}>
-                        {a.status !== 'cancelled' && !paid && (
-                          <span style={{ fontSize:11, color:'#854F0B' }}>待收款（待辦總覽）</span>
-                        )}
-                        <button onClick={() => openEdit(a)}
-                          style={{ height:30, padding:'0 10px', borderRadius:6, background:'#f5f5f5', border:'0.5px solid #ddd', fontSize:12, cursor:'pointer' }}>編輯</button>
-                        <button onClick={() => handleDeleteTeam(a)}
-                          style={{ height:30, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>刪除</button>
-                      </div>
                     </td>
                   </tr>
                 );
@@ -527,6 +524,36 @@ export default function VipPage({ embedded = false, section = null }) {
           );
         })()}
       </div>
+
+      {/* 隊員動作 Modal（點名單列開啟：編輯/確認收款/刪除）*/}
+      {actionTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => setActionTarget(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:360 }}>
+            <div style={{ fontWeight:600, fontSize:16 }}>{actionTarget.memberName}</div>
+            <div style={{ fontSize:12, color:'#999', marginTop:4, marginBottom:14 }}>
+              {actionTarget.memberPhone}{actionTarget.primaryGym ? ` · ${actionTarget.primaryGym}` : ''} · {teamYear} 年度
+            </div>
+            <div style={{ fontSize:12, color:'#666', background:'#FBF5F5', borderRadius:10, padding:'10px 12px', marginBottom:16, textAlign:'left', lineHeight:1.8 }}>
+              收款：{actionTarget.paymentStatus === 'confirmed' ? '✅ 已收款' : '❌ 待確認付款'}<br/>
+              隊籍：{actionTarget.status === 'active' ? '✅ 正式隊員' : actionTarget.status === 'cancelled' ? '❌ 已退隊' : '❌ 待審核'}<br/>
+              隊服：{actionTarget.noJersey ? '不拿隊服' : `${actionTarget.jerseyReceived ? '✅ 已領取' : '❌ 未領取'}${actionTarget.jerseySize ? `（${actionTarget.jerseySize}）` : ''}`}
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {actionTarget.paymentStatus !== 'confirmed' && actionTarget.status !== 'cancelled' && (
+                <button onClick={() => handleConfirmTeamPay(actionTarget)}
+                  style={{ height:42, borderRadius:10, background:'#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>💵 確認收款</button>
+              )}
+              <button onClick={() => { setActionTarget(null); openEdit(actionTarget); }}
+                style={{ height:42, borderRadius:10, background:'#f5f5f5', border:'0.5px solid #ddd', fontSize:14, cursor:'pointer' }}>✏️ 編輯資料</button>
+              <button onClick={() => { setActionTarget(null); handleDeleteTeam(actionTarget); }}
+                style={{ height:42, borderRadius:10, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:14, cursor:'pointer' }}>🗑 刪除隊員資料</button>
+              <button onClick={() => setActionTarget(null)}
+                style={{ height:42, borderRadius:10, background:'none', border:'none', color:'#999', fontSize:13, cursor:'pointer' }}>關閉</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 手動新增隊員 Modal */}
       {showAddTeam && (
