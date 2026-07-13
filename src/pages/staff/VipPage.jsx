@@ -498,7 +498,8 @@ export default function VipPage({ embedded = false, section = null }) {
                   <tr key={a.id} style={{ borderTop:'0.5px solid #F5EFEF', cursor:'pointer' }} onClick={() => setActionTarget(a)}>
                     <td style={{ padding:'10px 16px', verticalAlign:'middle' }}>
                       <div style={{ fontWeight:600 }}>{a.memberName || '—'}</div>
-                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.memberPhone}{a.primaryGym ? ` · ${a.primaryGym}` : ''}</div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.memberPhone || '—'}</div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.primaryGym || '—'}</div>
                     </td>
                     <td style={{ padding:'10px 12px', fontSize:11, whiteSpace:'nowrap', verticalAlign:'middle' }}>
                       <div style={{ fontWeight:600, color:'#333' }}>NT${(a.paymentAmount || a.expectedFee || 0).toLocaleString()}</div>
@@ -616,7 +617,7 @@ export default function VipPage({ embedded = false, section = null }) {
               <div><label style={feeLabel}>姓名</label><input style={feeInput} value={editForm.memberName} onChange={e=>setEditForm(f=>({...f, memberName:e.target.value}))} /></div>
               <div><label style={feeLabel}>手機</label><input style={feeInput} value={editForm.memberPhone} onChange={e=>setEditForm(f=>({...f, memberPhone:e.target.value}))} /></div>
               <div><label style={feeLabel}>主要岩館</label><input style={feeInput} value={editForm.primaryGym} onChange={e=>setEditForm(f=>({...f, primaryGym:e.target.value}))} /></div>
-              <div><label style={feeLabel}>繳費金額（NT$）</label><input type="number" style={feeInput} value={editForm.paymentAmount} onChange={e=>setEditForm(f=>({...f, paymentAmount:e.target.value}))} /></div>
+              <div><label style={feeLabel}>繳費金額（NT$）</label><input type="text" inputMode="numeric" style={feeInput} value={editForm.paymentAmount} onChange={e=>setEditForm(f=>({...f, paymentAmount:e.target.value.replace(/[^\d]/g,'')}))} /></div>
               <div><label style={feeLabel}>匯款日期</label><input style={feeInput} value={editForm.paymentDate} onChange={e=>setEditForm(f=>({...f, paymentDate:e.target.value}))} placeholder="YYYY-MM-DD" /></div>
               <div><label style={feeLabel}>匯款末五碼</label><input style={feeInput} value={editForm.bankLastFive} onChange={e=>setEditForm(f=>({...f, bankLastFive:e.target.value}))} /></div>
               <div><label style={feeLabel}>隊服尺寸</label><input style={feeInput} value={editForm.jerseySize} onChange={e=>setEditForm(f=>({...f, jerseySize:e.target.value}))} disabled={editForm.noJersey} /></div>
