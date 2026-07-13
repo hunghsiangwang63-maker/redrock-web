@@ -18,6 +18,7 @@ export default function MemberHomePage() {
   const [tab, setTab] = useState('home');
   const [todayCheckin, setTodayCheckin] = useState(null); // { checkedIn, gymId, checkedInAt }
   const [identity, setIdentity] = useState(null);        // { teamMember, courseAccess }（隊員/課程學員身份與效期）
+  const [rejectAlerts, setRejectAlerts] = useState([]);   // 轉帳被退回的訂單（首頁通知；補正後自動消失）
   const touchStartX = useRef(null);
   const bannerLen = banners.length || 1;
 
@@ -48,6 +49,10 @@ export default function MemberHomePage() {
       memberClient.get('/members/my/identity')
         .then(r => setIdentity(r.data || null))
         .catch(() => setIdentity(null));
+      // 轉帳被退回通知（含子女訂單；重新上傳後端點即不再回傳、自動消失）
+      memberClient.get('/members/my/alerts')
+        .then(r => setRejectAlerts(r.data?.alerts || []))
+        .catch(() => setRejectAlerts([]));
     }
   }, [member?.id]);
 
@@ -110,6 +115,23 @@ export default function MemberHomePage() {
           </div>
         </div>
       )}
+
+      {/* 轉帳被退回通知（點擊前往對應頁重新上傳；補正後自動消失）*/}
+      {rejectAlerts.map((a, i) => (
+        <div key={`ra${i}`} onClick={() => navigate(a.link)}
+          style={{ margin:'14px 16px 0', background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+          <div style={{ fontSize:20 }}>⚠️</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13, fontWeight:700, color:'#A32D2D', textAlign:'left' }}>
+              {a.label}轉帳被退回：{a.name}{a.memberName ? `（👦 ${a.memberName}）` : ''}
+            </div>
+            <div style={{ fontSize:11, color:'#8A5A5A', marginTop:2, textAlign:'left' }}>
+              {a.reason ? `原因：${a.reason}，` : ''}請點此重新上傳轉帳資料
+            </div>
+          </div>
+          <div style={{ fontSize:14, color:'#A32D2D' }}>›</div>
+        </div>
+      ))}
 
       {/* 身份別與效期（單一方框、10px：攀岩隊員 / 課程學員 / 定期票；效期內才顯示）*/}
       {(identity?.teamMember || identity?.courseAccess?.length > 0 || identity?.passes?.length > 0) && (
