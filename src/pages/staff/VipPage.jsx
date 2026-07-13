@@ -496,12 +496,13 @@ export default function VipPage({ embedded = false, section = null }) {
                   : { bg:'#FAEEDA', color:'#854F0B', t:'待審核' };
                 return (
                   <tr key={a.id} style={{ borderTop:'0.5px solid #F5EFEF', cursor:'pointer' }} onClick={() => setActionTarget(a)}>
-                    <td style={{ padding:'12px 16px' }}>
+                    <td style={{ padding:'10px 16px', verticalAlign:'middle' }}>
                       <div style={{ fontWeight:600 }}>{a.memberName || '—'}</div>
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{a.memberPhone}{a.primaryGym ? ` · ${a.primaryGym}` : ''}</div>
                     </td>
-                    <td style={{ padding:'10px 12px', fontSize:11, color:'#666', whiteSpace:'nowrap' }}>
-                      NT${a.paymentAmount || a.expectedFee || 0}{a.paymentDate ? ` · ${a.paymentDate}` : ''}
+                    <td style={{ padding:'10px 12px', fontSize:11, whiteSpace:'nowrap', verticalAlign:'middle' }}>
+                      <div style={{ fontWeight:600, color:'#333' }}>NT${(a.paymentAmount || a.expectedFee || 0).toLocaleString()}</div>
+                      <div style={{ color:'#999', marginTop:2 }}>{a.paymentDate || '—'}</div>
                     </td>
                     <td style={{ padding:'10px 8px', textAlign:'center', fontSize:14 }} title={paid ? '已收款' : '待確認付款'}>
                       {paid ? '✅' : '❌'}
