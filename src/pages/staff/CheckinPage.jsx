@@ -104,6 +104,7 @@ export default function CheckinPage() {
   const rafRef = useRef(null);
   const scanningRef = useRef(false);
   const [scanResult, setScanResult] = useState(null);
+  const [compScan, setCompScan] = useState(null); // 比賽報到掃描結果（compchk: QR）
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneMember, setPhoneMember] = useState(null);
@@ -228,9 +229,21 @@ export default function CheckinPage() {
   const runScan = async (token) => {
     const t = (token || '').trim();
     if (!t) return;
+    // 比賽報到 QR（compchk: 前綴）→ 走比賽報到流程（驗報名資格、不卡墜測）
+    if (t.startsWith('compchk:')) {
+      setLoading(true); setScanResult(null); setConfirmedCheckIn(null); setCompScan(null);
+      try {
+        const res = await client.post('/competitions/checkin/scan', { token: t });
+        setCompScan({ ...res.data, token: t });
+      } catch (err) {
+        setCompScan({ error: err.response?.data?.message || '掃描失敗' });
+      } finally { setLoading(false); }
+      return;
+    }
     setLoading(true);
     setScanResult(null);
     setConfirmedCheckIn(null);
+    setCompScan(null);
     try {
       const res = await scanQrCode(t);
       setScanResult(res.data);
@@ -522,6 +535,41 @@ export default function CheckinPage() {
               </div>
             )}
 
+            {/* 比賽報到掃描結果 */}
+            {compScan && (
+              <div style={{ background:'#F7F3F3', borderRadius:10, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
+                {compScan.error ? (
+                  <div style={{ color:'#A32D2D', fontSize:13 }}>❌ {compScan.error}</div>
+                ) : (
+                  <>
+                    <div style={{ fontWeight:600, fontSize:15, marginBottom:10 }}>🎫 比賽報到</div>
+                    <div style={{ fontSize:13, lineHeight:2 }}>
+                      <div>選手：<strong>{compScan.memberName}</strong></div>
+                      <div>賽事：{compScan.competitionName}・{compScan.divisionName}</div>
+                      <div>比賽日：{compScan.eventDate}</div>
+                      <div>繳費：{compScan.paymentStatus === 'confirmed'
+                        ? <span style={{ color:'#2D7D46', fontWeight:600 }}>已確認（NT${compScan.registrationFee}）</span>
+                        : <span style={{ color:'#A32D2D', fontWeight:700 }}>⚠ 未確認收款（NT${compScan.registrationFee}），請先收款</span>}</div>
+                      {!compScan.isComplete && <div style={{ color:'#A32D2D', fontWeight:600 }}>⚠ 尚未完成簽署（待法定代理人）</div>}
+                      {compScan.checkedInAt && <div style={{ color:'#854F0B', fontWeight:700 }}>⚠ 此選手已完成報到</div>}
+                    </div>
+                    {!compScan.checkedInAt && (
+                      <button onClick={async () => {
+                        try {
+                          const r = await client.post('/competitions/checkin/confirm', { token: compScan.token });
+                          setCompScan(null);
+                          setConfirmedCheckIn({ memberName: compScan.memberName, entryType: 'competition', amountPaid: 0, message: r.data.message });
+                        } catch (err) { setCompScan(prev => ({ ...prev, error: err.response?.data?.message || '報到失敗' })); }
+                      }}
+                        style={{ marginTop:12, width:'100%', height:42, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+                        ✓ 確認報到（不卡墜落測驗）
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
             {/* 掃描結果預覽 */}
             {scanResult && !scanResult.error && (
               <div style={{ background:'#F7F3F3', borderRadius:10, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
@@ -630,10 +678,12 @@ export default function CheckinPage() {
                   {confirmedCheckIn.memberName} — {ENTRY_TYPE_LABEL[confirmedCheckIn.entryType] || confirmedCheckIn.entryType}
                   {confirmedCheckIn.amountPaid > 0 && ` — NT$${confirmedCheckIn.amountPaid}`}
                 </div>
-                <button onClick={() => handleCancel(confirmedCheckIn.id)}
-                  style={{ fontSize:12, color:'#A32D2D', background:'none', border:'0.5px solid #A32D2D', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
-                  取消入場（10分鐘內）
-                </button>
+                {confirmedCheckIn.id && (
+                  <button onClick={() => handleCancel(confirmedCheckIn.id)}
+                    style={{ fontSize:12, color:'#A32D2D', background:'none', border:'0.5px solid #A32D2D', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
+                    取消入場（10分鐘內）
+                  </button>
+                )}
               </div>
             )}
             </div>

@@ -7,6 +7,7 @@ import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, 
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
+import QRCode from 'qrcode';
 import PaymentSection from '../../components/PaymentSection';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 
@@ -18,6 +19,14 @@ export default function MemberCompetitionsPage() {
   const [competitions, setCompetitions] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
+  const [checkinQr, setCheckinQr] = useState(null); // 比賽報到 QR：{ name, comp, dataUrl, checkedInAt }
+  const openCheckinQr = async (r) => {
+    try {
+      const res = await memberClient.post(`/competitions/registrations/${r.id}/checkin-token`);
+      const dataUrl = await QRCode.toDataURL(res.data.token, { width: 260, margin: 1 });
+      setCheckinQr({ name: r.memberName, comp: r.competitionName, division: r.divisionName, dataUrl, checkedInAt: res.data.checkedInAt });
+    } catch (e) { showMsg(e.response?.data?.message || '無法產生報到 QR', 'red'); }
+  };
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('open'); // open | my
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
@@ -334,6 +343,12 @@ export default function MemberCompetitionsPage() {
                             重新上傳轉帳
                           </button>
                         </div>
+                      )}
+                      {r.status === 'confirmed' && (
+                        <button onClick={() => openCheckinQr(r)}
+                          style={{ marginTop:10, marginRight:8, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                          🎫 比賽報到 QR
+                        </button>
                       )}
                       {r.status !== 'cancelled' && (
                         <button onClick={() => { setCancelModal(r); setCancelReason(''); setRefundBankName(''); setRefundBankCode(''); setRefundAccount(''); setRefundAccountName(''); }}
@@ -703,6 +718,25 @@ export default function MemberCompetitionsPage() {
         </div>
       )}
 
+      {checkinQr && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:230, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
+          onClick={() => setCheckinQr(null)}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:320, textAlign:'center' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>🎫 比賽報到</div>
+            <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{checkinQr.comp}・{checkinQr.division}</div>
+            {checkinQr.checkedInAt
+              ? <div style={{ background:'#E6F4EB', borderRadius:10, padding:'20px 12px', color:'#2D7D46', fontWeight:700, fontSize:15 }}>✅ 已完成報到</div>
+              : <>
+                  <img src={checkinQr.dataUrl} alt="報到QR" style={{ width:220, height:220 }}/>
+                  <div style={{ fontSize:12, color:'#999', marginTop:8, lineHeight:1.7, textAlign:'left' }}>
+                    比賽日當天請出示此 QR 給工作人員掃描報到入場（報到不需墜落測驗）。
+                  </div>
+                </>}
+            <button onClick={() => setCheckinQr(null)}
+              style={{ marginTop:14, width:'100%', height:40, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>關閉</button>
+          </div>
+        </div>
+      )}
       {reupTarget && (
         <TransferReuploadModal target={reupTarget} memberName={member?.name}
           onClose={()=>setReupTarget(null)}
