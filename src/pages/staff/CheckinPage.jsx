@@ -1161,11 +1161,13 @@ export default function CheckinPage() {
                   <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', background:'#FBF5F5', borderRadius:6, padding:'4px 8px', marginBottom:4 }}>
                     {GYM_NAME[g] || g}（{log.filter(c => c.gymId === g).length}）
                   </div>
-                  {log.filter(c => c.gymId === g).slice(0, 10).map(renderRow)}
+                  <div style={{ maxHeight:320, overflowY:'auto' }}>
+                    {log.filter(c => c.gymId === g).map(renderRow)}
+                  </div>
                 </div>
               ));
             }
-            return log.slice(0, 10).map(renderRow);
+            return <div style={{ maxHeight:400, overflowY:'auto' }}>{log.map(renderRow)}</div>;
           })()}
           {log.length === 0 && <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>今日尚無紀錄</div>}
         </div>
