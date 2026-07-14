@@ -270,9 +270,10 @@ export default function MemberCompetitionsPage() {
                   return (
                     <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                       <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{c.name}</div>
-                      <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>
-                        比賽日：{c.eventDate} ｜ 報名截止：{c.registrationEnd}
-                        {c.earlyBirdDeadline && ` ｜ 早鳥至：${c.earlyBirdDeadline}`}
+                      <div style={{ fontSize:12, color:'#999', marginBottom:8, lineHeight:1.8, textAlign:'left' }}>
+                        <div>🗓 比賽日：{c.eventDate}</div>
+                        <div>⏰ 報名截止：{c.registrationEnd}</div>
+                        {c.earlyBirdDeadline && <div>🐦 早鳥至：{c.earlyBirdDeadline}</div>}
                       </div>
                       {fee && (
                         <div style={{ fontSize:12, color:'#8B1A1A', marginBottom:8 }}>

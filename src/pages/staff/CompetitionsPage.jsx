@@ -206,9 +206,10 @@ export default function CompetitionsPage() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                   <div>
                     <div style={{ fontWeight:600, fontSize:15 }}>{c.name}</div>
-                    <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
-                      比賽日：{c.eventDate} ｜ 報名截止：{c.registrationEnd}
-                      {c.earlyBirdDeadline && ` ｜ 早鳥：${c.earlyBirdDeadline}`}
+                    <div style={{ fontSize:12, color:'#999', marginTop:3, lineHeight:1.8 }}>
+                      <div>🗓 比賽日：{c.eventDate}</div>
+                      <div>⏰ 報名截止：{c.registrationEnd}</div>
+                      {c.earlyBirdDeadline && <div>🐦 早鳥：{c.earlyBirdDeadline}</div>}
                     </div>
                     <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                       組別：{(c.divisions||[]).map(d=>`${d.name}(${d.maxParticipants}人+候補${d.waitlistMax})`).join(' / ')}
