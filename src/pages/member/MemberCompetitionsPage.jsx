@@ -521,7 +521,7 @@ export default function MemberCompetitionsPage() {
 
               {/* Step 3: 同意書 */}
               {step===3 && (<>
-                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14, fontSize:12, color:'#444', lineHeight:1.9 }}>
+                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14, fontSize:12, color:'#444', lineHeight:1.9, whiteSpace:'pre-wrap', textAlign:'left' }}>
                   <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>參賽同意書</div>
                   {selectedComp.waiverContent?.zh || `1. 攀登比賽具有潛在之危險性，若發生意外會導致受傷或死亡。\n2. 參賽選手應遵守比賽規則，聽從大會工作人員之指導，隨時注意自身與他人的安全。倘因個人疏失導致意外事件發生，願由選手自行負責。\n3. 本人同意所提個人資料作為大會辦理本活動使用。\n4. 比賽場地已由主辦單位投保公共意外責任險，紅石攀岩館另為選手加保活動綜合保險。\n5. 本人同意比賽報名資料皆屬實，若填寫不實將自動喪失參賽資格。`}
                 </div>
