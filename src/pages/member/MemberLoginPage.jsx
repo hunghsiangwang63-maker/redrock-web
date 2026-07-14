@@ -168,7 +168,7 @@ export default function MemberLoginPage() {
 
           {!needsVerify && (
             <div style={{ textAlign:'center', marginTop:16, fontSize:12, color:'#999' }}>
-              還沒有帳號？<span style={{ color:'#8B1A1A', cursor:'pointer' }} onClick={() => navigate('/member/register')}>立即註冊</span>
+              還沒有帳號？<span style={{ color:'#8B1A1A', cursor:'pointer' }} onClick={() => navigate('/member/register')}>立即註冊（Register）</span>
             </div>
           )}
         </div>
