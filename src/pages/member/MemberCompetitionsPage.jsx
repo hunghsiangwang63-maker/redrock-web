@@ -619,13 +619,28 @@ export default function MemberCompetitionsPage() {
                 const comp = competitions.find(c => c.id === cancelModal.competitionId);
                 const policies = comp?.refundPolicies || [];
                 const today = new Date().toISOString().slice(0,10);
+                // 依今日日期試算可退金額（僅供參考；實際以館方核算為準）
+                const fee = cancelModal.registrationFee || 0;
+                const paid = cancelModal.paymentStatus === 'confirmed';
+                const sorted = [...policies].sort((a,b)=>String(a.deadline).localeCompare(String(b.deadline)));
+                const hit = sorted.find(p => today <= p.deadline);
+                const estimate = !hit ? 0
+                  : hit.rule === 'full_minus_admin' ? Math.max(0, fee - (hit.adminFee || 0))
+                  : hit.rule === 'half_minus_admin' ? Math.max(0, Math.round(fee * 0.5) - (hit.adminFee || 0))
+                  : 0;
                 return policies.length > 0 ? (
                   <div>
-                    {policies.map((p,i) => (
+                    {sorted.map((p,i) => (
                       <div key={i} style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>
                         • {p.deadline} 前取消：{p.rule==='full_minus_admin'?`全額退費（扣行政費 NT$${p.adminFee}）`:p.rule==='half_minus_admin'?`50% 退費（扣行政費 NT$${p.adminFee}）`:'不予退費'}
                       </div>
                     ))}
+                    <div style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>• {sorted[sorted.length-1]?.deadline} 之後取消：不予退費</div>
+                    <div style={{ marginTop:8, padding:'8px 10px', background:'#fff', borderRadius:8, fontSize:13, fontWeight:700, color: estimate>0 ? '#2D7D46' : '#A32D2D' }}>
+                      {!paid
+                        ? '尚未繳費：取消後無需退費'
+                        : `依政策試算，今日取消可退 NT$${estimate.toLocaleString()}（報名費 NT$${fee.toLocaleString()}；實際以館方核算為準）`}
+                    </div>
                   </div>
                 ) : (
                   <div style={{ fontSize:12, color:'#8B6914' }}>請聯絡館方確認退費方式</div>

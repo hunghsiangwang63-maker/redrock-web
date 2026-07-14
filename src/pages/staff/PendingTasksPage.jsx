@@ -23,7 +23,7 @@ const NOTIF_CAT = {
   transfer_payment:'transfer', experience_transfer:'transfer', transfer:'transfer', transfer_confirm:'transfer',
   single_entry_ticket_approved:'ticket', single_entry_ticket_rejected:'ticket',
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
-  competition_payment:'competition',
+  competition_payment:'competition', competition_refund:'competition',
   cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
   shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
 };
@@ -41,6 +41,7 @@ const TYPE_CONFIG = {
   course_adjustment:  { icon:'📚', color:'#8B1A1A', bg:'#FBF5F5', label:'課程申請' },
   pass_adjustment:    { icon:'🎫', color:'#5B2D8B', bg:'#F3EEF9', label:'票券申請' },
   competition_payment:{ icon:'🏆', color:'#185FA5', bg:'#E6F1FB', label:'比賽收款' },
+  competition_refund: { icon:'🏆', color:'#A32D2D', bg:'#FCEBEB', label:'比賽退費' },
   team_member:        { icon:'⚡', color:'#2D7D46', bg:'#E6F4EB', label:'隊員申請' },
   experience:         { icon:'🧗', color:'#8B1A1A', bg:'#FBF5F5', label:'體驗課程' },
   transfer_payment:   { icon:'🏦', color:'#185FA5', bg:'#E6F1FB', label:'課程轉帳待確認' },
@@ -55,7 +56,7 @@ const CATEGORIES = [
   { key:'remind',  label:'🔔 今日提醒／預約', color:'#854F0B', types:['rental_pickup','rental_return','experience'] },
   { key:'falltest',label:'🧗 墜落測驗待安排', color:'#8B1A1A', types:['fall_test_pending'] },
   { key:'review',  label:'🔍 需審核（核准／拒絕）', color:'#5B2D8B', types:['course_adjustment','pass_adjustment','ticket_approval'] },
-  { key:'payment', label:'💰 待收款（核對後確認）', color:'#185FA5', types:['transfer_confirm','competition_payment','team_member','rental'] },
+  { key:'payment', label:'💰 待收款（核對後確認）', color:'#185FA5', types:['transfer_confirm','competition_payment','competition_refund','team_member','rental'] },
 ];
 
 function useIsMobile() {
@@ -98,6 +99,7 @@ export default function PendingTasksPage() {
     pass_adjustment:     isManager || isOpStation,
     team_member:         isManager || isOpStation,
     competition_payment: isManager,                    // checkPermission('competitions.manage')
+    competition_refund:  isManager,
     ticket_approval:     isManager,                    // checkPermission('passes.approve')
     fall_test_pending:   true,                          // 站台/值班/員工皆可登記（後端 authenticate）
   };
