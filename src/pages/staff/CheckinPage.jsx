@@ -49,9 +49,10 @@ export default function CheckinPage() {
 
   const [trend, setTrend] = useState(null);   // 每日入場數折線（本月 vs 上月）
   useEffect(() => {
-    client.get('/checkin/monthly-daily-counts', { params: { gymId: targetGymId || undefined } })
+    // super_admin 不帶 gymId → 後端回兩館各自序列，圖表分線（新竹紅/士林藍）
+    client.get('/checkin/monthly-daily-counts', { params: { gymId: isSuperAdmin ? undefined : (targetGymId || undefined) } })
       .then(r => setTrend(r.data)).catch(() => setTrend({ data: [] }));
-  }, [targetGymId]);
+  }, [targetGymId, isSuperAdmin]);
 
   const [courseStudents, setCourseStudents] = useState([]);
   const [courseStudentsLoading, setCourseStudentsLoading] = useState(false);
@@ -128,7 +129,6 @@ export default function CheckinPage() {
   const [chalkRental, setChalkRental] = useState({ price: 50, active: true });
   const [phoneRentShoes, setPhoneRentShoes] = useState(false);
   const [phoneRentChalk, setPhoneRentChalk] = useState(false);
-  const [log, setLog] = useState([]);
   // 歷史入場（按日期、全館逐筆）
   const [historyDate, setHistoryDate] = useState(dayjs().format('YYYY-MM-DD'));
   const [historyCheckIns, setHistoryCheckIns] = useState([]);
@@ -149,7 +149,6 @@ export default function CheckinPage() {
     try {
       const res = await getTodayStats(staff?.gymId);
       setStats(res.data);
-      setLog(res.data.recent || []);
     } catch (e) {}
   };
 
@@ -1140,40 +1139,6 @@ export default function CheckinPage() {
           )}
         </div>
 
-        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'#999', marginBottom:12, fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>今日入場紀錄</div>
-          {(() => {
-            const gymsInLog = [...new Set(log.map(c => c.gymId))];
-            const renderRow = (c, i) => (
-              <div key={c.id || i} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:12 }}>
-                <div>
-                  <div style={{ fontWeight:500 }}>{c.memberName}</div>
-                  <div style={{ fontSize:10, color:'#999' }}>{entryLabelOf(c)}</div>
-                </div>
-                <div style={{ color:'#999', fontFamily:'monospace', fontSize:11 }}>
-                  {dayjs(c.checkedInAt?._seconds * 1000).format('HH:mm')}
-                </div>
-              </div>
-            );
-            // 多館（super_admin）→ 依館別上下分段；單館維持原樣
-            if (gymsInLog.length > 1) {
-              const GYM_NAME = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
-              return ['gym-hsinchu', 'gym-shilin'].filter(g => gymsInLog.includes(g)).map(g => (
-                <div key={g} style={{ marginBottom:10 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', background:'#FBF5F5', borderRadius:6, padding:'4px 8px', marginBottom:4 }}>
-                    {GYM_NAME[g] || g}（{log.filter(c => c.gymId === g).length}）
-                  </div>
-                  <div style={{ maxHeight:320, overflowY:'auto' }}>
-                    {log.filter(c => c.gymId === g).map(renderRow)}
-                  </div>
-                </div>
-              ));
-            }
-            return <div style={{ maxHeight:400, overflowY:'auto' }}>{log.map(renderRow)}</div>;
-          })()}
-          {log.length === 0 && <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>今日尚無紀錄</div>}
-        </div>
-
         <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 12px 8px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
             <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>每日入場數</span>
@@ -1187,12 +1152,26 @@ export default function CheckinPage() {
                   <XAxis dataKey="day" tick={{ fontSize:9, fill:'#bbb' }} interval={4} tickLine={false} axisLine={{ stroke:'#E8D5D5' }} />
                   <YAxis tick={{ fontSize:9, fill:'#bbb' }} width={26} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={{ fontSize:11, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'4px 8px' }} labelFormatter={d => `${d} 日`} />
-                  <Line type="monotone" dataKey="previous" name={trend.prevLabel} stroke="#C9BFBF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
-                  <Line type="monotone" dataKey="current" name={trend.curLabel} stroke="#8B1A1A" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+                  <Line type="monotone" dataKey="previous" name={`上月（${trend.prevLabel}）`} stroke="#C9BFBF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
+                  {isSuperAdmin ? (
+                    <>
+                      <Line type="monotone" dataKey="hsinchu" name="新竹館" stroke="#8B1A1A" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+                      <Line type="monotone" dataKey="shilin" name="士林館" stroke="#185FA5" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+                    </>
+                  ) : (
+                    <Line type="monotone" dataKey="current" name={`本月（${trend.curLabel}）`} stroke={targetGymId === 'gym-shilin' ? '#185FA5' : '#8B1A1A'} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+                  )}
                 </LineChart>
               </ResponsiveContainer>
               <div style={{ display:'flex', gap:14, justifyContent:'center', fontSize:10, color:'#777', marginTop:2 }}>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#8B1A1A', display:'inline-block' }} />本月（{trend.curLabel}）</span>
+                {isSuperAdmin ? (
+                  <>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#8B1A1A', display:'inline-block' }} />新竹館</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#185FA5', display:'inline-block' }} />士林館</span>
+                  </>
+                ) : (
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background: targetGymId === 'gym-shilin' ? '#185FA5' : '#8B1A1A', display:'inline-block' }} />本月（{trend.curLabel}）</span>
+                )}
                 <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#C9BFBF', display:'inline-block' }} />上月（{trend.prevLabel}）</span>
               </div>
             </>
