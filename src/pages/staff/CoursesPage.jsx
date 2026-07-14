@@ -66,7 +66,7 @@ export default function CoursesPage({ embedded = false }) {
   const [categories, setCategories] = useState([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const EMPTY_CAT_FORM = {
-    name: '', group: 'adult', description: '', color: '#8B1A1A', makeupGroup: '',
+    name: '', group: 'adult', description: '', color: '#8B1A1A', makeupPartners: [],
     allowTrial: false, trialPrice: '', leaveDeadlineHours: 2, maxLeaves: 2,
     allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 5,
   };
@@ -208,7 +208,6 @@ export default function CoursesPage({ embedded = false }) {
   const catPayload = () => ({
     name: categoryForm.name, group: categoryForm.group,
     description: categoryForm.description || '', color: categoryForm.color || '#8B1A1A',
-    makeupGroup: categoryForm.makeupGroup || undefined,
     allowTrial: !!categoryForm.allowTrial,
     trialPrice: categoryForm.trialPrice === '' ? null : Number(categoryForm.trialPrice),
     leaveDeadlineHours: categoryForm.leaveDeadlineHours === '' ? null : Number(categoryForm.leaveDeadlineHours),
@@ -218,6 +217,22 @@ export default function CoursesPage({ embedded = false }) {
     perSessionDeduction: categoryForm.perSessionDeduction === '' ? null : Number(categoryForm.perSessionDeduction),
     handlingFeeRate: categoryForm.handlingFeeRate === '' ? null : Number(categoryForm.handlingFeeRate) / 100,
   });
+  // 補課群組同步：以「本班別＋勾選的互補班別」為完整群組成員，全部寫同一 makeupGroup key；
+  // 原群組中被移出的班別清空（回到只能補本班別）。底層仍為字串 key，補課判定（同 key 可互補）不變。
+  const applyMakeupGroup = async (selfId) => {
+    const partners = (categoryForm.makeupPartners || []).filter(id => id !== selfId);
+    const members = [selfId, ...partners];
+    const isShared = (o) => o.makeupGroup && o.makeupGroup !== o.id;
+    const existing = categories.find(o => members.includes(o.id) && isShared(o))?.makeupGroup;
+    const key = members.length > 1 ? (existing || `mg-${selfId.slice(0, 8)}`) : null;
+    const self = categories.find(o => o.id === selfId);
+    const oldKey = self && isShared(self) ? self.makeupGroup : null;
+    const toClear = oldKey ? categories.filter(o => o.makeupGroup === oldKey && !members.includes(o.id)).map(o => o.id) : [];
+    await Promise.all([
+      ...members.map(id => updateCategory(id, { makeupGroup: key })),
+      ...toClear.map(id => updateCategory(id, { makeupGroup: null })),
+    ]);
+  };
   const uploadCatImage = async (catId) => {
     if (!catImageFile) return;
     const fd = new FormData(); fd.append('file', catImageFile);
@@ -227,6 +242,7 @@ export default function CoursesPage({ embedded = false }) {
     if (!categoryForm.name?.trim()) { showMsg('請填班別名稱', 'red'); return; }
     try {
       const res = await createCategory(catPayload());
+      try { await applyMakeupGroup(res.data.category.id); } catch (e) { showMsg('班別已建立，但補課群組同步失敗', 'red'); }
       try { await uploadCatImage(res.data.category.id); } catch (e) { showMsg('班別已建立，但照片上傳失敗', 'red'); }
       showMsg('班別建立成功');
       setShowAddCategory(false);
@@ -242,7 +258,9 @@ export default function CoursesPage({ embedded = false }) {
     setEditingCategory(c); setCatImageFile(null);
     setCategoryForm({
       name: c.name || '', group: c.group || 'adult', description: c.description || '', color: c.color || '#8B1A1A',
-      makeupGroup: c.makeupGroup && c.makeupGroup !== c.id ? c.makeupGroup : '',
+      makeupPartners: (c.makeupGroup && c.makeupGroup !== c.id)
+        ? categories.filter(o => o.id !== c.id && o.makeupGroup === c.makeupGroup).map(o => o.id)
+        : [],
       allowTrial: c.allowTrial === true, trialPrice: c.trialPrice ?? '',
       leaveDeadlineHours: c.leaveDeadlineHours ?? 2, maxLeaves: c.maxLeaves ?? 2,
       allowMakeup: c.allowMakeup !== false, makeupDeadlineDays: c.makeupDeadlineDays ?? 60,
@@ -253,6 +271,7 @@ export default function CoursesPage({ embedded = false }) {
   const handleUpdateCategory = async () => {
     try {
       await updateCategory(editingCategory.id, catPayload());
+      try { await applyMakeupGroup(editingCategory.id); } catch (e) { showMsg('已更新，但補課群組同步失敗', 'red'); }
       try { await uploadCatImage(editingCategory.id); } catch (e) { showMsg('已更新，但照片上傳失敗', 'red'); }
       showMsg('班別已更新');
       setEditingCategory(null);
@@ -1241,7 +1260,10 @@ export default function CoursesPage({ embedded = false }) {
                         <div style={{ minWidth:0 }}>
                           <div style={{ fontWeight:600, fontSize:14 }}>{c.name}
                             {c.allowTrial === true && <span style={{ fontSize:10, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>試上 ${c.trialPrice ?? 0}</span>}
-                            {c.makeupGroup && c.makeupGroup !== c.id && <span style={{ fontSize:10, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>補課群組 {c.makeupGroup}</span>}
+                            {c.makeupGroup && c.makeupGroup !== c.id && (() => {
+                              const partners = categories.filter(o => o.id !== c.id && o.makeupGroup === c.makeupGroup).map(o => o.name);
+                              return partners.length ? <span style={{ fontSize:10, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>可互補：{partners.join('、')}</span> : null;
+                            })()}
                           </div>
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                             請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費 每堂扣{c.perSessionDeduction ?? 850}/費率{Math.round((c.handlingFeeRate ?? 0.05) * 100)}%
@@ -1339,10 +1361,22 @@ export default function CoursesPage({ embedded = false }) {
                   </div>
                 )}
                 <div style={{ gridColumn:'1/-1' }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>補課群組（選填）</label>
-                  <input value={categoryForm.makeupGroup} onChange={e => setCategoryForm({...categoryForm, makeupGroup:e.target.value})}
-                    placeholder="留空＝只能補本班別；多個班別填同一組名即可互相補課（如：makeup-spider）"
-                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>可互相補課的班別（可多選；不勾＝只能補本班別的其他梯次）</label>
+                  <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', padding:'8px 12px', display:'flex', flexWrap:'wrap', gap:'6px 14px' }}>
+                    {categories.filter(o => o.isActive && o.id !== editingCategory?.id).length === 0 && (
+                      <span style={{ fontSize:12, color:'#bbb' }}>（無其他班別）</span>
+                    )}
+                    {categories.filter(o => o.isActive && o.id !== editingCategory?.id).map(o => (
+                      <label key={o.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12.5, cursor:'pointer', color:'#1a1a1a' }}>
+                        <input type="checkbox" checked={(categoryForm.makeupPartners || []).includes(o.id)}
+                          onChange={e => setCategoryForm(f => ({ ...f, makeupPartners: e.target.checked
+                            ? [...(f.makeupPartners || []), o.id]
+                            : (f.makeupPartners || []).filter(x => x !== o.id) }))}/>
+                        {GROUP_LABEL[o.group || 'special']}・{o.name}
+                      </label>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:10, color:'#999', marginTop:4 }}>勾選後兩邊自動同組（例：小蜘蛛人入門班 ↔ 進階班可互補）；儲存時整組同步。</div>
                 </div>
               </div>
               <div style={{ display:'flex', gap:8, marginTop:18 }}>
