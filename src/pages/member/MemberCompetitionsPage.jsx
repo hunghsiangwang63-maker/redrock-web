@@ -240,6 +240,7 @@ export default function MemberCompetitionsPage() {
         paymentMethod,
         paymentDate: paymentMethod === 'transfer' ? paymentDate : null,
         bankLastFive: paymentMethod === 'transfer' ? bankLastFive : null,
+        bankName: paymentMethod === 'transfer' ? bankName : null,
         signatureData: memberSig,
         guardianSignature: guardianSig || null,
       });
@@ -372,6 +373,12 @@ export default function MemberCompetitionsPage() {
                         報名費：NT${r.registrationFee} {r.isEarlyBird?'（早鳥）':''}
                       </div>
                       <div style={{ display:'inline-block', background:ps.bg, color:ps.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:8 }}>{ps.text}</div>
+                      {r.paymentMethod==='cash' && r.status !== 'cancelled' && (
+                        <div style={{ fontSize:12, color:'#666', marginTop:8, textAlign:'left' }}>
+                          繳費方式：臨櫃繳款
+                          {r.paidAt ? `　繳款日期：${dayjs((r.paidAt._seconds ?? r.paidAt.seconds) * 1000).format('YYYY-MM-DD')}` : '（請至櫃檯完成繳費）'}
+                        </div>
+                      )}
                       {r.paymentStatus==='pending' && r.paymentMethod==='transfer' && r.status !== 'cancelled' && (
                         <div style={{ marginTop:10, background:'#FFF8E6', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8B6914' }}>
                           請匯款後等待館方確認，確認後即保留名額
