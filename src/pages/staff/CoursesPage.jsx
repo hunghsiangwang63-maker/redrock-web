@@ -630,12 +630,12 @@ export default function CoursesPage({ embedded = false }) {
 
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:16 }}>
         <SegmentedTabs wrap minTabWidth={130} tabs={COURSE_TABS} value={tab} onChange={setTab} style={{ flex:'1 1 280px', minWidth:0 }} />
-        {tab === 'courses' && (
+        {tab === 'courses' && selectedCategory && (
           <button onClick={() => {
             setCreateStep(1);
             setCreateImageFile(null);
-            // 若正在某類別的第二層，預先帶入該類別
-            const preCat = selectedCategory ? (categories.find(c => c.name === selectedCategory)?.id || '') : '';
+            // 只在班別第二層顯示 → 預帶當前班別
+            const preCat = categories.find(c => c.name === selectedCategory)?.id || '';
             setCourseForm({ ...EMPTY_COURSE_FORM, weekdays: [], categoryId: preCat });
             setCopyFrom(''); setCreateStep(1); setShowOverrideRules(false); setCreateImageFile(null);
             setShowAddCourse(true);
