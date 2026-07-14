@@ -20,6 +20,7 @@ export default function MemberCompetitionsPage() {
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
   const [checkinQr, setCheckinQr] = useState(null); // 比賽報到 QR：{ name, comp, dataUrl, checkedInAt }
+  const [guardianSignTarget, setGuardianSignTarget] = useState(null); // 未成年補簽法定代理人同意書
   const openCheckinQr = async (r) => {
     try {
       const res = await memberClient.post(`/competitions/registrations/${r.id}/checkin-token`);
@@ -142,12 +143,20 @@ export default function MemberCompetitionsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [compRes, regRes] = await Promise.allSettled([
-        getMemberCompetitions(),
-        member?.id ? getMemberRegistrations(member.id) : Promise.resolve({ data: { registrations: [] } }),
-      ]);
-      setCompetitions(compRes.status==='fulfilled' ? compRes.value.data.competitions||[] : []);
-      setMyRegistrations(regRes.status==='fulfilled' ? regRes.value.data.registrations||[] : []);
+      const compRes = await getMemberCompetitions().catch(() => ({ data: { competitions: [] } }));
+      setCompetitions(compRes.data.competitions || []);
+      if (member?.id) {
+        // 本人＋子女的報名一併載入（子女標 👦 名字）
+        let kids = [];
+        try { kids = (await memberClient.get('/members/my/children')).data.children || []; } catch (e) {}
+        const owners = [{ id: member.id, name: member.name, self: true }, ...kids.map(k => ({ id: k.id, name: k.name }))];
+        const lists = await Promise.all(owners.map(o =>
+          getMemberRegistrations(o.id)
+            .then(r => (r.data.registrations || []).map(x => ({ ...x, _ownerName: o.self ? null : o.name })))
+            .catch(() => [])
+        ));
+        setMyRegistrations(lists.flat());
+      } else setMyRegistrations([]);
     } finally { setLoading(false); }
   };
 
@@ -321,7 +330,10 @@ export default function MemberCompetitionsPage() {
                   const ps = payStatusBadge(r);
                   return (
                     <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-                      <div style={{ fontWeight:600, fontSize:14, marginBottom:4 }}>{r.competitionName}</div>
+                      <div style={{ fontWeight:600, fontSize:14, marginBottom:4 }}>
+                        {r.competitionName}
+                        {r._ownerName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', borderRadius:8, padding:'2px 8px', marginLeft:8 }}>👦 {r._ownerName}</span>}
+                      </div>
                       <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>
                         組別：{r.divisionName} {r.isHonorary && '（榮譽參賽）'}
                         {r.status==='waitlist' && <span style={{ color:'#854F0B', marginLeft:6 }}>候補第 {r.waitlistPosition} 位</span>}
@@ -341,6 +353,15 @@ export default function MemberCompetitionsPage() {
                           <button onClick={()=>setReupTarget({ orderType:'competition', refId:r.id, orderName:r.competitionName, amount:r.registrationFee, gymId:r.gymId, reason:r.paymentRejectReason })}
                             style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
                             重新上傳轉帳
+                          </button>
+                        </div>
+                      )}
+                      {r.parentRequired && !r.isComplete && r.status !== 'cancelled' && (
+                        <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>⚠ 未成年報名：尚待法定代理人簽署參賽同意書（簽署完成報名才生效）</div>
+                          <button onClick={() => setGuardianSignTarget(r)}
+                            style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                            ✍️ 補簽法定代理人同意書
                           </button>
                         </div>
                       )}
@@ -718,6 +739,34 @@ export default function MemberCompetitionsPage() {
         </div>
       )}
 
+      {guardianSignTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:230, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:400, maxHeight:'88vh', overflowY:'auto' }}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>✍️ 法定代理人簽署</div>
+            <div style={{ fontSize:13, color:'#666', marginBottom:10 }}>{guardianSignTarget.competitionName}・{guardianSignTarget.memberName}</div>
+            <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#444', lineHeight:1.8, whiteSpace:'pre-wrap', textAlign:'left', marginBottom:12, maxHeight:180, overflowY:'auto' }}>
+              {competitions.find(c=>c.id===guardianSignTarget.competitionId)?.waiverContent?.zh || '參賽同意書內容請洽館方。'}
+            </div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:6, textAlign:'left' }}>本人作為法定代理人，已閱讀並同意上述內容，同意子女參加此項賽事。法定代理人簽名：</div>
+            <SignaturePad ref={guardianSigRef} height={180}/>
+            <div style={{ display:'flex', gap:8, marginTop:12 }}>
+              <button onClick={()=>setGuardianSignTarget(null)}
+                style={{ flex:1, height:40, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={async ()=>{
+                const sig = guardianSigRef.current?.toDataURL();
+                if (!sig || guardianSigRef.current?.isEmpty?.()) { showMsg('請先完成法定代理人簽名','red'); return; }
+                try {
+                  await memberClient.post(`/competitions/registrations/${guardianSignTarget.id}/guardian-sign`, { signatureData: sig, parentName: member?.name });
+                  setGuardianSignTarget(null);
+                  showMsg('簽署完成，報名已生效');
+                  load();
+                } catch (e) { showMsg(e.response?.data?.message || '簽署失敗','red'); }
+              }}
+                style={{ flex:2, height:40, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確認簽署</button>
+            </div>
+          </div>
+        </div>
+      )}
       {checkinQr && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:230, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
           onClick={() => setCheckinQr(null)}>
