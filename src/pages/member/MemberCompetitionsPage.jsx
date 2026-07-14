@@ -208,6 +208,9 @@ export default function MemberCompetitionsPage() {
       if (!idNumber.trim()) { showMsg('請填寫身分證/護照號碼（保險用）', 'red'); return; }
       if (!emergencyContact.trim() || !emergencyPhone.trim()) { showMsg('請填寫緊急聯絡人資訊', 'red'); return; }
     }
+    if (step === 2) {
+      if (paymentMethod === 'cash' && !paymentDate) { showMsg('請填寫臨櫃繳款日期', 'red'); return; }
+    }
     if (step === 3) {
       if (!agreedWaiver || !agreedPhoto) { showMsg('請確認同意所有事項', 'red'); return; }
     }
@@ -238,7 +241,7 @@ export default function MemberCompetitionsPage() {
         height: height ? Number(height) : null,
         armSpan: armSpan ? Number(armSpan) : null,
         paymentMethod,
-        paymentDate: paymentMethod === 'transfer' ? paymentDate : null,
+        paymentDate: (paymentMethod === 'transfer' || paymentMethod === 'cash') ? paymentDate : null,
         bankLastFive: paymentMethod === 'transfer' ? bankLastFive : null,
         bankName: paymentMethod === 'transfer' ? bankName : null,
         signatureData: memberSig,
@@ -376,7 +379,8 @@ export default function MemberCompetitionsPage() {
                       {r.paymentMethod==='cash' && r.status !== 'cancelled' && (
                         <div style={{ fontSize:12, color:'#666', marginTop:8, textAlign:'left' }}>
                           繳費方式：臨櫃繳款
-                          {r.paidAt ? `　繳款日期：${dayjs((r.paidAt._seconds ?? r.paidAt.seconds) * 1000).format('YYYY-MM-DD')}` : '（請至櫃檯完成繳費）'}
+                          {r.paymentDate ? `　繳款日期：${r.paymentDate}` : ''}
+                          {r.paymentStatus !== 'confirmed' ? '（請至櫃檯完成繳費）' : ''}
                         </div>
                       )}
                       {r.paymentStatus==='pending' && r.paymentMethod==='transfer' && r.status !== 'cancelled' && (
@@ -605,6 +609,14 @@ export default function MemberCompetitionsPage() {
                     ))}
                   </div>
                 </div>
+                {paymentMethod==='cash' && (
+                  <div style={{ marginBottom:10 }}>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>臨櫃繳款日期 *</label>
+                    <input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                    <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'left' }}>請填寫預計（或已）至櫃檯繳費的日期</div>
+                  </div>
+                )}
                 {paymentMethod==='transfer' && (<>
                   <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
                     <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>轉帳帳號</div>
