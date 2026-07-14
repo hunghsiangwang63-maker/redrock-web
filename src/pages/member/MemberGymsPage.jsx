@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { t } from '../../utils/memberI18n';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getGyms, getAnnouncements } from '../../api/gyms';
 import dayjs from 'dayjs';
@@ -19,7 +20,7 @@ const BottomNav = ({ navigate }) => (
         <div key={n.path} onClick={() => navigate(n.path)}
           style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? '#8B1A1A' : '#999' }}>
           <div style={{ fontSize:20 }}>{n.icon}</div>
-          <div style={{ fontSize:10, fontWeight: active ? 600 : 400 }}>{n.label}</div>
+          <div style={{ fontSize:10, fontWeight: active ? 600 : 400 }}>{t(n.label)}</div>
         </div>
       );
     })}

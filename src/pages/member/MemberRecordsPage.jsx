@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -62,7 +63,7 @@ export default function MemberRecordsPage() {
         const active = location.pathname===n.path;
         return <div key={n.path} onClick={()=>navigate(n.path)} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color:active?'#8B1A1A':'#999' }}>
           <div style={{ fontSize:20 }}>{n.icon}</div>
-          <div style={{ fontSize:10, fontWeight:active?600:400 }}>{n.label}</div>
+          <div style={{ fontSize:10, fontWeight:active?600:400 }}>{t(n.label)}</div>
         </div>;
       })}
     </div>

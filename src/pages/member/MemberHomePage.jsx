@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { t, toggleMemberLang, getMemberLang } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMemberGyms, getMemberAnnouncements } from '../../api/gyms';
@@ -98,9 +99,15 @@ export default function MemberHomePage() {
               <div style={{ fontSize:10, color:'#A32D2D', marginTop:2 }}>🧗 墜落測驗已到期，請重新測驗</div>
             )}
           </div>
-          <div style={{ width:38, height:38, borderRadius:'50%', background:'#F5E8E8', color:'#8B1A1A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:600, cursor:'pointer' }}
-            onClick={() => navigate('/member/profile')}>
-            {member?.name?.[0]}
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <div onClick={toggleMemberLang}
+              style={{ height:26, padding:'0 10px', borderRadius:13, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:4, cursor:'pointer' }}>
+              🌐 {getMemberLang() === 'en' ? '中文' : 'EN'}
+            </div>
+            <div style={{ width:38, height:38, borderRadius:'50%', background:'#F5E8E8', color:'#8B1A1A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:600, cursor:'pointer' }}
+              onClick={() => navigate('/member/profile')}>
+              {member?.name?.[0]}
+            </div>
           </div>
         </div>
       </div>
@@ -240,7 +247,7 @@ export default function MemberHomePage() {
             onMouseEnter={e => e.currentTarget.style.borderColor='#8B1A1A'}
             onMouseLeave={e => e.currentTarget.style.borderColor='#E8D5D5'}>
             <div style={{ fontSize:22, marginBottom:5 }}>{f.icon}</div>
-            <div style={{ fontSize:11, color:'#6b6b6b', fontWeight:500 }}>{f.label}</div>
+            <div style={{ fontSize:11, color:'#6b6b6b', fontWeight:500 }}>{t(f.label)}</div>
           </div>
         ))}
       </div>
@@ -379,7 +386,7 @@ export default function MemberHomePage() {
             <div key={n.path} onClick={() => navigate(n.path)}
               style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? '#8B1A1A' : '#999' }}>
               <div style={{ fontSize:20 }}>{n.icon}</div>
-              <div style={{ fontSize:10, fontWeight: active ? 600 : 400 }}>{n.label}</div>
+              <div style={{ fontSize:10, fontWeight: active ? 600 : 400 }}>{t(n.label)}</div>
             </div>
           );
         })}
