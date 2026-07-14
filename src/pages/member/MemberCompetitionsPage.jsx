@@ -176,7 +176,9 @@ export default function MemberCompetitionsPage() {
 
   const openRegister = async (comp) => {
     setSelectedComp(comp);
-    setRegisterForId(null);
+    const ids = registeredIdsFor(comp.id);
+    const firstUnregisteredChild = familyMembers.find(c => !ids.has(c.id));
+    setRegisterForId(ids.has(member?.id) && firstUnregisteredChild ? firstUnregisteredChild.id : null);
     setStep(1);
     setDivisionId(comp.divisions?.[0]?.id || '');
     setIsHonorary(false);
@@ -201,6 +203,7 @@ export default function MemberCompetitionsPage() {
   const nextStep = () => {
     if (step === 1) {
       if (!divisionId) { showMsg('請選擇報名組別', 'red'); return; }
+      if (personRegistered(selectedComp.id, registerForId || member?.id)) { showMsg('此報名對象已報名此賽事', 'red'); return; }
       if (regGender !== 'male' && regGender !== 'female') { showMsg('請選擇性別', 'red'); return; }
       if (!regBirthday) { showMsg('請填寫生日', 'red'); return; }
       if (!regPhone.trim()) { showMsg('請填寫手機號碼', 'red'); return; }
@@ -271,7 +274,16 @@ export default function MemberCompetitionsPage() {
     } finally { setSubmitting(false); }
   };
 
-  const alreadyRegistered = (compId) => myRegistrations.some(r => r.competitionId === compId && r.status !== 'cancelled');
+  // 按「人」判斷已報名（本人與各家庭成員各自獨立；一人報名不影響其他人）
+  const registeredIdsFor = (compId) => new Set(
+    myRegistrations.filter(r => r.competitionId === compId && r.status !== 'cancelled').map(r => r.memberId)
+  );
+  const personRegistered = (compId, personId) => registeredIdsFor(compId).has(personId);
+  // 全家（本人＋家庭成員）都報名了才算「已報名」
+  const alreadyRegistered = (compId) => {
+    const ids = registeredIdsFor(compId);
+    return ids.has(member?.id) && familyMembers.every(c => ids.has(c.id));
+  };
 
   const payStatusBadge = (r) => {
     if (r.paymentStatus === 'confirmed') return { bg:'#E6F4EB', color:'#2D7D46', text:'已確認付款' };
@@ -343,14 +355,23 @@ export default function MemberCompetitionsPage() {
                           {c.description}
                         </div>
                       )}
-                      {registered ? (
-                        <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#2D7D46', fontWeight:500 }}>✓ 已報名</div>
-                      ) : (
-                        <button onClick={()=>openRegister(c)}
-                          style={{ width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                          立即報名
-                        </button>
-                      )}
+                      {(() => {
+                        const ids = registeredIdsFor(c.id);
+                        const names = [member, ...familyMembers].filter(p => p && ids.has(p.id)).map(p => p.name);
+                        return (<>
+                          {names.length > 0 && (
+                            <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#2D7D46', fontWeight:500, marginBottom:8 }}>
+                              ✓ 已報名：{names.join('、')}
+                            </div>
+                          )}
+                          {!registered && (
+                            <button onClick={()=>openRegister(c)}
+                              style={{ width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
+                              {names.length > 0 ? '為其他家庭成員報名' : '立即報名'}
+                            </button>
+                          )}
+                        </>);
+                      })()}
                     </div>
                   );
                 })}
@@ -490,16 +511,18 @@ export default function MemberCompetitionsPage() {
                   <div style={{ marginBottom:14 }}>
                     <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8, fontWeight:500 }}>為誰報名</label>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                      <button onClick={()=>setRegisterForId(null)}
-                        style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${!registerForId?'#8B1A1A':'#E8D5D5'}`, background:!registerForId?'#FBF5F5':'#fff', color:!registerForId?'#8B1A1A':'#666', fontSize:12, cursor:'pointer', fontWeight:!registerForId?600:400 }}>
-                        👤 {member?.name}（本人）
+                      {(() => { const selfReg = personRegistered(selectedComp.id, member?.id); return (
+                      <button onClick={()=>{ if (!selfReg) setRegisterForId(null); }} disabled={selfReg}
+                        style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${!registerForId?'#8B1A1A':'#E8D5D5'}`, background: selfReg?'#F5F5F5':(!registerForId?'#FBF5F5':'#fff'), color: selfReg?'#aaa':(!registerForId?'#8B1A1A':'#666'), fontSize:12, cursor:selfReg?'not-allowed':'pointer', fontWeight:!registerForId?600:400 }}>
+                        👤 {member?.name}（本人）{selfReg?'・已報名':''}
                       </button>
-                      {familyMembers.map(c=>(
-                        <button key={c.id} onClick={()=>setRegisterForId(c.id)}
-                          style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${registerForId===c.id?'#8B1A1A':'#E8D5D5'}`, background:registerForId===c.id?'#FBF5F5':'#fff', color:registerForId===c.id?'#8B1A1A':'#666', fontSize:12, cursor:'pointer', fontWeight:registerForId===c.id?600:400 }}>
-                          {c.gender==='male'?'👦':c.gender==='female'?'👧':'🧒'} {c.name}
+                      ); })()}
+                      {familyMembers.map(c=>{ const reg = personRegistered(selectedComp.id, c.id); return (
+                        <button key={c.id} onClick={()=>{ if (!reg) setRegisterForId(c.id); }} disabled={reg}
+                          style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${registerForId===c.id?'#8B1A1A':'#E8D5D5'}`, background: reg?'#F5F5F5':(registerForId===c.id?'#FBF5F5':'#fff'), color: reg?'#aaa':(registerForId===c.id?'#8B1A1A':'#666'), fontSize:12, cursor:reg?'not-allowed':'pointer', fontWeight:registerForId===c.id?600:400 }}>
+                          {c.gender==='male'?'👦':c.gender==='female'?'👧':'🧒'} {c.name}{reg?'・已報名':''}
                         </button>
-                      ))}
+                      ); })}
                     </div>
                     {registerForId && (
                       <div style={{ fontSize:11, color:'#8B1A1A', marginTop:6 }}>
