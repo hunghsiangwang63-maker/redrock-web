@@ -76,6 +76,10 @@ export default function MemberCompetitionsPage() {
   const [emergencyPhone, setEmergencyPhone] = useState('');
   const [height, setHeight] = useState('');
   const [armSpan, setArmSpan] = useState('');
+  const [regGender, setRegGender] = useState('');
+  const [regBirthday, setRegBirthday] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regEmail, setRegEmail] = useState('');
   // Step 2 fields
   const [paymentMethod, setPaymentMethod] = useState('transfer');
   const [paymentDate, setPaymentDate] = useState('');
@@ -184,9 +188,23 @@ export default function MemberCompetitionsPage() {
     setShowModal(true);
   };
 
+  // 性別/生日/手機/Email 自動帶入（依報名對象；缺漏由表單補填，後端會回寫會員資料）
+  useEffect(() => {
+    const r = registerForId ? (familyMembers.find(c => c.id === registerForId) || member) : member;
+    setRegGender(r?.gender || '');
+    setRegBirthday(r?.birthday || '');
+    setRegPhone(r?.phone || member?.phone || '');
+    setRegEmail(r?.email || member?.email || '');
+    // eslint-disable-next-line
+  }, [registerForId, member?.id, showModal]);
+
   const nextStep = () => {
     if (step === 1) {
       if (!divisionId) { showMsg('請選擇報名組別', 'red'); return; }
+      if (regGender !== 'male' && regGender !== 'female') { showMsg('請選擇性別', 'red'); return; }
+      if (!regBirthday) { showMsg('請填寫生日', 'red'); return; }
+      if (!regPhone.trim()) { showMsg('請填寫手機號碼', 'red'); return; }
+      if (!regEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regEmail.trim())) { showMsg('請填寫有效的 Email', 'red'); return; }
       if (!idNumber.trim()) { showMsg('請填寫身分證/護照號碼（保險用）', 'red'); return; }
       if (!emergencyContact.trim() || !emergencyPhone.trim()) { showMsg('請填寫緊急聯絡人資訊', 'red'); return; }
     }
@@ -209,6 +227,10 @@ export default function MemberCompetitionsPage() {
         isMinor,
         divisionId,
         isHonorary,
+        gender: regGender,
+        birthday: regBirthday,
+        phone: regPhone.trim(),
+        email: regEmail.trim(),
         idNumber,
         emergencyContact,
         emergencyRelation,
@@ -493,6 +515,37 @@ export default function MemberCompetitionsPage() {
                   <input type="checkbox" checked={isHonorary} onChange={e=>setIsHonorary(e.target.checked)} style={{ width:16, height:16, accentColor:'#8B1A1A' }}/>
                   <span style={{ fontSize:13, color:'#666' }}>榮譽參賽（已於相近組別獲前三名，僅參賽不計名次）</span>
                 </label>
+                {/* 性別/生日/手機/Email（自動帶入會員資料，皆必填；會員資料缺漏在此補填） */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                  <div>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>性別 *</label>
+                    <div style={{ display:'flex', gap:8 }}>
+                      {[{k:'male',t:'男'},{k:'female',t:'女'}].map(g=>(
+                        <button key={g.k} type="button" onClick={()=>setRegGender(g.k)}
+                          style={{ flex:1, height:40, borderRadius:8, border:`1.5px solid ${regGender===g.k?'#8B1A1A':'#E8D5D5'}`, background:regGender===g.k?'#FBF5F5':'#fff', color:regGender===g.k?'#8B1A1A':'#666', fontSize:13, fontWeight:regGender===g.k?600:400, cursor:'pointer' }}>
+                          {g.t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>生日 *</label>
+                    <input type="date" value={regBirthday} onChange={e=>setRegBirthday(e.target.value)}
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  </div>
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                  <div>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>手機 *</label>
+                    <input value={regPhone} onChange={e=>setRegPhone(e.target.value)} inputMode="tel" placeholder="0912345678"
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>Email *</label>
+                    <input value={regEmail} onChange={e=>setRegEmail(e.target.value)} inputMode="email" placeholder="name@example.com"
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  </div>
+                </div>
                 {[
                   { label:'身分證 / 護照號碼 *（保險用）', val:idNumber, set:setIdNumber, ph:'R123456789 / 外籍：國籍+護照號' },
                 ].map(({label,val,set,ph})=>(
