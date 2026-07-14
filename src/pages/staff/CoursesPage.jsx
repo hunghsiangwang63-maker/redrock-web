@@ -757,7 +757,7 @@ export default function CoursesPage({ embedded = false }) {
                       )}
                     </div>
                     <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => { setSelectedCourse(c); setTab('sessions'); }}
+                      <button onClick={() => { setSelectedCourse(c); setSelectedSession(null); setRoster(null); setTab('sessions'); }}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>場次</button>
                       <button onClick={() => loadCourseRoster(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>名單</button>
@@ -1013,13 +1013,16 @@ export default function CoursesPage({ embedded = false }) {
           {/* 左：課程選擇 + 場次列表 */}
           <div>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:12, marginBottom:12 }}>
-              <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:10 }}>選擇課程</div>
-              {courses.map(c => (
-                <div key={c.id} onClick={() => { setSelectedCourse(c); setSelectedSession(null); setRoster(null); loadSessions(c); }}
-                  style={{ padding:'8px 10px', borderRadius:8, marginBottom:4, cursor:'pointer', background: selectedCourse?.id===c.id ? '#F5E8E8' : 'none', color: selectedCourse?.id===c.id ? '#8B1A1A' : '#1a1a1a', fontSize:13, fontWeight: selectedCourse?.id===c.id ? 600 : 400 }}>
-                  {gymPrefix(c.gymId)}{c.name}
-                </div>
-              ))}
+              <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>梯次</div>
+              <select value={selectedCourse?.id || ''}
+                onChange={e => {
+                  const c = courses.find(x => x.id === e.target.value);
+                  if (c) { setSelectedCourse(c); setSelectedSession(null); setRoster(null); loadSessions(c); }
+                }}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                <option value="">選擇梯次…</option>
+                {courses.map(c => <option key={c.id} value={c.id}>{gymPrefix(c.gymId)}{c.name}</option>)}
+              </select>
             </div>
 
             {selectedCourse && (
