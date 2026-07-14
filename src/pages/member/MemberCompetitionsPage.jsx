@@ -280,8 +280,11 @@ export default function MemberCompetitionsPage() {
                           {fee.isEarlyBird ? `🐦 早鳥優惠！` : ''}報名費：NT${fee.fee}
                         </div>
                       )}
-                      <div style={{ fontSize:12, color:'#666', marginBottom:10 }}>
-                        組別：{(c.divisions||[]).map(d=>`${d.name}（${d.maxParticipants}人）`).join(' / ')}
+                      <div style={{ fontSize:12, color:'#666', marginBottom:10, lineHeight:1.8, textAlign:'left' }}>
+                        <div>🧗 組別：</div>
+                        {(c.divisions||[]).map(d=>(
+                          <div key={d.id} style={{ paddingLeft:18 }}>{d.name}（{d.maxParticipants} 人）</div>
+                        ))}
                       </div>
                       {c.description && <div style={{ fontSize:12, color:'#666', marginBottom:12, lineHeight:1.6 }}>{c.description.slice(0,120)}...</div>}
                       {registered ? (

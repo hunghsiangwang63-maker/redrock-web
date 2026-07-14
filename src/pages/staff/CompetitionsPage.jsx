@@ -211,8 +211,11 @@ export default function CompetitionsPage() {
                       <div>⏰ 報名截止：{c.registrationEnd}</div>
                       {c.earlyBirdDeadline && <div>🐦 早鳥：{c.earlyBirdDeadline}</div>}
                     </div>
-                    <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
-                      組別：{(c.divisions||[]).map(d=>`${d.name}(${d.maxParticipants}人+候補${d.waitlistMax})`).join(' / ')}
+                    <div style={{ fontSize:12, color:'#999', marginTop:2, lineHeight:1.8 }}>
+                      <div>🧗 組別：</div>
+                      {(c.divisions||[]).map(d=>(
+                        <div key={d.id} style={{ paddingLeft:18 }}>{d.name}（{d.maxParticipants} 人＋候補 {d.waitlistMax}）</div>
+                      ))}
                     </div>
                   </div>
                   <Tag type={sl.type}>{sl.label}</Tag>
