@@ -34,7 +34,7 @@ export default function FinancePage() {
   const downloadInvoice = async () => {
     setBusy2(true); setErr2('');
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
       const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
       const r = await fetch(`${API}/daily-settlements/invoice-export?year=${ivYear}&bimonth=${bimonth}&gymId=${gym}&track=${encodeURIComponent(track)}`, { headers: { Authorization: `Bearer ${tok}` } });
       if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`${r.status} ${t.slice(0, 220)}`); }
@@ -51,7 +51,7 @@ export default function FinancePage() {
   const downloadMonthly = async () => {
     setBusy(true); setErr('');
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
       const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
       const r = await fetch(`${API}/daily-settlements/monthly-export?month=${month}&gymId=${gym}`, { headers: { Authorization: `Bearer ${tok}` } });
       if (!r.ok) { throw new Error(r.status === 403 ? '僅管理員可下載' : `伺服器錯誤 ${r.status}`); }

@@ -222,7 +222,7 @@ export default function DailySettlementPage() {
 
   const downloadMonthly = async () => {
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
       const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
       const r = await fetch(`${API}/daily-settlements/monthly-export?month=${exportMonth}&gymId=${gymId}`, { headers: { Authorization: `Bearer ${tok}` } });
       if (!r.ok) throw new Error(`${r.status}`);

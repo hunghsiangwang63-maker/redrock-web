@@ -6,7 +6,7 @@ import CoachSelect from '../../components/CoachSelect';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 
-const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
 const STATUS = {
   pending:   { bg:'#FAEEDA', color:'#854F0B', label:'待確認' },
   confirmed: { bg:'#E6F4EB', color:'#2D7D46', label:'已確認' },

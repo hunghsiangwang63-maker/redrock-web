@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE = 'https://redrock-api-production.up.railway.app';
+const BASE = 'https://api.redrocktaiwan.com';
 
 // 工作人員 client — 優先用 operatorToken，其次 stationToken，最後 token
 const client = axios.create({ baseURL: BASE, timeout: 10000 });

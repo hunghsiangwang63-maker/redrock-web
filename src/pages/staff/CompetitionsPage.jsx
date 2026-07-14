@@ -161,7 +161,7 @@ export default function CompetitionsPage() {
 
   const handleDownloadCSV = async (c) => {
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://redrock-api-production.up.railway.app';
+      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
       const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
       const r = await fetch(`${API}/competitions/${c.id}/registrations/download`, { headers: { Authorization: `Bearer ${tok}` } });
       if (!r.ok) { const t = await r.text().catch(()=>''); throw new Error(r.status === 403 ? '權限不足' : `${r.status} ${t.slice(0,120)}`); }
