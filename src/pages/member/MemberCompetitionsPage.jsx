@@ -286,7 +286,11 @@ export default function MemberCompetitionsPage() {
                           <div key={d.id} style={{ paddingLeft:18 }}>{d.name}（{d.maxParticipants} 人）</div>
                         ))}
                       </div>
-                      {c.description && <div style={{ fontSize:12, color:'#666', marginBottom:12, lineHeight:1.6 }}>{c.description.slice(0,120)}...</div>}
+                      {c.description && (
+                        <div style={{ fontSize:12, color:'#666', marginBottom:12, lineHeight:1.8, whiteSpace:'pre-wrap', textAlign:'left', background:'#FBF5F5', borderRadius:8, padding:'10px 12px' }}>
+                          {c.description}
+                        </div>
+                      )}
                       {registered ? (
                         <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#2D7D46', fontWeight:500 }}>✓ 已報名</div>
                       ) : (
