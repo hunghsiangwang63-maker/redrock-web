@@ -300,9 +300,17 @@ export default function MemberCompetitionsPage() {
                       )}
                       <div style={{ fontSize:12, color:'#666', marginBottom:10, lineHeight:1.8, textAlign:'left' }}>
                         <div>🧗 組別：</div>
-                        {(c.divisions||[]).map(d=>(
-                          <div key={d.id} style={{ paddingLeft:18 }}>{d.name}（{d.maxParticipants} 人）</div>
-                        ))}
+                        {(c.divisions||[]).map(d=>{
+                          const remain = Math.max(0, (d.maxParticipants||0) - (d.enrolledCount||0));
+                          return (
+                            <div key={d.id} style={{ paddingLeft:18 }}>
+                              {d.name}（{d.maxParticipants} 人）
+                              {remain > 0
+                                ? <span style={{ marginLeft:6, fontSize:11, fontWeight:600, color:'#1B7A3D', background:'#E4F3E8', borderRadius:8, padding:'1px 7px' }}>剩 {remain} 位</span>
+                                : <span style={{ marginLeft:6, fontSize:11, fontWeight:600, color:'#8B1A1A', background:'#F3E0E0', borderRadius:8, padding:'1px 7px' }}>額滿{(d.waitlistCount||0) < (d.waitlistMax||0) ? '・可候補' : ''}</span>}
+                            </div>
+                          );
+                        })}
                       </div>
                       {c.description && (
                         <div style={{ fontSize:12, color:'#666', marginBottom:12, lineHeight:1.8, whiteSpace:'pre-wrap', textAlign:'left', background:'#FBF5F5', borderRadius:8, padding:'10px 12px' }}>
@@ -474,7 +482,9 @@ export default function MemberCompetitionsPage() {
                       <label key={d.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${divisionId===d.id?'#8B1A1A':'#E8D5D5'}`, background:divisionId===d.id?'#FBF5F5':'#fff', cursor:'pointer' }}>
                         <input type="radio" name="division" value={d.id} checked={divisionId===d.id} onChange={()=>setDivisionId(d.id)} style={{ accentColor:'#8B1A1A' }}/>
                         <span style={{ fontSize:13, fontWeight:divisionId===d.id?600:400 }}>{d.name}</span>
-                        <span style={{ fontSize:11, color:'#999', marginLeft:'auto' }}>上限 {d.maxParticipants} 人</span>
+                        <span style={{ fontSize:11, marginLeft:'auto', color: (d.maxParticipants-(d.enrolledCount||0))>0 ? '#1B7A3D' : '#8B1A1A', fontWeight:600 }}>
+                          {(d.maxParticipants-(d.enrolledCount||0))>0 ? `剩 ${d.maxParticipants-(d.enrolledCount||0)} 位` : `額滿${(d.waitlistCount||0)<(d.waitlistMax||0)?'・候補中':''}`}
+                        </span>
                       </label>
                     ))}
                   </div>
