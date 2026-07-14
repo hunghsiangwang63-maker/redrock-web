@@ -653,11 +653,7 @@ export default function CoursesPage({ embedded = false }) {
       </div>
 
       {/* ── 課程列表（兩層：類別總頁 → 各梯次）── */}
-      {tab === 'courses' && (courses.length === 0 ? (
-        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-          目前沒有課程，點右上角新增
-        </div>
-      ) : (() => {
+      {tab === 'courses' && ((() => {
         // 依班別分組（無班別歸「其他」），班別再依大類分區
         const groups = {};
         courses.forEach(c => { const k = c.categoryName || '其他'; (groups[k] = groups[k] || []).push(c); });
@@ -678,11 +674,14 @@ export default function CoursesPage({ embedded = false }) {
           });
           return (
             <>
-              {GROUP_ORDER.filter(gk => byGroup[gk]?.length).map(gk => (
+              {GROUP_ORDER.map(gk => (
                 <div key={gk} style={{ marginBottom:20 }}>
                   <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', margin:'0 0 10px 2px' }}>{GROUP_LABEL[gk]}</div>
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-                    {byGroup[gk].map(gname => {
+                    {!(byGroup[gk]?.length) && (
+                      <div style={{ padding:'14px 16px', color:'#bbb', fontSize:12 }}>（尚無班別——到「班別管理」新增）</div>
+                    )}
+                    {(byGroup[gk] || []).map(gname => {
                       const g = groups[gname];
                       const empty = g.length === 0;
                       const prices = g.map(c => c.price || 0);
