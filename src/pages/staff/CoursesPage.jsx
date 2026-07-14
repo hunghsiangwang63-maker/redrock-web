@@ -66,12 +66,14 @@ export default function CoursesPage({ embedded = false }) {
   const [categories, setCategories] = useState([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const EMPTY_CAT_FORM = {
-    name: '', group: 'adult', description: '', color: '#8B1A1A', makeupPartners: [],
+    name: '', group: 'adult', description: '', color: '#8B1A1A', makeupTypeIds: [],
     allowTrial: false, trialPrice: '', leaveDeadlineHours: 2, maxLeaves: 2,
     allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 5,
   };
   const [categoryForm, setCategoryForm] = useState(EMPTY_CAT_FORM);
   const [catImageFile, setCatImageFile] = useState(null);      // 班別廣告照片（建立/編輯後上傳）
+  const [makeupTypes, setMakeupTypes] = useState([]);           // 補課類型（named 實體；班別多選掛類型、同類型可互補）
+  const [newTypeName, setNewTypeName] = useState('');
   const GROUP_LABEL = { adult: '成人班', youth: '青少年兒童班', special: '專班課程', workshop: '工作坊' };
   const GROUP_ORDER = ['adult', 'youth', 'special', 'workshop'];
   const [sessions, setSessions] = useState([]);
@@ -193,7 +195,7 @@ export default function CoursesPage({ embedded = false }) {
   };
 
   // 切換館別（super_admin 頂部選單）時重新載入該館課程並回到類別總頁，避免顯示他館課程（如士林館看到新竹館小蜘蛛人）
-  useEffect(() => { loadCourses(); loadCategories(); setSelectedCategory(null); }, [effectiveGymId]);
+  useEffect(() => { loadCourses(); loadCategories(); loadMakeupTypes(); setSelectedCategory(null); }, [effectiveGymId]);
   useEffect(() => { if (tab === 'sessions' && selectedCourse) loadSessions(selectedCourse); }, [tab]);
   useEffect(() => { if (tab === 'calendar') loadCalendarSessions(); }, [tab, calendarMonth, effectiveGymId]);
 
@@ -208,6 +210,7 @@ export default function CoursesPage({ embedded = false }) {
   const catPayload = () => ({
     name: categoryForm.name, group: categoryForm.group,
     description: categoryForm.description || '', color: categoryForm.color || '#8B1A1A',
+    makeupTypeIds: categoryForm.makeupTypeIds || [],
     allowTrial: !!categoryForm.allowTrial,
     trialPrice: categoryForm.trialPrice === '' ? null : Number(categoryForm.trialPrice),
     leaveDeadlineHours: categoryForm.leaveDeadlineHours === '' ? null : Number(categoryForm.leaveDeadlineHours),
@@ -217,21 +220,21 @@ export default function CoursesPage({ embedded = false }) {
     perSessionDeduction: categoryForm.perSessionDeduction === '' ? null : Number(categoryForm.perSessionDeduction),
     handlingFeeRate: categoryForm.handlingFeeRate === '' ? null : Number(categoryForm.handlingFeeRate) / 100,
   });
-  // 補課群組同步：以「本班別＋勾選的互補班別」為完整群組成員，全部寫同一 makeupGroup key；
-  // 原群組中被移出的班別清空（回到只能補本班別）。底層仍為字串 key，補課判定（同 key 可互補）不變。
-  const applyMakeupGroup = async (selfId) => {
-    const partners = (categoryForm.makeupPartners || []).filter(id => id !== selfId);
-    const members = [selfId, ...partners];
-    const isShared = (o) => o.makeupGroup && o.makeupGroup !== o.id;
-    const existing = categories.find(o => members.includes(o.id) && isShared(o))?.makeupGroup;
-    const key = members.length > 1 ? (existing || `mg-${selfId.slice(0, 8)}`) : null;
-    const self = categories.find(o => o.id === selfId);
-    const oldKey = self && isShared(self) ? self.makeupGroup : null;
-    const toClear = oldKey ? categories.filter(o => o.makeupGroup === oldKey && !members.includes(o.id)).map(o => o.id) : [];
-    await Promise.all([
-      ...members.map(id => updateCategory(id, { makeupGroup: key })),
-      ...toClear.map(id => updateCategory(id, { makeupGroup: null })),
-    ]);
+  // 補課類型管理（named 實體）
+  const loadMakeupTypes = async () => {
+    try { const r = await client.get('/course-categories/makeup-types'); setMakeupTypes(r.data.types || []); } catch (e) {}
+  };
+  const handleAddMakeupType = async () => {
+    if (!newTypeName.trim()) return;
+    try {
+      await client.post('/course-categories/makeup-types', { name: newTypeName.trim() });
+      setNewTypeName(''); await loadMakeupTypes();
+    } catch (e) { showMsg(e.response?.data?.message || '新增失敗', 'red'); }
+  };
+  const handleDeleteMakeupType = async (t) => {
+    if (!window.confirm(`確定刪除補課類型「${t.name}」？`)) return;
+    try { await client.delete(`/course-categories/makeup-types/${t.id}`); await loadMakeupTypes(); }
+    catch (e) { showMsg(e.response?.data?.message || '刪除失敗', 'red'); }
   };
   const uploadCatImage = async (catId) => {
     if (!catImageFile) return;
@@ -242,7 +245,6 @@ export default function CoursesPage({ embedded = false }) {
     if (!categoryForm.name?.trim()) { showMsg('請填班別名稱', 'red'); return; }
     try {
       const res = await createCategory(catPayload());
-      try { await applyMakeupGroup(res.data.category.id); } catch (e) { showMsg('班別已建立，但補課群組同步失敗', 'red'); }
       try { await uploadCatImage(res.data.category.id); } catch (e) { showMsg('班別已建立，但照片上傳失敗', 'red'); }
       showMsg('班別建立成功');
       setShowAddCategory(false);
@@ -258,9 +260,7 @@ export default function CoursesPage({ embedded = false }) {
     setEditingCategory(c); setCatImageFile(null);
     setCategoryForm({
       name: c.name || '', group: c.group || 'adult', description: c.description || '', color: c.color || '#8B1A1A',
-      makeupPartners: (c.makeupGroup && c.makeupGroup !== c.id)
-        ? categories.filter(o => o.id !== c.id && o.makeupGroup === c.makeupGroup).map(o => o.id)
-        : [],
+      makeupTypeIds: c.makeupTypeIds || [],
       allowTrial: c.allowTrial === true, trialPrice: c.trialPrice ?? '',
       leaveDeadlineHours: c.leaveDeadlineHours ?? 2, maxLeaves: c.maxLeaves ?? 2,
       allowMakeup: c.allowMakeup !== false, makeupDeadlineDays: c.makeupDeadlineDays ?? 60,
@@ -271,7 +271,6 @@ export default function CoursesPage({ embedded = false }) {
   const handleUpdateCategory = async () => {
     try {
       await updateCategory(editingCategory.id, catPayload());
-      try { await applyMakeupGroup(editingCategory.id); } catch (e) { showMsg('已更新，但補課群組同步失敗', 'red'); }
       try { await uploadCatImage(editingCategory.id); } catch (e) { showMsg('已更新，但照片上傳失敗', 'red'); }
       showMsg('班別已更新');
       setEditingCategory(null);
@@ -1237,6 +1236,25 @@ export default function CoursesPage({ embedded = false }) {
       {/* ── 班別管理 tab（樹：大類 → 班別；介紹/照片/規則為同班別所有梯次共用預設）── */}
       {tab === 'categories' && (
         <div>
+          {/* 補課類型管理：先建類型 → 班別各自多選掛類型 → 同類型班別可互相補課 */}
+          <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 16px', marginBottom:14 }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#8B1A1A', marginBottom:8 }}>補課類型（掛同一類型的班別可互相補課）</div>
+            <div style={{ display:'flex', flexWrap:'wrap', gap:8, alignItems:'center' }}>
+              {makeupTypes.map(t => (
+                <span key={t.id} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#E6F1FB', color:'#185FA5', borderRadius:8, padding:'4px 10px', fontSize:12, fontWeight:600 }}>
+                  {t.name}
+                  <span onClick={() => handleDeleteMakeupType(t)} style={{ cursor:'pointer', color:'#7AA5CC', fontSize:13 }}>×</span>
+                </span>
+              ))}
+              {makeupTypes.length === 0 && <span style={{ fontSize:12, color:'#bbb' }}>尚無類型</span>}
+              <input value={newTypeName} onChange={e => setNewTypeName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddMakeupType()}
+                placeholder="新類型名稱（如：小蜘蛛人）"
+                style={{ height:30, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, background:'#FBF5F5', outline:'none', color:'#1a1a1a', width:180 }}/>
+              <button onClick={handleAddMakeupType}
+                style={{ height:30, padding:'0 12px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增類型</button>
+            </div>
+          </div>
           <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:12 }}>
             <button onClick={() => { setCategoryForm(EMPTY_CAT_FORM); setCatImageFile(null); setShowAddCategory(true); }}
               style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
@@ -1260,10 +1278,11 @@ export default function CoursesPage({ embedded = false }) {
                         <div style={{ minWidth:0 }}>
                           <div style={{ fontWeight:600, fontSize:14 }}>{c.name}
                             {c.allowTrial === true && <span style={{ fontSize:10, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>試上 ${c.trialPrice ?? 0}</span>}
-                            {c.makeupGroup && c.makeupGroup !== c.id && (() => {
-                              const partners = categories.filter(o => o.id !== c.id && o.makeupGroup === c.makeupGroup).map(o => o.name);
-                              return partners.length ? <span style={{ fontSize:10, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>可互補：{partners.join('、')}</span> : null;
-                            })()}
+                            {(c.makeupTypeIds || []).length > 0 && (
+                              <span style={{ fontSize:10, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>
+                                補課類型：{(c.makeupTypeIds || []).map(id => makeupTypes.find(t => t.id === id)?.name).filter(Boolean).join('、')}
+                              </span>
+                            )}
                           </div>
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                             請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費 每堂扣{c.perSessionDeduction ?? 850}/費率{Math.round((c.handlingFeeRate ?? 0.05) * 100)}%
@@ -1361,22 +1380,19 @@ export default function CoursesPage({ embedded = false }) {
                   </div>
                 )}
                 <div style={{ gridColumn:'1/-1' }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>可互相補課的班別（可多選；不勾＝只能補本班別的其他梯次）</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>適用補課類型（可多選；掛同一類型的班別可互相補課，不勾＝只能補本班別的其他梯次）</label>
                   <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', padding:'8px 12px', display:'flex', flexWrap:'wrap', gap:'6px 14px' }}>
-                    {categories.filter(o => o.isActive && o.id !== editingCategory?.id).length === 0 && (
-                      <span style={{ fontSize:12, color:'#bbb' }}>（無其他班別）</span>
-                    )}
-                    {categories.filter(o => o.isActive && o.id !== editingCategory?.id).map(o => (
-                      <label key={o.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12.5, cursor:'pointer', color:'#1a1a1a' }}>
-                        <input type="checkbox" checked={(categoryForm.makeupPartners || []).includes(o.id)}
-                          onChange={e => setCategoryForm(f => ({ ...f, makeupPartners: e.target.checked
-                            ? [...(f.makeupPartners || []), o.id]
-                            : (f.makeupPartners || []).filter(x => x !== o.id) }))}/>
-                        {GROUP_LABEL[o.group || 'special']}・{o.name}
+                    {makeupTypes.length === 0 && <span style={{ fontSize:12, color:'#bbb' }}>尚無補課類型——到列表上方「補課類型」先新增</span>}
+                    {makeupTypes.map(t => (
+                      <label key={t.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12.5, cursor:'pointer', color:'#1a1a1a' }}>
+                        <input type="checkbox" checked={(categoryForm.makeupTypeIds || []).includes(t.id)}
+                          onChange={e => setCategoryForm(f => ({ ...f, makeupTypeIds: e.target.checked
+                            ? [...(f.makeupTypeIds || []), t.id]
+                            : (f.makeupTypeIds || []).filter(x => x !== t.id) }))}/>
+                        {t.name}
                       </label>
                     ))}
                   </div>
-                  <div style={{ fontSize:10, color:'#999', marginTop:4 }}>勾選後兩邊自動同組（例：小蜘蛛人入門班 ↔ 進階班可互補）；儲存時整組同步。</div>
                 </div>
               </div>
               <div style={{ display:'flex', gap:8, marginTop:18 }}>
