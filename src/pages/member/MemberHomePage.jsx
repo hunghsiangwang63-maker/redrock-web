@@ -116,23 +116,6 @@ export default function MemberHomePage() {
         </div>
       )}
 
-      {/* 轉帳被退回通知（點擊前往對應頁重新上傳；補正後自動消失）*/}
-      {rejectAlerts.map((a, i) => (
-        <div key={`ra${i}`} onClick={() => navigate(a.link)}
-          style={{ margin:'14px 16px 0', background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-          <div style={{ fontSize:20 }}>⚠️</div>
-          <div style={{ flex:1, minWidth:0 }}>
-            <div style={{ fontSize:13, fontWeight:700, color:'#A32D2D', textAlign:'left' }}>
-              {a.label}轉帳被退回：{a.name}{a.memberName ? `（👦 ${a.memberName}）` : ''}
-            </div>
-            <div style={{ fontSize:11, color:'#8A5A5A', marginTop:2, textAlign:'left' }}>
-              {a.reason ? `原因：${a.reason}，` : ''}請點此重新上傳轉帳資料
-            </div>
-          </div>
-          <div style={{ fontSize:14, color:'#A32D2D' }}>›</div>
-        </div>
-      ))}
-
       {/* 身份別與效期（單一方框、10px：攀岩隊員 / 課程學員 / 定期票；效期內才顯示）*/}
       {(identity?.teamMember || identity?.courseAccess?.length > 0 || identity?.passes?.length > 0) && (
         <div style={{ margin:'14px 16px 0', background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'10px 14px', display:'flex', flexDirection:'column', gap:5 }}>
@@ -339,6 +322,30 @@ export default function MemberHomePage() {
           ))}
         </>)}
       </div>
+
+      {/* 🔔 通知（退回事項/待補文件；處理完成自動消失）— 置於課程活動提醒之後 */}
+      {rejectAlerts.length > 0 && (
+        <div style={{ padding:'14px 16px 0' }}>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>🔔 通知</div>
+          {rejectAlerts.map((a, i) => (
+            <div key={`ra${i}`} onClick={() => navigate(a.link)}
+              style={{ background: a.kind === 'action' ? '#FAEEDA' : '#FCEBEB', border: `0.5px solid ${a.kind === 'action' ? '#EAD3A0' : '#EEC1C1'}`, borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:8 }}>
+              <div style={{ fontSize:20 }}>{a.kind === 'action' ? '✍️' : '⚠️'}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:700, color: a.kind === 'action' ? '#854F0B' : '#A32D2D', textAlign:'left' }}>
+                  {a.kind === 'action'
+                    ? `${a.label}待補文件：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    : `${a.label}轉帳被退回：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`}
+                </div>
+                <div style={{ fontSize:11, color: a.kind === 'action' ? '#8A6A1F' : '#8A5A5A', marginTop:2, textAlign:'left' }}>
+                  {a.reason ? `${a.reason}，` : ''}請點此前往處理
+                </div>
+              </div>
+              <div style={{ fontSize:14, color: a.kind === 'action' ? '#854F0B' : '#A32D2D' }}>›</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* 公告列表 */}
       {announcements.length > 0 && (
