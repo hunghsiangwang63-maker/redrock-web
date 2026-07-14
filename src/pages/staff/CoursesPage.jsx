@@ -344,6 +344,7 @@ export default function CoursesPage({ embedded = false }) {
       if (num(courseForm.handlingFeeRate) !== undefined) ov.handlingFeeRate = num(courseForm.handlingFeeRate) / 100;
       const res = await createCourse({
         ...courseForm,
+        gymId: courseForm.gymId || effectiveGymId,   // super_admin 未動館別下拉時 courseForm.gymId 為空 → 補當前檢視館別，避免建出 gymId=null 幽靈課
         leaveDeadlineHours: undefined, maxLeaves: undefined, allowMakeup: undefined, makeupDeadlineDays: undefined,
         allowTrial: undefined, trialPrice: undefined, perSessionDeduction: undefined, handlingFeeRate: undefined,
         ...ov,
@@ -654,7 +655,7 @@ export default function CoursesPage({ embedded = false }) {
             setCreateImageFile(null);
             // 只在班別第二層顯示 → 預帶當前班別
             const preCat = categories.find(c => c.name === selectedCategory)?.id || '';
-            setCourseForm({ ...EMPTY_COURSE_FORM, weekdays: [], categoryId: preCat });
+            setCourseForm({ ...EMPTY_COURSE_FORM, weekdays: [], categoryId: preCat, gymId: effectiveGymId || '' });
             setCopyFrom(''); setCreateStep(1); setShowOverrideRules(false); setCreateImageFile(null);
             setShowAddCourse(true);
           }}
