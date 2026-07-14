@@ -7,6 +7,7 @@ import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 import jsQR from 'jsqr';
+import { entryLabelOf } from '../../utils/entryLabel';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const ENTRY_TYPE_LABEL = {
