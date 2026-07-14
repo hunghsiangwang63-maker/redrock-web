@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import dayjs from 'dayjs';
-import { entryTypeLabel } from '../utils/entryLabel';
+import { entryTypeLabel, entryLabelOf } from '../utils/entryLabel';
 
 const RECORD_TABS = [
   { key:'checkins',     icon:'🚪', label:'入場' },
@@ -34,7 +34,7 @@ function MemberRecords({ records }) {
             <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div>
                 <div style={{ fontSize:12, fontWeight:500 }}>{c.gymId==='gym-hsinchu'?'新竹館':'士林館'}</div>
-                <div style={{ fontSize:11, color:'#999' }}>{entryTypeLabel(c.entryType)}{c.paymentMethod ? ' · ' + c.paymentMethod : ''}</div>
+                <div style={{ fontSize:11, color:'#999' }}>{entryLabelOf(c)}{c.paymentMethod ? ' · ' + c.paymentMethod : ''}</div>
               </div>
               <div style={{ fontSize:11, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date||''}</div>
             </div>

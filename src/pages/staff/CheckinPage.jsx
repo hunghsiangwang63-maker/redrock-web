@@ -201,7 +201,7 @@ export default function CheckinPage() {
         dayjs(t).format('YYYY-MM-DD HH:mm'),
         c.memberName || '',
         c.gymId === 'gym-hsinchu' ? '新竹館' : c.gymId === 'gym-shilin' ? '士林館' : c.gymId || '',
-        ENTRY_TYPE_LABEL[c.entryType] || c.entryType || '',
+        entryLabelOf(c) || '',
         c.amountPaid || 0,
       ]);
     });
@@ -1004,7 +1004,7 @@ export default function CheckinPage() {
                   <div>
                     <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                      {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {ENTRY_TYPE_LABEL[c.entryType] || c.entryType}
+                      {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {entryLabelOf(c)}
                       {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
                     </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
@@ -1057,7 +1057,7 @@ export default function CheckinPage() {
                   <div>
                     <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                      {c.gymId === 'gym-hsinchu' ? '新竹館' : c.gymId === 'gym-shilin' ? '士林館' : ''} · {ENTRY_TYPE_LABEL[c.entryType] || c.entryType}
+                      {c.gymId === 'gym-hsinchu' ? '新竹館' : c.gymId === 'gym-shilin' ? '士林館' : ''} · {entryLabelOf(c)}
                       {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
                     </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
@@ -1146,7 +1146,7 @@ export default function CheckinPage() {
               <div key={c.id || i} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:12 }}>
                 <div>
                   <div style={{ fontWeight:500 }}>{c.memberName}</div>
-                  <div style={{ fontSize:10, color:'#999' }}>{ENTRY_TYPE_LABEL[c.entryType] || c.entryType}</div>
+                  <div style={{ fontSize:10, color:'#999' }}>{entryLabelOf(c)}</div>
                 </div>
                 <div style={{ color:'#999', fontFamily:'monospace', fontSize:11 }}>
                   {dayjs(c.checkedInAt?._seconds * 1000).format('HH:mm')}

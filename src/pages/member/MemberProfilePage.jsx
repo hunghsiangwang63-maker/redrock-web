@@ -8,7 +8,7 @@ import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } f
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import { isUnder5 } from '../../utils/age';
-import { entryTypeLabel } from '../../utils/entryLabel';
+import { entryTypeLabel, entryLabelOf } from '../../utils/entryLabel';
 
 const FT_GYMS = [{ id:'gym-hsinchu', name:'新竹館' }, { id:'gym-shilin', name:'士林館' }];
 const ftGymName = (id) => FT_GYMS.find(g => g.id === id)?.name || id;
@@ -597,7 +597,7 @@ export default function MemberProfilePage() {
                     <span style={{ fontSize:12, color:'#999' }}>{fmtTs(r.checkedInAt, 'MM/DD HH:mm', '')}</span>
                   </div>
                   <div style={{ fontSize:12, color:'#666', display:'flex', gap:8 }}>
-                    <span>{entryTypeLabel(r.entryType)}</span>
+                    <span>{entryLabelOf(r)}</span>
                     {r.paymentMethod && <span>・{r.paymentMethod === 'cash' ? '現金' : r.paymentMethod}</span>}
                     {r.amountPaid > 0 && <span>・NT${r.amountPaid}</span>}
                   </div>

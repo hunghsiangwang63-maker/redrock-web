@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
-import { entryTypeLabel } from '../../utils/entryLabel';
+import { entryTypeLabel, entryLabelOf } from '../../utils/entryLabel';
 import { gymPrefix } from '../../utils/gymLabel';
 
 const TABS = [
@@ -121,7 +121,7 @@ export default function MemberRecordsPage() {
                         </span>
                         {cancelled && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'#F0EDED', color:'#999', fontWeight:600 }}>已取消</span>}
                       </div>
-                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryTypeLabel(c.entryType)}</div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryLabelOf(c)}</div>
                     </div>
                     <div style={{ fontSize:12, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date}</div>
                   </div>

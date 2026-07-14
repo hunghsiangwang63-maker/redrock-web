@@ -19,3 +19,7 @@ export const ENTRY_TYPE_LABEL = {
 };
 
 export const entryTypeLabel = (type) => ENTRY_TYPE_LABEL[type] || type || '入場';
+
+// 依「入場紀錄」給顯示標籤：舊折扣卡8折（實體優惠卡）優先於 entryType
+export const entryLabelOf = (rec) =>
+  rec?.legacyDiscount === true ? '實體優惠卡' : entryTypeLabel(rec?.entryType);
