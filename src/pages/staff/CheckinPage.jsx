@@ -1140,17 +1140,33 @@ export default function CheckinPage() {
 
         <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
           <div style={{ fontSize:11, color:'#999', marginBottom:12, fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>今日入場紀錄</div>
-          {log.slice(0, 10).map((c, i) => (
-            <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:12 }}>
-              <div>
-                <div style={{ fontWeight:500 }}>{c.memberName}</div>
-                <div style={{ fontSize:10, color:'#999' }}>{ENTRY_TYPE_LABEL[c.entryType] || c.entryType}</div>
+          {(() => {
+            const gymsInLog = [...new Set(log.map(c => c.gymId))];
+            const renderRow = (c, i) => (
+              <div key={c.id || i} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:12 }}>
+                <div>
+                  <div style={{ fontWeight:500 }}>{c.memberName}</div>
+                  <div style={{ fontSize:10, color:'#999' }}>{ENTRY_TYPE_LABEL[c.entryType] || c.entryType}</div>
+                </div>
+                <div style={{ color:'#999', fontFamily:'monospace', fontSize:11 }}>
+                  {dayjs(c.checkedInAt?._seconds * 1000).format('HH:mm')}
+                </div>
               </div>
-              <div style={{ color:'#999', fontFamily:'monospace', fontSize:11 }}>
-                {dayjs(c.checkedInAt?._seconds * 1000).format('HH:mm')}
-              </div>
-            </div>
-          ))}
+            );
+            // 多館（super_admin）→ 依館別上下分段；單館維持原樣
+            if (gymsInLog.length > 1) {
+              const GYM_NAME = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
+              return ['gym-hsinchu', 'gym-shilin'].filter(g => gymsInLog.includes(g)).map(g => (
+                <div key={g} style={{ marginBottom:10 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', background:'#FBF5F5', borderRadius:6, padding:'4px 8px', marginBottom:4 }}>
+                    {GYM_NAME[g] || g}（{log.filter(c => c.gymId === g).length}）
+                  </div>
+                  {log.filter(c => c.gymId === g).slice(0, 10).map(renderRow)}
+                </div>
+              ));
+            }
+            return log.slice(0, 10).map(renderRow);
+          })()}
           {log.length === 0 && <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>今日尚無紀錄</div>}
         </div>
 
