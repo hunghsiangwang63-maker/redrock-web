@@ -670,6 +670,12 @@ export default function CoursesPage({ embedded = false }) {
             const gk = groups[gname][0]?.categoryGroup || 'special';
             (byGroup[gk] = byGroup[gk] || []).push(gname);
           });
+          // 空班別（啟用但尚無梯次）也列出，標「尚未開課」——點入即可加開第一梯
+          categories.filter(cat => cat.isActive && !groups[cat.name]).forEach(cat => {
+            const gk = GROUP_ORDER.includes(cat.group) ? cat.group : 'special';
+            groups[cat.name] = [];
+            (byGroup[gk] = byGroup[gk] || []).push(cat.name);
+          });
           return (
             <>
               {GROUP_ORDER.filter(gk => byGroup[gk]?.length).map(gk => (
@@ -678,8 +684,9 @@ export default function CoursesPage({ embedded = false }) {
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                     {byGroup[gk].map(gname => {
                       const g = groups[gname];
+                      const empty = g.length === 0;
                       const prices = g.map(c => c.price || 0);
-                      const minP = Math.min(...prices), maxP = Math.max(...prices);
+                      const minP = empty ? 0 : Math.min(...prices), maxP = empty ? 0 : Math.max(...prices);
                       const enrolled = g.reduce((s, c) => s + (c.enrolledCount || 0), 0);
                       const cap = g.reduce((s, c) => s + (c.maxStudents || 0), 0);
                       const anyInactive = g.some(c => c.isActive === false && c.status !== 'cancelled');
@@ -687,13 +694,16 @@ export default function CoursesPage({ embedded = false }) {
                       const catPrefix = catGymIds.length === 1 ? gymPrefix(catGymIds[0]) : '';
                       return (
                         <div key={gname} onClick={() => setSelectedCategory(gname)}
-                          style={{ display:'flex', alignItems:'center', gap:14, padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', cursor:'pointer' }}>
-                          <div style={{ fontWeight:600, fontSize:14, flex:'1 1 200px', minWidth:0 }}>{catPrefix}{gname}</div>
+                          style={{ display:'flex', alignItems:'center', gap:14, padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', cursor:'pointer', opacity: empty ? 0.75 : 1 }}>
+                          <div style={{ fontWeight:600, fontSize:14, flex:'1 1 200px', minWidth:0 }}>
+                            {catPrefix}{gname}
+                            {empty && <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:8 }}>尚未開課</span>}
+                          </div>
                           <div style={{ fontSize:12, color:'#666', width:60, textAlign:'right' }}>{g.length} 梯</div>
                           <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', width:150, textAlign:'right' }}>
-                            NT${minP.toLocaleString()}{maxP !== minP && `～${maxP.toLocaleString()}`}
+                            {empty ? '—' : <>NT${minP.toLocaleString()}{maxP !== minP && `～${maxP.toLocaleString()}`}</>}
                           </div>
-                          <div style={{ fontSize:12, color:'#999', width:130, textAlign:'right' }}>正取 {enrolled}/{cap}{anyInactive ? ' · 含停用' : ''}</div>
+                          <div style={{ fontSize:12, color:'#999', width:130, textAlign:'right' }}>{empty ? '' : `正取 ${enrolled}/${cap}${anyInactive ? ' · 含停用' : ''}`}</div>
                           <span style={{ color:'#8B1A1A', fontWeight:600 }}>›</span>
                         </div>
                       );
@@ -717,6 +727,11 @@ export default function CoursesPage({ embedded = false }) {
               <span style={{ fontSize:12, color:'#999' }}>{list.length} 梯</span>
             </div>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
+              {list.length === 0 && (
+                <div style={{ padding:36, textAlign:'center', color:'#999', fontSize:13 }}>
+                  此班別尚未開課——點右上「＋ 加開梯次」開設第一梯
+                </div>
+              )}
               {list.map(c => {
                 const st = courseStatus(c);
                 const inactive = c.isActive === false && c.status !== 'cancelled';
