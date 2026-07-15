@@ -273,6 +273,10 @@ export default function MembersPage() {
   const handleSelect = async (member) => {
     setSelected(member);
     setDetailLoading(true);
+    // 清掉上一位會員的紀錄殘留、立即顯示真的載入中；與詳情併發載入（互不 block）
+    setMemberRecords(null);
+    setRecordsLoading(true);
+    loadMemberRecords(member.id); // 內含 try/finally 會收 recordsLoading
     try {
       const res = await getMember(member.id);
       setDetail(res.data);
@@ -646,7 +650,7 @@ export default function MembersPage() {
             <div style={{ fontSize:14, fontWeight:600, marginBottom:14 }}>📋 {selected.name} 的紀錄查詢</div>
             {recordsLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
             {!recordsLoading && memberRecords && <MemberRecords records={memberRecords} />}
-            {!recordsLoading && !memberRecords && <div style={{ textAlign:'center', color:'#ccc', padding:24, fontSize:13 }}>載入中...</div>}
+            {!recordsLoading && !memberRecords && <div style={{ textAlign:'center', color:'#ccc', padding:24, fontSize:13 }}>紀錄載入失敗，請重新點選會員</div>}
           </div>
         )}
       </div>
