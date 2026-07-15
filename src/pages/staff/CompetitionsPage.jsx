@@ -51,6 +51,7 @@ const emptyForm = () => ({
   waiverContent: { zh:'', en:'' },
   scoringSystem:'competition_management_v2',  // 固定紅石賽事管理 V2（直寫計分系統 Firestore）
   status:'draft',
+  paymentDeadlineDays: 3,  // 繳款期限：報名日 + N 天內須完成繳費（含臨櫃繳款），逾期自動剔除
 });
 
 export default function CompetitionsPage() {
@@ -68,6 +69,7 @@ export default function CompetitionsPage() {
   const [registrations, setRegistrations] = useState([]);
   const [regLoading, setRegLoading] = useState(false);
   const [regTab, setRegTab] = useState('all'); // all | refunds
+  const [statusFilter, setStatusFilter] = useState('all'); // 依報名狀態下拉篩選
   const [actionModal, setActionModal] = useState(null); // { type:'pay'|'refund', reg }
   const [formAction, setFormAction] = useState(null); // { type:'return'|'reject', reg }
   const [formReason, setFormReason] = useState('');
@@ -109,6 +111,7 @@ export default function CompetitionsPage() {
       refundPolicies: c.refundPolicies || emptyForm().refundPolicies,
       waiverContent: c.waiverContent||{zh:'',en:''},
       scoringSystem:c.scoringSystem, webhookUrl:c.webhookUrl||'', status:c.status,
+      paymentDeadlineDays: c.paymentDeadlineDays ?? 3,
     });
     setShowForm(true);
   };
@@ -205,6 +208,21 @@ export default function CompetitionsPage() {
     if (r.paymentStatus==='transfer_rejected') return { type:'red', label:'已退回待補正' };
     return { type:'warn', label:'待付款' };
   };
+  const fmtDeadline = (d) => {
+    const s = d?._seconds ?? d?.seconds;
+    if (s) return dayjs(s*1000).format('MM/DD HH:mm');
+    return typeof d==='string' ? dayjs(d).format('MM/DD HH:mm') : '—';
+  };
+  // 報名付款狀態機（供名單依狀態顯示按鈕 + 下拉篩選）
+  const regState = (r) => {
+    if (r.status==='cancelled') return 'cancelled';
+    if (r.status==='waitlist') return 'waitlist';
+    if (r.paymentStatus==='confirmed') return 'paid';           // C 已收款
+    if (r.paymentStatus==='transfer_rejected') return 'rejected'; // 已要求重填，待會員
+    const hasInfo = !!(r.bankLastFive || r.paymentStatus==='pending_confirm' || r.paymentMethod==='cash');
+    return hasInfo ? 'awaitConfirm' : 'awaitPayment';           // B 待確認 / A 未填匯款
+  };
+  const STATE_LABEL = { awaitPayment:'未填匯款', awaitConfirm:'待確認收款', paid:'已收款', rejected:'已要求重填', waitlist:'候補中', cancelled:'已取消' };
 
   return (
     <div style={{ padding:24, maxWidth:900, margin:'0 auto' }}>
@@ -349,6 +367,11 @@ export default function CompetitionsPage() {
                 <option value="closed">已截止</option>
               </select>
             </div>
+            <div><label style={lbl}>繳款期限（報名日 + N 天）</label>
+              <input type="number" min={1} style={inp} value={form.paymentDeadlineDays}
+                onChange={e=>setForm(f=>({...f,paymentDeadlineDays:e.target.value}))}/>
+              <div style={{ fontSize:10, color:'#999', marginTop:3 }}>逾期未完成繳費（含臨櫃繳款）自動剔除名單</div>
+            </div>
             <div style={{ gridColumn:'1/-1' }}><label style={lbl}>賽事說明</label><textarea rows={3} style={{...inp, height:'auto', padding:'8px 12px', resize:'none'}} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/></div>
             <div style={{ gridColumn:'1/-1' }}><label style={lbl}>同意書內容（繁中）</label><textarea rows={4} style={{...inp, height:'auto', padding:'8px 12px', resize:'none'}} value={form.waiverContent.zh} onChange={e=>setForm(f=>({...f,waiverContent:{...f.waiverContent,zh:e.target.value}}))}/></div>
           </div>
@@ -368,7 +391,17 @@ export default function CompetitionsPage() {
               { key:'all',     label:`全部 (${registrations.length})` },
               { key:'refunds', label:`退費申請 (${registrations.filter(r=>r.refundRequested||r.status==='cancelled').length})` },
             ]} />
-            <div style={{ display:'flex', gap:6 }}>
+            <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+              <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}
+                style={{ height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, background:'#fff', color:'#444', cursor:'pointer' }}>
+                <option value="all">全部狀態</option>
+                <option value="awaitPayment">未填匯款</option>
+                <option value="awaitConfirm">待確認收款</option>
+                <option value="paid">已收款</option>
+                <option value="rejected">已要求重填</option>
+                <option value="waitlist">候補中</option>
+                <option value="cancelled">已取消</option>
+              </select>
               <button onClick={()=>handleDownloadCSV(showRegistrations)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ 名單</button>
               <button onClick={()=>handleDownloadRefundCSV(showRegistrations)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#A32D2D', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ 退費清單</button>
             </div>
@@ -376,7 +409,10 @@ export default function CompetitionsPage() {
           {regLoading ? <div style={{ textAlign:'center', color:'#999', padding:20 }}>載入中...</div> : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {registrations.length===0 && <div style={{ textAlign:'center', color:'#999', padding:20 }}>尚無報名記錄</div>}
-              {(regTab==='refunds' ? registrations.filter(r=>r.refundRequested||r.status==='cancelled') : registrations).map(r => {
+              {(() => {
+                const base = regTab==='refunds' ? registrations.filter(r=>r.refundRequested||r.status==='cancelled') : registrations;
+                return statusFilter==='all' ? base : base.filter(r => regState(r)===statusFilter);
+              })().map(r => {
                 const ps = payStatusInfo(r);
                 return (
                   <div key={r.id} style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', border:'0.5px solid #E8D5D5' }}>
@@ -410,35 +446,33 @@ export default function CompetitionsPage() {
                         {r.refundRequested && r.status==='cancelled' && <Tag type="red">退費申請中</Tag>}
                       </div>
                     </div>
-                    {r.paymentStatus==='pending' && r.status!=='cancelled' && (
-                      <div style={{ display:'flex', gap:8, marginTop:10, alignItems:'center' }}>
-                        <span style={{ fontSize:11, color:'#854F0B' }}>待收款（於待辦總覽確認）</span>
-                        {r.paymentMethod==='transfer' && (
-                          <button onClick={()=>{ setFormAction({type:'rejectPayment',reg:r}); setFormReason(''); }}
-                            style={{ marginLeft:'auto', height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#854F0B', border:'0.5px solid #D6A94E', fontSize:12, cursor:'pointer' }}>要求重填轉帳</button>
-                        )}
-                      </div>
-                    )}
-                    {r.paymentStatus==='transfer_rejected' && r.status!=='cancelled' && (
-                      <div style={{ fontSize:11, color:'#A32D2D', marginTop:8 }}>已要求會員重填轉帳資訊{r.paymentRejectReason?`：${r.paymentRejectReason}`:''}</div>
-                    )}
-                    {r.paymentStatus==='confirmed' && (
-                      <div style={{ fontSize:11, color:'#2D7D46', marginTop:8 }}>
-                        已確認收款 NT${r.paidAmount} ｜ 確認人：{r.paidConfirmedByName||'—'}
-                      </div>
-                    )}
-                    {r.status !== 'cancelled' && (
-                      <div style={{ display:'flex', gap:8, marginTop:10, justifyContent:'flex-end', alignItems:'center' }}>
-                        {r.formReturned ? (
-                          <span style={{ fontSize:11, color:'#854F0B', marginRight:'auto' }}>已退回・等待會員修正</span>
-                        ) : (
-                          <button onClick={()=>{ setFormAction({type:'return',reg:r}); setFormReason(''); }}
-                            style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#854F0B', border:'0.5px solid #D6A94E', fontSize:12, cursor:'pointer' }}>退回修改</button>
-                        )}
-                        <button onClick={()=>{ setFormAction({type:'reject',reg:r}); setFormReason(''); }}
-                          style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>駁回取消</button>
-                      </div>
-                    )}
+                    {(() => {
+                      const st = regState(r);
+                      if (st === 'cancelled') return null;
+                      const B = (label,color,onClick,key) => <button key={key} onClick={onClick} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color, border:`0.5px solid ${color}`, fontSize:12, cursor:'pointer' }}>{label}</button>;
+                      const info = st==='awaitPayment' ? { c:'#854F0B', t:`待會員填匯款${r.paymentDeadline?`（繳款期限 ${fmtDeadline(r.paymentDeadline)}）`:''}` }
+                        : st==='awaitConfirm' ? { c:'#185FA5', t:`待收款${r.paymentMethod==='cash'?'（臨櫃繳款）':'（轉帳待確認）'}${r.paymentDeadline?`・期限 ${fmtDeadline(r.paymentDeadline)}`:''}` }
+                        : st==='rejected' ? { c:'#A32D2D', t:`已要求會員重填匯款${r.paymentRejectReason?`：${r.paymentRejectReason}`:''}` }
+                        : st==='paid' ? { c:'#2D7D46', t:`已確認收款 NT$${r.paidAmount||r.registrationFee||''}${r.paidConfirmedByName?`｜${r.paidConfirmedByName}`:''}` }
+                        : st==='waitlist' ? { c:'#854F0B', t:`候補中${r.waitlistPosition?`（第 ${r.waitlistPosition} 位）`:''}` } : null;
+                      const btns = [];
+                      if (st==='awaitConfirm') {
+                        btns.push(B('確認收款','#2D7D46',()=>setActionModal({type:'pay',reg:r}),'pay'));
+                        if (r.paymentMethod!=='cash') btns.push(B('要求重填匯款','#854F0B',()=>{ setFormAction({type:'rejectPayment',reg:r}); setFormReason(''); },'rp'));
+                      }
+                      // 退回修改：B/C/候補可（A 未填只給駁回、rejected 等會員、formReturned 顯示狀態）
+                      if (st!=='awaitPayment' && st!=='rejected') {
+                        if (r.formReturned) btns.push(<span key="fr" style={{ fontSize:11, color:'#854F0B', alignSelf:'center' }}>已退回・待會員修正</span>);
+                        else btns.push(B('退回修改','#854F0B',()=>{ setFormAction({type:'return',reg:r}); setFormReason(''); },'ret'));
+                      }
+                      btns.push(B('駁回報名','#A32D2D',()=>{ setFormAction({type:'reject',reg:r}); setFormReason(''); },'rej'));
+                      return (
+                        <div style={{ display:'flex', gap:8, marginTop:10, alignItems:'center', flexWrap:'wrap' }}>
+                          {info && <span style={{ fontSize:11, color:info.c }}>{info.t}</span>}
+                          <div style={{ display:'flex', gap:8, marginLeft:'auto', flexWrap:'wrap', justifyContent:'flex-end' }}>{btns}</div>
+                        </div>
+                      );
+                    })()}
                     {r.formReturned && r.status!=='cancelled' && r.formReturnReason && (
                       <div style={{ fontSize:11, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'4px 8px', display:'inline-block' }}>
                         ↩ 已退回原因：{r.formReturnReason}

@@ -466,6 +466,11 @@ export default function MemberCompetitionsPage() {
                         報名費：NT${r.registrationFee} {r.isEarlyBird?'（早鳥）':''}
                       </div>
                       <div style={{ display:'inline-block', background:ps.bg, color:ps.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:8 }}>{ps.text}</div>
+                      {r.paymentDeadline && r.paymentStatus!=='confirmed' && r.status!=='cancelled' && (() => {
+                        const s = r.paymentDeadline?._seconds ?? r.paymentDeadline?.seconds;
+                        const dl = s ? dayjs(s*1000).format('YYYY-MM-DD HH:mm') : null;
+                        return dl ? <div style={{ fontSize:11, color:'#A32D2D', marginTop:6, textAlign:'left' }}>⏰ 繳款期限：{dl} 前完成繳費（含臨櫃繳款），逾期自動取消</div> : null;
+                      })()}
                       {r.paymentMethod==='cash' && r.status !== 'cancelled' && (
                         <div style={{ fontSize:12, color:'#666', marginTop:8, textAlign:'left' }}>
                           繳費方式：臨櫃繳款
@@ -708,7 +713,11 @@ export default function MemberCompetitionsPage() {
               {step===2 && (<>
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
                   <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>報名費：<strong style={{ color:'#8B1A1A', fontSize:15 }}>NT${feeInfo?.fee}</strong> {feeInfo?.isEarlyBird?'（早鳥）':''}</div>
-                  <div style={{ fontSize:11, color:'#999' }}>請於報名後 3 日內完成繳費，以確保名額</div>
+                  {(() => { const N = selectedComp?.paymentDeadlineDays ?? 3; const dl = dayjs().add(N,'day').format('YYYY-MM-DD'); return (
+                    <div style={{ fontSize:11, color:'#A32D2D', lineHeight:1.6 }}>
+                      ⏰ 繳款期限：請於報名後 {N} 日內（<strong>{dl}</strong> 前）完成繳費（含臨櫃繳款），逾期未繳將自動取消報名並釋出名額。
+                    </div>
+                  ); })()}
                 </div>
                 <div style={{ marginBottom:14 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8, fontWeight:500 }}>付款方式</label>
