@@ -27,6 +27,7 @@ const TAB_GROUPS = [
       { key: 'fallTest',     icon: '🧗', label: '墜落測驗' },
       { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借' },
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
+      { key: 'discountCardValidity', icon: '🎟️', label: '優惠卡期限', superAdminOnly: true },
       { key: 'partnerVendor',icon: '🤝', label: '特約廠商優惠', superAdminOnly: true },
       { key: 'paymentMethods',icon: '💳', label: '付款方式', superAdminOnly: true },
     ],
@@ -143,6 +144,7 @@ export default function SettingsPage() {
     if (activeTab === 'staffAccounts' && isSuperAdmin) { loadStaffList(); loadStationList(); loadDeviceBinding(); loadEmailVerify(); }
     if (activeTab === 'gyms') getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(()=>{});
     if (activeTab === 'bonus' && isSuperAdmin) loadBonus();
+    if (activeTab === 'discountCardValidity' && isSuperAdmin) loadDcv();
     if (activeTab === 'partnerVendor' && isSuperAdmin) loadPartnerVendor();
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
   }, [activeTab]);
@@ -350,6 +352,20 @@ export default function SettingsPage() {
 
   // ─── 紅利（免費入場）使用期限 ────────────────────────────────────
   const [bonus, setBonus] = useState({ validityMonths: 6 });
+  // 新購優惠折扣卡使用期限（''＝無限期）
+  const [dcv, setDcv] = useState({ validityMonths: '' });
+  const [dcvDirty, setDcvDirty] = useState(false);
+  const loadDcv = async () => {
+    try { const res = await client.get('/settings/discount-card-validity'); setDcv({ validityMonths: res.data.validityMonths ?? '' }); setDcvDirty(false); } catch (e) {}
+  };
+  const handleSaveDcv = async () => {
+    try {
+      const raw = dcv.validityMonths;
+      const res = await client.put('/settings/discount-card-validity', { validityMonths: raw === '' ? null : Number(raw) });
+      setDcv({ validityMonths: res.data.validityMonths ?? '' }); setDcvDirty(false);
+      showMsg(res.data.validityMonths ? `已設定 ${res.data.validityMonths} 個月` : '已設定為無限期');
+    } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'err'); }
+  };
   const [bonusDirty, setBonusDirty] = useState(false);
   const loadBonus = async () => {
     try { const res = await client.get('/settings/bonus'); setBonus({ validityMonths: res.data.validityMonths ?? 6 }); setBonusDirty(false); } catch (e) {}
@@ -763,6 +779,29 @@ export default function SettingsPage() {
                 onChange={e => { setBonus({ validityMonths: e.target.value }); setBonusDirty(true); }}
                 style={{ ...s.input, width:'100%' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 1～60 個月，預設 6 個月。</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'discountCardValidity' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🎟️ 新購優惠折扣卡使用期限</span>
+            <SaveButton onSave={handleSaveDcv} isDirty={dcvDirty} label='儲存優惠卡期限' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
+              會員<strong>新購買</strong>優惠折扣卡（櫃檯新增或入場購買）的使用期限。<strong>留空或 0＝無限期</strong>。
+              調整後<strong>只影響之後售出</strong>的卡，既有已售出的卡不受影響（不追溯）。
+              轉入／綁定的優惠卡本就無期限、不受此設定影響。
+            </div>
+            <div style={{ maxWidth:260 }}>
+              <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>使用期限（個月，留空＝無限期）</label>
+              <input type="number" value={dcv.validityMonths} min="0" max="60" placeholder="無限期"
+                onChange={e => { setDcv({ validityMonths: e.target.value }); setDcvDirty(true); }}
+                style={{ ...s.input, width:'100%' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:6 }}>目前：{dcv.validityMonths ? `${dcv.validityMonths} 個月` : '無限期'}。可填 1～60，或留空／0 為無限期。</div>
             </div>
           </div>
         </div>
