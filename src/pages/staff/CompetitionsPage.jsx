@@ -401,6 +401,7 @@ export default function CompetitionsPage() {
                       </div>
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                         <Tag type={ps.type}>{ps.label}</Tag>
+                        {r.paymentMethod==='cash' ? <Tag type="blue">臨櫃繳款</Tag> : r.paymentMethod==='transfer' ? <Tag type="gray">轉帳</Tag> : null}
                         {r.isComplete ? <Tag type="ok">已簽署</Tag> : <Tag type="warn">待法定代理人簽</Tag>}
                         {r.formReturned && r.status!=='cancelled' && <Tag type="warn">已退回待修改</Tag>}
                         {r.formRejected && r.status==='cancelled' && <Tag type="red">已駁回</Tag>}
