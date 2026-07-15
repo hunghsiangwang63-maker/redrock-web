@@ -1152,27 +1152,37 @@ export default function CheckinPage() {
                   <XAxis dataKey="day" tick={{ fontSize:9, fill:'#bbb' }} interval={4} tickLine={false} axisLine={{ stroke:'#E8D5D5' }} />
                   <YAxis tick={{ fontSize:9, fill:'#bbb' }} width={26} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={{ fontSize:11, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'4px 8px' }} labelFormatter={d => `${d} 日`} />
-                  <Line type="monotone" dataKey="previous" name={`上月（${trend.prevLabel}）`} stroke="#C9BFBF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
                   {isSuperAdmin ? (
                     <>
+                      {/* 上月：兩館淡色細虛線（畫在後、當背景參考）*/}
+                      <Line type="monotone" dataKey="hsinchuPrev" name="上月新竹" stroke="#E0A6A6" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls isAnimationActive={false} />
+                      <Line type="monotone" dataKey="shilinPrev" name="上月士林" stroke="#A6C3E5" strokeWidth={1} strokeDasharray="3 3" dot={false} connectNulls isAnimationActive={false} />
+                      {/* 本月：兩館實線 */}
                       <Line type="monotone" dataKey="hsinchu" name="新竹館" stroke="#8B1A1A" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
                       <Line type="monotone" dataKey="shilin" name="士林館" stroke="#185FA5" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
                     </>
                   ) : (
-                    <Line type="monotone" dataKey="current" name={`本月（${trend.curLabel}）`} stroke={targetGymId === 'gym-shilin' ? '#185FA5' : '#8B1A1A'} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+                    <>
+                      <Line type="monotone" dataKey="previous" name={`上月（${trend.prevLabel}）`} stroke="#C9BFBF" strokeWidth={1.5} dot={false} connectNulls isAnimationActive={false} />
+                      <Line type="monotone" dataKey="current" name={`本月（${trend.curLabel}）`} stroke={targetGymId === 'gym-shilin' ? '#185FA5' : '#8B1A1A'} strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+                    </>
                   )}
                 </LineChart>
               </ResponsiveContainer>
-              <div style={{ display:'flex', gap:14, justifyContent:'center', fontSize:10, color:'#777', marginTop:2 }}>
+              <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap', fontSize:10, color:'#777', marginTop:2 }}>
                 {isSuperAdmin ? (
                   <>
                     <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#8B1A1A', display:'inline-block' }} />新竹館</span>
                     <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#185FA5', display:'inline-block' }} />士林館</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:0, borderTop:'1.5px dashed #E0A6A6', display:'inline-block' }} />上月新竹</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:0, borderTop:'1.5px dashed #A6C3E5', display:'inline-block' }} />上月士林</span>
                   </>
                 ) : (
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background: targetGymId === 'gym-shilin' ? '#185FA5' : '#8B1A1A', display:'inline-block' }} />本月（{trend.curLabel}）</span>
+                  <>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background: targetGymId === 'gym-shilin' ? '#185FA5' : '#8B1A1A', display:'inline-block' }} />本月（{trend.curLabel}）</span>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#C9BFBF', display:'inline-block' }} />上月（{trend.prevLabel}）</span>
+                  </>
                 )}
-                <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}><span style={{ width:12, height:2, background:'#C9BFBF', display:'inline-block' }} />上月（{trend.prevLabel}）</span>
               </div>
             </>
           ) : (
