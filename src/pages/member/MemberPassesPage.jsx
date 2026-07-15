@@ -319,7 +319,8 @@ export default function MemberPassesPage() {
   const [bonuses, setBonuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('passes');
-  const [xferIn, setXferIn] = useState([]);   // 待接收的卡片移轉
+  const [xferIn, setXferIn] = useState([]);   // 待接收的卡片移轉（優惠卡/黑卡次數）
+  const [tXferIn, setTXferIn] = useState([]); // 待接收的整張券移轉（紅利/單次券/體驗券）
   const [xferOut, setXferOut] = useState([]); // 我送出的移轉中
   const [xferBusy, setXferBusy] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
@@ -418,12 +419,14 @@ export default function MemberPassesPage() {
   const loadTransfers = async () => {
     if (!member) return;
     try {
-      const [inc, out] = await Promise.all([
+      const [inc, out, tPend] = await Promise.all([
         memberClient.get('/cards/transfers/incoming').catch(() => ({ data: { transfers: [] } })),
         memberClient.get('/cards/transfers/outgoing').catch(() => ({ data: { transfers: [] } })),
+        memberClient.get('/ticket-transfers/pending').catch(() => ({ data: { transfers: [] } })),
       ]);
       setXferIn(inc.data.transfers || []);
       setXferOut(out.data.transfers || []);
+      setTXferIn(tPend.data.transfers || []);
     } catch (e) {}
   };
   // 移轉/接收後重新載入：重跑完整合併（含子女），避免只刷新本人卡而漏掉家庭成員票券
@@ -438,6 +441,19 @@ export default function MemberPassesPage() {
     setXferBusy(true);
     try { await memberClient.post(`/cards/transfers/${t.id}/cancel`, {}); setMsg('已取消移轉，次數已回沖'); await loadTransfers(); await reloadCards(); }
     catch (e) { setMsg(e?.response?.data?.message || '取消失敗'); }
+    finally { setXferBusy(false); }
+  };
+  const ticketTypeLabel = (ty) => ({ bonus:'紅利入場', single_entry:'單次入場券', discount_card:'優惠卡', legacy_discount_card:'舊優惠卡', black_card:'黑卡' }[ty] || '票券');
+  const acceptTicketXfer = async (t) => {
+    setXferBusy(true);
+    try { await memberClient.post(`/ticket-transfers/${t.id}/accept`, { confirmedExpiry: 'true' }); setMsg('已接收此票券'); await loadTransfers(); await reloadCards(); }
+    catch (e) { setMsg(e?.response?.data?.message || '接收失敗'); }
+    finally { setXferBusy(false); }
+  };
+  const rejectTicketXfer = async (t) => {
+    setXferBusy(true);
+    try { await memberClient.post(`/ticket-transfers/${t.id}/reject`, {}); setMsg('已拒絕此移轉'); await loadTransfers(); }
+    catch (e) { setMsg(e?.response?.data?.message || '拒絕失敗'); }
     finally { setXferBusy(false); }
   };
   const cardLabel = (ty) => ty === 'black' ? '黑卡' : '優惠卡';
@@ -764,6 +780,27 @@ export default function MemberPassesPage() {
               </div>
               <button onClick={() => acceptXfer(t)} disabled={xferBusy}
                 style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>接收</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 待接收的票券移轉（紅利/單次券/體驗券）*/}
+      {tXferIn.length > 0 && (
+        <div style={{ margin:'12px 16px 0' }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>🎁 待接收的票券移轉</div>
+          {tXferIn.map(t => (
+            <div key={t.id} style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+              <div style={{ fontSize:13, color:'#1a1a1a' }}>
+                <div style={{ fontWeight:600 }}>{ticketTypeLabel(t.ticketType)}</div>
+                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>來自 {t.fromMemberName || '會員'} · 請於 {xferDeadline(t.expiresAt?._seconds ? new Date(t.expiresAt._seconds*1000).toISOString() : t.expiresAt)} 前接收</div>
+              </div>
+              <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                <button onClick={() => rejectTicketXfer(t)} disabled={xferBusy}
+                  style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>拒絕</button>
+                <button onClick={() => acceptTicketXfer(t)} disabled={xferBusy}
+                  style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>接收</button>
+              </div>
             </div>
           ))}
         </div>
