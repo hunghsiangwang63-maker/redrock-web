@@ -30,7 +30,7 @@ export default function MemberCompetitionsPage() {
     } catch (e) { showMsg(e.response?.data?.message || '無法產生報到 QR', 'red'); }
   };
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('open'); // open | my
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'my' ? 'my' : 'open'); // open | my（退回通知帶 ?tab=my 直接開我的報名）
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
 
   // 報名 modal
