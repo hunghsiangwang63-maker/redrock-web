@@ -4,6 +4,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { getFallTestSettings, signFallTestAgreement, getFallTestSignature, getMyFallTestStatus } from '../../api/fallTests';
 import SignaturePad from '../../components/SignaturePad';
 import dayjs from 'dayjs';
+import { detectInAppBrowser } from '../../utils/inAppBrowser';
 import { isMinor } from '../../utils/age';
 
 const extractYoutubeId = (url) => {
@@ -38,6 +39,8 @@ export default function MemberFallTestPage() {
   const [view, setView] = useState('main'); // 'main' | 'sign' | 'copy'
   const [lang, setLang] = useState('zh');
   const [playerReady, setPlayerReady] = useState(false);
+  const inAppBrowser = detectInAppBrowser(); // in-app WebView（LINE/FB/IG…）影片進度常無法追蹤
+  const [linkCopied, setLinkCopied] = useState(false);
   const [watchPercent, setWatchPercent] = useState(0);
   const [agreedParagraphs, setAgreedParagraphs] = useState(new Set());
   const [loading, setLoading] = useState(false);
@@ -228,6 +231,17 @@ export default function MemberFallTestPage() {
         {videoId && (
           <div style={s.card}>
             <div style={{ ...s.sectionTitle, marginBottom: 12 }}>📹 請先觀看說明影片</div>
+            {inAppBrowser.inApp && (
+              <div style={{ background: '#FEF3E2', border: '1px solid #F0C889', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#8A5A00', lineHeight: 1.6, textAlign: 'left' }}>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠ 請改用 Safari／Chrome 開啟</div>
+                <div>您目前是從 <b>{inAppBrowser.name}</b> 內建瀏覽器開啟，影片的觀看進度可能<b>無法正常記錄</b>（進度條不會前進，導致無法簽署）。請複製網址、改用手機的 <b>Safari 或 Chrome</b> 開啟本頁。</div>
+                <button type="button"
+                  onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2500); } catch { setLinkCopied(false); } }}
+                  style={{ marginTop: 10, height: 34, padding: '0 16px', borderRadius: 8, background: '#8A5A00', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  {linkCopied ? '✓ 已複製，請貼到瀏覽器' : '📋 複製本頁網址'}
+                </button>
+              </div>
+            )}
             <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 8 }}>
               <div id="falltest-player" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
             </div>
