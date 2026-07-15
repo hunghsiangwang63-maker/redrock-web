@@ -420,9 +420,13 @@ export default function CompetitionsPage() {
                       </div>
                     )}
                     {r.status !== 'cancelled' && (
-                      <div style={{ display:'flex', gap:8, marginTop:10, justifyContent:'flex-end' }}>
-                        <button onClick={()=>{ setFormAction({type:'return',reg:r}); setFormReason(''); }}
-                          style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#854F0B', border:'0.5px solid #D6A94E', fontSize:12, cursor:'pointer' }}>退回修改</button>
+                      <div style={{ display:'flex', gap:8, marginTop:10, justifyContent:'flex-end', alignItems:'center' }}>
+                        {r.formReturned ? (
+                          <span style={{ fontSize:11, color:'#854F0B', marginRight:'auto' }}>已退回・等待會員修正</span>
+                        ) : (
+                          <button onClick={()=>{ setFormAction({type:'return',reg:r}); setFormReason(''); }}
+                            style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#854F0B', border:'0.5px solid #D6A94E', fontSize:12, cursor:'pointer' }}>退回修改</button>
+                        )}
                         <button onClick={()=>{ setFormAction({type:'reject',reg:r}); setFormReason(''); }}
                           style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>駁回取消</button>
                       </div>
