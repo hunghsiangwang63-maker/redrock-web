@@ -92,7 +92,7 @@ export default function MemberFallTestPage() {
     if (!document.getElementById('falltest-player')) return;
     playerRef.current = new window.YT.Player('falltest-player', {
       videoId,
-      playerVars: { rel: 0, modestbranding: 1 },
+      playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
       events: {
         onReady: (e) => { setPlayerReady(true); },
         onStateChange: (e) => {
