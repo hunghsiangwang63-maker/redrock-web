@@ -98,7 +98,7 @@ export default function PendingTasksPage() {
     course_adjustment:   isManager || isOpStation,     // requireManagerOrStation
     pass_adjustment:     isManager || isOpStation,
     team_member:         isManager || isOpStation,
-    competition_payment: isManager,                    // checkPermission('competitions.manage')
+    competition_payment: true,                         // 現金→值班/管理員、轉帳→管理員（per-task 分支判斷，對齊後端）
     competition_refund:  isManager,
     ticket_approval:     isManager,                    // checkPermission('passes.approve')
     fall_test_pending:   true,                          // 站台/值班/員工皆可登記（後端 authenticate）
@@ -173,8 +173,8 @@ export default function PendingTasksPage() {
   const renderActions = (task) => {
     const busy = busyId === task.targetId;
     // 收款確認權限：現金→值班 operator 或管理員；轉帳→僅管理員（對齊後端）
-    if (task.type === 'transfer_confirm') {
-      const isCash = task.method === 'cash';
+    if (task.type === 'transfer_confirm' || task.type === 'competition_payment') {
+      const isCash = task.type === 'competition_payment' ? task.record?.paymentMethod === 'cash' : task.method === 'cash';
       const allowed = isCash ? (isOpStation || isManager) : isManager;
       if (!allowed) return <span style={{ fontSize:11, color:'#bbb', whiteSpace:'nowrap' }}>{isCash ? '需值班或管理員確認' : '需管理員確認'}</span>;
     }
