@@ -337,10 +337,11 @@ export default function GymsPage({ embedded = false }) {
               <select value={annForm.type} onChange={e => setAnnForm(p => ({...p, type: e.target.value}))}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
                 <option value="general">一般公告</option>
-                <option value="closure">休館</option>
-                <option value="special_hours">特殊時間</option>
+                {!annOnly && <option value="closure">休館</option>}
+                {!annOnly && <option value="special_hours">特殊時間</option>}
                 <option value="route_change">路線更換</option>
               </select>
+              {annOnly && <div style={{ fontSize:11, color:'#999', marginTop:4 }}>休館／特殊營業時間公告請由管理員發布</div>}
             </div>
 
             {annForm.type === 'closure' && (
