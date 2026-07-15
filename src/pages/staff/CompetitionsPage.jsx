@@ -184,6 +184,7 @@ export default function CompetitionsPage() {
   const payStatusInfo = (r) => {
     if (r.paymentStatus==='confirmed') return { type:'ok', label:'已付款' };
     if (r.paymentStatus==='refunded') return { type:'gray', label:'已退費' };
+    if (r.paymentStatus==='transfer_rejected') return { type:'red', label:'已退回待補正' };
     return { type:'warn', label:'待付款' };
   };
 
@@ -398,6 +399,11 @@ export default function CompetitionsPage() {
                     {r.paymentStatus==='confirmed' && (
                       <div style={{ fontSize:11, color:'#2D7D46', marginTop:8 }}>
                         已確認收款 NT${r.paidAmount} ｜ 確認人：{r.paidConfirmedByName||'—'}
+                      </div>
+                    )}
+                    {r.staffNote && (
+                      <div style={{ fontSize:11, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'4px 8px', display:'inline-block' }}>
+                        📝 員工備註：{r.staffNote}
                       </div>
                     )}
                   </div>

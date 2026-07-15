@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Modal from '../Modal';
-import { confirmCompetitionPayment, refundCompetitionRegistration } from '../../api/competitions';
+import { confirmCompetitionPayment, rejectCompetitionPayment, refundCompetitionRegistration } from '../../api/competitions';
 
 const inp = { width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const lbl = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
@@ -11,6 +11,8 @@ const lbl = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 export default function CompetitionActionModal({ action, reg, onClose, onDone }) {
   const [amount, setAmount] = useState(action === 'pay' ? (reg.registrationFee?.toString() || '') : '0');
   const [reason, setReason] = useState('');
+  const [staffNote, setStaffNote] = useState(reg.staffNote || ''); // 員工內部備註（報名者看不到）
+  const [rejectReason, setRejectReason] = useState('');            // 退回原因（報名者看得到，必填）
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -18,13 +20,23 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
     setSaving(true); setError('');
     try {
       if (action === 'pay') {
-        await confirmCompetitionPayment(reg.id, { amount: Number(amount) });
+        await confirmCompetitionPayment(reg.id, { amount: Number(amount), staffNote });
         onDone('已確認收款');
       } else {
         await refundCompetitionRegistration(reg.id, { refundAmount: Number(amount), reason });
         onDone('退費已處理');
       }
     } catch (err) { setError(err.response?.data?.message || '操作失敗'); setSaving(false); }
+  };
+
+  // 退回：報名者需重新填寫繳費資訊（原因必填、會通知報名者；員工備註一併存檔）
+  const submitReject = async () => {
+    if (!rejectReason.trim()) { setError('退回需填寫原因（報名者會看到）'); return; }
+    setSaving(true); setError('');
+    try {
+      await rejectCompetitionPayment(reg.id, { reason: rejectReason.trim(), staffNote });
+      onDone('已退回，報名者需重新填寫繳費資訊');
+    } catch (err) { setError(err.response?.data?.message || '退回失敗'); setSaving(false); }
   };
 
   return (
@@ -58,6 +70,12 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
           <input style={inp} value={reason} onChange={e => setReason(e.target.value)}/>
         </div>
       )}
+      {action === 'pay' && (
+        <div style={{ marginBottom:14 }}>
+          <label style={lbl}>員工備註（內部用，報名者看不到）</label>
+          <input style={inp} value={staffNote} onChange={e => setStaffNote(e.target.value)} placeholder="選填"/>
+        </div>
+      )}
       {error && <div style={{ color:'#A32D2D', fontSize:12, marginBottom:10 }}>{error}</div>}
       <div style={{ display:'flex', gap:8 }}>
         <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
@@ -66,6 +84,19 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
           {saving ? '處理中...' : action === 'pay' ? '確認收款' : '確認退費'}
         </button>
       </div>
+      {action === 'pay' && (
+        <div style={{ marginTop:16, paddingTop:14, borderTop:'0.5px solid #F0E5E5' }}>
+          <div style={{ fontSize:12, fontWeight:600, color:'#A32D2D', marginBottom:8 }}>退回（報名者需重新填寫繳費資訊）</div>
+          <div style={{ marginBottom:10 }}>
+            <label style={lbl}>退回原因（必填，報名者會看到並收到通知）</label>
+            <input style={inp} value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="例：查無此筆匯款 / 金額不符"/>
+          </div>
+          <button onClick={submitReject} disabled={saving}
+            style={{ width:'100%', height:38, borderRadius:9, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            {saving ? '處理中...' : '退回報名者重新填寫'}
+          </button>
+        </div>
+      )}
     </Modal>
   );
 }
