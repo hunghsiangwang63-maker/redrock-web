@@ -839,14 +839,43 @@ export default function MembersPage() {
             {/* 有效定期票 */}
             <div style={{ padding:'10px 0', borderBottom:'1px solid #F5EFEF' }}>
               <div style={{ fontSize:11, color:'#999', marginBottom:6, fontWeight:600, letterSpacing:.5 }}>有效票券</div>
-              {detail.activePasses?.length > 0
-                ? detail.activePasses.map(p => (
-                    <div key={p.id} style={{ fontSize:12, background:'#F5F9F5', border:'1px solid #B3DEC0', borderRadius:6, padding:'6px 10px', marginBottom:6 }}>
-                      <div style={{ fontWeight:500, color:'#2D7D46' }}>{p.passTypeName}</div>
+              {(() => {
+                const passes = detail.activePasses || [];
+                const cards = detail.activeCards || [];
+                const tickets = detail.activeSingleTickets || [];
+                const bonuses = detail.activeBonuses || [];
+                const kindLabel = { discount:'優惠卡', legacy:'舊折扣卡', black:'黑卡' };
+                const ticketLabel = { single:'單次入場券', single_ticket:'單次入場券', experience:'體驗券', trial:'試上券' };
+                const box = (bg, bd, fg) => ({ fontSize:12, background:bg, border:'1px solid '+bd, borderRadius:6, padding:'6px 10px', marginBottom:6 });
+                if (!passes.length && !cards.length && !tickets.length && !bonuses.length)
+                  return <div style={{ fontSize:12, color:'#999' }}>無有效票券</div>;
+                return (<>
+                  {passes.map(p => (
+                    <div key={p.id} style={box('#F5F9F5','#B3DEC0')}>
+                      <div style={{ fontWeight:500, color:'#2D7D46' }}>🎫 {p.passTypeName}</div>
                       <div style={{ color:'#6b6b6b', marginTop:2 }}>到期 {p.endDate}</div>
                     </div>
-                  ))
-                : <div style={{ fontSize:12, color:'#999' }}>無有效票券</div>}
+                  ))}
+                  {cards.map(c => (
+                    <div key={c.id} style={box('#FBF5F5','#E8D5D5')}>
+                      <div style={{ fontWeight:500, color:'#8B1A1A' }}>{c.kind==='legacy'?'🎟️ 舊折扣卡':c.kind==='black'?'🖤 黑卡':'🎟️ 優惠卡'}{c.source==='transferred'?'（轉入）':''}</div>
+                      <div style={{ color:'#6b6b6b', marginTop:2 }}>剩 {c.remainingCredits} {c.kind==='legacy'?'次':'格'} · 到期 {c.expiresAt || '無期限'}</div>
+                    </div>
+                  ))}
+                  {tickets.map(t => (
+                    <div key={t.id} style={box('#E6F1FB','#B5D4F4')}>
+                      <div style={{ fontWeight:500, color:'#185FA5' }}>🎟️ {ticketLabel[t.ticketType] || '單次入場券'}</div>
+                      <div style={{ color:'#6b6b6b', marginTop:2 }}>{t.validDate ? '限當日 '+t.validDate : (t.expiresAt ? '有效至 '+t.expiresAt : '有效')}</div>
+                    </div>
+                  ))}
+                  {bonuses.map(b => (
+                    <div key={b.id} style={box('#FFF8E6','#F0D890')}>
+                      <div style={{ fontWeight:500, color:'#8A5A00' }}>🎁 紅利（免費入場一次）</div>
+                      <div style={{ color:'#6b6b6b', marginTop:2 }}>到期 {b.expiresAt || '無期限'}</div>
+                    </div>
+                  ))}
+                </>);
+              })()}
             </div>
 
             {/* 子會員 */}
