@@ -13,6 +13,7 @@ const TAB_GROUPS = [
     group: '場館與帳號',
     items: [
       { key: 'gyms',         icon: '🏠', label: '場館設置',   superAdminOnly: true },
+      { key: 'announcements', icon: '📢', label: '場館公告',  ownGymAnnounce: true },
       { key: 'staffAccounts',icon: '👤', label: '員工帳號',   superAdminOnly: true },
       { key: 'devices',      icon: '📱', label: '裝置審核',   adminOnly: true },
       { key: 'transition',   icon: '🔄', label: '系統轉換',   adminOnly: true },
@@ -34,8 +35,11 @@ const TAB_GROUPS = [
 const TAB_ITEMS = TAB_GROUPS.flatMap(g => g.items);
 
 export default function SettingsPage() {
-  const { staff } = useAuth();
-  const isSuperAdmin = staff?.role === 'super_admin';
+  const { staff, operator } = useAuth();
+  const _role = operator?.role || staff?.role;
+  const isSuperAdmin = _role === 'super_admin';
+  // 場館公告分頁：非 super 的館別管理員或值班 operator 可見（super 走「場館設置」）
+  const canOwnGymAnnounce = !isSuperAdmin && (_role === 'gym_manager' || !!operator);
   const [gyms, setGyms] = useState([]);
   const [showAddGym, setShowAddGym] = useState(false);
   const [newGymName, setNewGymName] = useState('');
@@ -550,7 +554,7 @@ export default function SettingsPage() {
       <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
         {TAB_GROUPS.map(group => {
           const visible = group.items.filter(t =>
-            (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin)
+            (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce)
           );
           if (!visible.length) return null;
           return (
@@ -1263,6 +1267,13 @@ export default function SettingsPage() {
             <div style={{ fontSize:14, fontWeight:600, marginBottom:14, paddingBottom:8, borderBottom:'0.5px solid #E8D5D5' }}>場館資訊管理</div>
             <GymsPage embedded />
           </div>
+        </div>
+      )}
+
+      {activeTab === 'announcements' && canOwnGymAnnounce && (
+        <div style={s.card}>
+          <div style={s.cardHead}><span>📢 場館公告（本館輪播／一般公告）</span></div>
+          <div style={{ padding:'4px 0' }}><GymsPage embedded /></div>
         </div>
       )}
 

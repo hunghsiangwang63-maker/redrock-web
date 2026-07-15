@@ -24,8 +24,12 @@ const Tag = ({ type='ok', children }) => {
 };
 
 export default function GymsPage({ embedded = false }) {
-  const { staff } = useAuth();
-  const isSuperAdmin = staff?.role === 'super_admin';
+  const { staff, operator, activeGymId } = useAuth();
+  const role = operator?.role || staff?.role;
+  const isSuperAdmin = role === 'super_admin';
+  const myGymId = activeGymId;
+  // 非 super_admin（館別管理員／值班）：只管自己館的公告，其餘場館設定隱藏
+  const annOnly = !isSuperAdmin;
   const [gyms, setGyms] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -60,9 +64,11 @@ export default function GymsPage({ embedded = false }) {
     loadBank();
     Promise.all([getGyms(), getAnnouncements()])
       .then(([gRes, aRes]) => {
-        setGyms(gRes.data.gyms || []);
+        const gs = gRes.data.gyms || [];
+        setGyms(gs);
         setAnnouncements(aRes.data.announcements || []);
-        if (gRes.data.gyms?.length > 0) setSelected(gRes.data.gyms[0]);
+        const mine = isSuperAdmin ? gs : gs.filter(g => g.id === myGymId);
+        if (mine.length > 0) setSelected(mine[0]);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -193,7 +199,7 @@ export default function GymsPage({ embedded = false }) {
   return (
     <div style={{ padding:20, background:'#F7F3F3', minHeight:'100vh' }}>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-        {gyms.map(g => (
+        {(isSuperAdmin ? gyms : gyms.filter(g => g.id === myGymId)).map(g => (
           <div key={g.id} onClick={() => setSelected(g)}
             style={{ background:'#fff', borderRadius:12, border:`1.5px solid ${selected?.id===g.id ? '#8B1A1A' : '#E8D5D5'}`, padding:16, cursor:'pointer', transition:'border-color .15s' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
@@ -227,9 +233,9 @@ export default function GymsPage({ embedded = false }) {
         ))}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-        {/* 標準營業時間 */}
-        {selected && (
+      <div style={{ display:'grid', gridTemplateColumns: annOnly ? '1fr' : '1fr 1fr', gap:16 }}>
+        {/* 標準營業時間（僅 super_admin）*/}
+        {selected && !annOnly && (
           <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
               <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>
@@ -282,8 +288,8 @@ export default function GymsPage({ embedded = false }) {
           ))}
         </div>
 
-        {/* 銀行轉帳帳號 */}
-        {selected && (
+        {/* 銀行轉帳帳號（僅 super_admin）*/}
+        {selected && !annOnly && (
           <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
               <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>
