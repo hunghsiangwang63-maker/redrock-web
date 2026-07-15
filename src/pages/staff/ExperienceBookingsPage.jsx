@@ -188,7 +188,7 @@ export default function ExperienceBookingsPage() {
 
       {/* Tabs */}
       <SegmentedTabs
-        tabs={[{key:'bookings',label:'預約管理'},{key:'history',label:'📁 歷史名冊'},{key:'settings',label:'⚙ 課程設定'}]}
+        tabs={[{key:'bookings',label:'預約管理'},{key:'history',label:'📁 歷史名冊'},...(isAdmin?[{key:'settings',label:'⚙ 課程設定'}]:[])]}
         value={tab}
         onChange={k=>{ setTab(k); if(k==='settings') loadSettings(); if(k==='history') loadHistory(); }}
         style={{ marginBottom:16 }} />
@@ -344,7 +344,7 @@ export default function ExperienceBookingsPage() {
       )}
 
       {/* ── 課程設定 ── */}
-      {tab==='settings' && (
+      {tab==='settings' && isAdmin && (
         <div>
           {!settings && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
           {settings && (
