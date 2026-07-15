@@ -57,6 +57,26 @@ export default function LoginPage() {
     } finally { setLoading(false); }
   };
 
+  // 沒收到驗證信 → 重寄（重打登入：後端沿用同一驗證單、重寄同一組驗證碼）
+  const [resendMsg, setResendMsg] = useState('');
+  const handleResendOtp = async () => {
+    setError(''); setResendMsg('');
+    try {
+      if (pendingVerification?.forMode === 'station') {
+        await client.post('/stations/login', { email, password, deviceToken: getDeviceToken() });
+      } else {
+        await staffLogin(email, password);
+      }
+    } catch (err) {
+      if (err.response?.data?.error === 'DEVICE_VERIFICATION_REQUIRED') {
+        setPendingVerification({ verificationId: err.response.data.verificationId, forMode: pendingVerification?.forMode || 'staff' });
+        setResendMsg('驗證碼已重新寄出，請至信箱查收（10 分鐘內有效）');
+        return;
+      }
+      setError(err.response?.data?.message || '重寄失敗，請返回重新登入');
+    }
+  };
+
   const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError(''); setOtpLoading(true);
@@ -113,8 +133,15 @@ export default function LoginPage() {
             <button type="submit" disabled={otpLoading} style={s.btn(otpLoading)}>
               {otpLoading ? '驗證中...' : '確認驗證碼'}
             </button>
-            <button type="button" onClick={() => { setPendingVerification(null); setOtpCode(''); setError(''); }}
-              style={{ width:'100%', marginTop:10, height:36, background:'none', border:'none', color:'#999', fontSize:12, cursor:'pointer' }}>
+            {resendMsg && (
+              <div style={{ background:'#EAF6EC', border:'0.5px solid #BFE3C6', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#2E7D3A', marginTop:10 }}>{resendMsg}</div>
+            )}
+            <button type="button" onClick={handleResendOtp}
+              style={{ width:'100%', marginTop:10, height:36, background:'none', border:'none', color:'#8B1A1A', fontSize:12, cursor:'pointer', textDecoration:'underline' }}>
+              沒收到驗證信？重新發送
+            </button>
+            <button type="button" onClick={() => { setPendingVerification(null); setOtpCode(''); setError(''); setResendMsg(''); }}
+              style={{ width:'100%', marginTop:4, height:36, background:'none', border:'none', color:'#999', fontSize:12, cursor:'pointer' }}>
               返回重新登入
             </button>
           </form>
