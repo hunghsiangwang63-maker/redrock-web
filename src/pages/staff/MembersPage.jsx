@@ -44,13 +44,17 @@ function MemberRecords({ records }) {
   const tabs = [
     { key:'checkins', icon:'🚪', label:'入場', count:(r.checkins||[]).length },
     { key:'passes',   icon:'🎫', label:'定期票', count:(r.passes||[]).length },
+    { key:'discountCards', icon:'🎟️', label:'優惠卡', count:(r.discountCards||[]).length },
+    { key:'blackCards', icon:'🖤', label:'黑卡', count:(r.blackCards||[]).length },
+    { key:'bonuses', icon:'🎁', label:'紅利', count:(r.bonuses||[]).length },
     { key:'courses',  icon:'📚', label:'課程', count:(r.courses||[]).length },
     { key:'competitions', icon:'🏆', label:'比賽', count:(r.competitions||[]).length },
     { key:'adjustments', icon:'📋', label:'退費', count:(r.adjustments||[]).length },
   ];
+  const fmtExp = (v) => v?._seconds ? dayjs(v._seconds*1000).format('YYYY/MM/DD') : (v ? dayjs(v).format('YYYY/MM/DD') : '無期限');
   return (
     <div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:4, marginBottom:12 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:4, marginBottom:12 }}>
         {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ height:36, borderRadius:8, border:tab===t.key?'1.5px solid #8B1A1A':'1.5px solid #EDE5E5', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:10, cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:1 }}>
@@ -80,6 +84,42 @@ function MemberRecords({ records }) {
               <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:p.status==='active'?'#E6F4EB':'#F0EDED', color:p.status==='active'?'#2D7D46':'#999' }}>{p.status==='active'?'使用中':'已到期'}</span>
             </div>
             <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{p.startDate} ~ {p.endDate}</div>
+          </div>
+        ))}
+      </div>}
+      {tab==='discountCards' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.discountCards||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無優惠卡紀錄</div>}
+        {(r.discountCards||[]).map((c,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between' }}>
+              <div style={{ fontSize:12, fontWeight:500 }}>{c._kind==='legacy'?'實體優惠卡':'優惠卡'}{c.source==='transferred'?'（轉入）':''}{c.barcode?' · '+c.barcode:''}</div>
+              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:(c.remainingCredits>0 && c.isActive!==false)?'#E6F4EB':'#F0EDED', color:(c.remainingCredits>0 && c.isActive!==false)?'#2D7D46':'#999' }}>剩 {c.remainingCredits ?? 0}/{c.originalCredits ?? '—'} 次</span>
+            </div>
+            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>到期 {fmtExp(c.expiresAt)}</div>
+          </div>
+        ))}
+      </div>}
+      {tab==='blackCards' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.blackCards||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無黑卡紀錄</div>}
+        {(r.blackCards||[]).map((c,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px' }}>
+            <div style={{ display:'flex', justifyContent:'space-between' }}>
+              <div style={{ fontSize:12, fontWeight:500 }}>黑卡{c.source==='transferred'?'（轉入）':''}{c.barcode?' · '+c.barcode:''}</div>
+              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:(c.remainingCredits>0 && c.isActive!==false)?'#E6F4EB':'#F0EDED', color:(c.remainingCredits>0 && c.isActive!==false)?'#2D7D46':'#999' }}>剩 {c.remainingCredits ?? 0}/{c.originalCredits ?? '—'} 次</span>
+            </div>
+            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>到期 {fmtExp(c.expiresAt)}</div>
+          </div>
+        ))}
+      </div>}
+      {tab==='bonuses' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.bonuses||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無紅利紀錄</div>}
+        {(r.bonuses||[]).map((b,i) => (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize:12, fontWeight:500 }}>紅利入場（免費一次）</div>
+              <div style={{ fontSize:11, color:'#999' }}>到期 {b.expiresAtFormatted || fmtExp(b.expiresAt)}</div>
+            </div>
+            <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:b.isUsed?'#F0EDED':'#E6F4EB', color:b.isUsed?'#999':'#2D7D46' }}>{b.isUsed?'已使用':'可使用'}</span>
           </div>
         ))}
       </div>}
@@ -239,19 +279,32 @@ export default function MembersPage() {
   const loadMemberRecords = async (memberId) => {
     setRecordsLoading(true);
     try {
-      const [checkins, passes, courses, comps, adjs] = await Promise.allSettled([
+      const [checkins, passes, courses, comps, adjs, disc, legacyDisc, black, bonus] = await Promise.allSettled([
         client.get('/checkin/history', { params: { memberId, limit:30 } }),
         client.get('/passes/member/' + memberId),
         client.get('/courses/member/' + memberId + '/enrollments'),
         client.get('/competitions/registrations/member/' + memberId),
         client.get('/course-adjustments/member/' + memberId),
+        client.get('/cards/discount/member/' + memberId),
+        client.get('/cards/legacy-discount/member/' + memberId),
+        client.get('/cards/black/member/' + memberId),
+        client.get('/cards/bonus/member/' + memberId),
       ]);
+      const ok = (x, key) => x.status==='fulfilled' ? (x.value.data[key] || []) : [];
+      // 優惠卡：新優惠卡 + 舊優惠卡（實體）合併，各標來源
+      const discountCards = [
+        ...ok(disc, 'cards').map(c => ({ ...c, _kind:'discount' })),
+        ...ok(legacyDisc, 'cards').map(c => ({ ...c, _kind:'legacy' })),
+      ];
       setMemberRecords({
         checkins: checkins.status==='fulfilled' ? (checkins.value.data.checkIns || checkins.value.data || []) : [],
         passes: passes.status==='fulfilled' ? (passes.value.data.passes || []) : [],
         courses: courses.status==='fulfilled' ? (courses.value.data.enrollments || []) : [],
         competitions: comps.status==='fulfilled' ? (comps.value.data.registrations || []) : [],
         adjustments: adjs.status==='fulfilled' ? (adjs.value.data.requests || []) : [],
+        discountCards,
+        blackCards: ok(black, 'cards'),
+        bonuses: ok(bonus, 'bonuses'),
       });
     } catch(e) { setMemberRecords(null); }
     finally { setRecordsLoading(false); }
