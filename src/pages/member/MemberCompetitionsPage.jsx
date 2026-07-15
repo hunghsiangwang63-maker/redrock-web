@@ -50,14 +50,17 @@ export default function MemberCompetitionsPage() {
   const [cancelling, setCancelling] = useState(false);
 
   const handleCancel = async () => {
-    if (!refundBankCode.trim() || !refundAccount.trim()) {
+    // 已繳費才是「申請退費」→ 需填退費帳號；未繳費是純「取消報名」→ 不需退費資料
+    const isPaid = cancelModal?.paymentStatus === 'confirmed';
+    if (isPaid && (!refundBankCode.trim() || !refundAccount.trim())) {
       showMsg('請填寫退費銀行代碼與帳號', 'red'); return;
     }
     setCancelling(true);
     try {
       const res = await cancelRegistration(cancelModal.id, {
         reason: cancelReason,
-        refundBankName, refundBankCode, refundAccount, refundAccountName,
+        // 未繳費取消不帶退費帳號（後端亦不標記 refundRequested）
+        ...(isPaid ? { refundBankName, refundBankCode, refundAccount, refundAccountName } : {}),
       });
       showMsg(res.data.message || '已取消報名，名額已釋出');
       setCancelModal(null);
@@ -281,8 +284,10 @@ export default function MemberCompetitionsPage() {
         guardianSignature: guardianSig || null,
       });
       const reg = res?.data?.registration;
-      // 轉帳：建立 transferRecords → 待辦頁確認收款（確認時自動確認此報名付款）
-      if (paymentMethod === 'transfer' && reg?.id) {
+      // 轉帳：若報名當下已填末五碼 → 建 transferRecords（走轉帳確認）；未填 → 略過，
+      // 之後在「待確認付款」用「填寫轉帳資訊」補上（方案 B：可先報名、之後補上傳轉帳）。
+      // （/transfers/upload 要求末五碼或截圖擇一，空白會 NO_PROOF 失敗，故此處先擋。）
+      if (paymentMethod === 'transfer' && reg?.id && bankLastFive && bankLastFive.trim()) {
         try {
           const { submitTransferRecord } = await import('../../api/transfers');
           await submitTransferRecord({
@@ -435,8 +440,20 @@ export default function MemberCompetitionsPage() {
                         </div>
                       )}
                       {r.paymentStatus==='pending' && r.paymentMethod==='transfer' && r.status !== 'cancelled' && (
-                        <div style={{ marginTop:10, background:'#FFF8E6', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8B6914' }}>
-                          請匯款後等待館方確認，確認後即保留名額
+                        <div style={{ marginTop:10, background:'#FFF8E6', borderRadius:8, padding:'10px 12px' }}>
+                          {r.bankLastFive ? (
+                            <div style={{ fontSize:12, color:'#8B6914', textAlign:'left' }}>
+                              轉帳資訊已填寫（末五碼 {r.bankLastFive}{r.paymentDate?`・${r.paymentDate}`:''}），請等待館方確認
+                              <button onClick={()=>{ setRepayTarget(r); setRepayMethod('transfer'); setRepayDate(r.paymentDate||''); setRepayBank(r.bankName||''); setRepayLast5(r.bankLastFive||''); setRepayErr(''); }}
+                                style={{ marginLeft:8, height:26, padding:'0 10px', borderRadius:6, background:'#fff', color:'#8B6914', border:'0.5px solid #E4D3A0', fontSize:11, cursor:'pointer' }}>修改</button>
+                            </div>
+                          ) : (
+                            <div style={{ textAlign:'left' }}>
+                              <div style={{ fontSize:12, color:'#8B6914', marginBottom:6 }}>匯款後請填寫轉帳資訊（末五碼＋日期）供館方核對</div>
+                              <button onClick={()=>{ setRepayTarget(r); setRepayMethod('transfer'); setRepayDate(''); setRepayBank(''); setRepayLast5(''); setRepayErr(''); }}
+                                style={{ height:32, padding:'0 16px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>填寫轉帳資訊</button>
+                            </div>
+                          )}
                         </div>
                       )}
                       {r.paymentStatus==='transfer_rejected' && r.status !== 'cancelled' && (
@@ -786,10 +803,19 @@ export default function MemberCompetitionsPage() {
       {cancelModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'flex-end' }}>
           <div style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', padding:24, maxHeight:'85vh', overflowY:'auto' }}>
-            <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>取消報名</div>
+            {(() => { const isPaid = cancelModal.paymentStatus === 'confirmed'; return (<>
+            <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{isPaid ? '取消報名・申請退費' : '取消報名'}</div>
             <div style={{ fontSize:13, color:'#999', marginBottom:14 }}>{cancelModal.competitionName}</div>
 
-            {/* 退費說明 */}
+            {/* 未繳費：純取消，無退費 */}
+            {!isPaid && (
+              <div style={{ background:'#F0EDED', borderRadius:10, padding:'12px 14px', marginBottom:14, fontSize:13, color:'#555' }}>
+                尚未繳費，取消報名後無需退費，名額將立即釋出。
+              </div>
+            )}
+
+            {/* 已繳費：退費計算說明 */}
+            {isPaid && (
             <div style={{ background:'#FFF8E6', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>💰 退費計算說明</div>
               {cancelModal.competitionName && (() => {
@@ -798,7 +824,6 @@ export default function MemberCompetitionsPage() {
                 const today = new Date().toISOString().slice(0,10);
                 // 依今日日期試算可退金額（僅供參考；實際以館方核算為準）
                 const fee = cancelModal.registrationFee || 0;
-                const paid = cancelModal.paymentStatus === 'confirmed';
                 const sorted = [...policies].sort((a,b)=>String(a.deadline).localeCompare(String(b.deadline)));
                 const hit = sorted.find(p => today <= p.deadline);
                 const estimate = !hit ? 0
@@ -814,9 +839,7 @@ export default function MemberCompetitionsPage() {
                     ))}
                     <div style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>• {sorted[sorted.length-1]?.deadline} 之後取消：不予退費</div>
                     <div style={{ marginTop:8, padding:'8px 10px', background:'#fff', borderRadius:8, fontSize:13, fontWeight:700, color: estimate>0 ? '#2D7D46' : '#A32D2D' }}>
-                      {!paid
-                        ? '尚未繳費：取消後無需退費'
-                        : `依政策試算，今日取消可退 NT$${estimate.toLocaleString()}（報名費 NT$${fee.toLocaleString()}；實際以館方核算為準）`}
+                      {`依政策試算，今日取消可退 NT$${estimate.toLocaleString()}（報名費 NT$${fee.toLocaleString()}；實際以館方核算為準）`}
                     </div>
                   </div>
                 ) : (
@@ -824,8 +847,10 @@ export default function MemberCompetitionsPage() {
                 );
               })()}
             </div>
+            )}
 
-            {/* 退費帳號填寫 */}
+            {/* 已繳費：退費帳號填寫 */}
+            {isPaid && (
             <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>🏦 退費匯款帳號（必填）</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
@@ -852,6 +877,8 @@ export default function MemberCompetitionsPage() {
               </div>
               <div style={{ fontSize:11, color:'#A32D2D', marginTop:8 }}>退費將於比賽結束後一週內統一匯款至此帳號</div>
             </div>
+            )}
+            </>); })()}
 
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>取消原因（選填）</label>
@@ -932,7 +959,7 @@ export default function MemberCompetitionsPage() {
       {repayTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:380 }}>
-            <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>重新填寫繳費資訊</div>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{repayTarget.paymentRejectReason ? '重新填寫繳費資訊' : '填寫轉帳資訊'}</div>
             <div style={{ fontSize:12, color:'#666', marginBottom:10 }}>{repayTarget.competitionName}・NT${repayTarget.registrationFee}</div>
             {repayTarget.paymentRejectReason && (
               <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#A32D2D', marginBottom:12, textAlign:'left' }}>
