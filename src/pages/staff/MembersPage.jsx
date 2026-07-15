@@ -52,6 +52,9 @@ function MemberRecords({ records }) {
     { key:'adjustments', icon:'📋', label:'退費', count:(r.adjustments||[]).length },
   ];
   const fmtExp = (v) => v?._seconds ? dayjs(v._seconds*1000).format('YYYY/MM/DD') : (v ? dayjs(v).format('YYYY/MM/DD') : '無期限');
+  const cardValid = (c) => (c.remainingCredits ?? 0) > 0 && c.isActive !== false && !c.isExpired;
+  const cardInvalidReason = (c) => (c.remainingCredits ?? 0) <= 0 ? '已用完' : c.isExpired ? '已過期' : '已停用/移轉';
+  const sortCards = (arr) => arr.slice().sort((a,b) => (cardValid(a)?0:1) - (cardValid(b)?0:1)); // 有效優先
   return (
     <div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:4, marginBottom:12 }}>
@@ -89,39 +92,39 @@ function MemberRecords({ records }) {
       </div>}
       {tab==='discountCards' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
         {!(r.discountCards||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無優惠卡紀錄</div>}
-        {(r.discountCards||[]).map((c,i) => (
-          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px' }}>
+        {sortCards(r.discountCards||[]).map((c,i) => { const v=cardValid(c); return (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', opacity:v?1:0.55 }}>
             <div style={{ display:'flex', justifyContent:'space-between' }}>
               <div style={{ fontSize:12, fontWeight:500 }}>{c._kind==='legacy'?'實體優惠卡':'優惠卡'}{c.source==='transferred'?'（轉入）':''}{c.barcode?' · '+c.barcode:''}</div>
-              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:(c.remainingCredits>0 && c.isActive!==false)?'#E6F4EB':'#F0EDED', color:(c.remainingCredits>0 && c.isActive!==false)?'#2D7D46':'#999' }}>剩 {c.remainingCredits ?? 0}/{c.originalCredits ?? '—'} 次</span>
+              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:v?'#E6F4EB':'#F0EDED', color:v?'#2D7D46':'#999' }}>{v?`剩 ${c.remainingCredits ?? 0}/${c.originalCredits ?? '—'} 次`:cardInvalidReason(c)}</span>
             </div>
-            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>到期 {fmtExp(c.expiresAt)}</div>
+            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{v?'剩 '+(c.remainingCredits??0)+'/'+(c.originalCredits??'—')+' 次 · ':''}到期 {fmtExp(c.expiresAt)}</div>
           </div>
-        ))}
+        ); })}
       </div>}
       {tab==='blackCards' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
         {!(r.blackCards||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無黑卡紀錄</div>}
-        {(r.blackCards||[]).map((c,i) => (
-          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px' }}>
+        {sortCards(r.blackCards||[]).map((c,i) => { const v=cardValid(c); return (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', opacity:v?1:0.55 }}>
             <div style={{ display:'flex', justifyContent:'space-between' }}>
               <div style={{ fontSize:12, fontWeight:500 }}>黑卡{c.source==='transferred'?'（轉入）':''}{c.barcode?' · '+c.barcode:''}</div>
-              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:(c.remainingCredits>0 && c.isActive!==false)?'#E6F4EB':'#F0EDED', color:(c.remainingCredits>0 && c.isActive!==false)?'#2D7D46':'#999' }}>剩 {c.remainingCredits ?? 0}/{c.originalCredits ?? '—'} 次</span>
+              <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:v?'#E6F4EB':'#F0EDED', color:v?'#2D7D46':'#999' }}>{v?`剩 ${c.remainingCredits ?? 0}/${c.originalCredits ?? '—'} 次`:cardInvalidReason(c)}</span>
             </div>
-            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>到期 {fmtExp(c.expiresAt)}</div>
+            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{v?'剩 '+(c.remainingCredits??0)+'/'+(c.originalCredits??'—')+' 次 · ':''}到期 {fmtExp(c.expiresAt)}</div>
           </div>
-        ))}
+        ); })}
       </div>}
       {tab==='bonuses' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
         {!(r.bonuses||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無紅利紀錄</div>}
-        {(r.bonuses||[]).map((b,i) => (
-          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        {(r.bonuses||[]).slice().sort((a,b)=>{const av=(!a.isUsed&&a.isActive!==false&&!a.isExpired)?0:1;const bv=(!b.isUsed&&b.isActive!==false&&!b.isExpired)?0:1;return av-bv;}).map((b,i) => { const v=!b.isUsed && b.isActive!==false && !b.isExpired; return (
+          <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', opacity:v?1:0.55 }}>
             <div>
               <div style={{ fontSize:12, fontWeight:500 }}>紅利入場（免費一次）</div>
               <div style={{ fontSize:11, color:'#999' }}>到期 {b.expiresAtFormatted || fmtExp(b.expiresAt)}</div>
             </div>
-            <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:b.isUsed?'#F0EDED':'#E6F4EB', color:b.isUsed?'#999':'#2D7D46' }}>{b.isUsed?'已使用':'可使用'}</span>
+            <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:v?'#E6F4EB':'#F0EDED', color:v?'#2D7D46':'#999' }}>{b.isUsed?'已使用':b.isExpired?'已過期':b.isActive===false?'已移轉/停用':'可使用'}</span>
           </div>
-        ))}
+        ); })}
       </div>}
       {tab==='courses' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
         {!(r.courses||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無課程紀錄</div>}
@@ -285,10 +288,10 @@ export default function MembersPage() {
         client.get('/courses/member/' + memberId + '/enrollments'),
         client.get('/competitions/registrations/member/' + memberId),
         client.get('/course-adjustments/member/' + memberId),
-        client.get('/cards/discount/member/' + memberId),
-        client.get('/cards/legacy-discount/member/' + memberId),
-        client.get('/cards/black/member/' + memberId),
-        client.get('/cards/bonus/member/' + memberId),
+        client.get('/cards/discount/member/' + memberId, { params:{ all:1 } }),
+        client.get('/cards/legacy-discount/member/' + memberId, { params:{ all:1 } }),
+        client.get('/cards/black/member/' + memberId, { params:{ all:1 } }),
+        client.get('/cards/bonus/member/' + memberId, { params:{ all:1 } }),
       ]);
       const ok = (x, key) => x.status==='fulfilled' ? (x.value.data[key] || []) : [];
       // 優惠卡：新優惠卡 + 舊優惠卡（實體）合併，各標來源
