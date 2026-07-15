@@ -1111,7 +1111,7 @@ export default function CheckinPage() {
               monthly_pass:'定期票', pass:'定期票', buy_pass:'購買定期票', new_discount_card:'新優惠卡',
               legacy_discount_card:'舊優惠卡', discount_card:'優惠卡', buy_discount_card:'購買優惠折扣券', black_card:'黑卡',
               bonus:'紅利入場', single_ticket:'單次', single_entry_ticket:'單次券', vip:'VIP',
-              course_access:'課程學員', child_free:'兒童免費', student_free:'學生免費', other:'其他',
+              course_access:'課程學員', child_free:'兒童入場', student_free:'學生入場', other:'其他',
               legacy_physical_card:'實體優惠卡', competition:'比賽報到',
             };
             return (
