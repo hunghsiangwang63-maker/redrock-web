@@ -701,14 +701,14 @@ export default function PassesPage() {
                 {/* 紅利 */}
                 <div style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-                    <div style={{ fontSize:14, fontWeight:700 }}>🎁 紅利（無限練習）</div>
+                    <div style={{ fontSize:14, fontWeight:700 }}>🎁 紅利（免費入場）</div>
                     <DlBtn type="bonuses" label="下載明細"/>
                   </div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
                     <Stat label="總筆數" value={bonusStats.total}/>
                     <Stat label="仍有效" value={bonusStats.active} color={COLORS_MAP.active}/>
-                    <Stat label="已使用天數" value={bonusStats.totalDaysUsed} color={COLORS_MAP.used}/>
-                    <Stat label="剩餘天數" value={bonusStats.totalDaysRemaining} color={COLORS_MAP.active}/>
+                    <Stat label="已使用" value={bonusStats.used} color={COLORS_MAP.used}/>
+                    <Stat label="已過期" value={bonusStats.expired}/>
                   </div>
                 </div>
               </div>
