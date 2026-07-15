@@ -428,6 +428,35 @@ export default function SettingsPage() {
     finally { setDeviceActionLoading(null); }
   };
 
+  // 已核准（信任）裝置
+  const [trustedDevices, setTrustedDevices] = useState([]);
+  const loadTrustedDevices = async () => {
+    try {
+      const res = await client.get('/auth/device/trusted');
+      setTrustedDevices(res.data.devices || []);
+    } catch (e) {}
+  };
+  const handleRemoveTrusted = async (d) => {
+    if (!window.confirm(`確定移除「${d.accountName}」的這台信任裝置？該裝置下次登入需重新驗證（Email 驗證碼或管理員核准）。`)) return;
+    setDeviceActionLoading(d.id);
+    try {
+      await client.delete(`/auth/device/trusted/${d.id}`);
+      showMsg('已移除信任裝置');
+      await loadTrustedDevices();
+    } catch (err) { showMsg(err.response?.data?.message || '移除失敗', 'err'); }
+    finally { setDeviceActionLoading(null); }
+  };
+  const deviceUA = (label) => {
+    if (!label) return '（未記錄裝置資訊）';
+    if (/iPad/.test(label)) return 'iPad';
+    if (/iPhone/.test(label)) return 'iPhone';
+    if (/Android/.test(label)) return 'Android';
+    if (/Macintosh/.test(label)) return 'Mac' + (/Chrome/.test(label) ? ' · Chrome' : /Safari/.test(label) ? ' · Safari' : '');
+    if (/Windows/.test(label)) return 'Windows' + (/Edg/.test(label) ? ' · Edge' : /Chrome/.test(label) ? ' · Chrome' : '');
+    return label.slice(0, 40);
+  };
+  const tsDay = (v) => v?._seconds ? new Date(v._seconds * 1000).toLocaleDateString('zh-TW') : '—';
+
   // ─── 共用 ────────────────────────────────────────────────────────
   const handleAddGym = async () => {
     if (!newGymId.trim() || !newGymName.trim()) { setGymMsg('請填寫場館 ID 和名稱'); return; }
@@ -466,7 +495,7 @@ export default function SettingsPage() {
     loadWaiver();
     loadShoeRental();
     loadFallTest();
-    if (isAdmin) { loadPendingDevices(); loadTransition(); }
+    if (isAdmin) { loadPendingDevices(); loadTrustedDevices(); loadTransition(); }
   }, []);
 
   // ─── 墜落測驗設定 ───────────────────────────────────────────────
@@ -891,6 +920,33 @@ export default function SettingsPage() {
                 <button onClick={() => handleApproveDevice(d.id)} disabled={deviceActionLoading===d.id}
                   style={s.btnPrimary}>{deviceActionLoading===d.id ? '處理中...' : '核准'}</button>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'devices' && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>已核准裝置（{trustedDevices.length}）</span>
+            <button style={s.btn} onClick={loadTrustedDevices}>重新整理</button>
+          </div>
+          {trustedDevices.length === 0 ? (
+            <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>目前沒有已核准的裝置</div>
+          ) : trustedDevices.map(d => (
+            <div key={d.id} style={s.row}>
+              <div>
+                <div style={{ fontWeight:600, fontSize:13 }}>
+                  {d.accountName} <span style={{ fontSize:11, color:'#999', fontWeight:400 }}>（{d.accountType === 'station' ? '館別電腦' : '員工個人帳號'}）</span>
+                </div>
+                <div style={{ fontSize:11, color:'#999', marginTop:3 }}>
+                  📱 {deviceUA(d.deviceLabel)}　·　核准 {tsDay(d.approvedAt)}　·　最後使用 {tsDay(d.lastUsedAt)}
+                </div>
+              </div>
+              <button onClick={() => handleRemoveTrusted(d)} disabled={deviceActionLoading===d.id}
+                style={{ ...s.btn, color:'#A32D2D', borderColor:'#F09595' }}>
+                {deviceActionLoading===d.id ? '處理中...' : '移除'}
+              </button>
             </div>
           ))}
         </div>
