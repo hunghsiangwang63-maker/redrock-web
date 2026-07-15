@@ -10,6 +10,11 @@ export const downloadCompetitionCSV = (id) => `${import.meta.env.VITE_API_BASE |
 export const confirmCompetitionPayment = (regId, data) => client.post(`/competitions/registrations/${regId}/confirm-payment`, data);
 export const rejectCompetitionPayment = (regId, data) => client.post(`/competitions/registrations/${regId}/reject-payment`, data);
 export const refundCompetitionRegistration = (regId, data) => client.post(`/competitions/registrations/${regId}/refund`, data);
+// 管理員退回報名表（會員修改重送）/ 駁回取消
+export const returnCompetitionForm = (regId, data) => client.post(`/competitions/registrations/${regId}/return-form`, data);
+export const rejectCompetitionForm = (regId, data) => client.post(`/competitions/registrations/${regId}/reject-form`, data);
+// 會員修改報名資料後重送（被退回後）
+export const updateCompetitionForm = (regId, data) => memberClient.post(`/competitions/registrations/${regId}/update-form`, data);
 
 export const cancelRegistration = (regId, data) => memberClient.post(`/competitions/registrations/${regId}/cancel`, data);
 export const getMemberCompetitions = () => memberClient.get('/competitions');

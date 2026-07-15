@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCompetitions, createCompetition, updateCompetition, getCompetitionRegistrations } from '../../api/competitions';
+import { getCompetitions, createCompetition, updateCompetition, getCompetitionRegistrations, returnCompetitionForm, rejectCompetitionForm } from '../../api/competitions';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -69,8 +69,24 @@ export default function CompetitionsPage() {
   const [regLoading, setRegLoading] = useState(false);
   const [regTab, setRegTab] = useState('all'); // all | refunds
   const [actionModal, setActionModal] = useState(null); // { type:'pay'|'refund', reg }
+  const [formAction, setFormAction] = useState(null); // { type:'return'|'reject', reg }
+  const [formReason, setFormReason] = useState('');
+  const [formSaving, setFormSaving] = useState(false);
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
+
+  const submitFormAction = async () => {
+    if (!formReason.trim()) { showMsg('請填寫原因（報名者會看到）', 'red'); return; }
+    setFormSaving(true);
+    try {
+      const fn = formAction.type === 'return' ? returnCompetitionForm : rejectCompetitionForm;
+      const res = await fn(formAction.reg.id, { reason: formReason.trim() });
+      showMsg(res.data.message || '已處理');
+      setFormAction(null); setFormReason('');
+      if (showRegistrations) { const r = await getCompetitionRegistrations(showRegistrations.id); setRegistrations(r.data.registrations||[]); }
+    } catch (err) { showMsg(err.response?.data?.message || '處理失敗', 'red'); }
+    finally { setFormSaving(false); }
+  };
 
   const loadCompetitions = async () => {
     setLoading(true);
@@ -386,6 +402,8 @@ export default function CompetitionsPage() {
                       <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
                         <Tag type={ps.type}>{ps.label}</Tag>
                         {r.isComplete ? <Tag type="ok">已簽署</Tag> : <Tag type="warn">待法定代理人簽</Tag>}
+                        {r.formReturned && r.status!=='cancelled' && <Tag type="warn">已退回待修改</Tag>}
+                        {r.formRejected && r.status==='cancelled' && <Tag type="red">已駁回</Tag>}
                         {r.refundRequested && r.status==='cancelled' && <Tag type="red">退費申請中</Tag>}
                       </div>
                     </div>
@@ -399,6 +417,19 @@ export default function CompetitionsPage() {
                     {r.paymentStatus==='confirmed' && (
                       <div style={{ fontSize:11, color:'#2D7D46', marginTop:8 }}>
                         已確認收款 NT${r.paidAmount} ｜ 確認人：{r.paidConfirmedByName||'—'}
+                      </div>
+                    )}
+                    {r.status !== 'cancelled' && (
+                      <div style={{ display:'flex', gap:8, marginTop:10, justifyContent:'flex-end' }}>
+                        <button onClick={()=>{ setFormAction({type:'return',reg:r}); setFormReason(''); }}
+                          style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#854F0B', border:'0.5px solid #D6A94E', fontSize:12, cursor:'pointer' }}>退回修改</button>
+                        <button onClick={()=>{ setFormAction({type:'reject',reg:r}); setFormReason(''); }}
+                          style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>駁回取消</button>
+                      </div>
+                    )}
+                    {r.formReturned && r.status!=='cancelled' && r.formReturnReason && (
+                      <div style={{ fontSize:11, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'4px 8px', display:'inline-block' }}>
+                        ↩ 已退回原因：{r.formReturnReason}
                       </div>
                     )}
                     {r.staffNote && (
@@ -422,6 +453,33 @@ export default function CompetitionsPage() {
           onClose={()=>setActionModal(null)}
           onDone={(m)=>{ setActionModal(null); showMsg(m); openRegistrations(showRegistrations); }}
         />
+      )}
+
+      {/* 退回修改 / 駁回取消 原因 Modal */}
+      {formAction && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:14, padding:20, width:'100%', maxWidth:380 }}>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{formAction.type==='return' ? '退回報名表（會員可修改重送）' : '駁回取消此報名'}</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>{formAction.reg.memberName}・{formAction.reg.divisionName}</div>
+            <div style={{ fontSize:12, color: formAction.type==='return' ? '#854F0B' : '#A32D2D', background: formAction.type==='return' ? '#FFF8E6' : '#FCEBEB', borderRadius:8, padding:'8px 10px', marginBottom:12, lineHeight:1.6 }}>
+              {formAction.type==='return'
+                ? '會員會收到通知，可在「我的比賽報名」修改資料後重新送出，名額仍保留。'
+                : '此報名將直接取消、釋出名額並通知會員。' + (formAction.reg.paymentStatus==='confirmed' ? '（已收款項將列入退費待辦）' : '')}
+            </div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>原因（報名者會看到）*</label>
+            <textarea value={formReason} onChange={e=>setFormReason(e.target.value)} rows={3}
+              placeholder={formAction.type==='return' ? '例：組別選錯、身分證號有誤，請修正' : '例：不符參賽資格'}
+              style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a', marginBottom:14 }}/>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>{ setFormAction(null); setFormReason(''); }}
+                style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={submitFormAction} disabled={formSaving}
+                style={{ flex:2, height:42, borderRadius:10, background: formAction.type==='return' ? '#854F0B' : '#A32D2D', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                {formSaving ? '處理中…' : (formAction.type==='return' ? '確認退回' : '確認駁回取消')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

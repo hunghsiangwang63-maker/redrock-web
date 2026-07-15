@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
-import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration } from '../../api/competitions';
+import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration, updateCompetitionForm } from '../../api/competitions';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
@@ -96,6 +96,40 @@ export default function MemberCompetitionsPage() {
   const [memberSig, setMemberSig] = useState(null);
   const [guardianSig, setGuardianSig] = useState(null);
 
+
+  // 報名表被退回 → 修改報名資料後重送
+  const [editTarget, setEditTarget] = useState(null); // registration object
+  const [editForm, setEditForm] = useState({});
+  const [editSaving, setEditSaving] = useState(false);
+  const [editErr, setEditErr] = useState('');
+  const openEdit = (r) => {
+    setEditTarget(r);
+    setEditForm({
+      divisionId: r.divisionId || '', gender: r.gender || '', birthday: r.birthday || '',
+      phone: r.phone || '', email: r.email || '', idNumber: r.idNumber || '',
+      emergencyContact: r.emergencyContact || '', emergencyRelation: r.emergencyRelation || '', emergencyPhone: r.emergencyPhone || '',
+      height: r.height || '', armSpan: r.armSpan || '', isHonorary: !!r.isHonorary,
+    });
+    setEditErr('');
+  };
+  const submitEdit = async () => {
+    const f = editForm;
+    if (f.gender !== 'male' && f.gender !== 'female') { setEditErr('請選擇性別'); return; }
+    if (!f.birthday) { setEditErr('請填寫生日'); return; }
+    if (!f.phone?.trim()) { setEditErr('請填寫手機'); return; }
+    if (!f.email?.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) { setEditErr('請填寫有效 Email'); return; }
+    if (!f.emergencyContact?.trim() || !f.emergencyPhone?.trim()) { setEditErr('請填寫緊急聯絡人'); return; }
+    setEditSaving(true); setEditErr('');
+    try {
+      await updateCompetitionForm(editTarget.id, {
+        ...f, height: f.height ? Number(f.height) : null, armSpan: f.armSpan ? Number(f.armSpan) : null,
+      });
+      setEditTarget(null);
+      showMsg('報名資料已更新，請等待館方確認');
+      await load();
+    } catch (err) { setEditErr(err.response?.data?.message || '更新失敗'); }
+    finally { setEditSaving(false); }
+  };
 
   // 繳費資訊被退回 → 重新填寫（現金/轉帳＋日期，日期限 3 日內）
   const [repayTarget, setRepayTarget] = useState(null);
@@ -463,6 +497,14 @@ export default function MemberCompetitionsPage() {
                             style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
                             重新填寫繳費資訊
                           </button>
+                        </div>
+                      )}
+                      {r.formReturned && r.status !== 'cancelled' && (
+                        <div style={{ marginTop:10, background:'#FFF8E6', border:'0.5px solid #E4D3A0', borderRadius:8, padding:'8px 12px' }}>
+                          <div style={{ fontSize:12, color:'#854F0B', fontWeight:600, textAlign:'left' }}>報名表被退回{r.formReturnReason?`：${r.formReturnReason}`:''}</div>
+                          <div style={{ fontSize:11, color:'#8B6914', textAlign:'left', margin:'3px 0 6px' }}>名額仍為您保留，請修改資料後重新送出。</div>
+                          <button onClick={()=>openEdit(r)}
+                            style={{ height:30, padding:'0 14px', borderRadius:6, background:'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>修改報名資料</button>
                         </div>
                       )}
                       {r.parentRequired && !r.isComplete && r.status !== 'cancelled' && (
@@ -955,6 +997,70 @@ export default function MemberCompetitionsPage() {
           onClose={()=>setReupTarget(null)}
           onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); member?.id && getMemberRegistrations(member.id).then(r=>setMyRegistrations(r.data.registrations||[])).catch(()=>{}); }} />
       )}
+      {/* 報名表被退回 → 修改報名資料後重送 */}
+      {editTarget && (() => {
+        const comp = competitions.find(c => c.id === editTarget.competitionId);
+        const divisions = comp?.divisions || [];
+        const set = (k, v) => setEditForm(f => ({ ...f, [k]: v }));
+        const inp = { width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' };
+        const lbl = { fontSize:11, color:'#666', display:'block', marginBottom:4 };
+        return (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:480, padding:20, maxHeight:'88vh', overflowY:'auto' }}>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:2 }}>修改報名資料</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>{editTarget.competitionName}</div>
+            {editTarget.formReturnReason && (
+              <div style={{ background:'#FFF8E6', borderRadius:8, padding:'8px 10px', fontSize:12, color:'#854F0B', marginBottom:12, textAlign:'left' }}>退回原因：{editTarget.formReturnReason}</div>
+            )}
+            <div style={{ display:'grid', gap:10 }}>
+              {divisions.length > 0 && (
+                <div>
+                  <label style={lbl}>報名組別 *</label>
+                  <select value={editForm.divisionId} onChange={e=>set('divisionId', e.target.value)} style={{ ...inp, appearance:'auto' }}>
+                    {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                  </select>
+                </div>
+              )}
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div>
+                  <label style={lbl}>性別 *</label>
+                  <select value={editForm.gender} onChange={e=>set('gender', e.target.value)} style={{ ...inp, appearance:'auto' }}>
+                    <option value="">請選擇</option><option value="male">男</option><option value="female">女</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={lbl}>生日 *</label>
+                  <input type="date" value={editForm.birthday} onChange={e=>set('birthday', e.target.value)} style={inp}/>
+                </div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div><label style={lbl}>手機 *</label><input value={editForm.phone} onChange={e=>set('phone', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>Email *</label><input value={editForm.email} onChange={e=>set('email', e.target.value)} style={inp}/></div>
+              </div>
+              <div><label style={lbl}>身分證/護照號碼</label><input value={editForm.idNumber} onChange={e=>set('idNumber', e.target.value)} style={inp}/></div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                <div><label style={lbl}>緊急聯絡人 *</label><input value={editForm.emergencyContact} onChange={e=>set('emergencyContact', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>關係</label><input value={editForm.emergencyRelation} onChange={e=>set('emergencyRelation', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>電話 *</label><input value={editForm.emergencyPhone} onChange={e=>set('emergencyPhone', e.target.value)} style={inp}/></div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                <div><label style={lbl}>身高(cm)</label><input value={editForm.height} onChange={e=>set('height', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>臂展(cm)</label><input value={editForm.armSpan} onChange={e=>set('armSpan', e.target.value)} style={inp}/></div>
+              </div>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444' }}>
+                <input type="checkbox" checked={editForm.isHonorary} onChange={e=>set('isHonorary', e.target.checked)}/> 榮譽參賽（不列入排名）
+              </label>
+            </div>
+            {editErr && <div style={{ fontSize:12, color:'#A32D2D', marginTop:10 }}>{editErr}</div>}
+            <div style={{ display:'flex', gap:8, marginTop:16 }}>
+              <button onClick={()=>setEditTarget(null)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={submitEdit} disabled={editSaving} style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>{editSaving ? '送出中…' : '送出修改'}</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
       {/* 重新填寫繳費資訊（繳費資訊被退回後補正）*/}
       {repayTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
