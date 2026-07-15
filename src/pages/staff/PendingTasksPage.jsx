@@ -424,6 +424,10 @@ export default function PendingTasksPage() {
               const isCashPay = task.type === 'transfer_confirm' && task.method === 'cash';
               const badgeLabel = isCashPay ? '現金確認' : cfg.label;
               const badgeIcon = isCashPay ? '💵' : cfg.icon;
+              // 待收款類任務：付款方式標籤（轉帳 / 臨櫃繳款 / 電子支付）
+              const PAY_TAG = { cash:{ label:'臨櫃繳款', bg:'#FFF8E6', color:'#8A5A00' }, transfer:{ label:'轉帳', bg:'#E6F1FB', color:'#185FA5' }, linepay:{ label:'Line Pay', bg:'#E6F4EB', color:'#2D7D46' }, jkopay:{ label:'街口', bg:'#FCEBEB', color:'#A32D2D' }, taiwanpay:{ label:'台灣Pay', bg:'#EFEAF8', color:'#533AB7' } };
+              const isPayTask = ['transfer_confirm','competition_payment','team_member','rental'].includes(task.type);
+              const payTag = isPayTask ? PAY_TAG[task.method || task.record?.paymentMethod] : null;
               return (
                 <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12 }}>
                   <div style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, minWidth:0 }}>
@@ -436,6 +440,7 @@ export default function PendingTasksPage() {
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
                         <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color, flexShrink:0 }}>{badgeLabel}</span>
                         <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
+                        {payTag && <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:payTag.bg, color:payTag.color, flexShrink:0 }}>{payTag.label}</span>}
                       </div>
                       <div style={{ fontSize:12, color:'#666', ...(isMobile ? { lineHeight:1.5, wordBreak:'break-word' } : { overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }) }}>{task.desc}</div>
                       <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>
