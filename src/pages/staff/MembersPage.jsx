@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { entryLabelOf } from '../../utils/entryLabel';
 import PasswordInput from '../../components/PasswordInput';
 import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
@@ -64,7 +65,7 @@ function MemberRecords({ records }) {
           <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', display:'flex', justifyContent:'space-between' }}>
             <div>
               <div style={{ fontSize:12, fontWeight:500 }}>{c.gymId==='gym-hsinchu'?'新竹館':'士林館'}</div>
-              <div style={{ fontSize:11, color:'#999' }}>{c.entryType}</div>
+              <div style={{ fontSize:11, color:'#999' }}>{entryLabelOf(c)}</div>
             </div>
             <div style={{ fontSize:11, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date}</div>
           </div>
