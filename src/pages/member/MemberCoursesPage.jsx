@@ -9,6 +9,7 @@ import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import { isUnder5 } from '../../utils/age';
 import { gymPrefix } from '../../utils/gymLabel';
+import { courseColor } from '../../utils/courseColor';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
@@ -946,27 +947,26 @@ export default function MemberCoursesPage() {
                                   const isLeave = sess?.enrollmentStatus === 'leave';
                                   const isMakeup = sess?.isMakeup === true;
                                   const isCancelled = sess?.enrollmentStatus === 'course_cancelled';
-                                  const dotColor = isCancelled ? '#ccc' : isLeave ? '#999' : isMakeup ? '#2D7D46' : '#8B1A1A';
+                                  const col = courseColor(cid);
+                                  const bg = isCancelled ? '#F0F0F0' : isLeave ? '#F2F2F2' : isMakeup ? '#E9F6EE' : col.bg;
+                                  const fg = isCancelled ? '#aaa' : isLeave ? '#999' : isMakeup ? '#2D7D46' : col.fg;
                                   const suffix = isCancelled ? '已取消' : isLeave ? '請假' : isMakeup ? '補課' : '';
                                   return (
-                                    <div key={cid} style={{ display:'flex', alignItems:'center', gap:2, marginBottom:1 }}>
-                                      <span style={{ width:4, height:4, borderRadius:2, background:dotColor, flexShrink:0 }}/>
-                                      <span style={{ fontSize:9, color:dotColor, lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:42 }}>
-                                        {suffix ? `(${suffix})` : name}
+                                    <div key={cid} style={{ background:bg, borderRadius:4, padding:'1px 3px', marginBottom:1, overflow:'hidden' }}>
+                                      <span style={{ fontSize:9, color:fg, fontWeight:600, lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>
+                                        {suffix ? `${name}(${suffix})` : name}
                                       </span>
                                     </div>
                                   );
                                 })}
                                 {experiencesForDate(date).slice(0,2).map((b,i) => (
-                                  <div key={`exp_${i}`} style={{ display:'flex', alignItems:'center', gap:2, marginBottom:1 }}>
-                                    <span style={{ width:4, height:4, borderRadius:2, background:'#185FA5', flexShrink:0 }}/>
-                                    <span style={{ fontSize:9, color:'#185FA5', lineHeight:1.3 }}>體驗</span>
+                                  <div key={`exp_${i}`} style={{ background:'#EAF3FB', borderRadius:4, padding:'1px 3px', marginBottom:1 }}>
+                                    <span style={{ fontSize:9, color:'#185FA5', fontWeight:600, lineHeight:1.35 }}>體驗</span>
                                   </div>
                                 ))}
                                 {competitionsForDate(date).slice(0,2).map((r,i) => (
-                                  <div key={`comp_${i}`} style={{ display:'flex', alignItems:'center', gap:2, marginBottom:1 }}>
-                                    <span style={{ width:4, height:4, borderRadius:2, background:'#854F0B', flexShrink:0 }}/>
-                                    <span style={{ fontSize:9, color:'#854F0B', lineHeight:1.3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:42 }}>比賽</span>
+                                  <div key={`comp_${i}`} style={{ background:'#FBF3E3', borderRadius:4, padding:'1px 3px', marginBottom:1, overflow:'hidden' }}>
+                                    <span style={{ fontSize:9, color:'#854F0B', fontWeight:600, lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>比賽</span>
                                   </div>
                                 ))}
                               </div>

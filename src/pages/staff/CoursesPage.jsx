@@ -9,6 +9,7 @@ import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import CoachSelect from '../../components/CoachSelect';
 import { gymPrefix } from '../../utils/gymLabel';
+import { courseColor } from '../../utils/courseColor';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
@@ -855,12 +856,15 @@ export default function CoursesPage({ embedded = false }) {
                               <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400, marginBottom:4 }}>{dayjs(date).date()}</div>
                               {daySessions.length > 0 && (
                                 <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                                  {[...daySessions].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')).map(s => (
-                                    <div key={s.id} style={{ fontSize:9, background:'#FBF0F0', borderRadius:4, padding:'2px 3px', lineHeight:1.25, overflow:'hidden' }}>
-                                      <div style={{ fontWeight:600, color:'#8B1A1A', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.courseName}</div>
-                                      <div style={{ color:'#8B6914', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>👟{s.instructor || '—'}·{(s.registeredCount ?? s.enrolledCount ?? 0)}人</div>
+                                  {[...daySessions].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')).map(s => {
+                                    const col = courseColor(s.courseId || s.courseName);
+                                    return (
+                                    <div key={s.id} style={{ fontSize:9, background:col.bg, borderRadius:4, padding:'2px 3px', lineHeight:1.25, overflow:'hidden' }}>
+                                      <div style={{ fontWeight:600, color:col.fg, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.courseName}</div>
+                                      <div style={{ color:col.fg, opacity:.8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>👟{s.instructor || '—'}·{(s.registeredCount ?? s.enrolledCount ?? 0)}人</div>
                                     </div>
-                                  ))}
+                                    );
+                                  })}
                                 </div>
                               )}
                             </>
