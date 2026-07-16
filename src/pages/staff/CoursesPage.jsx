@@ -1896,7 +1896,7 @@ export default function CoursesPage({ embedded = false }) {
               <div>
                 <div style={{ fontSize:16, fontWeight:600 }}>{rosterModal.course?.name} — 報名名單</div>
                 <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
-                  {rosterModal.enrollments ? `共 ${rosterModal.enrollments.length} 人` : '載入中...'}
+                  {rosterModal.enrollments ? `共 ${new Set(rosterModal.enrollments.map(e => e.memberId)).size} 人` : '載入中...'}
                 </div>
               </div>
               <button onClick={() => setRosterModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
