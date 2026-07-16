@@ -451,7 +451,7 @@ export default function CompetitionsPage() {
                       if (st === 'cancelled') return null;
                       const B = (label,color,onClick,key) => <button key={key} onClick={onClick} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color, border:`0.5px solid ${color}`, fontSize:12, cursor:'pointer' }}>{label}</button>;
                       const info = st==='awaitPayment' ? { c:'#854F0B', t:`待會員填匯款${r.paymentDeadline?`（繳款期限 ${fmtDeadline(r.paymentDeadline)}）`:''}` }
-                        : st==='awaitConfirm' ? { c:'#185FA5', t:`待收款${r.paymentMethod==='cash'?'（臨櫃繳款）':'（轉帳待確認）'}${r.paymentDeadline?`・期限 ${fmtDeadline(r.paymentDeadline)}`:''}` }
+                        : st==='awaitConfirm' ? { c:'#185FA5', t:`待收款${r.paymentMethod==='cash'?'（臨櫃繳款・櫃檯人工處理）':`（轉帳待確認）${r.paymentDeadline?`・期限 ${fmtDeadline(r.paymentDeadline)}`:''}`}` }
                         : st==='rejected' ? { c:'#A32D2D', t:`已要求會員重填匯款${r.paymentRejectReason?`：${r.paymentRejectReason}`:''}` }
                         : st==='paid' ? { c:'#2D7D46', t:`已確認收款 NT$${r.paidAmount||r.registrationFee||''}${r.paidConfirmedByName?`｜${r.paidConfirmedByName}`:''}` }
                         : st==='waitlist' ? { c:'#854F0B', t:`候補中${r.waitlistPosition?`（第 ${r.waitlistPosition} 位）`:''}` } : null;
