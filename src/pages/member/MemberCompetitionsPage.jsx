@@ -272,10 +272,19 @@ export default function MemberCompetitionsPage() {
     setRegBirthday(r?.birthday || '');
     setRegPhone(r?.phone || member?.phone || '');
     setRegEmail(r?.email || member?.email || '');
-    // 緊急聯絡人：會員資料有就帶出（允許修改）
-    if (r?.emergencyContact) setEmergencyContact(r.emergencyContact);
-    if (r?.emergencyRelation) setEmergencyRelation(r.emergencyRelation);
-    if (r?.emergencyPhone) setEmergencyPhone(r.emergencyPhone);
+    // 緊急聯絡人帶入（允許修改）：會員資料存的是「姓名 / 關係 / 電話」合併字串（見 MemberProfilePage），
+    // 需拆回三欄填到正確位置；若會員已有獨立 relation/phone 欄則直接用。
+    const hasSep = !!(r?.emergencyRelation || r?.emergencyPhone);
+    if (hasSep) {
+      setEmergencyContact(r?.emergencyContact || '');
+      setEmergencyRelation(r?.emergencyRelation || '');
+      setEmergencyPhone(r?.emergencyPhone || '');
+    } else {
+      const ec = String(r?.emergencyContact || '').split('/').map(s => s.trim());
+      setEmergencyContact(ec[0] || '');
+      setEmergencyRelation(ec[1] || '');
+      setEmergencyPhone(ec[2] || '');
+    }
     // eslint-disable-next-line
   }, [registerForId, member?.id, showModal]);
 
