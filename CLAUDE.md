@@ -1,90 +1,36 @@
-# RedRock 紅石攀岩館 — 系統說明
+# RedRock 紅石攀岩館 — 前端（redrock-web）
 
-> 本檔已可安全提交（無機密）。測試帳號 / 金鑰等敏感資料見 `CLAUDE.local.md`（git-ignored）。
+> 本檔＝**前端專屬重點**（架構 / 部署 / 慣例）。**完整「目前進度 / 待辦 / 歷史」統一寫在後端那份：`../redrock-api/CLAUDE.md`**（避免兩份長檔重複維護、消除多 session 併行碰撞）。
+> 本檔已可安全提交（無機密）。測試帳號見 `CLAUDE.local.md`（git-ignored，僅本機）。
 
-## 專案概述
-RedRock 紅石攀岩館管理系統，服務兩個場館：新竹館（`gym-hsinchu`）和士林館（`gym-shilin`）。
+## 為什麼進度集中在 api 那份
+前後端**各自 repo、各自 commit**，但進度日誌（每輪功能、bug 修復、E2E）**一律記在 `redrock-api/CLAUDE.md`**（前後端變更都寫那一份、含前端 commit hash）。本檔只放不常變的前端重點。
+- ⚠️ **落地守則（2026-07-16 踩雷）**：改完任何 `CLAUDE.md` 後**必先 `git status` 確認該檔真的 modified、再 `git add && git commit`**，commit 完 `git show HEAD:CLAUDE.md | wc -l` 核對；別假設「Edit 成功＝落地」。**一次只讓一個 session 動 CLAUDE.md**。詳見 `../redrock-api/docs/maintaining-context.md`。
 
 ## 架構
-- **前端**（本 repo）：`~/Downloads/redrock-web`（React 18 + Vite）
+- **React 18 + Vite**，單一 codebase 用 `BUILD_TARGET` 分兩站：
   - 會員端：`redrock-member.web.app` → `app.redrocktaiwan.com`
   - 員工端：`redrock-staff.web.app` → `staff.redrocktaiwan.com`
-  - **部署（本機 build，非自動）**：`BUILD_TARGET=staff npx vite build && BUILD_TARGET=member npx vite build && firebase deploy --only hosting --project redrock-dev-a35c1`
-- **後端**：`~/Downloads/redrock-api`（Node.js + Express）→ git push 觸發 Railway 自動部署
-- **資料庫**：Firebase Firestore（`redrock-dev-a35c1`）｜**認證**：JWT（secret 走環境變數）
+- 後端 API：`https://api.redrocktaiwan.com`（`src/api/client.js` `BASE`＋少數頁面 fallback 皆指此；經 Porkbun CNAME → Railway，故障轉移改一筆 CNAME 即可、前端免重發）。
+- Firebase 專案：`redrock-dev-a35c1`（Hosting 兩站 + Firestore + Storage）。
 
-## 機密管理
-- 本檔不放機密；測試帳號見 `CLAUDE.local.md`（git-ignored）。
-- 金鑰一律走環境變數 / Firestore，不進前端 bundle、不進版控。
-- GitHub push 走 macOS Keychain（已設定）。
+## 部署（本機 build，非自動）
+```
+BUILD_TARGET=staff npx vite build && BUILD_TARGET=member npx vite build && \
+firebase deploy --only hosting --project redrock-dev-a35c1
+```
+- **本機 build**（不用 GitHub Actions：Linux rolldown bug）；改完前端要自己 build + deploy（後端才是 push 觸發 Railway 自動部署）。
+- 快取：`firebase.json` 兩站 `index.html`＝`no-cache, must-revalidate`（部署後自動載新版）、`/assets/**`＝`immutable`（永久快取、改版檔名變）。部署前就已快取的舊頁仍需最後一次硬重載/`?v=`；**PWA 主畫面圖示**快取最頑固、改版要刪圖示重加。
 
-## 重要注意事項
-1. **前端 build 在本機執行**（GitHub Actions Linux rolldown bug）；build 後 `firebase deploy`
-2. 路由順序：`/my/children` 必須在 `/:id` 之前
-3. 子會員代簽 waiver / 墜落測驗同意書直接 `isComplete: true`
-4. 金額 / 場館一律後端權威，前端不送這些值
+## 前端慣例（踩過雷、務必遵守）
+- **token key**：`src/api/client.js` 工作端優先 `operatorToken`（值班）→ `token`（個人登入）→ `stationToken`（館別電腦）；會員端 `member_token`。**沒有 `staffToken`**——下載/檔案類請求一律走 axios `client`（自動帶對的 token），別自己 `fetch` + 手讀 localStorage。
+- **段落內文置左、標題置中**（`[[ui-text-alignment]]`）：新畫面段落/描述/提醒類一律 `textAlign:left`，只有標題/空狀態/按鈕/數字置中。
+- **小圖示用 CSS/SVG 繪製、別用字元**（`[[ui-icon-css-not-glyph]]`）：✓✗ 等單色符號在缺字裝置變黑方塊（tofu）；彩色 emoji 安全。
+- **按鈕必設 `color`**（`[[ui-button-explicit-color]]`）：root 有 `color-scheme: light dark`，深色模式下未設色的按鈕文字會變白隱形。
+- **金額 / 場館 / 資格一律信後端**（後端權威計算），前端只顯示。
+- **命名衝突**：元件內 `const` 勿與模組層同名（會 shadow→runtime 崩潰）；vite build 抓不到這類 ReferenceError/shadow → **改完前端要實機開該頁**（build 通過 ≠ 沒崩）。
+- **會員端輕量雙語** `src/utils/memberI18n.js`（`t(中文)` 以中文原文為 key，中文模式/查無對照原樣返回→中文版零影響）。
 
-## 目前進度（2026-06）
-- ✅ 竹北館 → 士林館全面改名（前後端 + Firestore migration）
-- ✅ 全面 bug 健檢：修復約 43 項邏輯 bug
-- ✅ **改週課課表→孤兒場次轉移**（員工端 `CoursesPage`，後端 `courseService.createWeeklySessions`）
-  - 觸發：編輯週課若「上課星期 / 起訖日」有變動，存檔後自動重排場次（`handleUpdateCourse` → `handleGenerateSessions`）
-  - 後端 `createWeeklySessions({ confirm })` 兩段式：`confirm:false` 預覽（不寫入，回傳孤兒清單）→ `confirm:true` 執行（刪空場次→建新場次→轉移孤兒報名）
-  - 孤兒＝有學員但日期已不在新課表的場次；轉移到「最接近的新場次」（同週優先，其次最近日，平手取較早），confirmed 超過 `maxStudents` 則**保留原場次不超賣**
-  - 轉移同步 `sessionId/date/時間/gymAccessStart/End`，**不動費用/付款**；前端確認 Modal 列出受影響會員與轉入日期
-  - 純函式 `planRegenerate`/`pickNearestDate` 供預覽與執行共用（一致）；`/health` version 標記 `1.1.0-orphan-transfer`
-- ✅ **入場扣點改「確認才扣」**（`checkinService`）：黑卡/單次券原本在產生 QR 時就預扣，未入場不回補→漏次數/鎖券；改為 `confirmCheckIn` 才扣（黑卡 `useBlackCard`、券標 used），扣點移到寫入場紀錄前；黑卡集合錯位根治改用 `legacyBlackCards`（與資格查詢同源）；取消還原（`checkinService` + `cancelCheckin` 路由共用 `restoreEntryCredits`）涵蓋黑卡/單次券/折扣卡/紅利。紅利原即「確認才扣＋防重複」未動。`/health` `1.2.0-deferred-deduction`
-- ✅ **課程退費移出票券管理 → 待辦頁**：`PassesPage` 移除「課程退費」分頁（原僅列表無審核）；`PendingTasksPage` 新增「已完成任務」切換鈕，查詢已核准/已拒絕的課程退費/暫停（`getCourseAdjustmentRequests` 前端篩 `status!=='pending'`，唯讀）。審核入口（pending）仍在待辦頁，權限沿用 `course_adjustment`（主管/站台）
-- ✅ **票券申請→票券審核移至待辦頁 + 待辦總覽改分內容分段**：`PassesPage` 移除「票券申請」分頁；`PendingTasksPage` 主列表由「按日期」改為「按內容分段」（票券/比賽/攀岩隊/體驗/課程/器材），新增「票券審核」追蹤面板（狀態篩選 待審核/已核准/已拒絕/全部，`getAllPassRequests`，與「課程已完成」互斥）。順修兩個後端 bug：`pendingTasks.js` 票券任務原讀錯集合 `passAdjustmentRequests`（空）→ 改讀 `passRequests`（真實申請所在，與建立/審核一致；原本真實票券申請從不顯示在待辦）、標題原誤用 `r.adjustmentType` → 改 `r.type`
-- ✅ **親子共用電話入場誤解析修正**：子帳號繼承家長電話，一支電話對應多筆。手機入場 `CheckinPage.handlePhoneSearch`（`/members?q=`，`members.find` 取第一個＝最新＝子帳號）與後端 `getMemberByPhone`（`.limit(1)` 無排序／末四碼取最新）皆會誤解析到子會員。兩處統一改「優先回傳家長帳號（`!isChildAccount && !parentMemberId`），子會員由家長 children 清單選」。`getMemberByPhone` 目前唯一路徑(`/checkin/verify` 電話分支)實務上進不去（自助走 token），屬預防性硬化。參見 memory [[shared-phone-child-account-gotcha]]
-- ✅ **轉帳確認/通知 整進待辦頁（單一入口）+ 轉帳單一來源**：入場頁 `CheckinPage` 移除「待審核/轉帳確認/通知」三分頁（待審核＝待辦 `ticket_approval` 同源；含 dead code 清理）。待辦頁 `PendingTasksPage` 新增「🏦 轉帳確認」分段（`transfer_confirm`，內嵌確認收款/退回）與「🔔 通知」面板（系統未讀＋類別過濾 轉帳/票券/比賽/取消入場/系統）。轉帳全面統一到 `transferRecords`：`/transfers/upload` 截圖或末五碼擇一、帶 `orderType/refId`；會員端**課程/體驗/競賽/租借/隊員**轉帳一律建 `transferRecords`（共用 `src/api/transfers.js` `submitTransferRecord`）；`/transfers/:id/confirm` 依 `orderType` 分派付款確認 side-effect（課程→`paymentConfirmed`、體驗→`status=confirmed`、競賽→`paymentStatus=confirmed`、租借→`paymentStatus+status=active`、隊員→確認＋`teamMemberService.setTeamMember` 開通折扣）。`pendingTasks.js` 以「待確認 `transferRecords` 的 `refId` 集合」排除 租借/比賽/體驗/隊員 任務的對應訂單避免雙列（無 transferRecords 的舊單仍照常顯示，no-regression）；移除死碼 `transfer_payment`/`experience_transfer`。`/team/apply` 回傳 application id 供前端建單。`/health` `1.3.1-transfer-all-orders`（**VIP 無會員轉帳流程，員工端開通，不納入**）
-- ✅ **入場頁版面**：`CheckinPage` 掃描入場分頁的 QR 掃描與手機號碼入場改「上下排列」（原左右 `1fr 1fr` → flex 直向），今日統計/今日入場資訊維持右欄
-- ✅ **「今日」時區修正**：`checkin.js` 三處 `new Date()+setHours(0,0,0,0)`＝伺服器 UTC 午夜＝台灣 08:00，導致台灣 00:00–08:00 仍把前一日晚間入場算進今日。改為 `台灣日期T00:00:00+08:00`：`/checkin/today`（今日統計/紀錄）、`/checkin/phone`（同日重複入場擋重，原會誤擋當天合法入場）、`/today-course-students`（今日已入場標記）。`checkinService` 的同日檢查/`getTodayStats` 本就用台灣時間未動。`/health` `1.3.2-today-tz-fix`。順手移除 CORS 白名單殘留的 Vercel 來源（已淘汰，前端走 Firebase Hosting）
-- ✅ **入場頁「歷史入場」分頁**：`CheckinPage` 新增分頁，選日期 → 列出當日全館逐筆入場（會員/館別/資格/時間/金額），可匯出 CSV、超管強制取消（同步刷新今日統計）。接既有 `GET /checkin/history`（日期用台灣整日界線）。順修該端點：原 `gymId 等值 + checkedInAt 範圍` 需複合索引，缺索引時 500 → 前端吞錯顯示 0；改為查詢端只放單一條件（有日期→範圍；否則→memberId/gymId 等值），其餘記憶體過濾，避開索引需求
-- ✅ **營業時間顯示未來一週調整**：原本只反映今日公告，未來的休館/特殊時段不顯示。`MemberGymsPage` 營業時間分頁新增「📅 近期營業時間調整（未來一週）」，逐日列出 MM/DD（星期）+ 休館/特殊營業標示 + 事由 + 時段。純前端（公告 `/gyms/announcements/all` 本就含未來 `effectiveFrom`，從 `gymAnns` 算未來 7 天）
-- ✅ **VIP／紅石隊員／定期票／課程學員 名單移到會員頁**：`MembersPage` 加 5 分頁（會員查詢｜VIP｜紅石隊員｜定期票｜課程學員）；`SettingsPage` 移除 VIP 分頁。VIP 與紅石隊員為獨立分頁（`VipPage` 加 `section` prop 隱藏內部子分頁列；新增仍限 super_admin / 管理員；VIP 加姓名/備註搜尋）。定期票/課程學員為條列式（`RowMemberList`）：分票種/分課程、每列顯示姓名＋有效起訖、可搜尋姓名。後端新增 `GET /members/reports/active-passes`（status=active & endDate>=today，分票種，含起訖）與 `GET /members/reports/active-course-students`（未取消、今天在練習期間的課程之 confirmed/未暫停學員，分課程，含 `practiceStart/End`），皆 gym-scoped、避複合索引。`/health` `1.4.1-member-lists`。注意：同會員可多張定期票（同 `memberId`），列表 key 用 index 避免 React key 衝突
-- ✅ **待辦頁重整（性質分組＋確認 modal＋統一通知）**：`PendingTasksPage` 待辦總覽由「依內容」改「依性質」分組：🔔 今日提醒／預約（器材取件·歸還/體驗，從訂單確認起持續顯示到日期當天）｜🔍 需審核（課程/票券/單次券，核准拒絕）｜💰 待收款（轉帳/比賽/攀岩隊/器材，核對後確認）。確認類動作都改跳 modal 再確認：轉帳→`TransferConfirmModal`、體驗→`ExperienceDetailModal`、單次券核准→`TicketApprovalModal`（皆顯示完整資訊；後端對應 task 補 `record`）。「通知」改近 7 天統一動態中心（合併系統通知＋報名，類別 全部/轉帳/票券/比賽/報名/取消入場/系統），移除獨立「新報名通知」「票券審核」面板、「課程已完成」改名「課程相關」；面板改顯示在清單上方。硬化「確認收款」：確認前先檢查連動訂單存在（不存在回 `ORDER_NOT_FOUND` 且不標 confirmed）＋冪等。`emailService.sendEmail` 加 attachments 支援
-- ✅ **體驗保險名冊一鍵寄送**：抱石類體驗需保險、小蜘蛛人團班試上免保險（體驗類型加 `needsInsurance` 勾選，存 `systemSettings/experienceCourses`）；會員端非保險課程隱藏身分證/生日/國籍且不必填。員工端 `ExperienceBookingsPage` 每筆預約「📧 寄送保險」（`POST /experience-bookings/:id/send-insurance-email`：產生單筆保險 Excel〔重用 `buildInsuranceXlsBuffer`〕→ Resend 帶附件寄到設定收件人 → 存 `insuranceExports`＋Storage）＋「📁 歷史名冊」分館下載；課程設定加保險收件人 email（全館共用）＋信件公版（`{title}{gym}{date}{name}{count}` 佔位符）。標題格式：紅石攀岩{館}{年}年{月}月{日}日{首位姓名}等{N}人保險名冊。`/health` `1.5.0-insurance-roster`
-- ✅ **課程/比賽營收改認列制（預收貨款）**：`transactions` 加 `recognitionDate`（認列日）——入場/定期票/商品＝付款日（即時）；**課程＝最後一堂課 `course.endDate`**；**比賽＝比賽前一天 `eventDate−1`**。`revenue.js`(summary/daily/transactions/export)＋`dailySettlements` 全改按 `recognitionDate` 歸帳（單欄位範圍＋記憶體過濾避索引）→ 課程/比賽付款當天**不**進當日營收/日結，到認列日才計入；summary 回傳 `deferred`（預收貨款＝已收未認列），`RevenuePage` 顯示橫幅。課程退費認列在最後一堂課（`courseAdjustments`）；比賽 confirm-payment/refund/轉帳確認**補記交易**（原本完全沒記，比賽營收一直 0），共用冪等 `competitionService.recordCompetitionRevenue`（`revenueRecorded` 防重複）。課程營收在**報名時**就記入（`deferPayment=ONLINE_PAYMENT_ENABLED=false`）但認列日＝最後一堂課，故轉帳確認不重複記課程。**部署前已回填既有 `transactions` 的 `recognitionDate=paidAt`**（否則切換歸帳後舊資料會從報表消失）。`/health` `1.6.0-deferred-revenue`
-- ✅ **體驗課程入場券**：體驗「確認收款」後員工手動「🎟️ 發放入場券」N 張（=報名人數）＝`singleEntryTickets`（`ticketType:'experience'`、`validDate=體驗日`、`amount:0`、直接 `active`、`experienceBookingId`、發給填單會員）。入場資格 `getValidSingleEntryTickets` 加 `validDate===今天` 過濾（**限體驗當日**；一般券不受限）。員工「✏️ 編輯參加者」可增/刪/改，已發券則連動（加人補發、減人作廢未用票，`ExperienceBookingsPage`）。退費/取消（`/experience-bookings/:id/cancel`）作廢所有未使用券（含已轉出未用），已 used 不動。轉移沿用 `ticketTransfers`（保留 validDate）。`/health` `1.7.0-experience-tickets`
-- ✅ **體驗券墜測豁免**：持當日有效體驗券者，**仍需 waiver＋墜落測驗同意書簽署（`fallTestSignatures`），但可未通過墜測入場/產 QR**。`verifyEntry`／`createPendingCheckIn` 墜測 gate 加例外：未 passed 時若持體驗券且已簽同意書→放行，未簽→擋 `fall_test_consent_required`；非體驗券維持需通過。`/health` `1.7.1-exp-ticket-falltest-exempt`
-- ✅ **非管理員隱藏財務/結帳歷史＋結帳分細項＋排班分色**：`StaffLayout` 財務 nav 僅 super_admin/gym_manager 可見（桌機＋手機更多）；`DailySettlementPage` 歷史紀錄分頁僅管理員；結帳今日收入「入場/定期票」顯示細項（後端 `dailySettlements` 加 `income.entryItems`〔依入場類型〕/`passItems`〔依票種，從交易 notes 取名〕）。`SchedulePage` `staffColor` 改全字串雜湊（有 staffList 用索引、否則雜湊）→ 館別電腦/員工登入每人皆穩定分色、圖例與班別一致。`/health` `1.7.2-settlement-itemize`
-- ✅ **館別電腦登入後立刻被登出（修復）**：站台模式（僅 stationToken、未打卡）`client` 原只送 `operatorToken||token`、`StaffLayout` 卻打 `/pending-tasks`→401→攔截器把站台 session 清掉重導。修：`client` 補送 `stationToken`；401 攔截站台模式不清站台/不重導；`StaffLayout` 待辦輪詢改 `isOperational` 才打。純前端
-- ✅ **課程可請假/補課次數（整期/插班）**：整期＝課程 `maxLeaves`（課程設定，欄位改名「整期可請假次數」）；**插班＝管理員在課程名單對該員「✏️ 填寫」`maxLeavesAllowed`**（覆蓋課程預設，`PUT /courses/:courseId/members/:memberId/max-leaves` batch 更新該員此課所有報名；null 清除）。`requestLeave` 上限改 `enrollment.maxLeavesAllowed ?? course.maxLeaves`；一次請假＝一次補課資格。`CoursesPage` 名單改依學員分組顯示「請假 已用/上限」；`getMemberEnrollments` 加 `leaveLimit/leaveUsed/leaveRemaining`，會員「我的課程」卡顯示「可請假剩餘 X 次」。全情境 31 項腳本驗證通過（費用整期/插班/加成、報名/重複/封鎖、額滿候補、請假+補課+遞補、上限整期/插班、退費金額開課前5%/開課後每堂扣、付款確認）。`/health` `1.8.0-course-leave-allowance`
-- ✅ **體驗券發放狀態可視化**：發放/同步後 `syncExperienceTickets` 回寫 `ticketsIssued`（張數）到 `experienceBookings`。`ExperienceBookingsPage` 按鈕依此切換：未發＝「🎟️ 發放入場券」、已發＝「✅ 已發放入場券（N 張）」（綠框，仍可補發；增人後按可補差額）。待辦頁 `pendingTasks` 體驗任務已確認後若 `ticketsIssued>0`→標題「體驗預約（已確認）（已發放入場券）」、狀態「已確認·已發放入場券」（task 加 `ticketsIssued`）。`/health` `1.8.2-pending-exp-issued`
-- ✅ **統一分頁元件 SegmentedTabs**：新增 `src/components/SegmentedTabs.jsx`（灰底膠囊分段：`#FBF5F5` 容器、選中白底圓角、未選灰字），全站 14 個員工頁分頁列改用它統一外觀（原 B紅框/C底線/inline A 三種風格收斂為一）。`wrap` 選項（grid auto-fit）讓分頁多的會員/票券頁窄螢幕自動換行；課程子分頁 `minTabWidth=130` 手機分 2×2 並讓「新增課程」鍵下移。保留條件分頁/相鄰按鈕/onChange side-effect
-- ✅ **月銷售紀錄 + 發票明細表 匯出（記帳用）**：日結表單補欄位（發票**起始/作廢號**、優惠卡·全票**最前卡號**）＋自動帶 **check-in 人數**寫入結帳。`GET /daily-settlements/monthly-export?month=YYYY-MM`＝整月每日一欄 Excel（實收/付款/現金清點·差異/發票/票卡/品項明細，照原版型）；**入場明細直接從 `checkIns` 依入場類型(entryTypes `name`)逐日拆分，隊員折扣另列「(隊員9折)」**（畫面顯示維持合併）。`GET /daily-settlements/invoice-export?year&bimonth`＝統一發票明細表（每兩個月一期，逐日 開立發票起迄/總額/作廢/票卡最前號＋交易客次〔依起迄號計〕，表頭統編·名稱·字軌）。兩個下載都在**財務頁→月銷售紀錄分頁**（管理員，站台無關，可選館/月/期）。下載一律 `fetch`+blob（axios responseType:blob 會失敗）。`/health` `1.9.2-invoice-export`
-- ✅ **待辦頁手機 RWD**：`PendingTasksPage` 加 `useIsMobile`（<768，沿用 StaffLayout 同套）；手機任務卡/通知卡改**直向堆疊**（內容上·動作鍵下，中間分隔線），內容文字可換行不截斷，表頭/標題列可 wrap。修掉全域 `#root{text-align:center}` 造成 desc/日期被置中→待辦頁整頁左對齊
-- ✅ **排班月曆手機不超寬 + 入場頁每日入場數折線圖**：`SchedulePage` 月曆容器改 `overflow-x:auto`＋7 欄格線 `minWidth:640`（窄螢幕橫向捲動、頁面不被撐寬、欄寬保持可讀）。`CheckinPage` 右欄原「日期/星期」方框改成 **recharts 折線圖**：`GET /checkin/monthly-daily-counts?gymId=&month=` 回傳本月與上月每日入場數（台灣日期、排除取消、gym-scoped、單欄位範圍＋記憶體過濾），圖上 **本月紅線＋上月灰線**對比（隨選定館別更新；標題保留今日 MM/DD）。`/health` `1.10.0-checkin-trend-chart`
-- ✅ **舊系統墜測效期遷移（Climbio）**：舊資料不匯入、會員重新註冊（重簽 Waiver/重填資料/重簽墜測同意書），但**有效墜測效期自動帶過免重測**。精簡遷移表 `legacyFallTests`（`phone/name/fallTestExpiresAt/claimed`，只放效期內者）；`memberService.createMember` 建立會員後 `claimLegacyFallTest`：以**電話+姓名**比對、到期日≥今天且未認領 → 補建 `fallTests`(`result:passed`,效期=遷移到期日,`source:climbio-migrated`)＋標 `claimed`(一次性)。防呆：姓名須相符(擋共用電話冒領)、子帳號略過、過期不認領。匯入腳本 `scripts/importLegacyFallTests.js`（讀 Climbio 匯出→篩效期內/去重/多日期格式→預覽，`--commit` 寫入）。`/health` `1.11.0-legacy-falltest-migration`（**待：拿到 Climbio 匯出檔校正欄位對應後匯入**）
-- ✅ **比賽報名串接紅石賽事計分系統（Redrock-comp）**：計分系統＝獨立 Firebase 專案 `Redrock-comp`，跨專案直寫 Firestore（金鑰 `COMP_FIREBASE_SA` env，未設定則停用）。`scoringSystem='competition_management_v2'`（員工端「紅石賽事管理 V2」）的賽事，由管理員在賽事卡按 **「🔗 開始與計分系統對接」**（`POST /competitions/:id/sync-scoring`）才觸發：在計分系統 `competitions` 建賽事文件（`eventName`＋`categories`=divisions，rounds 賽制細節留計分系統設定）、把目前**全部正取名單推進賽事文件的 `athletes` map**（key=報名id、`catIdx`對映組別）、回存 `compDocId`＋啟用 `scoringSyncEnabled`。啟用後新報名 `sendWebhook` 即時同步、取消移除選手、候補遞補沿用；未啟用則 webhook skip。**賽事表單固定用 V2（移除計分系統下拉＋Webhook URL 欄位，免選免填）**——每場賽事卡都有對接鈕。**重推採安全合併：只更新 RedRock 欄位（姓名/組別/性別/隊伍），保留計分系統那邊排的 bib/order/已進階 round；不碰手動加的選手**（不影響計分系統原本名單匯入/增刪改）。`src/services/competitionSyncService.js`（syncCompEvent/syncCompAthlete〔merge〕/removeCompAthlete）、`src/config/compFirebase.js`（getCompDb）。詳見記憶 competition-scoring-integration
-- ✅ **比賽報名截止/開始日擋報名（時區修正）**：`registerForCompetition` 除 `status='open'` 外，加擋 `今天>registrationEnd`→`REGISTRATION_ENDED`、`今天<registrationStart`→`REGISTRATION_NOT_STARTED`。判定改用**台灣日期**（`Date.now()+8h` 的 YYYY-MM-DD），修掉原 `dayjs()` 用伺服器 UTC 導致「截止日隔天台灣 00:00–08:00 仍可報名」的漏洞（截止當天可報、隔天 00:00 起即擋）。`/health` `1.12.3-reg-deadline-tz`
-- ✅ **後端全域台灣時區（根治 UTC 日期 bug）＋下載/迴圈稽核**：Railway 預設 UTC，後端 `dayjs()`/`new Date()` 本地方法/`setHours`/`startOf` 都算成 UTC 日期 → 台灣 00:00–08:00 差一天（入場「今日」、比賽截止等都是此類，逐個修易漏）。根治：`src/index.js` 最前面 `process.env.TZ = process.env.TZ || 'Asia/Taipei'`（任何 Date/dayjs 使用前），一次修好全部。既有「明確 +8 補償」（`Date.now()+8h→toISOString`、`'T..+08:00'`）屬 epoch/ISO、與 TZ 無關、不雙重位移（已驗證）；前端跑使用者瀏覽器（台灣）時區、本就正確。`/health` 加 `tz`/`serverTime` 可驗（線上實測 `GMT+0800`）。同次稽核確認：下載無 `window.open` 缺 auth（axios `responseType:blob` 走帶 auth 的 client、消費端正確）；無 `while(true)`/`for(;;)`，3 個 while 日期迴圈皆推進游標、4 個 setInterval 皆有 clearInterval。`/health` `1.13.0-tz-taipei-global`
-- ✅ **管理員遠端結帳 + 系統轉換期工具 + 加減項**：① 系統管理員 super_admin **不需在本館電腦**也能操作每日結算：`requireStationAuth` 放行 super_admin（原僅站台 operator，僅用於結算 today/POST）、`DailySettlementPage` 非站台時顯示館別下拉遠端操作、`StaffLayout` 桌機 nav 對 super_admin 顯示結帳鈕（原僅站台）。② **系統轉換期設定**（設定→🔄系統轉換，`systemSettings/transitionSettings`，管理員開關，`GET/PUT /settings/transition`）：`settlementManualInput`（結帳「今日收入」每項＋付款方式並列手動輸入欄，系統值與手動值都存、差異以手動現金為準）｜`settlementShowCardNumbers`（優惠卡/全票最前號碼可隱藏，之後拿掉）｜`checkinAlreadyPaid`（入場電話搜尋「已付費」鈕：舊系統已付→免扣票券、記 NT$0、付款`already_paid`，waiver/墜測仍硬擋）。改設定後結算頁需重新整理才套用。③ 結帳「減項」改**「加減項」**（每列 `sign` ＋加/－減，舊資料無 sign 視為減；前後端皆改帶號淨額計算 `expectedCash=前日+現金+淨加減`）。④ 發票起始號＝前一天結算最後一張+1（`/today` 回 `suggestedInvoiceStart`，保留位數，可手動改）。`/health` `1.14.1-settlement-adjustments`
-- ✅ **分期付款＝課程/票種屬性（非 per-member 手動）**：分期規則定義在**課程/票種設定**上（`installment{ enabled, periods:[{percent 比例%, dueOffsetDays 間隔天}] }`，`InstallmentRuleEditor` 元件，比例合計=100），報名/購買時**可選一次付清或分期**（`PaymentPlanChoice` 元件，送 `paymentPlan`）。選分期→`installmentService.buildPeriodsFromConfig`（依總價+起始日算各期金額〔比例、末期吸收餘數〕與到期日）自動建計畫；**課程營收認列最後一堂、定期票認列收款日**（`markInstallmentPaid`/建立時逐期記 `transactions`，`recordInstallmentRevenue`）；選分期則報名/購票**略過全額記帳**避免重複。**員工櫃檯頭款當下收（自動記帳）；會員自助第一期留 pending**（待轉帳確認後員工於分期頁標記）。接點：`courses.js` enroll-all/單堂插班、`passes.js` 購票（皆 gated `paymentPlan==='installment'`）。分期頁 `InstallmentsPage` **移除手動新增**改純追蹤；逾期→暫停入場（`hasOverdueInstallment`）；**每日台灣09:00 排程**（`index.js` setInterval）自動跑逾期檢查＋到期/逾期提醒。定期票為「會員申請→員工開卡」流程，分期由員工開卡時選。`/health` `1.15.2-member-installment-choice`
-- ✅ **商品入庫依「操作館別」＋商品永久刪除（限管理員）**：① 入庫修正——`SalesPage.handleRestock` 原沒帶 `gymId`，後端 `products.js` restock `req.body.gymId || req.staff.gymId` 一律進登入者的館 → 系統管理員在上方切「操作館別」到他館入庫會跑錯館。改為送 `gymId: targetGymId`（與銷售/新增/編輯同源），入庫 Modal 加「📦 入庫至：<館>」提示、變體改顯示「本館庫存」（`v.gymStock?.[targetGymId]`）。② 停用（軟刪 `isActive:false`，可於「🗄 已停用商品」重新啟用）之外新增**永久刪除**：`DELETE /products/:id/permanent`（`checkPermission('products.manage')` 再內檢 `role∈{super_admin,gym_manager}`，真 `.doc().delete()`）＋前端 `deleteProductPermanent`、商品列 `isAdmin` 才顯示紅色「刪除」鈕＋不可復原確認 Modal。純前端部署＋後端 push Railway（未 bump health）
-- ✅ **員工練習測試資料（seed 腳本）**：`scripts/seedTestMembers.js` 建 14 種身分情境測試會員（`【練習】`前綴、電話 `09009001xx`、全新竹館：一般/未簽waiver/墜測過期/未測/定期票/黑卡/紅利/優惠卡8折/單次券/VIP/隊員/親子共用電話/體驗券豁免/銷售用），直接寫 members＋關聯集合（waivers/fallTests/memberPasses/legacyBlackCards/discountBonuses/discountCards/singleEntryTickets/vipMembers/fallTestSignatures），欄位對齊 `verifyEntry` 資格判定並實測通過；`scripts/seedCourseRefund.js` 建 course+session+enrollment+pending 退費申請供待辦頁審核練習（欄位對齊 `courseAdjustments` 建立/核准邏輯）。皆 `--commit` 寫入/`--clean` 清除。另 `scripts/importShilinProducts.js`＝士林館存貨「對齊匯入」（跨館共用商品，士林庫存寫 `gymStock['gym-shilin']`、對映現有型號、不覆蓋既有價）。搭配教育訓練 PDF（權限對照表/操作手冊/練習題本）
-- ✅ **全域場館切換器（頂部 `viewGym`，僅 super_admin）**：`authStore` 新增 `viewGym`/`setViewGym`（存 localStorage `viewGym`，`''`＝全館）；`StaffLayout` 頂部狀態列對 super_admin 顯示場館下拉（🏛 全館／各館，載 `getAllGyms`），全站沿用。各員工頁移除各自的「操作館別」下拉，統一吃 `viewGym`，並依頁面性質決定「全館」語意：**操作類**（`CheckinPage`/`SchedulePage`）→「全館」退回第一個館；**結帳**（`DailySettlementPage`）→「全館」不載入、提示先切到具體場館（結帳必須單館）；**報表類**（`RevenuePage`/`MembersPage` VIP·定期票·課程學員／`PassesPage` 票種）→「全館」傳 `undefined`／由後端彙整全部；**商品**（`SalesPage`）→「全館」＝「📦 倉庫（中央庫存）」、具體館＝該館，倉庫模式禁止銷售（僅入庫/建品/改庫存）
-- ✅ **卡片移轉改兩段式＋按次數（優惠卡/黑卡）**：會員端 `MemberPassesPage` `TransferModal` 對優惠卡/黑卡改走 `/cards/transfers/initiate`（可設 `credits` 移轉次數、暫扣→對方 24h 內於會員 App 接收，逾期自動回沖）；輸入電話即時 `/cards/transfers/lookup` 帶出受贈者姓名（防轉錯人/轉給自己）。紅利/單次券維持整張舊流程 `/ticket-transfers/request`。頁面加「🎁 待接收的卡片移轉」「🔄 移轉中（我送出，可取消回沖）」區塊（`/cards/transfers/incoming|outgoing|:id/accept|:id/cancel`）。移轉取得卡標「移轉優惠卡」＋`bonusToOriginalOwner`（用完紅利歸原購買者）提示。員工端 `CardsPage` 加「🎫 轉入優惠卡」（`bindDiscountCard`＝舊/實體卡轉入設定剩餘次數，`source:migrated`）＋移轉中面板可取消回沖。新增 API `src/api/cards.js`：`bindDiscountCard`/`getOutgoingTransfers`/`cancelCardTransfer`/`memberGet(Incoming|Outgoing)Transfers`/`memberAccept|CancelTransfer`
-- ✅ **商品銷售紀錄 + 退貨**：`SalesPage` 新增「銷售紀錄」分頁（近 30 天，`getProductSales`；倉庫模式看全館、具體館看本館）；每筆可「退貨」（`returnSale`→`POST /products/sales/:id/return`，含原因），退貨還原庫存＋沖銷當日商品營收（記一筆負額退貨紀錄）、原銷售標記已退貨。確認 Modal 說明後果。新增 API `products.js` `returnSale`
-- ✅ **商品永久刪除（前端 UI）**：`SalesPage` 庫存列 `isAdmin`（super_admin/gym_manager）才顯示紅色「刪除」鈕＋不可復原確認 Modal（`deleteProductPermanent`→`DELETE /products/:id/permanent`，接前述後端端點）
-- ✅ **排班：複製上月 / 清空本月**：`SchedulePage` 對 canManage 加「📋 複製上月排班」（`copyPreviousMonthSchedule`→依星期對應複製，本月現有保留、整天班重複略過，`window.confirm`）與「🗑 清空本月排班」（`clearMonthSchedule`，確認 Modal，不可復原）。新增 API `schedule.js` `clearMonthSchedule`/`copyPreviousMonthSchedule`（`POST /schedule/clear-month|copy-previous`）
-- ✅ **設定頁：館別電腦帳號管理 + 裝置綁定總開關**：`SettingsPage` 帳號分頁（super_admin）新增「🖥️ 館別電腦帳號」CRUD（`getStations`/`createStation`/`updateStation`，名稱/登入 Email/館別/通知 Email/密碼，停用啟用）＋「🔒 裝置綁定」總開關（`GET/PUT /settings/device-binding`，關閉後員工個人帳號/館別電腦新裝置登入免驗證，僅測試/轉換期用、完成後重開）。新增 API `src/api/stations.js`
-- ✅ **結帳作廢發票號改逐張標籤**：`DailySettlementPage` 作廢發票號由單一輸入框改「輸入一張按 Enter/加入→chip 標籤（可逐張 ×刪除）」，也可一次貼多組逗號分隔；送出時合併為字串（沿用後端 `invoiceVoidNumbers`）
-- ✅ **其他小修**：`CheckinPage` 電話入場優惠券選項疊加隊員 9 折時 label 顯示「優惠券8折+隊員9折」（`inst.discountCard.teamStacked`）；`passes.js` `getPassTypes(gymId)` 支援帶場館參數；`FinancePage` 發票明細下載失敗改顯示後端完整訊息（原僅 403/狀態碼）
-- ✅ **體驗預約→指定/改教練（前端）**：新增 `components/CoachSelect.jsx`（載館內員工清單〔`getScheduleStaffList`，需 `schedule.manage`〕＋「其他自訂輸入」，載不到只給自訂）。確認彈窗 `ExperienceDetailModal` 加「指定教練（選填）」，確認時帶 `{coachId,coachName}`。`ExperienceBookingsPage` 已確認卡片顯示「👟 教練」＋「指定/改教練」「🗑 取消預約」；試上預約以紫標「試上」＋課名區分、`needsInsurance:false` 不顯示保險鈕。後端：確認自動建 course/session/教練排班、改教練刪舊班建新班、取消一併清理
-- ✅ **員工本人待辦頁近七日班表**：`PendingTasksPage` 頂端「🗓️ 我的近 7 日班表」卡（日期·時間〔全天/時段〕·備註，今日標記），僅 `staff && !operator && !station` 顯示；`GET /schedule/my-upcoming?from&to`（傳本地時區七日範圍，只回自己）
-- ✅ **課程月曆：教練+報名/預計上課；會員隱藏人數**：員工 `CoursesPage` 月曆場次卡顯示 課名·👟教練·報名(原報名)·預計上課(原報名−請假+補課+試上)＋請假/補課/試上標籤；會員 `MemberCoursesPage` 課程月曆/課程總覽/補課場次**全隱藏人數**（保留「額滿」）。`getSessions` 回 `registeredCount/expectedCount/trialCount` 並帶出 instructor
-- ✅ **排班表編輯可改員工（bug 修正）**：後端 `updateShift` 原漏 `staffId/staffName`（前端本就有送）→ 補上；改員工/日期/類型/時間/備註皆正常。純後端
-- ✅ **週課「開放試上」**：`CoursesPage` 課程表單（僅週課）加「開放試上」＋「試上費用」（`allowTrial/trialPrice`）。會員 `MemberExperiencePage` 新增「課程試上」分頁（`GET /courses/trial-sessions`，開放且未額滿的場次〔額滿含補課佔滿自動排除〕）＋試上報名 modal（匯款＋免責同意勾選）。報名比照體驗（`POST /experience-bookings` 帶 `trialSessionId`，費用=`trialPrice` 後端權威、免保險），確認後 `enrollTrial` 加入場次名單 `isTrial`（佔名額、計入預計上課）＋發單日券（不卡墜測，沿用 1.7.1 體驗券豁免）
-- ✅ **課程場次「代班教練」**：`CoursesPage` 月曆場次卡「設定/更改/取消代班」（`CoachSelect`＋原因，`PUT|DELETE /courses/sessions/:id/substitute`）→ 覆寫該堂 instructor、記錄原教練、發待辦提醒（管理員+代班本人，`notifyRoleInGym`+`createNotification`）。兩端月曆自動同步（`getSessions` 優先場次 instructor）：員工橘標「代班（原XX）」、會員 `MemberCoursesPage` 顯示「👟 教練（代班）」。修：代班選單 gymId 改用場次 gymId（super_admin 看全館時不再空白）
-- ✅ **卡片封面品牌全名**：優惠卡/黑卡（`MemberPassesPage`）與員工卡片（`CardsPage`）右上裝飾浮水印 `RR` → 全部改「RedRock 紅石攀岩館」（縮字級+不換行，維持浮水印質感）
-- 🟡 **線上金流串接（進行中）**：統一付款元件 `src/components/PaymentFlow.jsx`（接 `client` prop，會員/員工通用；匯出 `ONLINE_PAYMENT_ENABLED`，正式環境 gateway 上線前為 false → 不顯示付款入口、fallback 匯款）
-  - 已接會員自助：競賽 / 體驗 / 課程 / 租借（MemberCompetitions/Experience/Courses/Rental Page）
-  - 後端 rail 與設計：見 `redrock-api/docs/payment-integration-plan.md`
-
-- ✅ **新會員入場前置全屏流程（墜落測驗自助排測）**：會員端 `MemberOnboardingGate`（包在 `MemberHomePage`）——email 認證後主畫面全屏 gate：①②兩大方框簽 waiver + 墜測同意書（沿用既有 `/member/waiver`、`/member/fall-test`）→ 兩者完成顯示「請安排墜落測驗」選場館 → **送出後確認畫面→回正常首頁**（不卡等待畫面；入場仍由後端擋到通過為止，持當日體驗券者豁免）。子帳號於 `MemberProfilePage`「家庭成員」各自代簽 + 各自選場館排測（可換館）。員工/站台端 `PendingTasksPage` 新增「🧗 墜落測驗待安排」分段 + `fall_test_pending` 卡，`FallTestBookingModal` 檢視 waiver/同意書副本 + 通過/未通過/**退回申請**（站台值班可用）。新 `api/fallTestBookings.js`；接後端 `1.34.0` `/fall-test-bookings`
-
-## 待辦
-- 各館金流商戶金鑰到位後：啟用 `ONLINE_PAYMENT_ENABLED` + 員工端 QR PaymentFlow（定期票/分期/入場）
-- 資料移轉（Climbio 18,000+ 筆）
+## 機密
+- 後端機密（`JWT_SECRET`、金流 `paymentSettings`、Firebase 憑證）走環境變數 / Firestore，**不進前端 bundle**。
+- GitHub push 走 macOS Keychain；勿在任何檔案明文放 PAT。
