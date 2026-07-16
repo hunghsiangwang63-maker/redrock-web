@@ -378,8 +378,8 @@ export default function MemberCompetitionsPage() {
   const payStatusBadge = (r) => {
     if (r.paymentStatus === 'confirmed') return { bg:'#E6F4EB', color:'#2D7D46', text:'已確認付款' };
     if (r.paymentStatus === 'refunded') return { bg:'#F0EDED', color:'#666', text:'已退費' };
-    if (r.paymentStatus === 'transfer_rejected') return { bg:'#FCEBEB', color:'#A32D2D', text:'轉帳被退回' };
-    if (r.paymentStatus === 'pending_confirm') return { bg:'#FAEEDA', color:'#854F0B', text:'轉帳確認中' };
+    if (r.paymentStatus === 'transfer_rejected') return { bg:'#FCEBEB', color:'#A32D2D', text: r.paymentMethod==='cash'?'繳費被退回':'轉帳被退回' };
+    if (r.paymentStatus === 'pending_confirm') return { bg:'#FAEEDA', color:'#854F0B', text: r.paymentMethod==='cash'?'繳費確認中':'轉帳確認中' };
     return { bg:'#FAEEDA', color:'#854F0B', text:'待確認付款' };
   };
 

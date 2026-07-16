@@ -342,7 +342,7 @@ export default function MemberHomePage() {
                 <div style={{ fontSize:13, fontWeight:700, color: a.kind === 'action' ? '#854F0B' : '#A32D2D', textAlign:'left' }}>
                   {a.kind === 'action'
                     ? `${a.label}待補文件：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
-                    : `${a.label}轉帳被退回：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`}
+                    : `${a.label}${a.method === 'cash' ? '繳費資訊被退回' : '轉帳被退回'}：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`}
                 </div>
                 <div style={{ fontSize:11, color: a.kind === 'action' ? '#8A6A1F' : '#8A5A5A', marginTop:2, textAlign:'left' }}>
                   {a.reason ? `${a.reason}，` : ''}請點此前往處理
