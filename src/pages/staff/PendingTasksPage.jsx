@@ -103,14 +103,17 @@ export default function PendingTasksPage() {
     ticket_approval:     isManager,                    // checkPermission('passes.approve')
     fall_test_pending:   true,                          // 站台/值班/員工皆可登記（後端 authenticate）
   };
+  const [returnedItems, setReturnedItems] = useState([]);
+  const [returnedDetail, setReturnedDetail] = useState(null);
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await client.get('/pending-tasks', {
-        params: isAdmin && gymFilter ? { gymId: gymFilter } : {}
-      });
+      const params = isAdmin && gymFilter ? { gymId: gymFilter } : {};
+      const res = await client.get('/pending-tasks', { params });
       setTasks(res.data.tasks || []);
       setRegistrations(res.data.registrations || []);
+      client.get('/pending-tasks/returned', { params })
+        .then(r => setReturnedItems(r.data.items || [])).catch(() => setReturnedItems([]));
     } catch(e) { setTasks([]); setRegistrations([]); } finally { setLoading(false); }
   }, [gymFilter, isAdmin]);
 
@@ -256,6 +259,10 @@ export default function PendingTasksPage() {
             style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='notif' ? '#854F0B' : '#fff', color: trackView==='notif' ? '#fff' : '#854F0B', border:'0.5px solid #854F0B', fontSize:12, cursor:'pointer' }}>
             🔔 通知
           </button>
+          <button onClick={() => openTrack('returned')}
+            style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='returned' ? '#A32D2D' : '#fff', color: trackView==='returned' ? '#fff' : '#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>
+            ↩️ 退回追蹤{returnedItems.length ? `（${returnedItems.length}）` : ''}
+          </button>
           <button onClick={load} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
             重新整理
           </button>
@@ -396,6 +403,62 @@ export default function PendingTasksPage() {
                 ))}
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {trackView === 'returned' && (
+        <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:16 }}>
+          <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>↩️ 退回追蹤 · 退回的申請／繳費（追蹤至結案）</div>
+          <div style={{ fontSize:11, color:'#999', marginBottom:12, lineHeight:1.6 }}>管理者／值班退回後在此追蹤：待會員補正 → 已補正待確認 → 確認收款或取消即結案（自動移除）。點「詳情」看會員填寫資料與退回原因。</div>
+          {returnedItems.length === 0 && <div style={{ fontSize:13, color:'#999', padding:'12px 0', textAlign:'center' }}>目前沒有待追蹤的退回件</div>}
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {returnedItems.map(it => (
+              <div key={`${it.orderType}_${it.orderId}`} style={{ background:'#FBF5F5', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:14, fontWeight:600 }}>{it.memberName} <span style={{ fontSize:11, color:'#666', fontWeight:400 }}>· {it.label}</span></div>
+                    <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{it.orderName}</div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:3, lineHeight:1.5 }}>
+                      退回原因：{it.reason || '—'}
+                      {it.returnByName ? `　· 退回人：${it.returnByName}` : ''}
+                      {it.returnAtSec ? `　· ${dayjs(it.returnAtSec*1000).format('MM/DD HH:mm')}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
+                    <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: it.returnType==='form'?'#FFF8E6':'#FCEBEB', color: it.returnType==='form'?'#854F0B':'#A32D2D' }}>{it.returnType==='form'?'報名表退回':'繳費退回'}</span>
+                    <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background: it.subStatus==='awaiting_member'?'#FAEEDA':'#E6F1FB', color: it.subStatus==='awaiting_member'?'#854F0B':'#185FA5' }}>{it.subStatus==='awaiting_member'?'待會員補正':'已補正待確認'}</span>
+                    <button onClick={()=>setReturnedDetail(it)} style={ghostBtn}>詳情</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {returnedDetail && (() => {
+        const d = returnedDetail; const md = d.memberData || {};
+        const rows = d.returnType === 'form'
+          ? [['組別', md.divisionName], ['性別', md.gender==='male'?'男':md.gender==='female'?'女':md.gender], ['手機', md.phone], ['Email', md.email], ['身分證', md.idNumber], ['緊急聯絡', [md.emergencyContact, md.emergencyPhone].filter(Boolean).join(' ')]]
+          : [['付款方式', md.paymentMethod==='cash'?'臨櫃現金':md.paymentMethod==='transfer'?'銀行轉帳':md.paymentMethod], ['金額', md.amount?`NT$${md.amount}`:null], ['匯款末五碼', md.bankLastFive], ['匯款銀行', md.bankName], ['繳款日期', md.paymentDate]];
+        const mgr = [['退回類型', d.returnType==='form'?'報名表退回':'繳費退回'], ['退回原因', d.reason], ['退回人', d.returnByName], ['退回時間', d.returnAtSec?dayjs(d.returnAtSec*1000).format('YYYY-MM-DD HH:mm'):null], ['目前狀態', d.subStatus==='awaiting_member'?'待會員補正':'已補正待確認']];
+        const Row = ([k,v]) => <div key={k} style={{ display:'flex', fontSize:12, padding:'2px 0' }}><div style={{ width:78, color:'#999', flexShrink:0 }}>{k}</div><div style={{ color:'#333', wordBreak:'break-word' }}>{v || '—'}</div></div>;
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setReturnedDetail(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:14, padding:20, width:'100%', maxWidth:420, maxHeight:'85vh', overflowY:'auto' }}>
+              <div style={{ fontWeight:700, fontSize:15, marginBottom:2 }}>退回件詳情</div>
+              <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>{d.memberName} · {d.label} · {d.orderName}</div>
+              <div style={{ background:'#FCEBEB', borderRadius:8, padding:'10px 12px', marginBottom:10 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#A32D2D', marginBottom:4 }}>👔 管理者退回資料</div>
+                {mgr.map(Row)}
+              </div>
+              <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px' }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:4 }}>🧑 會員填寫資料</div>
+                {rows.map(Row)}
+              </div>
+              <button onClick={()=>setReturnedDetail(null)} style={{ marginTop:14, width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, cursor:'pointer' }}>關閉</button>
+            </div>
           </div>
         );
       })()}
