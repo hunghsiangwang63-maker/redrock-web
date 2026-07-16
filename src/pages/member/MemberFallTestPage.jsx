@@ -3,6 +3,7 @@ import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getFallTestSettings, signFallTestAgreement, getFallTestSignature, getMyFallTestStatus } from '../../api/fallTests';
+import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } from '../../api/fallTestBookings';
 import SignaturePad from '../../components/SignaturePad';
 import dayjs from 'dayjs';
 import { detectInAppBrowser } from '../../utils/inAppBrowser';
@@ -46,6 +47,34 @@ export default function MemberFallTestPage() {
   const [agreedParagraphs, setAgreedParagraphs] = useState(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  // 安排墜落測驗（選場館）
+  const FT_GYMS = [{ id: 'gym-hsinchu', name: '新竹館' }, { id: 'gym-shilin', name: '士林館' }];
+  const ftGymName = (id) => FT_GYMS.find(g => g.id === id)?.name || id;
+  const [booking, setBooking] = useState(null);      // 此人的 pending 排測
+  const [ftBusy, setFtBusy] = useState(false);
+  const [ftMsg, setFtMsg] = useState('');
+  const loadBooking = async () => {
+    try {
+      const r = await getMyFallTestBookings();
+      setBooking((r.data.bookings || []).find(b => b.memberId === targetId && b.status === 'pending') || null);
+    } catch (e) { /* 排測載入失敗不影響其餘 */ }
+  };
+  const scheduleFallTest = async (gymId) => {
+    setFtBusy(true); setFtMsg('');
+    try {
+      await createFallTestBooking({ gymId, targetMemberId: forChildId || undefined });
+      setFtMsg('已安排墜落測驗，請至該館現場測驗');
+      await loadBooking();
+    } catch (e) { setFtMsg(e.response?.data?.message || '安排失敗'); }
+    finally { setFtBusy(false); }
+  };
+  const cancelBooking = async () => {
+    if (!booking) return;
+    setFtBusy(true); setFtMsg('');
+    try { await cancelFallTestBooking(booking.id); setBooking(null); }
+    catch (e) { setFtMsg(e.response?.data?.message || '取消失敗'); }
+    finally { setFtBusy(false); }
+  };
 
   // 未滿 18 歲（未成年）需家長/監護人一同簽署（與聲明書/課程/比賽/註冊一致）
   const needGuardian = isMinor(member?.birthday);
@@ -56,6 +85,7 @@ export default function MemberFallTestPage() {
       try { const s = await getFallTestSettings(); setSettings(s.data); } catch {}
       try { const st = await getMyFallTestStatus(targetId); setStatus(st.data); } catch {}
       try { const sig = await getFallTestSignature(targetId); setSignature(sig.data.signature); } catch {}
+      await loadBooking();
       setSignatureLoading(false);
     };
     load();
@@ -368,6 +398,38 @@ export default function MemberFallTestPage() {
           </>
         )}
       </div>
+
+      {/* 安排墜落測驗：同意書已簽 + 尚未通過 → 選場館排測 / 已排測顯示待現場測驗 */}
+      {hasSigned && !testValid && (
+        <div style={s.card}>
+          <div style={s.sectionTitle}>安排墜落測驗</div>
+          {booking ? (
+            <>
+              <div style={{ fontSize: 13, color: '#B5762B', fontWeight: 600, marginBottom: 12 }}>
+                ⏳ 已安排 {ftGymName(booking.gymId)}，請至該館現場完成測驗
+              </div>
+              <button disabled={ftBusy} onClick={cancelBooking} style={s.btnSecondary}>
+                {ftBusy ? '處理中…' : '取消 / 更改場館'}
+              </button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 13, color: '#666', marginBottom: 10, textAlign: 'left' }}>
+                請選擇測驗場館，安排後至該館現場由工作人員進行測驗：
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {FT_GYMS.map(g => (
+                  <button key={g.id} disabled={ftBusy} onClick={() => scheduleFallTest(g.id)}
+                    style={{ flex: 1, height: 44, borderRadius: 10, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
+                    {ftBusy ? '…' : g.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          {ftMsg && <div style={{ fontSize: 12, color: ftMsg.includes('已安排') ? '#2D7D46' : '#A32D2D', marginTop: 10 }}>{ftMsg}</div>}
+        </div>
+      )}
     </div>
   );
 }
