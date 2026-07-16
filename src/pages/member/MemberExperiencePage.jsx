@@ -459,6 +459,11 @@ export default function MemberExperiencePage() {
 
         {tab==='my' && (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            {myBookings.length>0 && (
+              <div style={{ background:'#FBF5E9', border:'0.5px solid #EBD9B0', borderRadius:12, padding:'12px 14px', fontSize:12.5, color:'#7A5A12', lineHeight:1.6, textAlign:'left' }}>
+                📢 <strong>提醒</strong>：請所有參加體驗課程的朋友先註冊紅石會員，以加速入場流程（需完成<strong>風險安全聲明書</strong>及<strong>墜落測驗同意書</strong>簽署）。
+              </div>
+            )}
             {myBookings.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無預約記錄</div>}
             {myBookings.map(b=>{
               const sl = { pending:{bg:'#FAEEDA',color:'#854F0B',text:'待確認'}, confirmed:{bg:'#E6F4EB',color:'#2D7D46',text:'已確認'}, cancelled:{bg:'#FCEBEB',color:'#A32D2D',text:'已取消'} }[b.status]||{bg:'#F0EDED',color:'#666',text:b.status};
