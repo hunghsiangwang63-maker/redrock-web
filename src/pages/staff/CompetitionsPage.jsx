@@ -70,7 +70,7 @@ export default function CompetitionsPage() {
   const [regLoading, setRegLoading] = useState(false);
   const [regTab, setRegTab] = useState('all'); // all | refunds
   const [statusFilter, setStatusFilter] = useState('all'); // 依報名狀態下拉篩選
-  const [summaryOpenDiv, setSummaryOpenDiv] = useState(null); // 組別總覽展開名單
+  const [regDetail, setRegDetail] = useState(null); // 點列開詳細資料
   const [actionModal, setActionModal] = useState(null); // { type:'pay'|'refund', reg }
   const [formAction, setFormAction] = useState(null); // { type:'return'|'reject', reg }
   const [formReason, setFormReason] = useState('');
@@ -224,6 +224,25 @@ export default function CompetitionsPage() {
     return hasInfo ? 'awaitConfirm' : 'awaitPayment';           // B 待確認 / A 未填匯款
   };
   const STATE_LABEL = { awaitPayment:'未填匯款', awaitConfirm:'待確認收款', paid:'已收款', rejected:'已要求重填', waitlist:'候補中', cancelled:'已取消' };
+  // 名單精簡列：繳費狀態文字+顏色、備註（特殊狀況）
+  const STATUS_LABEL = {
+    awaitPayment:{t:'未填匯款',c:'#854F0B'}, awaitConfirm:{t:'待確認收款',c:'#185FA5'}, paid:{t:'已收款',c:'#2D7D46'},
+    rejected:{t:'已要求重填',c:'#A32D2D'}, waitlist:{t:'候補中',c:'#854F0B'}, cancelled:{t:'已取消',c:'#999'},
+  };
+  const regRemark = (r) => {
+    const a = [];
+    if (r.isHonorary) a.push('榮譽');
+    if (r.isEarlyBird) a.push('早鳥');
+    if (r.isTeamDiscount) a.push('隊員9折');
+    if (r.paymentMethod==='cash' && r.status!=='cancelled') a.push('臨櫃');
+    if (r.status==='waitlist' && r.waitlistPosition) a.push(`候補#${r.waitlistPosition}`);
+    if (r.formReturned && r.status!=='cancelled') a.push('退回修改中');
+    if (!r.isComplete && r.status!=='cancelled') a.push('待法代簽');
+    if (r.refundRequested && r.status==='cancelled') a.push('申請退費');
+    if (r.formRejected && r.status==='cancelled') a.push('已駁回');
+    if (r.cancelReason==='payment_expired') a.push('逾期取消');
+    return a;
+  };
 
   return (
     <div style={{ padding:24, maxWidth:900, margin:'0 auto' }}>
@@ -387,51 +406,17 @@ export default function CompetitionsPage() {
       {/* 報名名單 Modal */}
       {showRegistrations && (
         <Modal title={`報名名單 — ${showRegistrations.name}`} onClose={()=>setShowRegistrations(null)} width={760}>
-          {/* 組別總覽：各組正取/候補人數＋名單，總計 有效/申請退費/已取消 */}
-          {(() => {
-            const active = registrations.filter(r => r.status !== 'cancelled');
-            const refundN = registrations.filter(r => r.refundRequested).length;
-            const cancelN = registrations.filter(r => r.status === 'cancelled' && !r.refundRequested).length;
-            const divs = showRegistrations.divisions || [];
-            return (
-              <div style={{ background:'#FBF5F5', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:12 }}>
-                <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginBottom:10, fontSize:13 }}>
-                  <span>有效報名 <strong style={{ color:'#2D7D46', fontSize:15 }}>{active.length}</strong></span>
-                  <span>申請退費 <strong style={{ color:'#A32D2D', fontSize:15 }}>{refundN}</strong></span>
-                  <span>已取消 <strong style={{ color:'#999', fontSize:15 }}>{cancelN}</strong></span>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                  {divs.map(dv => {
-                    const conf = active.filter(r => r.divisionId === dv.id && r.status === 'confirmed');
-                    const wait = active.filter(r => r.divisionId === dv.id && r.status === 'waitlist');
-                    const open = summaryOpenDiv === dv.id;
-                    return (
-                      <div key={dv.id} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px' }}>
-                        <div onClick={() => setSummaryOpenDiv(open ? null : dv.id)} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
-                          <span style={{ fontSize:13, fontWeight:600 }}>{dv.name}</span>
-                          <span style={{ fontSize:12, color:'#666' }}>
-                            正取 <strong style={{ color:'#2D7D46' }}>{conf.length}</strong>/{dv.maxParticipants || 40}
-                            {wait.length ? <span style={{ color:'#854F0B' }}>　候補 {wait.length}</span> : ''}
-                            <span style={{ marginLeft:8, color:'#999' }}>{open ? '▲' : '▼'}</span>
-                          </span>
-                        </div>
-                        {open && (
-                          <div style={{ marginTop:8, fontSize:12, color:'#444', lineHeight:1.9, borderTop:'0.5px solid #F0E4E4', paddingTop:6 }}>
-                            {conf.length === 0 && wait.length === 0 && <span style={{ color:'#999' }}>尚無報名</span>}
-                            {conf.length > 0 && <div><span style={{ color:'#2D7D46', fontWeight:600 }}>正取：</span>{conf.map(r => r.memberName).join('、')}</div>}
-                            {wait.length > 0 && <div><span style={{ color:'#854F0B', fontWeight:600 }}>候補：</span>{wait.map((r,i) => `${r.memberName}(#${r.waitlistPosition || i+1})`).join('、')}</div>}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })()}
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+          {/* 一行總計 */}
+          <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
+            有效報名 <strong style={{ color:'#2D7D46' }}>{registrations.filter(r=>r.status!=='cancelled').length}</strong>
+            {' · '}申請退費 <strong style={{ color:'#A32D2D' }}>{registrations.filter(r=>r.refundRequested).length}</strong>
+            {' · '}已取消 <strong style={{ color:'#999' }}>{registrations.filter(r=>r.status==='cancelled'&&!r.refundRequested).length}</strong>
+          </div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
             <SegmentedTabs value={regTab} onChange={setRegTab} tabs={[
               { key:'all',       label:`全部 (${registrations.filter(r=>r.status!=='cancelled').length})` },
+              // 各組別分頁：點了直接看該組名單
+              ...(showRegistrations.divisions||[]).map(dv => ({ key:`div_${dv.id}`, label:`${dv.name} (${registrations.filter(r=>r.divisionId===dv.id && r.status!=='cancelled').length})` })),
               { key:'refund',    label:`申請退費 (${registrations.filter(r=>r.refundRequested).length})` },
               { key:'cancelled', label:`已取消 (${registrations.filter(r=>r.status==='cancelled'&&!r.refundRequested).length})` },
             ]} />
@@ -455,82 +440,35 @@ export default function CompetitionsPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {registrations.length===0 && <div style={{ textAlign:'center', color:'#999', padding:20 }}>尚無報名記錄</div>}
               {(() => {
-                const base = regTab==='refund' ? registrations.filter(r=>r.refundRequested)
-                  : regTab==='cancelled' ? registrations.filter(r=>r.status==='cancelled' && !r.refundRequested)
-                  : registrations.filter(r=>r.status!=='cancelled');   // 全部＝有效（非取消）
-                // 狀態下拉只在「全部」分頁生效
-                return (regTab==='all' && statusFilter!=='all') ? base.filter(r => regState(r)===statusFilter) : base;
+                const secOf = r => r.registeredAt?._seconds || r.registeredAt?.seconds || 0;
+                let base;
+                if (regTab==='refund') base = registrations.filter(r=>r.refundRequested);
+                else if (regTab==='cancelled') base = registrations.filter(r=>r.status==='cancelled' && !r.refundRequested);
+                else if (regTab.startsWith('div_')) { const did = regTab.slice(4); base = registrations.filter(r=>r.divisionId===did && r.status!=='cancelled'); }
+                else base = registrations.filter(r=>r.status!=='cancelled');
+                if (regTab==='all' && statusFilter!=='all') base = base.filter(r => regState(r)===statusFilter);
+                return [...base].sort((a,b)=> secOf(a)-secOf(b));   // 依報名日期排序（早→晚）
               })().map(r => {
-                const ps = payStatusInfo(r);
+                const st = regState(r);
+                const stl = STATUS_LABEL[st] || { t:'—', c:'#666' };
+                const remark = regRemark(r);
+                const sec = r.registeredAt?._seconds || r.registeredAt?.seconds || 0;
                 return (
-                  <div key={r.id} style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', border:'0.5px solid #E8D5D5' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                      <div>
-                        <div style={{ fontWeight:600, fontSize:14 }}>{r.memberName} {r.isHonorary && <span style={{ fontSize:10, background:'#FAEEDA', color:'#854F0B', padding:'1px 6px', borderRadius:6, fontWeight:600 }}>榮譽</span>}</div>
-                        <div style={{ fontSize:12, color:'#666', marginTop:3 }}>
-                          {r.divisionName} ｜ 報名費：NT${r.registrationFee} {r.isEarlyBird?'（早鳥）':''}
-                          {r.status==='waitlist' && <span style={{ marginLeft:6, color:'#854F0B' }}>候補#{r.waitlistPosition}</span>}
-                        </div>
-                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                          身高：{r.height||'—'} ｜ 臂展：{r.armSpan||'—'} ｜ 匯款末五碼：{r.bankLastFive||'—'}
-                        </div>
-                        {(r.idNumber || r.emergencyContact) && (
-                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            身分證：{r.idNumber||'—'} ｜ 緊急聯絡：{r.emergencyContact||'—'}{r.emergencyRelation?`（${r.emergencyRelation}）`:''} {r.emergencyPhone||''}
-                          </div>
-                        )}
-                        {r.refundAccount && (
-                          <div style={{ fontSize:11, color:'#A32D2D', marginTop:4, background:'#FCEBEB', borderRadius:6, padding:'4px 8px', display:'inline-block' }}>
-                            退費帳號：({r.refundBankCode}) {r.refundBankName} {r.refundAccount} {r.refundAccountName}
-                          </div>
-                        )}
+                  <div key={r.id} onClick={()=>setRegDetail(r)} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:10 }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:14, fontWeight:600 }}>{r.memberName}</span>
+                        <span style={{ fontSize:11, color:'#888' }}>{r.divisionName}</span>
+                        <span style={{ fontSize:11, color:'#888' }}>{r.gender==='male'?'男':r.gender==='female'?'女':'—'}</span>
+                        <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>NT${r.registrationFee}</span>
                       </div>
-                      <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-                        <Tag type={ps.type}>{ps.label}</Tag>
-                        {r.paymentMethod==='cash' ? <Tag type="blue">臨櫃繳款</Tag> : r.paymentMethod==='transfer' ? <Tag type="gray">轉帳</Tag> : null}
-                        {r.isComplete ? <Tag type="ok">已簽署</Tag> : <Tag type="warn">待法定代理人簽</Tag>}
-                        {r.formReturned && r.status!=='cancelled' && <Tag type="warn">已退回待修改</Tag>}
-                        {r.formRejected && r.status==='cancelled' && <Tag type="red">已駁回</Tag>}
-                        {r.refundRequested && r.status==='cancelled' && <Tag type="red">退費申請中</Tag>}
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:4, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:11, fontWeight:600, color:stl.c }}>{stl.t}</span>
+                        <span style={{ fontSize:10, color:'#bbb' }}>報名 {sec?dayjs(sec*1000).format('MM/DD'):'—'}</span>
+                        {remark.map((rm,i)=><span key={i} style={{ fontSize:10, background:'#FFF8E6', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>{rm}</span>)}
                       </div>
                     </div>
-                    {(() => {
-                      const st = regState(r);
-                      if (st === 'cancelled') return null;
-                      const B = (label,color,onClick,key) => <button key={key} onClick={onClick} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color, border:`0.5px solid ${color}`, fontSize:12, cursor:'pointer' }}>{label}</button>;
-                      const info = st==='awaitPayment' ? { c:'#854F0B', t:`待會員填匯款${r.paymentDeadline?`（繳款期限 ${fmtDeadline(r.paymentDeadline)}）`:''}` }
-                        : st==='awaitConfirm' ? { c:'#185FA5', t:`待收款${r.paymentMethod==='cash'?'（臨櫃繳款・櫃檯人工處理）':`（轉帳待確認）${r.paymentDeadline?`・期限 ${fmtDeadline(r.paymentDeadline)}`:''}`}` }
-                        : st==='rejected' ? { c:'#A32D2D', t:`已要求會員重填匯款${r.paymentRejectReason?`：${r.paymentRejectReason}`:''}` }
-                        : st==='paid' ? { c:'#2D7D46', t:`已確認收款 NT$${r.paidAmount||r.registrationFee||''}${r.paidConfirmedByName?`｜${r.paidConfirmedByName}`:''}` }
-                        : st==='waitlist' ? { c:'#854F0B', t:`候補中${r.waitlistPosition?`（第 ${r.waitlistPosition} 位）`:''}` } : null;
-                      const btns = [];
-                      if (st==='awaitConfirm') {
-                        btns.push(B('確認收款','#2D7D46',()=>setActionModal({type:'pay',reg:r}),'pay'));
-                        if (r.paymentMethod!=='cash') btns.push(B('要求重填匯款','#854F0B',()=>{ setFormAction({type:'rejectPayment',reg:r}); setFormReason(''); },'rp'));
-                      }
-                      // 退回修改：B/C/候補可（A 未填只給駁回、rejected 等會員、formReturned 顯示狀態）
-                      if (st!=='awaitPayment' && st!=='rejected') {
-                        if (r.formReturned) btns.push(<span key="fr" style={{ fontSize:11, color:'#854F0B', alignSelf:'center' }}>已退回・待會員修正</span>);
-                        else btns.push(B('退回修改','#854F0B',()=>{ setFormAction({type:'return',reg:r}); setFormReason(''); },'ret'));
-                      }
-                      btns.push(B('駁回報名','#A32D2D',()=>{ setFormAction({type:'reject',reg:r}); setFormReason(''); },'rej'));
-                      return (
-                        <div style={{ display:'flex', gap:8, marginTop:10, alignItems:'center', flexWrap:'wrap' }}>
-                          {info && <span style={{ fontSize:11, color:info.c }}>{info.t}</span>}
-                          <div style={{ display:'flex', gap:8, marginLeft:'auto', flexWrap:'wrap', justifyContent:'flex-end' }}>{btns}</div>
-                        </div>
-                      );
-                    })()}
-                    {r.formReturned && r.status!=='cancelled' && r.formReturnReason && (
-                      <div style={{ fontSize:11, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'4px 8px', display:'inline-block' }}>
-                        ↩ 已退回原因：{r.formReturnReason}
-                      </div>
-                    )}
-                    {r.staffNote && (
-                      <div style={{ fontSize:11, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'4px 8px', display:'inline-block' }}>
-                        📝 員工備註：{r.staffNote}
-                      </div>
-                    )}
+                    <span style={{ fontSize:11, color:'#185FA5', flexShrink:0, whiteSpace:'nowrap' }}>詳細 ›</span>
                   </div>
                 );
               })}
@@ -538,6 +476,62 @@ export default function CompetitionsPage() {
           )}
         </Modal>
       )}
+
+      {/* 報名詳細資料 Modal（點列開）：全部欄位 + 狀態動作鍵 */}
+      {regDetail && (() => {
+        const r = regDetail; const st = regState(r); const stl = STATUS_LABEL[st] || { t:'—', c:'#666' };
+        const sec = r.registeredAt?._seconds || r.registeredAt?.seconds || 0;
+        const Row = (k, v) => <div key={k} style={{ display:'flex', fontSize:12, padding:'3px 0' }}><div style={{ width:84, color:'#999', flexShrink:0 }}>{k}</div><div style={{ color:'#333', wordBreak:'break-word' }}>{v || '—'}</div></div>;
+        const act = () => {
+          if (st === 'cancelled') return null;
+          const B = (label,color,onClick,key) => <button key={key} onClick={onClick} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#fff', color, border:`0.5px solid ${color}`, fontSize:13, cursor:'pointer' }}>{label}</button>;
+          const btns = [];
+          if (st==='awaitConfirm') {
+            btns.push(B('確認收款','#2D7D46',()=>{ setRegDetail(null); setActionModal({type:'pay',reg:r}); },'pay'));
+            if (r.paymentMethod!=='cash') btns.push(B('要求重填匯款','#854F0B',()=>{ setRegDetail(null); setFormAction({type:'rejectPayment',reg:r}); setFormReason(''); },'rp'));
+          }
+          if (st!=='awaitPayment' && st!=='rejected') {
+            if (r.formReturned) btns.push(<span key="fr" style={{ fontSize:12, color:'#854F0B', alignSelf:'center' }}>已退回・待會員修正</span>);
+            else btns.push(B('退回修改','#854F0B',()=>{ setRegDetail(null); setFormAction({type:'return',reg:r}); setFormReason(''); },'ret'));
+          }
+          btns.push(B('駁回報名','#A32D2D',()=>{ setRegDetail(null); setFormAction({type:'reject',reg:r}); setFormReason(''); },'rej'));
+          return <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:14 }}>{btns}</div>;
+        };
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setRegDetail(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:14, padding:20, width:'100%', maxWidth:440, maxHeight:'88vh', overflowY:'auto' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                <div>
+                  <div style={{ fontSize:16, fontWeight:700 }}>{r.memberName} {r.isHonorary && <span style={{ fontSize:10, background:'#FAEEDA', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>榮譽</span>}</div>
+                  <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{r.divisionName} · {r.gender==='male'?'男':r.gender==='female'?'女':'—'} · NT${r.registrationFee}</div>
+                </div>
+                <span style={{ fontSize:12, fontWeight:600, color:stl.c, whiteSpace:'nowrap' }}>{stl.t}</span>
+              </div>
+              <div style={{ borderTop:'0.5px solid #F0E4E4', paddingTop:8 }}>
+                {Row('報名日期', sec?dayjs(sec*1000).format('YYYY-MM-DD HH:mm'):'—')}
+                {Row('費用', `NT$${r.registrationFee}${r.isEarlyBird?'（早鳥）':''}${r.isTeamDiscount?'（隊員9折）':''}`)}
+                {Row('付款方式', r.paymentMethod==='cash'?'臨櫃現金':r.paymentMethod==='transfer'?'銀行轉帳':(r.paymentMethod||'—'))}
+                {(r.paymentMethod==='transfer' || r.bankLastFive) && Row('匯款末五碼', r.bankLastFive)}
+                {(r.paymentMethod==='transfer' || r.bankName) && Row('匯款銀行', r.bankName)}
+                {r.paymentDate && Row('繳款日期', r.paymentDate)}
+                {r.paymentStatus==='confirmed' && Row('確認收款', `NT$${r.paidAmount||r.registrationFee}｜${r.paidConfirmedByName||'—'}`)}
+                {Row('身高／臂展', `${r.height||'—'} ／ ${r.armSpan||'—'}`)}
+                {Row('身分證', r.idNumber)}
+                {Row('緊急聯絡', `${r.emergencyContact||'—'}${r.emergencyRelation?`（${r.emergencyRelation}）`:''} ${r.emergencyPhone||''}`)}
+                {Row('手機／Email', `${r.phone||'—'} ／ ${r.email||'—'}`)}
+                {Row('簽署狀態', r.isComplete?'已簽署':'待法定代理人簽')}
+                {r.refundAccount && Row('退費帳號', `(${r.refundBankCode||''}) ${r.refundBankName||''} ${r.refundAccount} ${r.refundAccountName||''}`)}
+                {(r.formReturnReason && r.status!=='cancelled') && <div style={{ fontSize:12, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'6px 10px' }}>↩ 退回原因：{r.formReturnReason}</div>}
+                {r.paymentRejectReason && r.paymentStatus==='transfer_rejected' && <div style={{ fontSize:12, color:'#A32D2D', marginTop:6, background:'#FCEBEB', borderRadius:6, padding:'6px 10px' }}>要求重填原因：{r.paymentRejectReason}</div>}
+                {r.cancelReason && r.status==='cancelled' && <div style={{ fontSize:12, color:'#999', marginTop:6 }}>取消原因：{r.cancelReason==='payment_expired'?'逾期未繳費自動取消':r.cancelReason}</div>}
+                {r.staffNote && <div style={{ fontSize:12, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'6px 10px' }}>📝 員工備註：{r.staffNote}</div>}
+              </div>
+              {act()}
+              <button onClick={()=>setRegDetail(null)} style={{ marginTop:14, width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, cursor:'pointer' }}>關閉</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 收款/退費 Modal（共用元件） */}
       {actionModal && (
