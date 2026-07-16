@@ -70,6 +70,7 @@ export default function CompetitionsPage() {
   const [regLoading, setRegLoading] = useState(false);
   const [regTab, setRegTab] = useState('all'); // all | refunds
   const [statusFilter, setStatusFilter] = useState('all'); // 依報名狀態下拉篩選
+  const [summaryOpenDiv, setSummaryOpenDiv] = useState(null); // 組別總覽展開名單
   const [actionModal, setActionModal] = useState(null); // { type:'pay'|'refund', reg }
   const [formAction, setFormAction] = useState(null); // { type:'return'|'reject', reg }
   const [formReason, setFormReason] = useState('');
@@ -386,22 +387,66 @@ export default function CompetitionsPage() {
       {/* 報名名單 Modal */}
       {showRegistrations && (
         <Modal title={`報名名單 — ${showRegistrations.name}`} onClose={()=>setShowRegistrations(null)} width={760}>
+          {/* 組別總覽：各組正取/候補人數＋名單，總計 有效/申請退費/已取消 */}
+          {(() => {
+            const active = registrations.filter(r => r.status !== 'cancelled');
+            const refundN = registrations.filter(r => r.refundRequested).length;
+            const cancelN = registrations.filter(r => r.status === 'cancelled' && !r.refundRequested).length;
+            const divs = showRegistrations.divisions || [];
+            return (
+              <div style={{ background:'#FBF5F5', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:12 }}>
+                <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginBottom:10, fontSize:13 }}>
+                  <span>有效報名 <strong style={{ color:'#2D7D46', fontSize:15 }}>{active.length}</strong></span>
+                  <span>申請退費 <strong style={{ color:'#A32D2D', fontSize:15 }}>{refundN}</strong></span>
+                  <span>已取消 <strong style={{ color:'#999', fontSize:15 }}>{cancelN}</strong></span>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {divs.map(dv => {
+                    const conf = active.filter(r => r.divisionId === dv.id && r.status === 'confirmed');
+                    const wait = active.filter(r => r.divisionId === dv.id && r.status === 'waitlist');
+                    const open = summaryOpenDiv === dv.id;
+                    return (
+                      <div key={dv.id} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px' }}>
+                        <div onClick={() => setSummaryOpenDiv(open ? null : dv.id)} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
+                          <span style={{ fontSize:13, fontWeight:600 }}>{dv.name}</span>
+                          <span style={{ fontSize:12, color:'#666' }}>
+                            正取 <strong style={{ color:'#2D7D46' }}>{conf.length}</strong>/{dv.maxParticipants || 40}
+                            {wait.length ? <span style={{ color:'#854F0B' }}>　候補 {wait.length}</span> : ''}
+                            <span style={{ marginLeft:8, color:'#999' }}>{open ? '▲' : '▼'}</span>
+                          </span>
+                        </div>
+                        {open && (
+                          <div style={{ marginTop:8, fontSize:12, color:'#444', lineHeight:1.9, borderTop:'0.5px solid #F0E4E4', paddingTop:6 }}>
+                            {conf.length === 0 && wait.length === 0 && <span style={{ color:'#999' }}>尚無報名</span>}
+                            {conf.length > 0 && <div><span style={{ color:'#2D7D46', fontWeight:600 }}>正取：</span>{conf.map(r => r.memberName).join('、')}</div>}
+                            {wait.length > 0 && <div><span style={{ color:'#854F0B', fontWeight:600 }}>候補：</span>{wait.map((r,i) => `${r.memberName}(#${r.waitlistPosition || i+1})`).join('、')}</div>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
             <SegmentedTabs value={regTab} onChange={setRegTab} tabs={[
-              { key:'all',     label:`全部 (${registrations.length})` },
-              { key:'refunds', label:`退費申請 (${registrations.filter(r=>r.refundRequested||r.status==='cancelled').length})` },
+              { key:'all',       label:`全部 (${registrations.filter(r=>r.status!=='cancelled').length})` },
+              { key:'refund',    label:`申請退費 (${registrations.filter(r=>r.refundRequested).length})` },
+              { key:'cancelled', label:`已取消 (${registrations.filter(r=>r.status==='cancelled'&&!r.refundRequested).length})` },
             ]} />
             <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-              <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}
-                style={{ height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, background:'#fff', color:'#444', cursor:'pointer' }}>
-                <option value="all">全部狀態</option>
-                <option value="awaitPayment">未填匯款</option>
-                <option value="awaitConfirm">待確認收款</option>
-                <option value="paid">已收款</option>
-                <option value="rejected">已要求重填</option>
-                <option value="waitlist">候補中</option>
-                <option value="cancelled">已取消</option>
-              </select>
+              {regTab==='all' && (
+                <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}
+                  style={{ height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, background:'#fff', color:'#444', cursor:'pointer' }}>
+                  <option value="all">全部狀態</option>
+                  <option value="awaitPayment">未填匯款</option>
+                  <option value="awaitConfirm">待確認收款</option>
+                  <option value="paid">已收款</option>
+                  <option value="rejected">已要求重填</option>
+                  <option value="waitlist">候補中</option>
+                </select>
+              )}
               <button onClick={()=>handleDownloadCSV(showRegistrations)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ 名單</button>
               <button onClick={()=>handleDownloadRefundCSV(showRegistrations)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#A32D2D', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ 退費清單</button>
             </div>
@@ -410,8 +455,11 @@ export default function CompetitionsPage() {
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {registrations.length===0 && <div style={{ textAlign:'center', color:'#999', padding:20 }}>尚無報名記錄</div>}
               {(() => {
-                const base = regTab==='refunds' ? registrations.filter(r=>r.refundRequested||r.status==='cancelled') : registrations;
-                return statusFilter==='all' ? base : base.filter(r => regState(r)===statusFilter);
+                const base = regTab==='refund' ? registrations.filter(r=>r.refundRequested)
+                  : regTab==='cancelled' ? registrations.filter(r=>r.status==='cancelled' && !r.refundRequested)
+                  : registrations.filter(r=>r.status!=='cancelled');   // 全部＝有效（非取消）
+                // 狀態下拉只在「全部」分頁生效
+                return (regTab==='all' && statusFilter!=='all') ? base.filter(r => regState(r)===statusFilter) : base;
               })().map(r => {
                 const ps = payStatusInfo(r);
                 return (
