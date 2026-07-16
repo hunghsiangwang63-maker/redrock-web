@@ -43,7 +43,7 @@ export default function MemberExperiencePage() {
   const [myBookings, setMyBookings] = useState([]);
   const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
   const [courseSettings, setCourseSettings] = useState(null);
-  const [tab, setTab] = useState('apply');
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'my' ? 'my' : 'apply');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
   const [payFor, setPayFor] = useState(null); // { bookingId, fee, gymId }

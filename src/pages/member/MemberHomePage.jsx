@@ -315,7 +315,7 @@ export default function MemberHomePage() {
             );
           })}
           {myExperiences.map(b => (
-            <div key={b.id} onClick={() => navigate('/member/experience')}
+            <div key={b.id} onClick={() => navigate('/member/experience?tab=my')}
               style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
               <div>
                 <div style={{ fontWeight:600, fontSize:14 }}>🧗 體驗課程預約</div>
