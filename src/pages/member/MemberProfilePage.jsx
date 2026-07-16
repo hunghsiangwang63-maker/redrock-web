@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
@@ -179,6 +180,7 @@ export default function MemberProfilePage() {
 
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+      <MemberLogoutButton />
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
         <div style={{ fontWeight:600, fontSize:15 }}>個人資料</div>

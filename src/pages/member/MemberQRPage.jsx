@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t, isEn } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -239,6 +240,7 @@ export default function MemberQRPage() {
   const wrap = (kids) => (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
       {kids}
+      <MemberLogoutButton />
       <NavBar />
     </div>
   );

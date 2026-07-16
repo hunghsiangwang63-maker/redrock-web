@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -1614,6 +1615,7 @@ export default function MemberCoursesPage() {
         </div>
       )}
 
+      <MemberLogoutButton />
       <NavBar />
     </div>
   );

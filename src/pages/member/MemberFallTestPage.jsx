@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getFallTestSettings, signFallTestAgreement, getFallTestSignature, getMyFallTestStatus } from '../../api/fallTests';
@@ -164,6 +165,7 @@ export default function MemberFallTestPage() {
 
   if (!member) return (
     <div style={s.page}>
+      <MemberLogoutButton />
       <div style={s.header}><button style={s.backBtn} onClick={() => navigate(-1)}>‹</button><span style={{ fontWeight: 700, fontSize: 17 }}>墜落測驗</span></div>
       <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>載入中...</div>
     </div>

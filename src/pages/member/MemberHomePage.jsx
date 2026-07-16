@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t, toggleMemberLang, getMemberLang } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -108,6 +109,7 @@ export default function MemberHomePage() {
               onClick={() => navigate('/member/profile')}>
               {member?.name?.[0]}
             </div>
+            <MemberLogoutButton inline />
           </div>
         </div>
       </div>

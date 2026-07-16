@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -1073,6 +1074,7 @@ export default function MemberPassesPage() {
         </div>
       )}
 
+      <MemberLogoutButton />
       <BottomNav navigate={navigate} />
     </div>
   );

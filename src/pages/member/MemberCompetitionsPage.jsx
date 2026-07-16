@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -1163,6 +1164,7 @@ export default function MemberCompetitionsPage() {
           </div>
         </div>
       )}
+      <MemberLogoutButton />
       <NavBar />
     </div>
   );

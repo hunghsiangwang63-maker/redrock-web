@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -497,6 +498,7 @@ export default function MemberExperiencePage() {
           onClose={()=>setReupTarget(null)}
           onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])).catch(()=>{}); }} />
       )}
+      <MemberLogoutButton />
       <NavBar/>
     </div>
   );
