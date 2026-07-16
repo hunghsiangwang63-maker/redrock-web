@@ -376,6 +376,7 @@ export default function MemberCompetitionsPage() {
   };
 
   const payStatusBadge = (r) => {
+    if (r.status === 'cancelled') return { bg:'#F0EDED', color:'#999', text: r.formRejected ? '已駁回' : r.cancelReason==='payment_expired' ? '逾期取消' : '已取消' };
     if (r.paymentStatus === 'confirmed') return { bg:'#E6F4EB', color:'#2D7D46', text:'已確認付款' };
     if (r.paymentStatus === 'refunded') return { bg:'#F0EDED', color:'#666', text:'已退費' };
     if (r.paymentStatus === 'transfer_rejected') return { bg:'#FCEBEB', color:'#A32D2D', text: r.paymentMethod==='cash'?'繳費被退回':'轉帳被退回' };
@@ -564,7 +565,13 @@ export default function MemberCompetitionsPage() {
                           </button>
                         </div>
                       )}
-                      {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && (
+                      {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && r.formRejected && (
+                        <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>⛔ 報名已被駁回</div>
+                          <div style={{ fontSize:11, color:'#8B5A5A', textAlign:'left', marginTop:3 }}>原因：{String(r.cancelReason||'').replace('管理員駁回：','') || '請洽館方'}</div>
+                        </div>
+                      )}
+                      {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && !r.formRejected && (
                         <div style={{ marginTop:8, fontSize:11, color:'#999' }}>已取消 {r.refundRequested?'・退費申請中':''}</div>
                       )}
                     </div>

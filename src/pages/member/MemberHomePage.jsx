@@ -337,15 +337,19 @@ export default function MemberHomePage() {
           {rejectAlerts.map((a, i) => (
             <div key={`ra${i}`} onClick={() => navigate(a.link)}
               style={{ background: a.kind === 'action' ? '#FAEEDA' : '#FCEBEB', border: `0.5px solid ${a.kind === 'action' ? '#EAD3A0' : '#EEC1C1'}`, borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:8 }}>
-              <div style={{ fontSize:20 }}>{a.kind === 'action' ? '✍️' : '⚠️'}</div>
+              <div style={{ fontSize:20 }}>{a.kind === 'action' ? '✍️' : a.kind === 'reject' ? '⛔' : '⚠️'}</div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:700, color: a.kind === 'action' ? '#854F0B' : '#A32D2D', textAlign:'left' }}>
                   {a.kind === 'action'
                     ? `${a.label}待補文件：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    : a.kind === 'reject'
+                    ? `${a.label}已被駁回：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
                     : `${a.label}${a.method === 'cash' ? '繳費資訊被退回' : '轉帳被退回'}：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`}
                 </div>
                 <div style={{ fontSize:11, color: a.kind === 'action' ? '#8A6A1F' : '#8A5A5A', marginTop:2, textAlign:'left' }}>
-                  {a.reason ? `${a.reason}，` : ''}請點此前往處理
+                  {a.kind === 'reject'
+                    ? `${(a.reason || '').replace('報名已被駁回：', '原因：')}　點此查看`
+                    : `${a.reason ? `${a.reason}，` : ''}請點此前往處理`}
                 </div>
               </div>
               <div style={{ fontSize:14, color: a.kind === 'action' ? '#854F0B' : '#A32D2D' }}>›</div>
