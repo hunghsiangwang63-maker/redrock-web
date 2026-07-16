@@ -34,8 +34,10 @@ export default function ExperienceBookingsPage() {
   const [history, setHistory] = useState(null);
   const [sendingId, setSendingId] = useState(null);
   const [issuingId, setIssuingId] = useState(null);
-  const [editBooking, setEditBooking] = useState(null);   // 編輯參加者的預約
+  const [editBooking, setEditBooking] = useState(null);   // 編輯預約（參加者 + 日期/時段）
   const [editParts, setEditParts] = useState([]);
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
   const [savingParts, setSavingParts] = useState(false);
   const [coachBooking, setCoachBooking] = useState(null); // 指定/改教練的預約
   const [coachVal, setCoachVal] = useState({ coachId: null, coachName: '' });
@@ -85,17 +87,26 @@ export default function ExperienceBookingsPage() {
   const openEditParticipants = (b) => {
     setEditBooking(b);
     setEditParts((b.participants || []).map(p => ({ ...p })));
+    setEditDate(b.bookingDate || '');
+    setEditTime(b.bookingTime || '');
   };
   const updPart = (i, f, v) => setEditParts(ps => ps.map((p, idx) => idx === i ? { ...p, [f]: v } : p));
   const addPart = () => setEditParts(ps => [...ps, { name: '', idNumber: '', birthday: '', nationality: '台灣' }]);
   const rmPart = (i) => setEditParts(ps => ps.filter((_, idx) => idx !== i));
   const saveParticipants = async () => {
     if (editParts.some(p => !p.name?.trim())) { showMsg('每位參加者都需填姓名', 'red'); return; }
+    if (!editDate) { showMsg('請填寫體驗日期', 'red'); return; }
     setSavingParts(true);
     try {
+      let schedMsg = '';
+      // 日期/時段有變更 → 先連動課程/場次/教練排班/入場券
+      if (editDate !== editBooking.bookingDate || editTime !== (editBooking.bookingTime || '')) {
+        const sr = await client.put(`/experience-bookings/${editBooking.id}/schedule`, { bookingDate: editDate, bookingTime: editTime });
+        schedMsg = `（日期/時段已更新${sr.data.ticketsUpdated ? `，票券效期同步 ${sr.data.ticketsUpdated} 張` : ''}）`;
+      }
       const r = await client.put(`/experience-bookings/${editBooking.id}/participants`, { participants: editParts });
       const sync = (r.data.issued || r.data.voided) ? `（票券：補發 ${r.data.issued||0}、作廢 ${r.data.voided||0}）` : '';
-      showMsg('✅ 參加者已更新' + sync);
+      showMsg('✅ 已更新' + schedMsg + sync);
       setEditBooking(null); load();
     } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'red'); }
     finally { setSavingParts(false); }
@@ -459,10 +470,20 @@ export default function ExperienceBookingsPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:560, maxHeight:'88vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <div style={{ fontSize:16, fontWeight:600 }}>✏️ 編輯參加者</div>
+              <div style={{ fontSize:16, fontWeight:600 }}>✏️ 編輯預約</div>
               <span onClick={()=>setEditBooking(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
             </div>
-            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{editBooking.contactName} · {editBooking.bookingDate} · 目前 {editParts.length} 人。已發券者：加人補發、減人作廢一張未用票。</div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{editBooking.contactName} · 目前 {editParts.length} 人。已發券者：加人補發、減人作廢一張未用票。</div>
+            {/* 課程日期/時段 */}
+            <div style={{ background:'#F5F8FB', borderRadius:10, padding:12, marginBottom:12, border:'0.5px solid #D6E2EE' }}>
+              <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:8 }}>課程日期／時段</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                <div><label style={{ fontSize:11, color:'#666' }}>日期 *</label><input type="date" value={editDate} onChange={e=>setEditDate(e.target.value)} style={tinp}/></div>
+                <div><label style={{ fontSize:11, color:'#666' }}>時段</label><input value={editTime} onChange={e=>setEditTime(e.target.value)} placeholder="ex: 16:00-17:30" style={tinp}/></div>
+              </div>
+              <div style={{ fontSize:10, color:'#999', marginTop:6 }}>改日期/時段會連動更新課程場次、教練排班與已發入場券效期。</div>
+            </div>
+            <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:8 }}>參加者</div>
             {editParts.map((p,i)=>(
               <div key={i} style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:10, border:'0.5px solid #E8D5D5' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
