@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
-import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration, updateCompetitionForm } from '../../api/competitions';
+import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration, updateCompetitionForm, reregisterCompetition } from '../../api/competitions';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
@@ -96,6 +96,18 @@ export default function MemberCompetitionsPage() {
   const [memberSig, setMemberSig] = useState(null);
   const [guardianSig, setGuardianSig] = useState(null);
 
+
+  // 逾期取消 → 用原資料重新報名
+  const [reregLoading, setReregLoading] = useState(null);
+  const handleReregister = async (r) => {
+    setReregLoading(r.id);
+    try {
+      const res = await reregisterCompetition(r.id);
+      showMsg(res.data.message || '已重新報名');
+      await load();
+    } catch (err) { showMsg(err.response?.data?.message || '重新報名失敗', 'red'); }
+    finally { setReregLoading(null); }
+  };
 
   // 報名表被退回 → 修改報名資料後重送
   const [editTarget, setEditTarget] = useState(null); // registration object
@@ -533,7 +545,17 @@ export default function MemberCompetitionsPage() {
                           取消報名
                         </button>
                       )}
-                      {r.status === 'cancelled' && (
+                      {r.status === 'cancelled' && r.cancelReason === 'payment_expired' && (
+                        <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>⏰ 繳費逾期，報名已自動取消</div>
+                          <div style={{ fontSize:11, color:'#8B6914', textAlign:'left', margin:'3px 0 6px' }}>可用原報名資料重新報名（免重填、免重簽），繳款期限比照原賽事規定。</div>
+                          <button onClick={()=>handleReregister(r)} disabled={reregLoading===r.id}
+                            style={{ height:32, padding:'0 16px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                            {reregLoading===r.id ? '處理中…' : '重新報名比賽（免重填）'}
+                          </button>
+                        </div>
+                      )}
+                      {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && (
                         <div style={{ marginTop:8, fontSize:11, color:'#999' }}>已取消 {r.refundRequested?'・退費申請中':''}</div>
                       )}
                     </div>

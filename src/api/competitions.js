@@ -17,6 +17,8 @@ export const rejectCompetitionForm = (regId, data) => client.post(`/competitions
 export const updateCompetitionForm = (regId, data) => memberClient.post(`/competitions/registrations/${regId}/update-form`, data);
 
 export const cancelRegistration = (regId, data) => memberClient.post(`/competitions/registrations/${regId}/cancel`, data);
+// 逾期取消後用原資料重新報名（免重填、免重簽）
+export const reregisterCompetition = (regId) => memberClient.post(`/competitions/registrations/${regId}/reregister`, {});
 export const getMemberCompetitions = () => memberClient.get('/competitions');
 export const getMemberRegistrations = (memberId) => memberClient.get(`/competitions/registrations/member/${memberId}`);
 export const registerForCompetition = (competitionId, data) => memberClient.post(`/competitions/${competitionId}/register`, data);
