@@ -224,8 +224,8 @@ export default function CompetitionsPage() {
     return hasInfo ? 'awaitConfirm' : 'awaitPayment';           // B 待確認 / A 未填匯款
   };
   const STATE_LABEL = { awaitPayment:'未填匯款', awaitConfirm:'待確認收款', paid:'已收款', rejected:'已要求重填', waitlist:'候補中', cancelled:'已取消' };
-  // 名單精簡列：繳費狀態文字+顏色、備註（特殊狀況）
-  const STATUS_LABEL = {
+  // 名單精簡列：繳費狀態文字+顏色、備註（特殊狀況）。注意勿與模組層 STATUS_LABEL（競賽狀態）同名 → 用 PAY_STATUS
+  const PAY_STATUS = {
     awaitPayment:{t:'未填匯款',c:'#854F0B'}, awaitConfirm:{t:'待確認收款',c:'#185FA5'}, paid:{t:'已收款',c:'#2D7D46'},
     rejected:{t:'已要求重填',c:'#A32D2D'}, waitlist:{t:'候補中',c:'#854F0B'}, cancelled:{t:'已取消',c:'#999'},
   };
@@ -450,7 +450,7 @@ export default function CompetitionsPage() {
                 return [...base].sort((a,b)=> secOf(a)-secOf(b));   // 依報名日期排序（早→晚）
               })().map(r => {
                 const st = regState(r);
-                const stl = STATUS_LABEL[st] || { t:'—', c:'#666' };
+                const stl = PAY_STATUS[st] || { t:"—", c:"#666" };
                 const remark = regRemark(r);
                 const sec = r.registeredAt?._seconds || r.registeredAt?.seconds || 0;
                 return (
@@ -479,7 +479,7 @@ export default function CompetitionsPage() {
 
       {/* 報名詳細資料 Modal（點列開）：全部欄位 + 狀態動作鍵 */}
       {regDetail && (() => {
-        const r = regDetail; const st = regState(r); const stl = STATUS_LABEL[st] || { t:'—', c:'#666' };
+        const r = regDetail; const st = regState(r); const stl = PAY_STATUS[st] || { t:"—", c:"#666" };
         const sec = r.registeredAt?._seconds || r.registeredAt?.seconds || 0;
         const Row = (k, v) => <div key={k} style={{ display:'flex', fontSize:12, padding:'3px 0' }}><div style={{ width:84, color:'#999', flexShrink:0 }}>{k}</div><div style={{ color:'#333', wordBreak:'break-word' }}>{v || '—'}</div></div>;
         const act = () => {
