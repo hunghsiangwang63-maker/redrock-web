@@ -12,6 +12,11 @@ const STATUS = {
   confirmed: { bg:'#E6F4EB', color:'#2D7D46', label:'已確認' },
   cancelled: { bg:'#FCEBEB', color:'#A32D2D', label:'已取消' },
 };
+// 教練費預填表（教練1人；9~12人同1300）；發票金額預填＝總金額−人數×175（保險不開發票）
+const COACH_FEE_TABLE = { 1:400, 2:420, 3:660, 4:720, 5:780, 6:840, 7:900, 8:960 };
+const defaultCoachFee = (n) => n >= 9 ? 1300 : (COACH_FEE_TABLE[n] ?? '');
+const defaultInvoice = (b) => Math.max(0, (b.totalFee || 0) - (b.numParticipants || 0) * 175);
+
 const inp = { height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
 const tinp = { width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
 
@@ -34,6 +39,8 @@ export default function ExperienceBookingsPage() {
   const [settingsDirty, setSettingsDirty] = useState(false);
   const [history, setHistory] = useState(null);
   const [sendingId, setSendingId] = useState(null);
+  const [financeEdit, setFinanceEdit] = useState({});   // { bookingId: { coachFee, invoiceAmount } } 管理員手動輸入
+  const [savingFinanceId, setSavingFinanceId] = useState(null);
   const [issuingId, setIssuingId] = useState(null);
   const [editBooking, setEditBooking] = useState(null);   // 編輯預約（參加者 + 日期/時段）
   const [editParts, setEditParts] = useState([]);
@@ -111,6 +118,24 @@ export default function ExperienceBookingsPage() {
       setEditBooking(null); load();
     } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'red'); }
     finally { setSavingParts(false); }
+  };
+
+  const financeVal = (b, key) => {
+    const edited = financeEdit[b.id]?.[key];
+    if (edited !== undefined) return edited;
+    if (b[key] != null) return b[key];
+    return key === 'coachFee' ? defaultCoachFee(b.numParticipants || 0) : defaultInvoice(b);
+  };
+  const saveFinance = async (b) => {
+    setSavingFinanceId(b.id);
+    try {
+      await client.put(`/experience-bookings/${b.id}/finance`, {
+        coachFee: financeVal(b, 'coachFee'), invoiceAmount: financeVal(b, 'invoiceAmount'),
+      });
+      showMsg('✅ 教練費／發票金額已儲存');
+      load();
+    } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'red'); }
+    finally { setSavingFinanceId(null); }
   };
 
   const ctNeedsInsurance = (courseType) => {
@@ -289,6 +314,27 @@ export default function ExperienceBookingsPage() {
                         <button onClick={()=>{ setCancelBooking(b); setCancelReason(''); }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>🗑 取消預約</button>
                       )}
                     </div>
+                    {/* 管理員：教練費／發票金額（預填可改；發票＝總額−人數×175、教練費依人數表） */}
+                    {isAdmin && b.status==='confirmed' && b.kind!=='trial' && (
+                      <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginTop:10, flexWrap:'wrap', background:'#FBF8F2', border:'0.5px solid #EBDDC2', borderRadius:8, padding:'8px 12px' }}>
+                        <div>
+                          <div style={{ fontSize:10, color:'#8a6d3b', marginBottom:3 }}>教練費（依人數預填）</div>
+                          <input type="number" min="0" value={financeVal(b,'coachFee')}
+                            onChange={e=>setFinanceEdit(fe=>({ ...fe, [b.id]: { ...fe[b.id], coachFee: e.target.value } }))}
+                            style={{ width:100, height:30, borderRadius:6, border:'0.5px solid #E0D2B4', padding:'0 8px', fontSize:12, background:'#fff', color:'#1a1a1a', outline:'none', boxSizing:'border-box' }}/>
+                        </div>
+                        <div>
+                          <div style={{ fontSize:10, color:'#8a6d3b', marginBottom:3 }}>發票金額（總額−{b.numParticipants||0}×175）</div>
+                          <input type="number" min="0" value={financeVal(b,'invoiceAmount')}
+                            onChange={e=>setFinanceEdit(fe=>({ ...fe, [b.id]: { ...fe[b.id], invoiceAmount: e.target.value } }))}
+                            style={{ width:100, height:30, borderRadius:6, border:'0.5px solid #E0D2B4', padding:'0 8px', fontSize:12, background:'#fff', color:'#1a1a1a', outline:'none', boxSizing:'border-box' }}/>
+                        </div>
+                        <button disabled={savingFinanceId===b.id} onClick={()=>saveFinance(b)}
+                          style={{ height:30, padding:'0 14px', borderRadius:6, background: b.coachFee!=null||b.invoiceAmount!=null ? '#fff' : '#8a6d3b', color: b.coachFee!=null||b.invoiceAmount!=null ? '#8a6d3b' : '#fff', border:'0.5px solid #8a6d3b', fontSize:12, cursor:'pointer' }}>
+                          {savingFinanceId===b.id ? '儲存中…' : (b.coachFee!=null||b.invoiceAmount!=null ? '✓ 已存・更新' : '儲存')}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   {isExpanded && (
                     <div style={{ borderTop:'0.5px solid #F5EFEF', background:'#FBF5F5', padding:'12px 14px' }}>
