@@ -20,6 +20,7 @@ export default function ExperienceBookingsPage() {
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
   const [tab, setTab] = useState('bookings');
   const [bookings, setBookings] = useState([]);
+  const [showPast, setShowPast] = useState(false); // 已完成（過期）預約收合
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
   const [gymFilter, setGymFilter] = useState('');
@@ -230,7 +231,10 @@ export default function ExperienceBookingsPage() {
           {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
           {!loading && bookings.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>查無預約記錄</div>}
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {bookings.map(b=>{
+            {(() => {
+              const _today = dayjs().format('YYYY-MM-DD');
+              const isPast = (b) => (b.bookingDate || '') < _today;
+              const renderBookingCard = (b) => {
               const sl = STATUS[b.status]||STATUS.pending;
               const isExpanded = expanded===b.id;
               return (
@@ -314,7 +318,26 @@ export default function ExperienceBookingsPage() {
                   )}
                 </div>
               );
-            })}
+              };
+              const current = bookings.filter(b => !isPast(b));
+              const past = bookings.filter(isPast);
+              return (<>
+                {current.map(renderBookingCard)}
+                {past.length > 0 && (
+                  <div>
+                    <button onClick={() => setShowPast(v => !v)}
+                      style={{ width:'100%', height:38, borderRadius:10, background:'#F5F1F1', border:'0.5px solid #E8D5D5', color:'#666', fontSize:13, cursor:'pointer' }}>
+                      已完成（過期）（{past.length}）{showPast ? ' ▲ 收合' : ' ▼ 展開'}
+                    </button>
+                    {showPast && (
+                      <div style={{ display:'flex', flexDirection:'column', gap:10, marginTop:10, opacity:.85 }}>
+                        {past.sort((a,b) => (b.bookingDate||'').localeCompare(a.bookingDate||'')).map(renderBookingCard)}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>);
+            })()}
           </div>
         </div>
       )}
