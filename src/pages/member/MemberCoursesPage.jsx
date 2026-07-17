@@ -1329,7 +1329,7 @@ export default function MemberCoursesPage() {
                       )}
                       <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
                         onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
-                        共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂 · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span>
+                        共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂{!makeupOnly && <> · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span></>}
                         <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
                       </div>
                     </>
@@ -1473,10 +1473,19 @@ export default function MemberCoursesPage() {
                       </div>
                     </div>
                   ) : !isExpanded && next && !refundFrozen && (
+                    next.isMakeup ? (
+                      dayjs().format('YYYY-MM-DD') < next.date ? (
+                        <button onClick={() => setCancelMakeupTarget({ enrollmentId: next.id, memberId: group.memberId, dateLabel: `${dayjs(next.date).format('MM/DD')} ${next.startTime}～${next.endTime}` })}
+                          style={{ width:'100%', height:32, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
+                          取消補課（下一堂）
+                        </button>
+                      ) : null
+                    ) : (
                     <button onClick={() => setLeavingId(next.id)}
                       style={{ width:'100%', height:32, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
                       申請請假（下一堂）
                     </button>
+                    )
                   )}
                 </div>
               );
