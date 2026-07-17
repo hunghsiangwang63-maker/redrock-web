@@ -983,10 +983,10 @@ export default function MemberCoursesPage() {
             return (
               <>
                 <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:14 }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', background:'#FBF5F5' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,minmax(0,1fr))', background:'#FBF5F5' }}>
                     {WEEKDAYS.map(d => <div key={d} style={{ padding:'7px 0', textAlign:'center', fontSize:11, color:'#999', fontWeight:600 }}>{d}</div>)}
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,minmax(0,1fr))' }}>
                     {cells.map((date, idx) => {
                       const daySessions = date ? sessionsForDate(date) : [];
                       const uniqueCourses = [...new Set(daySessions.map(s => s.courseId))];

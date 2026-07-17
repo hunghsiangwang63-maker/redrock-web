@@ -849,10 +849,10 @@ export default function CoursesPage({ embedded = false }) {
             return (
               <>
                 <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflowX:'auto', WebkitOverflowScrolling:'touch', marginBottom:16 }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', background:'#FBF5F5', minWidth:640 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,minmax(0,1fr))', background:'#FBF5F5', minWidth:640 }}>
                     {['日','一','二','三','四','五','六'].map(d => <div key={d} style={{ padding:'8px 0', textAlign:'center', fontSize:11, color:'#999', fontWeight:600 }}>{d}</div>)}
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', minWidth:640 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(7,minmax(0,1fr))', minWidth:640 }}>
                     {cells.map((date, idx) => {
                       const daySessions = date ? sessionsForDate(date) : [];
                       const totalEnrolled = daySessions.reduce((sum,s) => sum + (s.enrolledCount||0), 0);
