@@ -968,7 +968,12 @@ export default function CheckinPage() {
                       opacity: s.alreadyCheckedIn ? 0.6 : 1,
                     }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <span style={{ fontSize:13, fontWeight:600, color:'#1a1a1a' }}>{s.memberName}</span>
+                      <span style={{ fontSize:13, fontWeight:600, color:'#1a1a1a' }}>
+                        {s.memberName}
+                        {s.isMakeup && <span style={{ fontSize:9, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>補課</span>}
+                        {s.isTrial && <span style={{ fontSize:9, fontWeight:600, color:'#5B2D8B', background:'#F3EEF9', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>試上</span>}
+                        {s.trialUnpaid && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>試上費未收</span>}
+                      </span>
                       {s.alreadyCheckedIn ? (
                         <span style={{ fontSize:10, color:'#999', fontWeight:600 }}>已入場</span>
                       ) : quickCheckinLoading === s.memberId ? (
