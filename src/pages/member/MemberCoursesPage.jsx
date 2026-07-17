@@ -609,7 +609,7 @@ export default function MemberCoursesPage() {
             <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消請假</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
               確定取消 {cancelLeaveTarget.dateLabel} 的請假、恢復上課嗎？<br/>
-              此請假產生的補課資格將作廢；<strong>若已用它報名補課、該補課會一併取消</strong>（補課已上過則無法取消請假）。若名額已被候補遞補，將無法取消。
+              補課額度將依剩餘請假數重算；<strong>已預約的補課不會被自動取消</strong>。若已預約的補課超過取消後的額度，需先自行取消一堂補課才能取消請假。若名額已被候補遞補，將無法取消。
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelLeaveTarget(null)} disabled={loading}
