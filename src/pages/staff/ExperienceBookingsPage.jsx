@@ -448,6 +448,11 @@ export default function ExperienceBookingsPage() {
                   <input value={settings.insuranceRecipientEmail||''} onChange={e=>{ setSettingsDirty(true); setSettings(s=>({...s,insuranceRecipientEmail:e.target.value})); }}
                     placeholder="insurance@example.com" style={tinp}/>
                 </div>
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>副本收件人（CC，選填；多個以逗號分隔）</label>
+                  <input value={settings.insuranceCcEmails||''} onChange={e=>{ setSettingsDirty(true); setSettings(s=>({...s,insuranceCcEmails:e.target.value})); }}
+                    placeholder="a@example.com, b@example.com" style={tinp}/>
+                </div>
                 <div>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>信件內容公版</label>
                   <textarea rows={3} value={settings.insuranceEmailTemplate||''} onChange={e=>{ setSettingsDirty(true); setSettings(s=>({...s,insuranceEmailTemplate:e.target.value})); }}
