@@ -61,6 +61,7 @@ export default function MemberCoursesPage() {
   const [leavingId, setLeavingId] = useState(null);
   const [overLimitConfirm, setOverLimitConfirm] = useState(null); // 超過補課上限請假提醒：{ enrollmentId, memberId }
   const [cancelLeaveTarget, setCancelLeaveTarget] = useState(null); // 取消請假確認：{ enrollmentId, memberId, dateLabel }
+  const [cancelMakeupTarget, setCancelMakeupTarget] = useState(null); // 取消補課確認：{ enrollmentId, memberId, dateLabel }
   const [expandedCourseId, setExpandedCourseId] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null); // { type:'refund'|'pause', enrollmentId, courseName }
   // 審核中的退費/暫停申請：key=`${courseId}__${memberId}` → 'refund'|'pause'（載入時從後端回填，跨重整持續）
@@ -401,6 +402,21 @@ export default function MemberCoursesPage() {
   };
 
   // 取消請假（銷假）：後端連動作廢補課資格/取消已報名未上的補課
+  const handleCancelMakeup = async () => {
+    if (!cancelMakeupTarget) return;
+    setLoading(true);
+    try {
+      const r = await memberClient.post(`/courses/enrollments/${cancelMakeupTarget.enrollmentId}/cancel-makeup`, { memberId: cancelMakeupTarget.memberId });
+      showMsg(r.data?.message || '已取消補課');
+      setCancelMakeupTarget(null);
+      await loadMyEnrollments();
+      try { const mk = await memberClient.get(`/courses/makeup/member/${cancelMakeupTarget.memberId || member.id}`); setMakeupRights(mk.data.makeupRights || mk.data.rights || []); } catch(e) {}
+    } catch (err) {
+      showMsg(err.response?.data?.message || '取消補課失敗', 'red');
+      setCancelMakeupTarget(null);
+    } finally { setLoading(false); }
+  };
+
   const handleCancelLeave = async () => {
     if (!cancelLeaveTarget) return;
     setLoading(true);
@@ -601,6 +617,28 @@ export default function MemberCoursesPage() {
               <button onClick={handleCancelLeave} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
                 {loading ? '處理中...' : '確定取消請假'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 取消補課確認 */}
+      {cancelMakeupTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => { if (!loading) setCancelMakeupTarget(null); }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消補課</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
+              確定取消 {cancelMakeupTarget.dateLabel} 的補課嗎？<br/>
+              取消後補課資格會退回，可重新選擇其他場次補課（需於上課一天前取消）。
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setCancelMakeupTarget(null)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={handleCancelMakeup} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
+                {loading ? '處理中...' : '確定取消補課'}
               </button>
             </div>
           </div>
@@ -1100,7 +1138,9 @@ export default function MemberCoursesPage() {
                               <div style={{ marginTop:10, paddingTop:10, borderTop:'0.5px solid #F5EFEF' }}>
                                 {group.sessions.sort((a,b) => a.date.localeCompare(b.date)).map(s => (
                                   <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'7px 0', fontSize:12, borderBottom:'0.5px solid #FBF5F5' }}>
-                                    <span>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
+                                    <span>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}
+                                      {s.isMakeup && <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>補課</span>}
+                                    </span>
                                     {s.instructor && (
                                       <span style={{ color: s.isSubstitute ? '#B26A00' : '#999', flexShrink:0 }}>
                                         👟 {s.instructor}{s.isSubstitute ? '（代班）' : ''}
@@ -1230,6 +1270,7 @@ export default function MemberCoursesPage() {
               // 審核中的申請：退費審核中＝凍結（隱藏請假等操作、入場資格後端已即時取消）
               const adjType = pendingAdjust.get(adjKey(group.courseId, group.memberId));
               const refundFrozen = adjType === 'refund' || group.sessions.some(s => s.refundPending === true);
+              const makeupOnly = group.sessions.length > 0 && group.sessions.every(s => s.isMakeup === true); // 補課群組：只可取消補課、不可退費/暫停/請假
               const pDeadline = tsToDay(primary?.paymentDeadline);
               const pConfirmed = primary?.paymentConfirmed === true;
               const isRejected = primary?.paymentStatus === 'transfer_rejected';
@@ -1242,6 +1283,7 @@ export default function MemberCoursesPage() {
                       {gymPrefix(group.gymId)}{group.courseName}
                       {hasFamily && enrolleeName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{enrolleeIcon} {enrolleeName}</span>}
                       {refundFrozen && <span style={{ fontSize:11, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>退費審核中</span>}
+                      {makeupOnly && <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>補課</span>}
                     </div>
                     {isWaitlistGroup ? (
                       <span style={{ fontSize:11, background:'#FAEEDA', color:'#B5651D', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
@@ -1300,6 +1342,8 @@ export default function MemberCoursesPage() {
                         取消候補
                       </button>
                     </div>
+                  ) : makeupOnly ? (
+                    <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'left' }}>補課場次：如無法出席請於上課一天前「取消補課」；不可申請退費／暫停／請假。</div>
                   ) : (
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
                     {(() => { const dis = !!adjType || refundFrozen; return (<>
@@ -1376,7 +1420,15 @@ export default function MemberCoursesPage() {
                             <div key={s.id} style={{ padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                                 <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
-                                {leavingId !== s.id && !refundFrozen && (
+                                {s.isMakeup ? (
+                                  <span style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                                    <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 7px', borderRadius:8 }}>補課</span>
+                                    {dayjs().format('YYYY-MM-DD') < s.date && (
+                                      <button onClick={() => setCancelMakeupTarget({ enrollmentId: s.id, memberId: group.memberId, dateLabel: `${dayjs(s.date).format('MM/DD')} ${s.startTime}～${s.endTime}` })}
+                                        style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>取消補課</button>
+                                    )}
+                                  </span>
+                                ) : leavingId !== s.id && !refundFrozen && (
                                   <button onClick={() => setLeavingId(s.id)}
                                     style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
                                     申請請假
@@ -1640,9 +1692,33 @@ export default function MemberCoursesPage() {
             <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>
               {selectedMakeup?.courseName} · 同類別同館場次
             </div>
-            {makeupSessions.length === 0 ? (
-              <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>目前沒有可補課的場次</div>
-            ) : makeupSessions.map(s => (
+            {(() => {
+              const targetMid = selectedMakeup?.memberId || member?.id;
+              const appliedIds = new Set(myEnrollments.filter(e => e.isMakeup && e.status === 'confirmed' && e.memberId === targetMid).map(e => e.sessionId));
+              const availList = makeupSessions.filter(s => !appliedIds.has(s.id));
+              const appliedList = makeupSessions.filter(s => appliedIds.has(s.id));
+              return (<>
+            {appliedList.length > 0 && (
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>已申請補課的場次</div>
+                {appliedList.map(s => (
+                  <div key={`ap_${s.id}`} style={{ background:'#F0F8F0', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div>
+                      <div style={{ fontWeight:500, fontSize:14 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）</div>
+                      <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{s.startTime}～{s.endTime} · {s.courseName}</div>
+                    </div>
+                    <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'3px 10px', borderRadius:8, flexShrink:0 }}>已申請補課</span>
+                  </div>
+                ))}
+                <div style={{ fontSize:10, color:'#999', textAlign:'left' }}>如需更改，請至「我的課程」該補課場次按「取消補課」（上課一天前）。</div>
+              </div>
+            )}
+            {appliedList.length > 0 && availList.length > 0 && (
+              <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:6 }}>可補課的場次</div>
+            )}
+            {availList.length === 0 ? (
+              appliedList.length === 0 ? <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>目前沒有可補課的場次</div> : null
+            ) : availList.map(s => (
               <div key={s.id} style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <div>
                   <div style={{ fontWeight:500, fontSize:14 }}>
@@ -1658,6 +1734,8 @@ export default function MemberCoursesPage() {
                 </button>
               </div>
             ))}
+              </>);
+            })()}
           </div>
         </div>
       )}
