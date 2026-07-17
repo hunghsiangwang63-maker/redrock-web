@@ -58,6 +58,8 @@ export default function MemberCoursesPage() {
   const [selectedMakeup, setSelectedMakeup] = useState(null);
   const [makeupSessions, setMakeupSessions] = useState([]);
   const [leavingId, setLeavingId] = useState(null);
+  const [overLimitConfirm, setOverLimitConfirm] = useState(null); // 超過補課上限請假提醒：{ enrollmentId, memberId }
+  const [cancelLeaveTarget, setCancelLeaveTarget] = useState(null); // 取消請假確認：{ enrollmentId, memberId, dateLabel }
   const [expandedCourseId, setExpandedCourseId] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null); // { type:'refund'|'pause', enrollmentId, courseName }
   // 審核中的退費/暫停申請：key=`${courseId}__${memberId}` → 'refund'|'pause'（載入時從後端回填，跨重整持續）
@@ -388,13 +390,29 @@ export default function MemberCoursesPage() {
     if (!leaveReason.trim()) { showMsg('請填寫請假原因', 'red'); return; }
     setLoading(true);
     try {
-      await memberClient.post(`/courses/enrollments/${enrollmentId}/leave`, { reason: leaveReason, memberId: forMemberId });
-      showMsg('請假成功');
+      const r = await memberClient.post(`/courses/enrollments/${enrollmentId}/leave`, { reason: leaveReason, memberId: forMemberId });
+      showMsg(r.data?.message || '請假成功');
       setLeavingId(null);
       setLeaveReason('');
+      setOverLimitConfirm(null);
       await loadMyEnrollments();
     } catch (err) {
       showMsg(err.response?.data?.message || '請假失敗', 'red');
+    } finally { setLoading(false); }
+  };
+
+  // 取消請假（銷假）：後端連動作廢補課資格/取消已報名未上的補課
+  const handleCancelLeave = async () => {
+    if (!cancelLeaveTarget) return;
+    setLoading(true);
+    try {
+      const r = await memberClient.post(`/courses/enrollments/${cancelLeaveTarget.enrollmentId}/cancel-leave`, { memberId: cancelLeaveTarget.memberId });
+      showMsg(r.data?.message || '已取消請假');
+      setCancelLeaveTarget(null);
+      await loadMyEnrollments();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '取消請假失敗', 'red');
+      setCancelLeaveTarget(null);
     } finally { setLoading(false); }
   };
 
@@ -539,6 +557,49 @@ export default function MemberCoursesPage() {
               <button onClick={() => handleCancelWaitlist(cancelWaitlistTarget)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
                 {loading ? '處理中...' : '確定取消'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 超過補課上限請假提醒 */}
+      {overLimitConfirm && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => { if (!loading) setOverLimitConfirm(null); }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#854F0B', marginBottom:8, textAlign:'left' }}>⚠️ 已超過補課上限</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
+              本課程可補課上限為 {overLimitConfirm.leaveLimit} 次、已用完。仍可請假，但<strong>此次請假不會產生補課資格</strong>（無法補課）。確定要請假嗎？
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setOverLimitConfirm(null)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={() => handleLeave(overLimitConfirm.enrollmentId, overLimitConfirm.memberId)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, background:'#B26A00', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
+                {loading ? '處理中...' : '仍要請假'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 取消請假（銷假）確認 */}
+      {cancelLeaveTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => { if (!loading) setCancelLeaveTarget(null); }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消請假</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
+              確定取消 {cancelLeaveTarget.dateLabel} 的請假、恢復上課嗎？<br/>
+              此請假產生的補課資格將作廢；<strong>若已用它報名補課、該補課會一併取消</strong>（補課已上過則無法取消請假）。若名額已被候補遞補，將無法取消。
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setCancelLeaveTarget(null)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={handleCancelLeave} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
+                {loading ? '處理中...' : '確定取消請假'}
               </button>
             </div>
           </div>
@@ -1289,12 +1350,21 @@ export default function MemberCoursesPage() {
                       {onLeave.length > 0 && (
                         <div style={{ marginBottom:10 }}>
                           <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>已請假</div>
-                          {onLeave.sort((a,b) => b.date.localeCompare(a.date)).map(s => (
-                            <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
+                          {onLeave.sort((a,b) => b.date.localeCompare(a.date)).map(s => {
+                            const notStarted = s.date >= dayjs().format('YYYY-MM-DD'); // 課未開始才可取消請假（後端權威再驗上課時間/名額）
+                            return (
+                            <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4, gap:6, flexWrap:'wrap' }}>
                               <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
-                              <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'2px 7px', borderRadius:8 }}>請假{s.leaveReason ? `：${s.leaveReason}` : ''}</span>
+                              <span style={{ display:'flex', alignItems:'center', gap:6 }}>
+                                <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'2px 7px', borderRadius:8 }}>請假{s.leaveReason ? `：${s.leaveReason}` : ''}</span>
+                                {notStarted && !refundFrozen && (
+                                  <button onClick={() => setCancelLeaveTarget({ enrollmentId: s.id, memberId: group.memberId, dateLabel: `${dayjs(s.date).format('MM/DD')} ${s.startTime}～${s.endTime}` })}
+                                    style={{ height:22, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:10, cursor:'pointer' }}>取消請假</button>
+                                )}
+                              </span>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 
@@ -1320,7 +1390,12 @@ export default function MemberCoursesPage() {
                                   <div style={{ display:'flex', gap:6 }}>
                                     <button onClick={() => { setLeavingId(null); setLeaveReason(''); }}
                                       style={{ flex:1, height:28, borderRadius:6, background:'#f5f5f5', border:'none', fontSize:11, cursor:'pointer' }}>取消</button>
-                                    <button onClick={() => handleLeave(s.id, group.memberId)} disabled={loading}
+                                    <button onClick={() => {
+                                        if (!leaveReason.trim()) { showMsg('請填寫請假原因', 'red'); return; }
+                                        // 超過補課上限：仍可請假但不產生補課資格 → 先跳提醒框
+                                        if (leaveRemaining <= 0) setOverLimitConfirm({ enrollmentId: s.id, memberId: group.memberId, leaveLimit });
+                                        else handleLeave(s.id, group.memberId);
+                                      }} disabled={loading}
                                       style={{ flex:1, height:28, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>確認請假</button>
                                   </div>
                                 </div>
