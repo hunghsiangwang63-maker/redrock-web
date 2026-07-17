@@ -314,7 +314,13 @@ export default function ExperienceBookingsPage() {
                         <button onClick={()=>{ setCancelBooking(b); setCancelReason(''); }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>🗑 取消預約</button>
                       )}
                     </div>
-                    {/* 管理員：教練費／發票金額（預填可改；發票＝總額−人數×175、教練費依人數表） */}
+                    {/* 教練費／發票金額：管理員可改可存；櫃檯（值班/站台）唯讀可見 */}
+                    {!isAdmin && b.status==='confirmed' && b.kind!=='trial' && (
+                      <div style={{ display:'flex', gap:14, marginTop:10, flexWrap:'wrap', background:'#FBF8F2', border:'0.5px solid #EBDDC2', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8a6d3b' }}>
+                        <span>教練費 <strong>NT${financeVal(b,'coachFee') || 0}</strong>{b.coachFee==null && <span style={{ fontSize:10, color:'#b09a6a' }}>（預設）</span>}</span>
+                        <span>發票金額 <strong>NT${financeVal(b,'invoiceAmount') || 0}</strong>{b.invoiceAmount==null && <span style={{ fontSize:10, color:'#b09a6a' }}>（預設）</span>}</span>
+                      </div>
+                    )}
                     {isAdmin && b.status==='confirmed' && b.kind!=='trial' && (
                       <div style={{ display:'flex', gap:10, alignItems:'flex-end', marginTop:10, flexWrap:'wrap', background:'#FBF8F2', border:'0.5px solid #EBDDC2', borderRadius:8, padding:'8px 12px' }}>
                         <div>
