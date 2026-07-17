@@ -353,15 +353,15 @@ export default function MemberCoursesPage() {
         (c.gymId === makeup.gymId || !c.gymId || !makeup.gymId)
       );
       const today = dayjs().format('YYYY-MM-DD');
+      // 查「今天～未來180天」全部場次再按課程過濾（不用課程起訖日當範圍——
+      // 課程結束後「加開」的未來場次也要即時出現在補課選單）
       const allSessions = [];
+      const sres = await memberClient.get('/courses/sessions', {
+        params: { fromDate: today, toDate: dayjs().add(180, 'day').format('YYYY-MM-DD') },
+      });
+      const futureSessions = (sres.data.sessions || []).filter(s => s.date >= today && s.status !== 'cancelled');
       for (const c of sameCategoryCourses) {
-        const fromDate = c.startDate || today;
-        const toDate = c.endDate || dayjs().add(180, 'day').format('YYYY-MM-DD');
-        const res = await memberClient.get('/courses/sessions', { params: { fromDate, toDate } });
-        const sessions = (res.data.sessions || []).filter(s =>
-          s.courseId === c.id && s.date >= today && s.status !== 'cancelled'
-        );
-        sessions.forEach(s => allSessions.push({ ...s, courseName: c.name }));
+        futureSessions.filter(s => s.courseId === c.id).forEach(s => allSessions.push({ ...s, courseName: c.name }));
       }
       setMakeupSessions(allSessions.sort((a,b) => a.date.localeCompare(b.date)));
     } catch (e) {}
