@@ -304,7 +304,9 @@ export default function CoursesPage({ embedded = false }) {
     try {
       const c = course || selectedCourse;
       const fromDate = c?.startDate || dayjs().subtract(7, 'day').format('YYYY-MM-DD');
-      const toDate = c?.endDate || dayjs().add(180, 'day').format('YYYY-MM-DD');
+      // toDate 不截在課程結束日：加開/改期到結束日之後的場次才看得到（取 課程結束日 vs 今日+180 較晚者）
+      const horizon = dayjs().add(180, 'day').format('YYYY-MM-DD');
+      const toDate = (c?.endDate && c.endDate > horizon) ? c.endDate : horizon;
       const res = await getSessions({ gymId: effectiveGymId, fromDate, toDate });
       setSessions(res.data.sessions || []);
     } catch (e) {}
