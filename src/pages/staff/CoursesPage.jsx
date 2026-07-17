@@ -129,6 +129,7 @@ export default function CoursesPage({ embedded = false }) {
     startTime: '', endTime: '', instructor: '', notes: '',
   });
 
+  const [addSessionStudents, setAddSessionStudents] = useState([]); // 帶入學員：[{memberId,name,checked}]
   const openAddSession = (course) => {
     setSessionForm({
       date: dayjs().format('YYYY-MM-DD'),
@@ -138,6 +139,16 @@ export default function CoursesPage({ embedded = false }) {
       notes: '',
     });
     setShowAddSession(true);
+    // 載入該課現有學員（依 memberId 去重，confirmed/leave 都算課程學員）供勾選帶入（預設全勾）
+    setAddSessionStudents([]);
+    client.get(`/courses/${course.id}/enrollments`).then(res => {
+      const seen = new Map();
+      (res.data.enrollments || []).forEach(e => {
+        if (!['confirmed', 'leave'].includes(e.status)) return;
+        if (!seen.has(e.memberId)) seen.set(e.memberId, { memberId: e.memberId, name: e.memberName || '', checked: true });
+      });
+      setAddSessionStudents([...seen.values()]);
+    }).catch(() => setAddSessionStudents([]));
   };
 
   const [editingSession, setEditingSession] = useState(null);
@@ -543,8 +554,9 @@ export default function CoursesPage({ embedded = false }) {
     if (!selectedCourse) return;
     setLoading(true);
     try {
-      await createSession(selectedCourse.id, sessionForm);
-      showMsg('場次建立成功');
+      const enrollMemberIds = addSessionStudents.filter(s => s.checked).map(s => s.memberId);
+      await createSession(selectedCourse.id, { ...sessionForm, enrollMemberIds });
+      showMsg(`場次建立成功${enrollMemberIds.length ? `，已帶入 ${enrollMemberIds.length} 位學員` : ''}`);
       setShowAddSession(false);
       await loadSessions();
     } catch (err) {
@@ -1643,6 +1655,28 @@ export default function CoursesPage({ embedded = false }) {
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
           ))}
+          {/* 帶入學員（可個別勾選；預設全勾） */}
+          {addSessionStudents.length > 0 && (
+            <div style={{ background:'#FBF5F5', borderRadius:10, padding:'10px 12px', marginBottom:12, border:'0.5px solid #E8D5D5' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                <span style={{ fontSize:12, fontWeight:600, color:'#8B1A1A' }}>帶入本課學員（{addSessionStudents.filter(s=>s.checked).length}/{addSessionStudents.length}）</span>
+                <button type="button" onClick={() => { const all = addSessionStudents.every(s=>s.checked); setAddSessionStudents(ss => ss.map(s => ({ ...s, checked: !all }))); }}
+                  style={{ fontSize:11, padding:'2px 8px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', cursor:'pointer' }}>
+                  {addSessionStudents.every(s=>s.checked) ? '全不選' : '全選'}
+                </button>
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {addSessionStudents.map(s => (
+                  <label key={s.memberId} style={{ display:'flex', alignItems:'center', gap:5, fontSize:12, color:'#444', background:'#fff', border:`0.5px solid ${s.checked?'#8B1A1A':'#E8D5D5'}`, borderRadius:8, padding:'4px 9px', cursor:'pointer' }}>
+                    <input type="checkbox" checked={s.checked}
+                      onChange={() => setAddSessionStudents(ss => ss.map(x => x.memberId === s.memberId ? { ...x, checked: !x.checked } : x))} />
+                    {s.name || s.memberId}
+                  </label>
+                ))}
+              </div>
+              <div style={{ fontSize:10, color:'#999', marginTop:6, textAlign:'left' }}>勾選者將直接加入此場次名單（不另計費）；未勾選者不會看到這堂課。</div>
+            </div>
+          )}
           <div style={{ display:'flex', gap:8, marginTop:8 }}>
             <button onClick={() => setShowAddSession(false)}
               style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
