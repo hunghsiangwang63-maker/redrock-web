@@ -1616,12 +1616,15 @@ export default function MemberCoursesPage() {
                 </label>
               </div>
               <div>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式（依政府規定）</div>
+                {(() => { const _r = Math.round(((selectedCourse?.refundFeeRate ?? 0.2)) * 100); return (
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
-                  1. 開課日前申請退費：已繳費用扣除 5% 手續費後退回。<br/>
-                  2. 開課日後申請退費：費用扣除已開課堂數（不論有無請假）× 每堂課單價後退回。<br/>
-                  3. 範例：8 堂 8400 元，開課 2 堂後申請，退款 = 8400 - 1300×2 = 5800 元。
+                  退費金額＝<strong>剩餘堂數價金 − 手續費</strong><br/>
+                  1. 每堂單價＝課程費用 ÷ 總堂數；剩餘堂數＝總堂數 − 已開課堂數（不論有無出席/請假）。<br/>
+                  2. 手續費＝剩餘堂數價金 × <strong>{_r}%</strong>（法定上限 20%）。<br/>
+                  3. 範例：20 堂 30,000 元、上了 10 堂後申請 → 剩餘價金 15,000 − 手續費 {_r}%＝退還 NT${(15000 - Math.round(15000*_r/100)).toLocaleString()}。
                 </div>
+                ); })()}
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedRefundPolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedRefundPolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedRefundPolicy} onChange={e => setConfirmedRefundPolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedRefundPolicy?'#2D7D46':'#444' }}>我已了解退費方式</span>
