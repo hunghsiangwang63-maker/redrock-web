@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -111,13 +112,8 @@ export default function MemberCoursesPage() {
   const gymId = member?.defaultGymId || 'gym-hsinchu';
   const [browseGymId, setBrowseGymId] = useState(''); // '' = 全部館別
 
-  const [errorModal, setErrorModal] = useState(null); // 錯誤/擋下類通知改彈窗（請假上限、額滿…）
-  const showMsg = (text, type='ok') => {
-    // 錯誤/擋下類（紅）→ 彈窗顯示（原頂部橫幅易被忽略）；成功類維持頂部短暫提示
-    if (type === 'red') { setErrorModal({ message: text }); return; }
-    setMsg(text); setMsgType(type);
-    setTimeout(() => setMsg(''), 3000);
-  };
+  const [errorModal, setErrorModal] = useState(null); // 通知彈窗（成功/錯誤一律彈窗）
+  const showMsg = (text, type='ok') => setErrorModal({ message: text, type });
 
   // 報名對象（本人或子會員）；未成年判定以「報名對象」為準，非登入者
   // → 家長代未成年子女報名時，也會自動出現法定代理人簽名欄位
@@ -566,18 +562,7 @@ export default function MemberCoursesPage() {
         </div>
       )}
 
-      {/* 錯誤/擋下類通知彈窗（請假上限、額滿…；原頂部橫幅改此） */}
-      {errorModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:320, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
-          onClick={() => setErrorModal(null)}>
-          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#A32D2D', marginBottom:8, textAlign:'left' }}>⚠️ 無法完成操作</div>
-            <div style={{ fontSize:13, color:'#444', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>{errorModal.message}</div>
-            <button onClick={() => setErrorModal(null)}
-              style={{ width:'100%', height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>知道了</button>
-          </div>
-        </div>
-      )}
+      <ErrorAlertModal modal={errorModal} onClose={() => setErrorModal(null)} />
 
       {/* 超過補課上限請假提醒 */}
       {overLimitConfirm && (

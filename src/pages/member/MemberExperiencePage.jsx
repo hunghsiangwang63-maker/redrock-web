@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -66,7 +67,8 @@ export default function MemberExperiencePage() {
   const [children, setChildren] = useState([]);          // 子會員（家長可代報名）
   const [trialFor, setTrialFor] = useState('self');      // 報名對象：'self' 或子會員 id
 
-  const showMsg = (t,type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),6000); };
+  const [alertModal, setAlertModal] = useState(null);
+  const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
   const loadTrialSessions = () => {
     memberClient.get('/courses/trial-sessions', { params:{ gymId } })
@@ -267,6 +269,7 @@ export default function MemberExperiencePage() {
         <div style={{ fontSize:18, fontWeight:700 }}>🧗 體驗課程預約</div>
       </div>
 
+      <ErrorAlertModal modal={alertModal} onClose={() => setAlertModal(null)} />
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>

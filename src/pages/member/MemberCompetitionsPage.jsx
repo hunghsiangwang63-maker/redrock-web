@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -194,7 +195,8 @@ export default function MemberCompetitionsPage() {
   const memberSigRef = useRef(null);
   const guardianSigRef = useRef(null);
 
-  const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),5000); };
+  const [errorModal, setErrorModal] = useState(null); // 錯誤/擋下類通知改彈窗
+  const showMsg = (t, type='ok') => setErrorModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
   // 報名對象（本人或選定的家庭成員）——年齡/監護人/費用一律以此人計算
   const registrant = registerForId ? (familyMembers.find(c => c.id === registerForId) || member) : member;
@@ -391,6 +393,7 @@ export default function MemberCompetitionsPage() {
         <div style={{ fontSize:18, fontWeight:700 }}>🏆 比賽報名</div>
       </div>
 
+      <ErrorAlertModal modal={errorModal} onClose={() => setErrorModal(null)} />
       {msg && (
         <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>
       )}
