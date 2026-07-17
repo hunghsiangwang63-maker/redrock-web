@@ -873,6 +873,12 @@ export default function MemberCoursesPage() {
                 {(selectedCourse.categoryImageUrl || selectedCourse.imageUrl) && (
                   <img src={selectedCourse.categoryImageUrl || selectedCourse.imageUrl} alt={selectedCourse.name} style={{ width:'100%', display:'block', objectFit:'cover' }} />
                 )}
+                {/* 課程簡介：從類別層進來已看過（不重複）；單一梯次「直接跳報名頁」時在此顯示（否則簡介永遠沒機會出現） */}
+                {!selectedCategory && (selectedCourse.categoryDescription || selectedCourse.description) && (
+                  <div style={{ padding:'14px 14px 0', fontSize:13, color:'#555', whiteSpace:'pre-wrap', lineHeight:1.7, textAlign:'left' }}>
+                    {selectedCourse.categoryDescription || selectedCourse.description}
+                  </div>
+                )}
                 <div style={{ padding:14 }}>
                   <div style={{ fontSize:12, color:'#666' }}>
                     {selectedCourse.startDate} ～ {selectedCourse.endDate}
