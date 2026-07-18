@@ -6,6 +6,52 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { requestCourseRefund, requestCoursePause } from '../../api/courseAdjustments';
+
+// ── 課程規則共用元件（報名步驟3「規則確認」與 我的課程「📋 課程規則」modal 共用；改這裡兩邊連動）──
+const RULE_BOX_STYLE = { background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' };
+function LeaveMakeupRulesBox({ course }) {
+  const _n = course?.ruleMaxLeaves ?? 2;
+  const _h = course?.ruleLeaveDeadlineHours ?? 2;
+  const _d = course?.ruleMakeupDeadlineDays ?? 60;
+  const _x = _d % 30 === 0 ? `${_d / 30} 個月` : `${_d} 天`;
+  return (
+    <div style={RULE_BOX_STYLE}>
+      <strong>1. 請假次數限制</strong><br/>
+      ・每期課程最多可請假 <strong>{_n}</strong> 次，超過次數則不予補課。<br/>
+      ・若遇特殊狀況（如受傷等不可抗因素），得另行申請展延。<br/>
+      <strong>2. 請假時限</strong><br/>
+      ・請假最晚須於課前 <strong>{_h}</strong> 小時送出請假申請，否則視為自行放棄，不予補課。<br/>
+      <strong>3. 取消請假規則</strong><br/>
+      ・取消已送出的請假，可補課次數將重新計算。<br/>
+      ・若取消請假的該堂課名額已額滿（如已安排他人補課或試上），則無法取消請假。<br/>
+      ・注意：取消請假時，請先取消已預約的補課。<br/>
+      <strong>4. 補課安排與時限</strong><br/>
+      ・補課可安排至其他梯次，需自行提出申請。<br/>
+      ・補課請於課程結束後 <strong>{_x}</strong> 內完成，逾期視同放棄。
+    </div>
+  );
+}
+function RefundRulesBox({ course }) {
+  const _r = Math.round(((course?.refundFeeRate ?? 0.2)) * 100);
+  const _p = Math.round(((course?.refundPreStartFeeRate ?? 0.05)) * 100);
+  const _exFee = Math.round(6000 * _r / 100);
+  return (
+    <div style={RULE_BOX_STYLE}>
+      <strong>1. 退費金額計算公式</strong><br/>
+      ・退費金額＝<strong>剩餘堂數價金 − 手續費</strong><br/>
+      ・每堂單價：課程費用 ÷ 總堂數<br/>
+      ・剩餘堂數：總堂數 − 已開課堂數（不論學員實際有無出席或請假，皆以已開課天數計算）。<br/>
+      <strong>2. 手續費比例</strong><br/>
+      ・開課前申請退費：收取總課程費用之 <strong>{_p}%</strong>。<br/>
+      ・開課後申請退費：收取剩餘堂數價金之 <strong>{_r}%</strong>。<br/>
+      <strong>3. 試算範例（以 8 堂 8,000 元計算）</strong><br/>
+      ・報名 8 堂課共 8,000 元（每堂單價 1,000 元），已開課 2 堂後申請退費。<br/>
+      ・剩餘堂數價金：6 堂 × 1,000 元 = 6,000 元<br/>
+      ・手續費（開課後 {_r}%）：6,000 元 × {_r}% = {_exFee.toLocaleString()} 元<br/>
+      ・實際退還金額：6,000 元 − {_exFee.toLocaleString()} 元 = {(6000 - _exFee).toLocaleString()} 元
+    </div>
+  );
+}
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import { isUnder5 } from '../../utils/age';
@@ -64,6 +110,7 @@ export default function MemberCoursesPage() {
   const [cancelLeavePre, setCancelLeavePre] = useState(null); // 銷假預檢結果（null=載入中）
   const [cancelLeavePreN, setCancelLeavePreN] = useState(0); // 預檢重跑觸發（modal 內取消補課後 +1）
   const [inlineMkCancel, setInlineMkCancel] = useState(''); // 就地取消補課中的 enrollmentId
+  const [rulesModal, setRulesModal] = useState(null); // 我的課程「課程規則」modal：{ course, courseName }
   const [cancelMakeupTarget, setCancelMakeupTarget] = useState(null); // 取消補課確認：{ enrollmentId, memberId, dateLabel }
   const [expandedCourseId, setExpandedCourseId] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null); // { type:'refund'|'pause', enrollmentId, courseName }
@@ -193,6 +240,18 @@ export default function MemberCoursesPage() {
         .catch(() => {});
     }
   }, [member?.id]);
+
+  // 我的課程 → 📋 課程規則：以 courseId 查課程（規則值動態）；state 沒有就現抓一次
+  const openRulesModal = async (group) => {
+    let c = courses.find(x => x.id === group.courseId);
+    if (!c) {
+      try {
+        const res = await memberClient.get('/courses');
+        c = (res.data.courses || []).find(x => x.id === group.courseId);
+      } catch (e) {}
+    }
+    setRulesModal({ course: c || null, courseName: group.courseName });
+  };
 
   const loadCourses = async () => {
     try {
@@ -624,6 +683,25 @@ export default function MemberCoursesPage() {
                 {loading ? '處理中...' : '仍要請假'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 我的課程：課程規則唯讀 modal（內容與報名步驟3同一共用元件，永遠連動） */}
+      {rulesModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => setRulesModal(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'82vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{rulesModal.courseName}｜課程規則</div>
+            <div style={{ fontWeight:600, fontSize:13, marginBottom:8, textAlign:'left' }}>📋 課程請假、補課方式</div>
+            <LeaveMakeupRulesBox course={rulesModal.course}/>
+            <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>💰 退費方式（依法令規定）</div>
+            <RefundRulesBox course={rulesModal.course}/>
+            {!rulesModal.course && (
+              <div style={{ fontSize:11, color:'#B5651D', textAlign:'left', marginBottom:8 }}>（此課程已下架，以上顯示為預設規則，實際以申請時系統計算為準）</div>
+            )}
+            <button onClick={() => setRulesModal(null)}
+              style={{ width:'100%', height:42, borderRadius:12, border:'none', background:'#8B1A1A', color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer', marginTop:4 }}>知道了</button>
           </div>
         </div>
       )}
@@ -1408,6 +1486,12 @@ export default function MemberCoursesPage() {
                         共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂{!makeupOnly && <> · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span></>}
                         <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
                       </div>
+                      {!makeupOnly && (
+                        <div style={{ fontSize:12, color:'#185FA5', marginBottom:8, cursor:'pointer', textAlign:'left' }}
+                          onClick={(e) => { e.stopPropagation(); openRulesModal(group); }}>
+                          📋 課程規則（請假/補課/退費）
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -1680,28 +1764,7 @@ export default function MemberCoursesPage() {
             {enrollStep === 3 && (<>
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假、補課方式</div>
-                {(() => {
-                  const _n = selectedCourse?.ruleMaxLeaves ?? 2;
-                  const _h = selectedCourse?.ruleLeaveDeadlineHours ?? 2;
-                  const _d = selectedCourse?.ruleMakeupDeadlineDays ?? 60;
-                  const _x = _d % 30 === 0 ? `${_d / 30} 個月` : `${_d} 天`;
-                  return (
-                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
-                  <strong>1. 請假次數限制</strong><br/>
-                  ・每期課程最多可請假 <strong>{_n}</strong> 次，超過次數則不予補課。<br/>
-                  ・若遇特殊狀況（如受傷等不可抗因素），得另行申請展延。<br/>
-                  <strong>2. 請假時限</strong><br/>
-                  ・請假最晚須於課前 <strong>{_h}</strong> 小時送出請假申請，否則視為自行放棄，不予補課。<br/>
-                  <strong>3. 取消請假規則</strong><br/>
-                  ・取消已送出的請假，可補課次數將重新計算。<br/>
-                  ・若取消請假的該堂課名額已額滿（如已安排他人補課或試上），則無法取消請假。<br/>
-                  ・注意：取消請假時，請先取消已預約的補課。<br/>
-                  <strong>4. 補課安排與時限</strong><br/>
-                  ・補課可安排至其他梯次，需自行提出申請。<br/>
-                  ・補課請於課程結束後 <strong>{_x}</strong> 內完成，逾期視同放棄。
-                </div>
-                  );
-                })()}
+                <LeaveMakeupRulesBox course={selectedCourse}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedLeavePolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedLeavePolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedLeavePolicy} onChange={e => setConfirmedLeavePolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedLeavePolicy?'#2D7D46':'#444' }}>我已了解課程請假/補課方式</span>
@@ -1709,27 +1772,7 @@ export default function MemberCoursesPage() {
               </div>
               <div>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式（依法令規定）</div>
-                {(() => {
-                  const _r = Math.round(((selectedCourse?.refundFeeRate ?? 0.2)) * 100);
-                  const _p = Math.round(((selectedCourse?.refundPreStartFeeRate ?? 0.05)) * 100);
-                  const _exFee = Math.round(6000 * _r / 100);
-                  return (
-                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
-                  <strong>1. 退費金額計算公式</strong><br/>
-                  ・退費金額＝<strong>剩餘堂數價金 − 手續費</strong><br/>
-                  ・每堂單價：課程費用 ÷ 總堂數<br/>
-                  ・剩餘堂數：總堂數 − 已開課堂數（不論學員實際有無出席或請假，皆以已開課天數計算）。<br/>
-                  <strong>2. 手續費比例</strong><br/>
-                  ・開課前申請退費：收取總課程費用之 <strong>{_p}%</strong>。<br/>
-                  ・開課後申請退費：收取剩餘堂數價金之 <strong>{_r}%</strong>。<br/>
-                  <strong>3. 試算範例（以 8 堂 8,000 元計算）</strong><br/>
-                  ・報名 8 堂課共 8,000 元（每堂單價 1,000 元），已開課 2 堂後申請退費。<br/>
-                  ・剩餘堂數價金：6 堂 × 1,000 元 = 6,000 元<br/>
-                  ・手續費（開課後 {_r}%）：6,000 元 × {_r}% = {_exFee.toLocaleString()} 元<br/>
-                  ・實際退還金額：6,000 元 − {_exFee.toLocaleString()} 元 = {(6000 - _exFee).toLocaleString()} 元
-                </div>
-                  );
-                })()}
+                <RefundRulesBox course={selectedCourse}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedRefundPolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedRefundPolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedRefundPolicy} onChange={e => setConfirmedRefundPolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedRefundPolicy?'#2D7D46':'#444' }}>我已了解退費方式</span>
