@@ -63,6 +63,7 @@ export default function MemberExperiencePage() {
   const [submitting, setSubmitting] = useState(false);
   // 課程試上
   const [trialSessions, setTrialSessions] = useState([]);
+  const openTrialSessions = trialSessions.filter(sx => !sx.isFull && (sx.remaining == null || sx.remaining > 0)); // 額滿不列出（政策 2026-07-18）
   const [trialModal, setTrialModal] = useState(null);          // 選中的可試上場次
   const [trialConsent, setTrialConsent] = useState(false);
   const [trialPay, setTrialPay] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
@@ -305,7 +306,7 @@ export default function MemberExperiencePage() {
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'apply',label:'填寫預約'},{key:'trial',label:`課程試上${trialSessions.length?` (${trialSessions.length})`:''}`},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
+        {[{key:'apply',label:'填寫預約'},{key:'trial',label:`課程試上${openTrialSessions.length?` (${openTrialSessions.length})`:''}`},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
             {t.label}
@@ -472,8 +473,8 @@ export default function MemberExperiencePage() {
                 </button>
               ))}
             </div>
-            {trialSessions.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有開放試上的場次</div>}
-            {trialSessions.map(s=>(
+            {openTrialSessions.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有開放試上的場次</div>}
+            {openTrialSessions.map(s=>(
               <div key={s.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontWeight:600, fontSize:14 }}>{s.courseName}</div>
@@ -481,9 +482,7 @@ export default function MemberExperiencePage() {
                     {dayjs(s.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(s.date).day()]}）{s.startTime}～{s.endTime}{s.instructor?` · 👟 ${s.instructor}`:''}
                   </div>
                   <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginTop:3 }}>
-                    試上費 NT${(s.trialPrice||0).toLocaleString()} · {s.isFull || s.remaining <= 0
-                      ? <span style={{ color:'#B5651D' }}>額滿・可候補</span>
-                      : `剩餘 ${s.remaining} 位`}
+                    試上費 NT${(s.trialPrice||0).toLocaleString()}
                   </div>
                 </div>
                 <button onClick={()=>{ setTrialModal(s); setTrialConsent(false); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' }); }}
@@ -591,7 +590,7 @@ export default function MemberExperiencePage() {
       {bkEdit && (() => {
         const b = bkEdit.b;
         const candidates = b.kind==='trial'
-          ? trialSessions.filter(sx => sx.gymId===b.gymId && sx.id!==b.sessionId && sx.date > dayjs().format('YYYY-MM-DD') && (sx.trialPrice||0)===(b.totalFee||0))
+          ? openTrialSessions.filter(sx => sx.gymId===b.gymId && sx.id!==b.sessionId && sx.date > dayjs().format('YYYY-MM-DD') && (sx.trialPrice||0)===(b.totalFee||0))
           : [];
         return (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
@@ -607,7 +606,7 @@ export default function MemberExperiencePage() {
                     <label key={sx.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:8, border:`1.5px solid ${bkEdit.form.sessionId===sx.id?'#8B1A1A':'#EDE5E5'}`, marginBottom:6, cursor:'pointer', fontSize:13 }}>
                       <input type="radio" name="bkEditSession" checked={bkEdit.form.sessionId===sx.id}
                         onChange={()=>setBkEdit(t=>({ ...t, form:{ sessionId: sx.id } }))} style={{ accentColor:'#8B1A1A' }}/>
-                      <span style={{ textAlign:'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}{sx.isFull?'（額滿→候補）':''}</span>
+                      <span style={{ textAlign:'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}</span>
                     </label>
                   ))}
                 </div>
