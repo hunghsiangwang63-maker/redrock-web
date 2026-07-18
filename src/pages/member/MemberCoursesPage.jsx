@@ -1627,7 +1627,7 @@ export default function MemberCoursesPage() {
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
                   退費金額＝<strong>剩餘堂數價金 − 手續費</strong><br/>
                   1. 每堂單價＝課程費用 ÷ 總堂數；剩餘堂數＝總堂數 − 已開課堂數（不論有無出席/請假）。<br/>
-                  2. 手續費＝剩餘堂數價金 × <strong>{_r}%</strong>。<br/>
+                  2. 手續費＝剩餘堂數價金 × 費率：<strong>開課前 5%、開課後 {_r}%</strong>。<br/>
                   3. 範例：20 堂 30,000 元、上了 10 堂後申請 → 剩餘價金 15,000 − 手續費 {_r}%＝退還 NT${(15000 - Math.round(15000*_r/100)).toLocaleString()}。
                 </div>
                 ); })()}

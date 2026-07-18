@@ -1304,7 +1304,7 @@ export default function CoursesPage({ embedded = false }) {
                             )}
                           </div>
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
+                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費 開課前5%/開課後{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
                           </div>
                         </div>
                       </div>
@@ -1377,7 +1377,7 @@ export default function CoursesPage({ embedded = false }) {
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：手續費率（%）</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：開課後手續費率（%）（開課前固定 5%）</label>
                   <input type="number" value={categoryForm.handlingFeeRate} onChange={e => setCategoryForm({...categoryForm, handlingFeeRate:e.target.value})}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
@@ -1588,7 +1588,7 @@ export default function CoursesPage({ embedded = false }) {
                     { label:'整期可請假次數', key:'maxLeaves', p: ph(cat.maxLeaves, 2) },
                     { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', p: ph(cat.makeupDeadlineDays, 60) },
                     { label:'試上費（NT$）', key:'trialPrice', p: ph(cat.trialPrice, 0) },
-                    { label:'退費：手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
+                    { label:'退費：開課後手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
                   ].map(f => (
                     <div key={f.key}>
                       <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -1816,7 +1816,7 @@ export default function CoursesPage({ embedded = false }) {
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number', ph:'留空＝班別預設' },
               { label:'整期可請假次數', key:'maxLeaves', type:'number', ph:'留空＝班別預設', hint:'留空＝用班別預設；插班學員可於「查看名單」個別設定' },
               { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', type:'number', ph:'留空＝班別預設' },
-              { label:'退費-手續費率（%）', key:'handlingFeeRate', type:'number', ph:'留空＝班別預設' },
+              { label:'退費-開課後手續費率（%）', key:'handlingFeeRate', type:'number', ph:'留空＝班別預設' },
             ].map(f => (
               <div key={f.key} style={{ gridColumn: f.colSpan===2 ? '1/-1' : 'auto' }}>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
