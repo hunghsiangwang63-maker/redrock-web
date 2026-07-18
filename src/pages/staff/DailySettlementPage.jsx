@@ -58,6 +58,7 @@ export default function DailySettlementPage() {
   const [saving, setSaving] = useState(false);
   const [settlement, setSettlement] = useState(null);
   const [alreadySettled, setAlreadySettled] = useState(false);
+  const [liveSettlement, setLiveSettlement] = useState(null); // 已結帳時後端另回的即時重算收入（再次結帳用）
   const [denominations, setDenominations] = useState({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
   const [deductions, setDeductions] = useState([]);
   // 發票多段：一天內換發票捲可加多段起末號
@@ -118,6 +119,7 @@ export default function DailySettlementPage() {
       const res = await client.get('/daily-settlements/today', { params: { gymId } });
       setSettlement(res.data.settlement);
       setAlreadySettled(res.data.alreadySettled);
+      setLiveSettlement(res.data.live || null);
       setResettleMode(false);
       const draft = res.data.draft;
       if (draft) {
@@ -216,6 +218,9 @@ export default function DailySettlementPage() {
     setNotes(st?.notes || ''); setResettleReason('');
     if (st?.incomeManual) setIncomeManual(st.incomeManual);
     if (st?.paymentManual) setPaymentManual(st.paymentManual);
+    // 系統收入改用即時重算值（live）——結帳後新入帳的交易（如體驗教學費）才帶得進來；
+    // 點鈔/加減項/發票等人工欄位仍沿用上方快照預填。
+    if (liveSettlement) setSettlement(liveSettlement);
     setResettleMode(true);
     setAlreadySettled(false);
   };
