@@ -69,7 +69,7 @@ export default function CoursesPage({ embedded = false }) {
   const EMPTY_CAT_FORM = {
     name: '', group: 'adult', description: '', color: '#8B1A1A', makeupTypeIds: [],
     allowTrial: false, trialPrice: '', leaveDeadlineHours: 2, maxLeaves: 2,
-    allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 5,
+    allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 20,
   };
   const [categoryForm, setCategoryForm] = useState(EMPTY_CAT_FORM);
   const [catImageFile, setCatImageFile] = useState(null);      // 班別廣告照片（建立/編輯後上傳）
@@ -277,7 +277,7 @@ export default function CoursesPage({ embedded = false }) {
       leaveDeadlineHours: c.leaveDeadlineHours ?? 2, maxLeaves: c.maxLeaves ?? 2,
       allowMakeup: c.allowMakeup !== false, makeupDeadlineDays: c.makeupDeadlineDays ?? 60,
       perSessionDeduction: c.perSessionDeduction ?? 850,
-      handlingFeeRate: c.handlingFeeRate != null ? Math.round(c.handlingFeeRate * 100) : 5,
+      handlingFeeRate: c.handlingFeeRate != null ? Math.round(c.handlingFeeRate * 100) : 20,
     });
   };
   const handleUpdateCategory = async () => {
@@ -1304,7 +1304,7 @@ export default function CoursesPage({ embedded = false }) {
                             )}
                           </div>
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費費率{Math.min(Math.round((c.handlingFeeRate ?? 0.2) * 100), 20)}%（政府公式）
+                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
                           </div>
                         </div>
                       </div>
@@ -1377,7 +1377,7 @@ export default function CoursesPage({ embedded = false }) {
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：開課前手續費率（%）</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：手續費率（%）</label>
                   <input type="number" value={categoryForm.handlingFeeRate} onChange={e => setCategoryForm({...categoryForm, handlingFeeRate:e.target.value})}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
@@ -1588,7 +1588,7 @@ export default function CoursesPage({ embedded = false }) {
                     { label:'整期可請假次數', key:'maxLeaves', p: ph(cat.maxLeaves, 2) },
                     { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', p: ph(cat.makeupDeadlineDays, 60) },
                     { label:'試上費（NT$）', key:'trialPrice', p: ph(cat.trialPrice, 0) },
-                    { label:'退費：手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.05) * 100)}` },
+                    { label:'退費：手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
                   ].map(f => (
                     <div key={f.key}>
                       <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
