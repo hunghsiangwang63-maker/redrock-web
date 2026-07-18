@@ -1644,13 +1644,29 @@ export default function MemberCoursesPage() {
             {/* Step 3: 規則確認 */}
             {enrollStep === 3 && (<>
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假/補課方式</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假、補課方式</div>
+                {(() => {
+                  const _n = selectedCourse?.ruleMaxLeaves ?? 2;
+                  const _h = selectedCourse?.ruleLeaveDeadlineHours ?? 2;
+                  const _d = selectedCourse?.ruleMakeupDeadlineDays ?? 60;
+                  const _x = _d % 30 === 0 ? `${_d / 30} 個月` : `${_d} 天`;
+                  return (
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
-                  1. 每期最多可請假 2 次，超過則不予補課。特殊狀況（受傷等不可抗因素）得申請展延。<br/>
-                  2. 請假最晚於課前 2 小時告知，否則視為自行放棄，不予補課。<br/>
-                  3. 補課可安排其他梯次，最晚於補課前一天告知。<br/>
-                  4. 補課請於課程結束後 2 週內完成，逾期視同放棄。
+                  <strong>1. 請假次數限制</strong><br/>
+                  ・每期課程最多可請假 <strong>{_n}</strong> 次，超過次數則不予補課。<br/>
+                  ・若遇特殊狀況（如受傷等不可抗因素），得另行申請展延。<br/>
+                  <strong>2. 請假時限</strong><br/>
+                  ・請假最晚須於課前 <strong>{_h}</strong> 小時送出請假申請，否則視為自行放棄，不予補課。<br/>
+                  <strong>3. 取消請假規則</strong><br/>
+                  ・取消已送出的請假，可補課次數將重新計算。<br/>
+                  ・若取消請假的該堂課名額已額滿（如已安排他人補課或試上），則無法取消請假。<br/>
+                  ・注意：取消請假時，請先取消已預約的補課。<br/>
+                  <strong>4. 補課安排與時限</strong><br/>
+                  ・補課可安排至其他梯次，需自行提出申請。<br/>
+                  ・補課請於課程結束後 <strong>{_x}</strong> 內完成，逾期視同放棄。
                 </div>
+                  );
+                })()}
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedLeavePolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedLeavePolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedLeavePolicy} onChange={e => setConfirmedLeavePolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedLeavePolicy?'#2D7D46':'#444' }}>我已了解課程請假/補課方式</span>
