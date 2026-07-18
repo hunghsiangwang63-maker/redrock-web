@@ -29,7 +29,14 @@ export default function RentalActionModal({ action, rental, onClose, onDone }) {
   return (
     <Modal title={action === 'confirm' ? '確認取件收款' : '確認歸還'} onClose={onClose}>
       <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:16, fontSize:13 }}>
-        <div style={{ fontWeight:600 }}>{rental.memberName}</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ fontWeight:600 }}>{rental.memberName}</div>
+          {rental.paymentMethod === 'cash'
+            ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 10px', borderRadius:8, background:'#FFF8E6', color:'#8A5A00' }}>💵 現金</span>
+            : rental.paymentMethod === 'transfer'
+            ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 10px', borderRadius:8, background:'#E6F1FB', color:'#185FA5' }}>🏦 轉帳</span>
+            : null}
+        </div>
         <div style={{ color:'#666', fontSize:12, marginTop:4 }}>
           {rental.gymId==='gym-hsinchu'?'新竹館':'士林館'} ·
           {rental.pickupDate} ～ {rental.returnDate}
@@ -39,7 +46,14 @@ export default function RentalActionModal({ action, rental, onClose, onDone }) {
         </div>
         <div style={{ color:'#8B1A1A', fontWeight:600, marginTop:6 }}>
           租金 NT${rental.totalRentalFee}　押金 NT${rental.totalDeposit}
+          {rental.paymentMethod === 'transfer' && rental.bankLastFive ? `　末五碼 ${rental.bankLastFive}` : ''}
         </div>
+        {rental.paymentMethod === 'cash' && (
+          <div style={{ fontSize:12, color:'#8A5A00', marginTop:6 }}>臨櫃現金：請收妥租金＋押金後再按確認。</div>
+        )}
+        {rental.staffNote && (
+          <div style={{ fontSize:12, color:'#854F0B', marginTop:6 }}>📝 {rental.staffNote}（員工備註）</div>
+        )}
       </div>
       {action === 'return' && (
         <>

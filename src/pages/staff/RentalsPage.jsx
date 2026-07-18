@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff } from '../../api/rentals';
+import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff, cancelRentalStaff, updateRentalStaff, saveRentalStaffNote } from '../../api/rentals';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
@@ -24,6 +24,10 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const ITEM_ICONS = { crashPad:'🪨', helmet:'⛑️', harness:'🔗' };
+const PayTag = ({ method }) => method === 'cash'
+  ? <Tag type="warn">💵 現金</Tag>
+  : method === 'transfer' ? <Tag type="blue">🏦 轉帳</Tag>
+  : method ? <Tag type="gray">{method}</Tag> : null;
 const STATUS = {
   pending:   { type:'warn', label:'待確認' },
   confirmed: { type:'ok',   label:'已確認' },
@@ -44,7 +48,11 @@ export default function RentalsPage({ embedded = false }) {
   const [filterGym, setFilterGym] = useState('');
   const [filterFrom, setFilterFrom] = useState(dayjs().format('YYYY-MM-DD'));
   const [filterTo, setFilterTo] = useState(dayjs().add(14,'day').format('YYYY-MM-DD'));
-  const [actionModal, setActionModal] = useState(null); // { type:'confirm'|'return', rental }
+  const [actionModal, setActionModal] = useState(null);
+  const [cancelTarget, setCancelTarget] = useState(null);   // 取消申請確認
+  const [editTarget, setEditTarget] = useState(null);       // 修改申請 {r, form:{pickupDate,returnDate,rentalType,quantities}, settings}
+  const [noteTarget, setNoteTarget] = useState(null);       // 員工備註 {r, text}
+  const [rowSaving, setRowSaving] = useState(false); // { type:'confirm'|'return', rental }
   const [settingsModal, setSettingsModal] = useState(false);
   const [rentalSettings, setRentalSettings] = useState(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -80,6 +88,41 @@ export default function RentalsPage({ embedded = false }) {
       showMsg('設定已儲存'); setSettingsModal(false);
     } catch(err) { showMsg('儲存失敗','red'); }
     finally { setSettingsSaving(false); }
+  };
+
+  const doCancel = async () => {
+    if (!cancelTarget) return;
+    setRowSaving(true);
+    try { await cancelRentalStaff(cancelTarget.id); showMsg('租借申請已取消'); setCancelTarget(null); loadAll(); }
+    catch (err) { showMsg(err.response?.data?.message || '取消失敗', 'red'); }
+    finally { setRowSaving(false); }
+  };
+  const openEdit = async (r) => {
+    let settings = null;
+    try { settings = (await getRentalSettingsStaff()).data; } catch (e) {}
+    const quantities = {};
+    Object.keys(settings || {}).forEach(k => { if (settings[k]?.name) quantities[k] = 0; });
+    (r.items || []).forEach(i => { quantities[i.type] = i.quantity; });
+    setEditTarget({ r, settings, form: { pickupDate: r.pickupDate, returnDate: r.returnDate, rentalType: r.rentalType, quantities } });
+  };
+  const doEdit = async () => {
+    if (!editTarget) return;
+    const { form, r } = editTarget;
+    const items = Object.entries(form.quantities).filter(([, q]) => q > 0).map(([type, quantity]) => ({ type, quantity }));
+    if (!items.length) { showMsg('請至少保留一項器材', 'red'); return; }
+    setRowSaving(true);
+    try {
+      const res = await updateRentalStaff(r.id, { pickupDate: form.pickupDate, returnDate: form.returnDate, rentalType: form.rentalType, items });
+      showMsg(res.data?.message || '已更新'); setEditTarget(null); loadAll();
+    } catch (err) { showMsg(err.response?.data?.message || '修改失敗', 'red'); }
+    finally { setRowSaving(false); }
+  };
+  const doSaveNote = async () => {
+    if (!noteTarget) return;
+    setRowSaving(true);
+    try { await saveRentalStaffNote(noteTarget.r.id, noteTarget.text); showMsg('備註已儲存'); setNoteTarget(null); loadAll(); }
+    catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'red'); }
+    finally { setRowSaving(false); }
   };
 
   const openSettings = async () => {
@@ -133,21 +176,21 @@ export default function RentalsPage({ embedded = false }) {
             {pendingRentals.length > 0 && (
               <div>
                 <div style={{ fontSize:13, fontWeight:600, color:'#854F0B', marginBottom:8 }}>⏳ 待確認申請（{pendingRentals.length}）</div>
-                {pendingRentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal}/>)}
+                {pendingRentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
               </div>
             )}
             {/* 今日取件 */}
             {todayPickup.length > 0 && (
               <div>
                 <div style={{ fontSize:13, fontWeight:600, color:'#185FA5', marginBottom:8 }}>📦 今日取件（{todayPickup.length}）</div>
-                {todayPickup.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal}/>)}
+                {todayPickup.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
               </div>
             )}
             {/* 今日歸還 */}
             {todayReturn.length > 0 && (
               <div>
                 <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:8 }}>✅ 今日歸還（{todayReturn.length}）</div>
-                {todayReturn.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal}/>)}
+                {todayReturn.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
               </div>
             )}
             {pendingRentals.length===0 && todayPickup.length===0 && todayReturn.length===0 && (
@@ -221,7 +264,7 @@ export default function RentalsPage({ embedded = false }) {
         {tab === 'all' && (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {rentals.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無申請記錄</div>}
-            {rentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal}/>)}
+            {rentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
           </div>
         )}
 
@@ -235,6 +278,86 @@ export default function RentalsPage({ embedded = false }) {
           onClose={() => setActionModal(null)}
           onDone={(m)=>{ setActionModal(null); showMsg(m); loadAll(); }}
         />
+      )}
+
+      {/* 取消申請確認 */}
+      {cancelTarget && (
+        <Modal title="取消租借申請" onClose={() => setCancelTarget(null)}>
+          <div style={{ fontSize:13, color:'#444', lineHeight:1.7, marginBottom:16 }}>
+            確定取消 <strong>{cancelTarget.memberName}</strong> 的租借申請（{cancelTarget.pickupDate} ～ {cancelTarget.returnDate}）？<br/>
+            取消後連動的待收款轉帳單將一併作廢。
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setCancelTarget(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>返回</button>
+            <button onClick={doCancel} disabled={rowSaving}
+              style={{ flex:1, height:40, borderRadius:9, background:'#C0392B', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>{rowSaving?'處理中...':'確定取消'}</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 修改申請 */}
+      {editTarget && (
+        <Modal title={`修改租借申請 — ${editTarget.r.memberName}`} onClose={() => setEditTarget(null)}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+            <div>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>借出日期</label>
+              <input type="date" value={editTarget.form.pickupDate}
+                onChange={e => setEditTarget(t => ({ ...t, form:{ ...t.form, pickupDate:e.target.value } }))} style={inp}/>
+            </div>
+            <div>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>歸還日期</label>
+              <input type="date" value={editTarget.form.returnDate}
+                onChange={e => setEditTarget(t => ({ ...t, form:{ ...t.form, returnDate:e.target.value } }))} style={inp}/>
+            </div>
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>方案</label>
+            <select value={editTarget.form.rentalType}
+              onChange={e => setEditTarget(t => ({ ...t, form:{ ...t.form, rentalType:e.target.value } }))} style={inp}>
+              <option value="weekend">週末方案</option>
+              <option value="sevenDay">七天方案</option>
+            </select>
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>器材數量</label>
+            {Object.entries(editTarget.form.quantities).map(([type, q]) => {
+              const cfg = editTarget.settings?.[type] || {};
+              return (
+                <div key={type} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                  <span style={{ fontSize:13 }}>{ITEM_ICONS[type]||'📦'} {cfg.name || type}</span>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <button onClick={() => setEditTarget(t => ({ ...t, form:{ ...t.form, quantities:{ ...t.form.quantities, [type]: Math.max(0, q-1) } } }))}
+                      style={{ width:28, height:28, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', cursor:'pointer' }}>−</button>
+                    <span style={{ width:20, textAlign:'center', fontWeight:600 }}>{q}</span>
+                    <button onClick={() => setEditTarget(t => ({ ...t, form:{ ...t.form, quantities:{ ...t.form.quantities, [type]: q+1 } } }))}
+                      style={{ width:28, height:28, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', cursor:'pointer' }}>＋</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ fontSize:11, color:'#999', marginBottom:12 }}>儲存後租金/押金由系統依費率重新計算。</div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setEditTarget(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>返回</button>
+            <button onClick={doEdit} disabled={rowSaving}
+              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>{rowSaving?'儲存中...':'儲存修改'}</button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 員工備註（會員看不到） */}
+      {noteTarget && (
+        <Modal title={`員工備註 — ${noteTarget.r.memberName}`} onClose={() => setNoteTarget(null)}>
+          <div style={{ fontSize:12, color:'#854F0B', marginBottom:8 }}>此備註僅員工端可見，會員看不到。</div>
+          <textarea value={noteTarget.text} onChange={e => setNoteTarget(t => ({ ...t, text:e.target.value }))}
+            rows={4} placeholder="如：押金已收現金、器材狀況、特殊約定…"
+            style={{ ...inp, height:'auto', padding:'10px 12px', resize:'vertical', fontFamily:'inherit' }}/>
+          <div style={{ display:'flex', gap:8, marginTop:14 }}>
+            <button onClick={() => setNoteTarget(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>返回</button>
+            <button onClick={doSaveNote} disabled={rowSaving}
+              style={{ flex:2, height:40, borderRadius:9, background:'#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>{rowSaving?'儲存中...':'儲存備註'}</button>
+          </div>
+        </Modal>
       )}
 
       {/* 費率設定 Modal */}
@@ -279,8 +402,9 @@ export default function RentalsPage({ embedded = false }) {
   );
 }
 
-function RentalCard({ r, onAction }) {
+function RentalCard({ r, onAction, onCancel, onEdit, onNote }) {
   const sl = STATUS[r.status] || STATUS.pending;
+  const editable = ['pending', 'confirmed'].includes(r.status);
   return (
     <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
@@ -294,7 +418,10 @@ function RentalCard({ r, onAction }) {
             {r.pickupDate} ～ {r.returnDate}
           </div>
         </div>
-        <Tag type={sl.type}>{sl.label}</Tag>
+        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+          <PayTag method={r.paymentMethod}/>
+          <Tag type={sl.type}>{sl.label}</Tag>
+        </div>
       </div>
       <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
         {r.items?.map(i => `${i.name}×${i.quantity}`).join('　')}
@@ -303,7 +430,12 @@ function RentalCard({ r, onAction }) {
         租金 NT${r.totalRentalFee}　押金 NT${r.totalDeposit}
         {r.paymentMethod==='transfer' && r.bankLastFive && ` ｜ 末五碼 ${r.bankLastFive}`}
       </div>
-      <div style={{ display:'flex', gap:8 }}>
+      {r.staffNote && (
+        <div style={{ fontSize:12, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'6px 10px', marginBottom:10, textAlign:'left' }}>
+          📝 {r.staffNote}<span style={{ color:'#B08A4F', marginLeft:6 }}>（員工備註，會員看不到）</span>
+        </div>
+      )}
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
         {r.status === 'pending' && (
           <button onClick={() => onAction({ type:'confirm', rental:r })}
             style={{ height:28, padding:'0 14px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認取件收款</button>
@@ -311,6 +443,18 @@ function RentalCard({ r, onAction }) {
         {r.status === 'active' && (
           <button onClick={() => onAction({ type:'return', rental:r })}
             style={{ height:28, padding:'0 14px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認歸還</button>
+        )}
+        {editable && (
+          <button onClick={() => onEdit(r)}
+            style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#444', fontSize:12, cursor:'pointer' }}>修改</button>
+        )}
+        {editable && (
+          <button onClick={() => onCancel(r)}
+            style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #C0392B', color:'#C0392B', fontSize:12, cursor:'pointer' }}>取消申請</button>
+        )}
+        {r.status !== 'cancelled' && (
+          <button onClick={() => onNote(r)}
+            style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#854F0B', fontSize:12, cursor:'pointer' }}>📝 備註</button>
         )}
         {r.depositReturned && <span style={{ fontSize:11, color:'#2D7D46' }}>✓ 押金已退回</span>}
       </div>

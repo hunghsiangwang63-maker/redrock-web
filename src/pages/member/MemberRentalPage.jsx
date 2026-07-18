@@ -4,7 +4,7 @@ import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
-import { getRentalSettings, applyRental, getMyRentals } from '../../api/rentals';
+import { getRentalSettings, applyRental, getMyRentals, cancelRentalMember, updateRentalMember } from '../../api/rentals';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 import { memberClient } from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -31,6 +31,9 @@ export default function MemberRentalPage() {
   const [settings, setSettings] = useState(null);
   const [myRentals, setMyRentals] = useState([]);
   const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
+  const [cancelTarget, setCancelTarget] = useState(null); // 取消申請確認
+  const [editTarget, setEditTarget] = useState(null);     // 修改申請 {r, form}
+  const [rowSaving, setRowSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
   const [payFor, setPayFor] = useState(null); // { rentalId, total, gymId }
@@ -50,6 +53,32 @@ export default function MemberRentalPage() {
 
   const [alertModal, setAlertModal] = useState(null);
   const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
+
+  const refreshMyRentals = () => getMyRentals().then(rr=>setMyRentals(rr.data.rentals||[])).catch(()=>{});
+  const doCancel = async () => {
+    if (!cancelTarget) return;
+    setRowSaving(true);
+    try { await cancelRentalMember(cancelTarget.id); showMsg('租借申請已取消'); setCancelTarget(null); refreshMyRentals(); }
+    catch (err) { showMsg(err.response?.data?.message || '取消失敗', 'red'); }
+    finally { setRowSaving(false); }
+  };
+  const openEdit = (r) => {
+    const qs = { crashPad:0, helmet:0, harness:0 };
+    (r.items||[]).forEach(i => { qs[i.type] = i.quantity; });
+    setEditTarget({ r, form: { pickupDate:r.pickupDate, returnDate:r.returnDate, rentalType:r.rentalType, quantities:qs } });
+  };
+  const doEdit = async () => {
+    if (!editTarget) return;
+    const { r, form } = editTarget;
+    const items = Object.entries(form.quantities).filter(([,q])=>q>0).map(([type,quantity])=>({ type, quantity }));
+    if (!items.length) { showMsg('請至少保留一項器材','red'); return; }
+    setRowSaving(true);
+    try {
+      const res = await updateRentalMember(r.id, { pickupDate:form.pickupDate, returnDate:form.returnDate, rentalType:form.rentalType, items });
+      showMsg(res.data?.message || '已更新申請'); setEditTarget(null); refreshMyRentals();
+    } catch (err) { showMsg(err.response?.data?.message || '修改失敗', 'red'); }
+    finally { setRowSaving(false); }
+  };
 
   useEffect(() => {
     Promise.allSettled([
@@ -319,7 +348,11 @@ export default function MemberRentalPage() {
                           {r.pickupDate} ～ {r.returnDate}
                         </div>
                       </div>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:sl.bg, color:sl.color }}>{sl.text}</span>
+                      <span style={{ display:'flex', gap:6, alignItems:'center' }}>
+                        {r.paymentMethod==='cash' && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:'#FFF8E6', color:'#8A5A00' }}>💵 現金</span>}
+                        {r.paymentMethod==='transfer' && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:'#E6F1FB', color:'#185FA5' }}>🏦 轉帳</span>}
+                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:sl.bg, color:sl.color }}>{sl.text}</span>
+                      </span>
                     </div>
                     <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
                       {r.items?.map(i => `${ITEM_ICONS[i.type]||''}${i.name} ×${i.quantity}`).join('　')}
@@ -340,6 +373,16 @@ export default function MemberRentalPage() {
                     )}
                     {r.paymentStatus==='pending_confirm' && r.status!=='cancelled' && (
                       <div style={{ marginTop:8, fontSize:11, color:'#854F0B' }}>轉帳已重新送出，等待館方確認</div>
+                    )}
+                    {['pending','confirmed'].includes(r.status) && (
+                      <div style={{ display:'flex', gap:8, marginTop:10 }}>
+                        {r.status==='pending' && (
+                          <button onClick={()=>openEdit(r)}
+                            style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#444', fontSize:12, cursor:'pointer' }}>修改申請</button>
+                        )}
+                        <button onClick={()=>setCancelTarget(r)}
+                          style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #C0392B', color:'#C0392B', fontSize:12, cursor:'pointer' }}>取消申請</button>
+                      </div>
                     )}
                   </div>
                 );
@@ -421,6 +464,85 @@ export default function MemberRentalPage() {
                 style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
                 {submitting ? '送出中...' : '✓ 送出申請'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 取消申請確認 */}
+      {cancelTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={()=>{ if(!rowSaving) setCancelTarget(null); }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消租借申請</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
+              確定取消 {cancelTarget.pickupDate} ～ {cancelTarget.returnDate} 的租借申請嗎？<br/>
+              {cancelTarget.paymentMethod==='transfer' && cancelTarget.paymentStatus!=='pending' ? '若已匯款，退款請洽櫃檯辦理。' : ''}
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={()=>setCancelTarget(null)} disabled={rowSaving}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={doCancel} disabled={rowSaving}
+                style={{ flex:1, height:44, borderRadius:12, background:'#C0392B', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{rowSaving?'處理中...':'確定取消'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 修改申請（限館方確認前） */}
+      {editTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={()=>{ if(!rowSaving) setEditTarget(null); }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:340, maxWidth:'92vw', maxHeight:'85vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>修改租借申請</div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+              <div>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>借出日期</label>
+                <input type="date" value={editTarget.form.pickupDate} min={dayjs().format('YYYY-MM-DD')}
+                  onChange={e=>setEditTarget(t=>({ ...t, form:{ ...t.form, pickupDate:e.target.value } }))}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>歸還日期</label>
+                <input type="date" value={editTarget.form.returnDate} min={editTarget.form.pickupDate}
+                  onChange={e=>setEditTarget(t=>({ ...t, form:{ ...t.form, returnDate:e.target.value } }))}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
+              </div>
+            </div>
+            <div style={{ marginBottom:12, textAlign:'left' }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>方案</label>
+              <select value={editTarget.form.rentalType}
+                onChange={e=>setEditTarget(t=>({ ...t, form:{ ...t.form, rentalType:e.target.value } }))}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', background:'#fff' }}>
+                <option value="weekend">週末方案</option>
+                <option value="sevenDay">七天方案</option>
+              </select>
+            </div>
+            <div style={{ marginBottom:8, textAlign:'left' }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>器材數量</label>
+              {Object.entries(editTarget.form.quantities).map(([type,q])=>{
+                const cfg = settings?.[type] || {};
+                if (cfg.active === false && q === 0) return null;
+                return (
+                  <div key={type} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                    <span style={{ fontSize:13 }}>{ITEM_ICONS[type]||'📦'} {cfg.name || type}</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <button onClick={()=>setEditTarget(t=>({ ...t, form:{ ...t.form, quantities:{ ...t.form.quantities, [type]: Math.max(0,q-1) } } }))}
+                        style={{ width:30, height:30, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', cursor:'pointer' }}>−</button>
+                      <span style={{ width:22, textAlign:'center', fontWeight:600 }}>{q}</span>
+                      <button onClick={()=>setEditTarget(t=>({ ...t, form:{ ...t.form, quantities:{ ...t.form.quantities, [type]: q+1 } } }))}
+                        style={{ width:30, height:30, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', cursor:'pointer' }}>＋</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ fontSize:11, color:'#999', marginBottom:14, textAlign:'left' }}>儲存後租金/押金依費率重新計算，若金額有變請依新金額補足/洽櫃檯。</div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={()=>setEditTarget(null)} disabled={rowSaving}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={doEdit} disabled={rowSaving}
+                style={{ flex:2, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{rowSaving?'儲存中...':'儲存修改'}</button>
             </div>
           </div>
         </div>
