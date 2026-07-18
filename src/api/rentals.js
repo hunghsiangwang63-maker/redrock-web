@@ -13,4 +13,5 @@ export const updateRentalMember = (id, data) => memberClient.put(`/rentals/${id}
 export const cancelRentalStaff = (id) => client.post(`/rentals/${id}/cancel`);
 export const updateRentalStaff = (id, data) => client.put(`/rentals/${id}`, data);
 export const saveRentalStaffNote = (id, staffNote) => client.put(`/rentals/${id}/staff-note`, { staffNote });
+export const returnRentalDeposit = (id) => client.post(`/rentals/${id}/return-deposit`);
 export const returnRental = (id, data) => client.post(`/rentals/${id}/return`, data);

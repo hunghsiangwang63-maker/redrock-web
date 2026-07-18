@@ -60,13 +60,13 @@ export default function RentalActionModal({ action, rental, onClose, onDone }) {
           <div style={{ marginBottom:14 }}>
             <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
               <input type="checkbox" checked={depositReturned} onChange={e => setDepositReturned(e.target.checked)} style={{ width:16, height:16 }}/>
-              <span style={{ fontSize:13 }}>退還押金 NT${rental.totalDeposit}</span>
+              <span style={{ fontSize:13 }}>當場退還押金 NT${rental.totalDeposit}</span>
             </label>
           </div>
           {!depositReturned && (
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>押金扣除原因</label>
-              <input style={inp} value={deductNote} onChange={e => setDeductNote(e.target.value)} placeholder="如：器材損壞..."/>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>押金扣除原因（留空＝稍後退回，將保留在通知「待退押金」）</label>
+              <input style={inp} value={deductNote} onChange={e => setDeductNote(e.target.value)} placeholder="如：器材損壞…（填了＝押金扣除結案）"/>
             </div>
           )}
         </>

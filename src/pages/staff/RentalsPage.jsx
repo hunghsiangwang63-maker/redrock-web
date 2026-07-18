@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff, cancelRentalStaff, updateRentalStaff, saveRentalStaffNote } from '../../api/rentals';
+import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff, cancelRentalStaff, updateRentalStaff, saveRentalStaffNote, returnRentalDeposit } from '../../api/rentals';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
@@ -52,6 +52,7 @@ export default function RentalsPage({ embedded = false }) {
   const [cancelTarget, setCancelTarget] = useState(null);   // 取消申請確認
   const [editTarget, setEditTarget] = useState(null);       // 修改申請 {r, form:{pickupDate,returnDate,rentalType,quantities}, settings}
   const [noteTarget, setNoteTarget] = useState(null);       // 員工備註 {r, text}
+  const [depositTarget, setDepositTarget] = useState(null); // 退回押金確認
   const [rowSaving, setRowSaving] = useState(false); // { type:'confirm'|'return', rental }
   const [settingsModal, setSettingsModal] = useState(false);
   const [rentalSettings, setRentalSettings] = useState(null);
@@ -117,6 +118,13 @@ export default function RentalsPage({ embedded = false }) {
     } catch (err) { showMsg(err.response?.data?.message || '修改失敗', 'red'); }
     finally { setRowSaving(false); }
   };
+  const doReturnDeposit = async () => {
+    if (!depositTarget) return;
+    setRowSaving(true);
+    try { const res = await returnRentalDeposit(depositTarget.id); showMsg(res.data?.message || '押金已退回'); setDepositTarget(null); loadAll(); }
+    catch (err) { showMsg(err.response?.data?.message || '操作失敗', 'red'); }
+    finally { setRowSaving(false); }
+  };
   const doSaveNote = async () => {
     if (!noteTarget) return;
     setRowSaving(true);
@@ -131,9 +139,14 @@ export default function RentalsPage({ embedded = false }) {
     setSettingsModal(true);
   };
 
+  // 通知分組：確認收款後仍保留在通知，直到 歸還＋押金退回（或歸還時已註記扣除）才移入歷史
   const pendingRentals = rentals.filter(r => r.status === 'pending');
-  const todayPickup = rentals.filter(r => r.pickupDate === dayjs().format('YYYY-MM-DD') && r.status === 'confirmed');
-  const todayReturn = rentals.filter(r => r.returnDate === dayjs().format('YYYY-MM-DD') && r.status === 'active');
+  const confirmedRentals = rentals.filter(r => r.status === 'confirmed');
+  const activeRentals = rentals.filter(r => r.status === 'active');
+  const awaitDeposit = rentals.filter(r => r.status === 'returned' && !r.depositReturned && !r.depositDeductNote);
+  const notifyCount = pendingRentals.length + confirmedRentals.length + activeRentals.length + awaitDeposit.length;
+  const historyRentals = rentals.filter(r => r.status === 'cancelled' || (r.status === 'returned' && (r.depositReturned || r.depositDeductNote)))
+    .sort((a, b) => (b.returnedAt?._seconds || b.cancelledAt?._seconds || 0) - (a.returnedAt?._seconds || a.cancelledAt?._seconds || 0));
 
   return (
     <div style={{ padding:24, maxWidth:900, margin:'0 auto' }}>
@@ -159,9 +172,10 @@ export default function RentalsPage({ embedded = false }) {
       {/* Tabs */}
       <SegmentedTabs
         tabs={[
-          { key:'notify', label:`通知${(pendingRentals.length+todayPickup.length+todayReturn.length)>0?` (${pendingRentals.length+todayPickup.length+todayReturn.length})`:''}` },
+          { key:'notify', label:`通知${notifyCount>0?` (${notifyCount})`:''}` },
           { key:'stats', label:'備貨統計' },
           { key:'all', label:'全部申請' },
+          { key:'history', label:'歷史紀錄' },
         ]}
         value={tab}
         onChange={k => { setTab(k); if(k==='stats') loadStats(); }}
@@ -172,28 +186,31 @@ export default function RentalsPage({ embedded = false }) {
         {/* ── 通知 ── */}
         {tab === 'notify' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            {/* 待確認 */}
             {pendingRentals.length > 0 && (
               <div>
                 <div style={{ fontSize:13, fontWeight:600, color:'#854F0B', marginBottom:8 }}>⏳ 待確認申請（{pendingRentals.length}）</div>
-                {pendingRentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
+                {pendingRentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })} onDeposit={setDepositTarget}/>)}
               </div>
             )}
-            {/* 今日取件 */}
-            {todayPickup.length > 0 && (
+            {confirmedRentals.length > 0 && (
               <div>
-                <div style={{ fontSize:13, fontWeight:600, color:'#185FA5', marginBottom:8 }}>📦 今日取件（{todayPickup.length}）</div>
-                {todayPickup.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
+                <div style={{ fontSize:13, fontWeight:600, color:'#185FA5', marginBottom:8 }}>📦 待取件（{confirmedRentals.length}）</div>
+                {confirmedRentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })} onDeposit={setDepositTarget}/>)}
               </div>
             )}
-            {/* 今日歸還 */}
-            {todayReturn.length > 0 && (
+            {activeRentals.length > 0 && (
               <div>
-                <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:8 }}>✅ 今日歸還（{todayReturn.length}）</div>
-                {todayReturn.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
+                <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:8 }}>🧗 使用中・待歸還（{activeRentals.length}）</div>
+                {activeRentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })} onDeposit={setDepositTarget}/>)}
               </div>
             )}
-            {pendingRentals.length===0 && todayPickup.length===0 && todayReturn.length===0 && (
+            {awaitDeposit.length > 0 && (
+              <div>
+                <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:8 }}>💰 已歸還・待退押金（{awaitDeposit.length}）</div>
+                {awaitDeposit.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })} onDeposit={setDepositTarget}/>)}
+              </div>
+            )}
+            {notifyCount === 0 && (
               <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有待處理事項</div>
             )}
           </div>
@@ -264,7 +281,47 @@ export default function RentalsPage({ embedded = false }) {
         {tab === 'all' && (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {rentals.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無申請記錄</div>}
-            {rentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })}/>)}
+            {rentals.map(r => <RentalCard key={r.id} r={r} onAction={setActionModal} onCancel={setCancelTarget} onEdit={openEdit} onNote={(x)=>setNoteTarget({ r:x, text:x.staffNote||'' })} onDeposit={setDepositTarget}/>)}
+          </div>
+        )}
+
+        {/* ── 歷史紀錄（歸還＋押金處理完畢／已取消） ── */}
+        {tab === 'history' && (
+          <div>
+            {historyRentals.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無歷史紀錄</div>}
+            {historyRentals.length > 0 && (
+              <div style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 }}>
+                  <thead>
+                    <tr style={{ background:'#FBF5F5' }}>
+                      {['會員','館別','租借期間','器材','租金','押金','付款','狀態','押金處理','經手'].map(h => (
+                        <th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyRentals.map(r => (
+                      <tr key={r.id} style={{ borderBottom:'0.5px solid #F0E8E8' }}>
+                        <td style={{ padding:'8px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{r.memberName}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>{r.gymId==='gym-hsinchu'?'新竹':'士林'}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap', color:'#666' }}>{r.pickupDate} ～ {r.returnDate}</td>
+                        <td style={{ padding:'8px 10px' }}>{r.items?.map(i=>`${i.name}×${i.quantity}`).join('、')}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>NT${r.totalRentalFee}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>NT${r.totalDeposit}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>{r.paymentMethod==='cash'?'現金':r.paymentMethod==='transfer'?'轉帳':r.paymentMethod||'—'}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}><Tag type={STATUS[r.status]?.type||'gray'}>{STATUS[r.status]?.label||r.status}</Tag></td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
+                          {r.status==='cancelled' ? '—'
+                            : r.depositReturned ? <span style={{ color:'#2D7D46' }}>✓ 已退回</span>
+                            : <span style={{ color:'#A32D2D' }} title={r.depositDeductNote}>扣除{r.depositDeductNote?`：${r.depositDeductNote}`:''}</span>}
+                        </td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap', color:'#666' }}>{r.depositReturnedBy || r.returnedByName || r.cancelledBy || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -360,6 +417,21 @@ export default function RentalsPage({ embedded = false }) {
         </Modal>
       )}
 
+      {/* 退回押金確認 */}
+      {depositTarget && (
+        <Modal title="退回押金" onClose={() => setDepositTarget(null)}>
+          <div style={{ fontSize:13, color:'#444', lineHeight:1.7, marginBottom:16 }}>
+            確認退回 <strong>{depositTarget.memberName}</strong> 的押金 <strong style={{ color:'#8B1A1A' }}>NT${depositTarget.totalDeposit}</strong>？<br/>
+            退回後此筆租借結案、移入歷史紀錄。
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setDepositTarget(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>返回</button>
+            <button onClick={doReturnDeposit} disabled={rowSaving}
+              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>{rowSaving?'處理中...':'確認退回押金'}</button>
+          </div>
+        </Modal>
+      )}
+
       {/* 費率設定 Modal */}
       {settingsModal && rentalSettings && (
         <Modal title="器材費率設定" onClose={() => setSettingsModal(false)}>
@@ -402,7 +474,7 @@ export default function RentalsPage({ embedded = false }) {
   );
 }
 
-function RentalCard({ r, onAction, onCancel, onEdit, onNote }) {
+function RentalCard({ r, onAction, onCancel, onEdit, onNote, onDeposit }) {
   const sl = STATUS[r.status] || STATUS.pending;
   const editable = ['pending', 'confirmed'].includes(r.status);
   return (
@@ -443,6 +515,10 @@ function RentalCard({ r, onAction, onCancel, onEdit, onNote }) {
         {r.status === 'active' && (
           <button onClick={() => onAction({ type:'return', rental:r })}
             style={{ height:28, padding:'0 14px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認歸還</button>
+        )}
+        {r.status === 'returned' && !r.depositReturned && !r.depositDeductNote && onDeposit && (
+          <button onClick={() => onDeposit(r)}
+            style={{ height:28, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>💰 退回押金 NT${r.totalDeposit}</button>
         )}
         {editable && (
           <button onClick={() => onEdit(r)}
