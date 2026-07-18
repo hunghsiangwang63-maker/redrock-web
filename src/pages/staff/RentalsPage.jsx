@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getRentals, getRentalStats, updateRentalSettings, getRentalSettings } from '../../api/rentals';
+import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff } from '../../api/rentals';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
@@ -83,7 +83,7 @@ export default function RentalsPage({ embedded = false }) {
   };
 
   const openSettings = async () => {
-    const r = await getRentalSettings();
+    const r = await getRentalSettingsStaff();
     setRentalSettings(r.data);
     setSettingsModal(true);
   };
