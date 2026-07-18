@@ -519,9 +519,12 @@ export default function ExperienceBookingsPage() {
                         </label>
                       </div>
                     </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:10 }}>
                       <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>課程名稱</label><input value={ct.label||''} onChange={e=>updateCT(ctIdx,'label',e.target.value)} style={tinp}/></div>
                       <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>時數說明</label><input value={ct.durationNote||''} onChange={e=>updateCT(ctIdx,'durationNote',e.target.value)} style={tinp}/></div>
+                      <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>時長（分鐘）</label><input type="number" min="0" value={ct.durationMinutes ?? ''} placeholder="未設=120"
+                        onChange={e=>updateCT(ctIdx,'durationMinutes',e.target.value===''?null:Math.max(0,Number(e.target.value)||0))} style={tinp}/>
+                        <div style={{ fontSize:10, color:'#999', marginTop:2 }}>預約只填開始時間時，用此時長帶出結束時間（排班/場次）</div></div>
                     </div>
                     {ct.pricingType==='fixed' ? (
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
