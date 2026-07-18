@@ -45,7 +45,8 @@ export default function ExperienceBookingsPage() {
   const [editBooking, setEditBooking] = useState(null);   // 編輯預約（參加者 + 日期/時段）
   const [editParts, setEditParts] = useState([]);
   const [editDate, setEditDate] = useState('');
-  const [editTime, setEditTime] = useState('');
+  const [editStart, setEditStart] = useState(''); // 開始時間（time picker）
+  const [editEnd, setEditEnd] = useState('');     // 結束時間（time picker）
   const [savingParts, setSavingParts] = useState(false);
   const [coachBooking, setCoachBooking] = useState(null); // 指定/改教練的預約
   const [coachVal, setCoachVal] = useState({ coachId: null, coachName: '' });
@@ -107,7 +108,8 @@ export default function ExperienceBookingsPage() {
     setEditBooking(b);
     setEditParts((b.participants || []).map(p => ({ ...p })));
     setEditDate(b.bookingDate || '');
-    setEditTime(b.bookingTime || '');
+    const _t = String(b.bookingTime || '').match(/(\d{1,2}:\d{2})/g) || [];
+    setEditStart(_t[0] || ''); setEditEnd(_t[1] || '');
   };
   const updPart = (i, f, v) => setEditParts(ps => ps.map((p, idx) => idx === i ? { ...p, [f]: v } : p));
   const addPart = () => setEditParts(ps => [...ps, { name: '', idNumber: '', birthday: '', nationality: '台灣' }]);
@@ -119,7 +121,9 @@ export default function ExperienceBookingsPage() {
     try {
       let schedMsg = '';
       // 日期/時段有變更 → 先連動課程/場次/教練排班/入場券
+      const editTime = editStart ? (editEnd ? `${editStart}-${editEnd}` : editStart) : '';
       if (editDate !== editBooking.bookingDate || editTime !== (editBooking.bookingTime || '')) {
+        if (editStart && editEnd && editEnd <= editStart) { showMsg('結束時間需晚於開始時間', 'red'); return; }
         const sr = await client.put(`/experience-bookings/${editBooking.id}/schedule`, { bookingDate: editDate, bookingTime: editTime });
         schedMsg = `（日期/時段已更新${sr.data.ticketsUpdated ? `，票券效期同步 ${sr.data.ticketsUpdated} 張` : ''}）`;
       }
@@ -519,12 +523,9 @@ export default function ExperienceBookingsPage() {
                         </label>
                       </div>
                     </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:10 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:10 }}>
                       <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>課程名稱</label><input value={ct.label||''} onChange={e=>updateCT(ctIdx,'label',e.target.value)} style={tinp}/></div>
                       <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>時數說明</label><input value={ct.durationNote||''} onChange={e=>updateCT(ctIdx,'durationNote',e.target.value)} style={tinp}/></div>
-                      <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>時長（分鐘）</label><input type="number" min="0" value={ct.durationMinutes ?? ''} placeholder="未設=120"
-                        onChange={e=>updateCT(ctIdx,'durationMinutes',e.target.value===''?null:Math.max(0,Number(e.target.value)||0))} style={tinp}/>
-                        <div style={{ fontSize:10, color:'#999', marginTop:2 }}>預約只填開始時間時，用此時長帶出結束時間（排班/場次）</div></div>
                     </div>
                     {ct.pricingType==='fixed' ? (
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -601,7 +602,8 @@ export default function ExperienceBookingsPage() {
               <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:8 }}>課程日期／時段</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                 <div><label style={{ fontSize:11, color:'#666' }}>日期 *</label><input type="date" value={editDate} onChange={e=>setEditDate(e.target.value)} style={tinp}/></div>
-                <div><label style={{ fontSize:11, color:'#666' }}>時段</label><input value={editTime} onChange={e=>setEditTime(e.target.value)} placeholder="ex: 16:00-17:30" style={tinp}/></div>
+                <div><label style={{ fontSize:11, color:'#666' }}>開始時間</label><input type="time" value={editStart} onChange={e=>setEditStart(e.target.value)} style={tinp}/></div>
+                <div><label style={{ fontSize:11, color:'#666' }}>結束時間</label><input type="time" value={editEnd} onChange={e=>setEditEnd(e.target.value)} style={tinp}/></div>
               </div>
               <div style={{ fontSize:10, color:'#999', marginTop:6 }}>改日期/時段會連動更新課程場次、教練排班與已發入場券效期。</div>
             </div>
