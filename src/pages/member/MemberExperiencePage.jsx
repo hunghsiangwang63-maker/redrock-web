@@ -129,7 +129,7 @@ export default function MemberExperiencePage() {
       const res = await memberClient.post('/experience-bookings', {
         memberId: member.id, trialSessionId: trialModal.id, consentSigned: true,
         ...(trialFor !== 'self' ? { childMemberId: trialFor } : {}),
-        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive,
+        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, paidAmount: trialPay.paidAmount || null,
       });
       const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
       if (trialPay.method==='transfer' && bookingId) {
@@ -138,6 +138,7 @@ export default function MemberExperiencePage() {
           fd.append('type','experience'); fd.append('referenceId',bookingId);
           fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive||'');
           fd.append('paymentDate', trialPay.paymentDate||''); fd.append('bankName', trialPay.bankName||'');
+          if (trialPay.paidAmount) fd.append('paidAmount', trialPay.paidAmount);
           await memberClient.post('/transfers', fd, { headers:{ 'Content-Type':'multipart/form-data' } });
         } catch(e) { /* 不阻斷 */ }
       }
@@ -180,7 +181,7 @@ export default function MemberExperiencePage() {
       const res = await memberClient.post('/experience-bookings', {
         memberId: member.id, gymId, courseType, bookingDate, bookingTime,
         contactName: member.name, contactEmail: member.email, contactPhone: member.phone, facebookName,
-        participants, totalFee, paymentDate: payment.paymentDate, bankLastFive: payment.bankLastFive, paymentMethod: payment.method, notes,
+        participants, totalFee, paymentDate: payment.paymentDate, bankLastFive: payment.bankLastFive, paymentMethod: payment.method, paidAmount: payment.paidAmount || null, notes,
       });
       const bookingId = res.data.id; const fee = totalFee;
       // 轉帳：建立 transferRecords（填末五碼）→ 待辦頁確認收款（確認時自動確認此預約）
@@ -197,6 +198,7 @@ export default function MemberExperiencePage() {
           fd.append('bankLastFive', payment.bankLastFive || '');
           fd.append('bankName', payment.bankName || '');
           fd.append('paymentDate', payment.paymentDate || '');
+          if (payment.paidAmount) fd.append('paidAmount', payment.paidAmount);
           await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         } catch (e) { /* 不阻斷預約 */ }
       }

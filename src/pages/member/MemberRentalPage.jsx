@@ -48,6 +48,7 @@ export default function MemberRentalPage() {
   const [payMethod, setPayMethod] = useState('transfer');
   const [payDate, setPayDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
+  const [rentPaidAmount, setRentPaidAmount] = useState(''); // 實際匯款金額（會員自填）
   const [bankName, setBankName] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -132,6 +133,7 @@ export default function MemberRentalPage() {
         paymentMethod: payMethod,
         paymentDate: payMethod === 'transfer' ? payDate : null,
         bankLastFive: payMethod === 'transfer' ? bankLastFive : null,
+        paidAmount: payMethod === 'transfer' && rentPaidAmount ? Number(rentPaidAmount) : null,
       });
       showMsg(res.data.message || '申請成功！');
       const rentalId = res.data.id;
@@ -451,6 +453,11 @@ export default function MemberRentalPage() {
                   <div>
                     <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>末五碼</label>
                     <input type="text" maxLength={5} value={bankLastFive} onChange={e => setBankLastFive(e.target.value)} placeholder="12345"
+                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>實際匯款金額</label>
+                    <input type="text" inputMode="numeric" value={rentPaidAmount} onChange={e => setRentPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
                       style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                   </div>
                 </div>

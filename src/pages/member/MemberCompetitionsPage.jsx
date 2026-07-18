@@ -90,6 +90,8 @@ export default function MemberCompetitionsPage() {
   const [paymentMethod, setPaymentMethod] = useState('transfer');
   const [paymentDate, setPaymentDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
+  const [regPaidAmount, setRegPaidAmount] = useState(''); // 實際匯款金額（會員自填）
+  const [repayPaidAmount, setRepayPaidAmount] = useState('');
   const [bankName, setBankName] = useState('');
   // Step 3 — agreement
   const [agreedWaiver, setAgreedWaiver] = useState(false);
@@ -162,6 +164,7 @@ export default function MemberCompetitionsPage() {
         paymentMethod: repayMethod, paymentDate: repayDate,
         bankName: repayMethod === 'transfer' ? repayBank : null,
         bankLastFive: repayMethod === 'transfer' ? repayLast5 : null,
+        paidAmount: repayMethod === 'transfer' && repayPaidAmount ? Number(repayPaidAmount) : null,
       });
       setRepayTarget(null);
       showMsg('繳費資訊已更新，請等待館方確認');
@@ -338,6 +341,7 @@ export default function MemberCompetitionsPage() {
         paymentDate: (paymentMethod === 'transfer' || paymentMethod === 'cash') ? paymentDate : null,
         bankLastFive: paymentMethod === 'transfer' ? bankLastFive : null,
         bankName: paymentMethod === 'transfer' ? bankName : null,
+        paidAmount: paymentMethod === 'transfer' && regPaidAmount ? Number(regPaidAmount) : null,
         signatureData: memberSig,
         guardianSignature: guardianSig || null,
       });
@@ -351,7 +355,7 @@ export default function MemberCompetitionsPage() {
           await submitTransferRecord({
             memberId: targetId, memberName: targetName, gymId: selectedComp.gymId,
             orderType: 'competition', refId: reg.id, orderName: selectedComp.name || '比賽報名',
-            amount: reg.registrationFee, bankLastFive, bankName, paymentDate,
+            amount: reg.registrationFee, bankLastFive, bankName, paymentDate, paidAmount: regPaidAmount || null,
           });
         } catch (e) { /* 不阻斷報名 */ }
       }
@@ -807,6 +811,11 @@ export default function MemberCompetitionsPage() {
                       <input type="text" maxLength={5} value={bankLastFive} onChange={e=>setBankLastFive(e.target.value)} placeholder="例：12345"
                         style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                     </div>
+                    <div>
+                      <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>實際匯款金額</label>
+                      <input type="text" inputMode="numeric" value={regPaidAmount} onChange={e=>setRegPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
+                        style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                    </div>
                   </div>
                 </>)}
               </>)}
@@ -1152,6 +1161,11 @@ export default function MemberCompetitionsPage() {
                 <div>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>匯款末五碼</label>
                   <input maxLength={5} value={repayLast5} onChange={e=>setRepayLast5(e.target.value)} placeholder="12345"
+                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>實際匯款金額</label>
+                  <input inputMode="numeric" value={repayPaidAmount} onChange={e=>setRepayPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                 </div>
               </div>

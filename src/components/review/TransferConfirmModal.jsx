@@ -19,6 +19,7 @@ const Row = ({ label, children }) => (
 export default function TransferConfirmModal({ record, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [confirmedAmt, setConfirmedAmt] = useState(record?.paidAmount != null ? String(record.paidAmount) : String(record?.amount ?? ''));
   if (!record) return null;
 
   const isCash = record.paymentMethod === 'cash';
@@ -26,7 +27,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
   const confirm = async () => {
     setBusy(true); setError('');
     try {
-      await client.put(`/transfers/${record.id}/confirm`);
+      await client.put(`/transfers/${record.id}/confirm`, { confirmedAmount: confirmedAmt !== '' ? Number(confirmedAmt) : null });
       onDone?.('已確認收款');
     } catch (e) {
       setError(e.response?.data?.message || '確認失敗，請重試');
@@ -48,7 +49,15 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
             {record.orderName || '—'}
             {record.orderType && <span style={{ marginLeft: 6, fontSize: 11, color: '#185FA5', background: '#E6F1FB', padding: '1px 7px', borderRadius: 6 }}>{ORDER_TYPE_LABEL[record.orderType] || record.orderType}</span>}
           </Row>
-          <Row label="金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
+          <Row label="應收金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
+          <Row label="會員填實際匯款">{record.paidAmount != null
+            ? <strong style={{ color: Number(record.paidAmount) !== Number(record.amount||0) ? '#B45309' : '#2D7D46' }}>NT${Number(record.paidAmount).toLocaleString()}{Number(record.paidAmount) !== Number(record.amount||0) && '（與應收不符）'}</strong>
+            : <span style={{ color: '#bbb' }}>未填</span>}</Row>
+          <Row label="實際收款金額">
+            <input value={confirmedAmt} inputMode="numeric"
+              onChange={e => setConfirmedAmt(e.target.value.replace(/[^\d]/g, ''))}
+              style={{ width: 140, height: 34, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }}/>
+          </Row>
           <Row label="付款方式">{isCash ? '現金' : '轉帳'}</Row>
           {record.origPaymentMethod && record.origPaymentMethod !== record.paymentMethod && (
             <Row label="原報名選">{PAY_LABEL[record.origPaymentMethod] || record.origPaymentMethod}</Row>

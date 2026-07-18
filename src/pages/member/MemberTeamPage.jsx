@@ -63,6 +63,7 @@ export default function MemberTeamPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
+  const [teamPaidAmount, setTeamPaidAmount] = useState(''); // 實際匯款金額（會員自填）
   const [bankName, setBankName] = useState('');
   const [otherSuggestions, setOtherSuggestions] = useState('');
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
@@ -449,6 +450,11 @@ export default function MemberTeamPage() {
               <div>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款末五碼</label>
                 <input type="text" maxLength={5} value={bankLastFive} onChange={e => setBankLastFive(e.target.value)} placeholder="12345"
+                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+              </div>
+              <div>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>實際匯款金額</label>
+                <input type="text" inputMode="numeric" value={teamPaidAmount} onChange={e => setTeamPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
                   style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
               </div>
             </div>

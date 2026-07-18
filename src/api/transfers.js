@@ -4,7 +4,7 @@ import { memberClient } from './client';
 // orderType: course | experience | competition | rental | team_member；refId = 該訂單 id。
 export const submitTransferRecord = ({
   memberId, memberName, gymId, orderType, refId, orderName,
-  amount, bankLastFive, bankName, paymentDate, screenshot,
+  amount, bankLastFive, bankName, paymentDate, screenshot, paidAmount,
 }) => {
   const fd = new FormData();
   if (screenshot) fd.append('screenshot', screenshot);
@@ -17,6 +17,7 @@ export const submitTransferRecord = ({
   fd.append('amount', amount || 0);
   if (bankLastFive) fd.append('bankLastFive', bankLastFive);
   if (bankName) fd.append('bankName', bankName);
+  if (paidAmount) fd.append('paidAmount', paidAmount);
   if (paymentDate) fd.append('paymentDate', paymentDate);
   return memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
 };

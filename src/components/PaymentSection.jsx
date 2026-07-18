@@ -90,6 +90,13 @@ export default function PaymentSection({ value = {}, onChange, bankInfo, amount,
                 style={{ ...inp, fontFamily:'monospace', letterSpacing:2 }}/>
             </div>
           </div>
+          <div style={{ marginTop:8 }}>
+            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>實際匯款金額</label>
+            <input value={value.paidAmount ?? ''} inputMode="numeric"
+              onChange={e => set({ paidAmount: e.target.value.replace(/\D/g,'') })}
+              placeholder={amount != null ? String(amount) : '實際匯出的金額'}
+              style={inp}/>
+          </div>
         </div>
       )}
 

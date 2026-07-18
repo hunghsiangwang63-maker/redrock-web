@@ -369,6 +369,7 @@ export default function MemberCoursesPage() {
           if (paymentData.bankLastFive) formData.append('bankLastFive', paymentData.bankLastFive);
           if (paymentData.bankName) formData.append('bankName', paymentData.bankName);
           if (paymentData.paymentDate) formData.append('paymentDate', paymentData.paymentDate);
+          if (paymentData.paidAmount) formData.append('paidAmount', paymentData.paidAmount);
           await memberClient.post('/transfers/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
           showMsg('轉帳資料已提交，等待工作人員確認收款');
         } catch (uploadErr) {

@@ -6,6 +6,7 @@ import { submitTransferRecord } from '../api/transfers';
 export default function TransferReuploadModal({ target, memberName, onClose, onDone }) {
   const [date, setDate] = useState('');
   const [last5, setLast5] = useState('');
+  const [paidAmt, setPaidAmt] = useState('');
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -17,7 +18,7 @@ export default function TransferReuploadModal({ target, memberName, onClose, onD
       await submitTransferRecord({
         orderType: target.orderType, refId: target.refId, orderName: target.orderName || '',
         amount: target.amount || 0, gymId: target.gymId || '', memberName: memberName || '',
-        bankLastFive: last5.trim(), paymentDate: date, screenshot: file,
+        bankLastFive: last5.trim(), paymentDate: date, screenshot: file, paidAmount: paidAmt || null,
       });
       onDone?.();
     } catch (e) { setErr(e.response?.data?.message || '送出失敗，請稍後再試'); }
@@ -44,6 +45,11 @@ export default function TransferReuploadModal({ target, memberName, onClose, onD
           <div>
             <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>匯款帳號末五碼</div>
             <input value={last5} onChange={e=>setLast5(e.target.value.replace(/[^\d]/g,'').slice(0,5))} placeholder="12345" inputMode="numeric"
+              style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
+          </div>
+          <div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>實際匯款金額</div>
+            <input value={paidAmt} onChange={e=>setPaidAmt(e.target.value.replace(/[^\d]/g,''))} placeholder={target.amount ? String(target.amount) : '實際匯出的金額'} inputMode="numeric"
               style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
           </div>
           <div>
