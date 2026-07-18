@@ -1677,7 +1677,7 @@ export default function MemberCoursesPage() {
             {enrollStep === 4 && (<>
               <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:16, fontSize:12, color:'#444', lineHeight:1.8 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>【肖像權授權同意聲明】</div>
-                本課程進行期間，紅石攀岩館將進行局部拍攝與錄影。學員報名本課程，即視為同意授權紅石攀岩館得將含有學員肖像之照片、影像及聲音，基於課程招生或活動宣傳目的，進行編輯、重製，並公開發表於官方網站、社群平台等宣傳管道。若有不便入鏡之需求，請於課程開始時主動告知。
+                本課程進行期間，紅石攀岩館將不定期進行拍攝或攝影。學員報名本課程，即視為同意授權紅石攀岩館得將含有學員肖像之照片、影像及聲音，基於課程招生或活動宣傳目的，進行編輯、重製，並公開發表於官方網站、社群平台等宣傳管道。若有不便入鏡之需求，請於課程開始時主動告知。
               </div>
               <div style={{ marginBottom:16 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>本人簽名（請以正楷書寫）</label>
