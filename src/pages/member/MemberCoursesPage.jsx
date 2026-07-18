@@ -1708,15 +1708,28 @@ export default function MemberCoursesPage() {
                 </label>
               </div>
               <div>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式（依政府規定）</div>
-                {(() => { const _r = Math.round(((selectedCourse?.refundFeeRate ?? 0.2)) * 100); const _p = Math.round(((selectedCourse?.refundPreStartFeeRate ?? 0.05)) * 100); return (
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式（依法令規定）</div>
+                {(() => {
+                  const _r = Math.round(((selectedCourse?.refundFeeRate ?? 0.2)) * 100);
+                  const _p = Math.round(((selectedCourse?.refundPreStartFeeRate ?? 0.05)) * 100);
+                  const _exFee = Math.round(6000 * _r / 100);
+                  return (
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' }}>
-                  退費金額＝<strong>剩餘堂數價金 − 手續費</strong><br/>
-                  1. 每堂單價＝課程費用 ÷ 總堂數；剩餘堂數＝總堂數 − 已開課堂數（不論有無出席/請假）。<br/>
-                  2. 手續費＝剩餘堂數價金 × 費率：<strong>開課前 {_p}%、開課後 {_r}%</strong>。<br/>
-                  3. 範例：20 堂 30,000 元、上了 10 堂後申請 → 剩餘價金 15,000 − 手續費 {_r}%＝退還 NT${(15000 - Math.round(15000*_r/100)).toLocaleString()}。
+                  <strong>1. 退費金額計算公式</strong><br/>
+                  ・退費金額＝<strong>剩餘堂數價金 − 手續費</strong><br/>
+                  ・每堂單價：課程費用 ÷ 總堂數<br/>
+                  ・剩餘堂數：總堂數 − 已開課堂數（不論學員實際有無出席或請假，皆以已開課天數計算）。<br/>
+                  <strong>2. 手續費比例</strong><br/>
+                  ・開課前申請退費：收取總課程費用之 <strong>{_p}%</strong>。<br/>
+                  ・開課後申請退費：收取剩餘堂數價金之 <strong>{_r}%</strong>。<br/>
+                  <strong>3. 試算範例（以 8 堂 8,000 元計算）</strong><br/>
+                  ・報名 8 堂課共 8,000 元（每堂單價 1,000 元），已開課 2 堂後申請退費。<br/>
+                  ・剩餘堂數價金：6 堂 × 1,000 元 = 6,000 元<br/>
+                  ・手續費（開課後 {_r}%）：6,000 元 × {_r}% = {_exFee.toLocaleString()} 元<br/>
+                  ・實際退還金額：6,000 元 − {_exFee.toLocaleString()} 元 = {(6000 - _exFee).toLocaleString()} 元
                 </div>
-                ); })()}
+                  );
+                })()}
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedRefundPolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedRefundPolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedRefundPolicy} onChange={e => setConfirmedRefundPolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedRefundPolicy?'#2D7D46':'#444' }}>我已了解退費方式</span>
