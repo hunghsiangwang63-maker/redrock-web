@@ -52,7 +52,8 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
           <Row label="匯款銀行">{record.bankName || <span style={{ color: '#bbb' }}>—</span>}</Row>
           <Row label="匯款末五碼">{record.bankLastFive ? <strong>{record.bankLastFive}</strong> : <span style={{ color: '#bbb' }}>—</span>}</Row>
           <Row label="匯款日期">{record.paymentDate || '—'}</Row>
-          {record.notes && <Row label="備註">{record.notes}</Row>}
+          <Row label="FB 名稱">{record.facebookName || <span style={{ color: '#bbb' }}>—</span>}</Row>
+          {record.notes && <Row label="會員備註">{record.notes}</Row>}
         </div>
 
         {participants.length > 0 && (

@@ -294,6 +294,8 @@ export default function ExperienceBookingsPage() {
                           {b.contactPhone}{b.bankLastFive&&` · 末五碼：${b.bankLastFive}`}{b.paymentDate&&` · 匯款日：${b.paymentDate}`}
                         </div>
                         {b.coachName && <div style={{ fontSize:12, color:'#2D7D46', marginTop:3 }}>👟 教練：{b.coachName}</div>}
+                        {b.facebookName && <div style={{ fontSize:12, color:'#185FA5', marginTop:3 }}>📘 FB：{b.facebookName}</div>}
+                        {b.notes && <div style={{ fontSize:12, color:'#854F0B', marginTop:3, textAlign:'left' }}>💬 會員備註：{b.notes}</div>}
                       </div>
                       <button onClick={()=>setExpanded(isExpanded?null:b.id)}
                         style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
