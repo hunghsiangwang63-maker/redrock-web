@@ -138,10 +138,14 @@ export default function ExperienceBookingsPage() {
     return key === 'coachFee' ? defaultCoachFee(b.numParticipants || 0) : defaultInvoice(b);
   };
   const saveFinance = async (b) => {
+    const cf = financeVal(b, 'coachFee');
+    const inv = financeVal(b, 'invoiceAmount');
+    // 空值擋下：清空欄位存檔會被後端存成 null → 顯示回預設值（王之荷 0→420 事故）。0＝免收，須明確輸入。
+    if (cf === '' || cf == null || inv === '' || inv == null) { showMsg('金額不可留空（免收請輸入 0）', 'red'); return; }
     setSavingFinanceId(b.id);
     try {
       await client.put(`/experience-bookings/${b.id}/finance`, {
-        coachFee: financeVal(b, 'coachFee'), invoiceAmount: financeVal(b, 'invoiceAmount'),
+        coachFee: Number(cf), invoiceAmount: Number(inv),
       });
       showMsg('✅ 教練費／發票金額已儲存');
       load();
