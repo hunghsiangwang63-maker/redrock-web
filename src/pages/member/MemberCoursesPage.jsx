@@ -61,6 +61,7 @@ export default function MemberCoursesPage() {
   const [leavingId, setLeavingId] = useState(null);
   const [overLimitConfirm, setOverLimitConfirm] = useState(null); // 超過補課上限請假提醒：{ enrollmentId, memberId }
   const [cancelLeaveTarget, setCancelLeaveTarget] = useState(null); // 取消請假確認：{ enrollmentId, memberId, dateLabel }
+  const [cancelLeavePre, setCancelLeavePre] = useState(null); // 銷假預檢結果（null=載入中）
   const [cancelMakeupTarget, setCancelMakeupTarget] = useState(null); // 取消補課確認：{ enrollmentId, memberId, dateLabel }
   const [expandedCourseId, setExpandedCourseId] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null); // { type:'refund'|'pause', enrollmentId, courseName }
@@ -401,6 +402,17 @@ export default function MemberCoursesPage() {
     } finally { setLoading(false); }
   };
 
+  // 銷假預檢：modal 開啟時查原堂剩餘名額/取消後補課額度（唯讀）
+  useEffect(() => {
+    if (!cancelLeaveTarget) { setCancelLeavePre(null); return; }
+    let alive = true;
+    setCancelLeavePre(null);
+    memberClient.get(`/courses/enrollments/${cancelLeaveTarget.enrollmentId}/cancel-leave-precheck`, { params: { memberId: cancelLeaveTarget.memberId } })
+      .then(r => { if (alive) setCancelLeavePre(r.data); })
+      .catch(() => { if (alive) setCancelLeavePre({ ok: true, precheckFailed: true }); }); // 預檢失敗不擋操作（後端銷假仍權威把關）
+    return () => { alive = false; };
+  }, [cancelLeaveTarget]);
+
   // 取消請假（銷假）：後端連動作廢補課資格/取消已報名未上的補課
   const handleCancelMakeup = async () => {
     if (!cancelMakeupTarget) return;
@@ -611,12 +623,35 @@ export default function MemberCoursesPage() {
               確定取消 {cancelLeaveTarget.dateLabel} 的請假、恢復上課嗎？<br/>
               補課額度將依剩餘請假數重算；<strong>已預約的補課不會被自動取消</strong>。若已預約的補課超過取消後的額度，需先自行取消一堂補課才能取消請假。若名額已被候補遞補，將無法取消。
             </div>
+            {cancelLeavePre === null ? (
+              <div style={{ fontSize:12, color:'#999', marginBottom:16, textAlign:'left' }}>正在確認名額與補課額度…</div>
+            ) : !cancelLeavePre.precheckFailed && (
+              <div style={{ background: cancelLeavePre.ok ? '#E6F4EB' : '#FDEBEB', borderRadius:10, padding:'10px 12px', marginBottom:16, textAlign:'left' }}>
+                {cancelLeavePre.session && (
+                  <div style={{ fontSize:12, color:'#444', lineHeight:1.7 }}>
+                    該堂名額：{cancelLeavePre.session.remaining > 0
+                      ? <strong style={{ color:'#2D7D46' }}>剩 {cancelLeavePre.session.remaining} 位</strong>
+                      : <strong style={{ color:'#C0392B' }}>已滿</strong>}
+                    （{cancelLeavePre.session.enrolledCount}/{cancelLeavePre.session.maxStudents}）
+                  </div>
+                )}
+                {cancelLeavePre.quota && (
+                  <div style={{ fontSize:12, color:'#444', lineHeight:1.7 }}>
+                    取消後補課額度：{cancelLeavePre.quota.newEntitlement} 堂
+                    {cancelLeavePre.quota.usedMakeups > 0 && <>（已預約/已上 {cancelLeavePre.quota.usedMakeups} 堂）</>}
+                  </div>
+                )}
+                {!cancelLeavePre.ok && (
+                  <div style={{ fontSize:12, color:'#C0392B', fontWeight:600, lineHeight:1.7, marginTop:4 }}>⚠ {cancelLeavePre.blockMessage}</div>
+                )}
+              </div>
+            )}
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelLeaveTarget(null)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
-              <button onClick={handleCancelLeave} disabled={loading}
-                style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
-                {loading ? '處理中...' : '確定取消請假'}
+              <button onClick={handleCancelLeave} disabled={loading || (cancelLeavePre != null && !cancelLeavePre.ok)}
+                style={{ flex:1, height:44, borderRadius:12, background: (cancelLeavePre != null && !cancelLeavePre.ok) ? '#C9A0A0' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (loading || (cancelLeavePre != null && !cancelLeavePre.ok))?'not-allowed':'pointer' }}>
+                {loading ? '處理中...' : (cancelLeavePre != null && !cancelLeavePre.ok) ? '無法取消' : '確定取消請假'}
               </button>
             </div>
           </div>
