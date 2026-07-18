@@ -69,7 +69,7 @@ export default function CoursesPage({ embedded = false }) {
   const EMPTY_CAT_FORM = {
     name: '', group: 'adult', description: '', color: '#8B1A1A', makeupTypeIds: [],
     allowTrial: false, trialPrice: '', leaveDeadlineHours: 2, maxLeaves: 2,
-    allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 20,
+    allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 20, preStartFeeRate: 5,
   };
   const [categoryForm, setCategoryForm] = useState(EMPTY_CAT_FORM);
   const [catImageFile, setCatImageFile] = useState(null);      // 班別廣告照片（建立/編輯後上傳）
@@ -115,7 +115,7 @@ export default function CoursesPage({ embedded = false }) {
     gymAccessDays: 1, midpointSurcharge: 1.05,
     // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
     leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
-    allowTrial: '', trialPrice: '', perSessionDeduction: '', handlingFeeRate: '',
+    allowTrial: '', trialPrice: '', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
     unlimitedPracticeStart: '', unlimitedPracticeEnd: '',
     installment: { enabled: false, periods: [] },
   };
@@ -231,6 +231,7 @@ export default function CoursesPage({ embedded = false }) {
     makeupDeadlineDays: categoryForm.makeupDeadlineDays === '' ? null : Number(categoryForm.makeupDeadlineDays),
     perSessionDeduction: categoryForm.perSessionDeduction === '' ? null : Number(categoryForm.perSessionDeduction),
     handlingFeeRate: categoryForm.handlingFeeRate === '' ? null : Number(categoryForm.handlingFeeRate) / 100,
+    preStartFeeRate: categoryForm.preStartFeeRate === '' ? null : Number(categoryForm.preStartFeeRate) / 100,
   });
   // 補課類型管理（named 實體）
   const loadMakeupTypes = async () => {
@@ -278,6 +279,7 @@ export default function CoursesPage({ embedded = false }) {
       allowMakeup: c.allowMakeup !== false, makeupDeadlineDays: c.makeupDeadlineDays ?? 60,
       perSessionDeduction: c.perSessionDeduction ?? 850,
       handlingFeeRate: c.handlingFeeRate != null ? Math.round(c.handlingFeeRate * 100) : 20,
+      preStartFeeRate: c.preStartFeeRate != null ? Math.round(c.preStartFeeRate * 100) : 5,
     });
   };
   const handleUpdateCategory = async () => {
@@ -356,11 +358,12 @@ export default function CoursesPage({ embedded = false }) {
       if (num(courseForm.trialPrice) !== undefined) ov.trialPrice = num(courseForm.trialPrice);
       if (num(courseForm.perSessionDeduction) !== undefined) ov.perSessionDeduction = num(courseForm.perSessionDeduction);
       if (num(courseForm.handlingFeeRate) !== undefined) ov.handlingFeeRate = num(courseForm.handlingFeeRate) / 100;
+      if (num(courseForm.preStartFeeRate) !== undefined) ov.preStartFeeRate = num(courseForm.preStartFeeRate) / 100;
       const res = await createCourse({
         ...courseForm,
         gymId: courseForm.gymId || effectiveGymId,   // super_admin 未動館別下拉時 courseForm.gymId 為空 → 補當前檢視館別，避免建出 gymId=null 幽靈課
         leaveDeadlineHours: undefined, maxLeaves: undefined, allowMakeup: undefined, makeupDeadlineDays: undefined,
-        allowTrial: undefined, trialPrice: undefined, perSessionDeduction: undefined, handlingFeeRate: undefined,
+        allowTrial: undefined, trialPrice: undefined, perSessionDeduction: undefined, handlingFeeRate: undefined, preStartFeeRate: undefined,
         ...ov,
         cohortName: courseForm.cohortName,
         name: catName ? `${catName} ${courseForm.cohortName}` : courseForm.cohortName,
@@ -417,6 +420,7 @@ export default function CoursesPage({ embedded = false }) {
       makeupDeadlineDays: course.makeupDeadlineDays ?? '',
       perSessionDeduction: course.perSessionDeduction ?? '',
       handlingFeeRate: course.handlingFeeRate != null ? Math.round(course.handlingFeeRate * 100) : '',
+      preStartFeeRate: course.preStartFeeRate != null ? Math.round(course.preStartFeeRate * 100) : '',
       allowMakeup: course.allowMakeup ?? '',
       allowTrial: course.allowTrial ?? '',
       trialPrice: course.trialPrice ?? '',
@@ -458,6 +462,7 @@ export default function CoursesPage({ embedded = false }) {
         makeupDeadlineDays: ovNum(editForm.makeupDeadlineDays),
         perSessionDeduction: ovNum(editForm.perSessionDeduction),
         handlingFeeRate: editForm.handlingFeeRate === '' ? null : (parseFloat(editForm.handlingFeeRate) || 0) / 100,
+        preStartFeeRate: editForm.preStartFeeRate === '' ? null : (parseFloat(editForm.preStartFeeRate) || 0) / 100,
         allowMakeup: ovBool(editForm.allowMakeup),
         allowTrial: ovBool(editForm.allowTrial),
         trialPrice: ovNum(editForm.trialPrice),
@@ -1304,7 +1309,7 @@ export default function CoursesPage({ embedded = false }) {
                             )}
                           </div>
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費 開課前5%/開課後{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
+                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費 開課前{Math.round((c.preStartFeeRate ?? 0.05) * 100)}%/開課後{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
                           </div>
                         </div>
                       </div>
@@ -1377,7 +1382,12 @@ export default function CoursesPage({ embedded = false }) {
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：開課後手續費率（%）（開課前固定 5%）</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：開課前手續費率（%）</label>
+                  <input type="number" value={categoryForm.preStartFeeRate} onChange={e => setCategoryForm({...categoryForm, preStartFeeRate:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>退費：開課後手續費率（%）</label>
                   <input type="number" value={categoryForm.handlingFeeRate} onChange={e => setCategoryForm({...categoryForm, handlingFeeRate:e.target.value})}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
@@ -1588,6 +1598,7 @@ export default function CoursesPage({ embedded = false }) {
                     { label:'整期可請假次數', key:'maxLeaves', p: ph(cat.maxLeaves, 2) },
                     { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', p: ph(cat.makeupDeadlineDays, 60) },
                     { label:'試上費（NT$）', key:'trialPrice', p: ph(cat.trialPrice, 0) },
+                    { label:'退費：開課前手續費率（%）', key:'preStartFeeRate', p: `班別預設 ${Math.round((cat.preStartFeeRate ?? 0.05) * 100)}` },
                     { label:'退費：開課後手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
                   ].map(f => (
                     <div key={f.key}>
@@ -1816,6 +1827,7 @@ export default function CoursesPage({ embedded = false }) {
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number', ph:'留空＝班別預設' },
               { label:'整期可請假次數', key:'maxLeaves', type:'number', ph:'留空＝班別預設', hint:'留空＝用班別預設；插班學員可於「查看名單」個別設定' },
               { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', type:'number', ph:'留空＝班別預設' },
+              { label:'退費-開課前手續費率（%）', key:'preStartFeeRate', type:'number', ph:'留空＝班別預設' },
               { label:'退費-開課後手續費率（%）', key:'handlingFeeRate', type:'number', ph:'留空＝班別預設' },
             ].map(f => (
               <div key={f.key} style={{ gridColumn: f.colSpan===2 ? '1/-1' : 'auto' }}>
