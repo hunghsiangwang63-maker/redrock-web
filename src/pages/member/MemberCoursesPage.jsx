@@ -62,6 +62,8 @@ export default function MemberCoursesPage() {
   const [overLimitConfirm, setOverLimitConfirm] = useState(null); // 超過補課上限請假提醒：{ enrollmentId, memberId }
   const [cancelLeaveTarget, setCancelLeaveTarget] = useState(null); // 取消請假確認：{ enrollmentId, memberId, dateLabel }
   const [cancelLeavePre, setCancelLeavePre] = useState(null); // 銷假預檢結果（null=載入中）
+  const [cancelLeavePreN, setCancelLeavePreN] = useState(0); // 預檢重跑觸發（modal 內取消補課後 +1）
+  const [inlineMkCancel, setInlineMkCancel] = useState(''); // 就地取消補課中的 enrollmentId
   const [cancelMakeupTarget, setCancelMakeupTarget] = useState(null); // 取消補課確認：{ enrollmentId, memberId, dateLabel }
   const [expandedCourseId, setExpandedCourseId] = useState(null);
   const [adjustModal, setAdjustModal] = useState(null); // { type:'refund'|'pause', enrollmentId, courseName }
@@ -411,7 +413,20 @@ export default function MemberCoursesPage() {
       .then(r => { if (alive) setCancelLeavePre(r.data); })
       .catch(() => { if (alive) setCancelLeavePre({ ok: true, precheckFailed: true }); }); // 預檢失敗不擋操作（後端銷假仍權威把關）
     return () => { alive = false; };
-  }, [cancelLeaveTarget]);
+  }, [cancelLeaveTarget, cancelLeavePreN]);
+
+  // 引導版：銷假 modal 內就地取消補課 → 預檢自動重跑（額度夠了確認鈕即解鎖）
+  const handleInlineCancelMakeup = async (bm) => {
+    if (inlineMkCancel) return;
+    setInlineMkCancel(bm.enrollmentId);
+    try {
+      await memberClient.post(`/courses/enrollments/${bm.enrollmentId}/cancel-makeup`, { memberId: cancelLeaveTarget?.memberId });
+      setCancelLeavePreN(n => n + 1); // 重跑預檢
+      loadMyEnrollments(); loadMakeupRights(); // 背景刷新主頁補課/課程卡
+    } catch (err) {
+      showMsg(err.response?.data?.message || '取消補課失敗', 'red');
+    } finally { setInlineMkCancel(''); }
+  };
 
   // 取消請假（銷假）：後端連動作廢補課資格/取消已報名未上的補課
   const handleCancelMakeup = async () => {
@@ -643,6 +658,26 @@ export default function MemberCoursesPage() {
                 )}
                 {!cancelLeavePre.ok && (
                   <div style={{ fontSize:12, color:'#C0392B', fontWeight:600, lineHeight:1.7, marginTop:4 }}>⚠ {cancelLeavePre.blockMessage}</div>
+                )}
+                {cancelLeavePre.blockCode === 'MAKEUP_OVER_QUOTA' && (cancelLeavePre.bookedMakeups || []).length > 0 && (
+                  <div style={{ marginTop:8, borderTop:'0.5px solid #E8D5D5', paddingTop:8 }}>
+                    <div style={{ fontSize:12, color:'#444', fontWeight:600, marginBottom:6 }}>已預約的補課（可就地取消一堂後繼續）：</div>
+                    {cancelLeavePre.bookedMakeups.map(bm => (
+                      <div key={bm.enrollmentId} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
+                        <div style={{ fontSize:12, color:'#444', textAlign:'left' }}>
+                          {bm.date}{bm.startTime ? ` ${bm.startTime}` : ''}　{bm.courseName}
+                        </div>
+                        {bm.canCancel ? (
+                          <button onClick={() => handleInlineCancelMakeup(bm)} disabled={!!inlineMkCancel}
+                            style={{ flexShrink:0, height:28, padding:'0 10px', borderRadius:8, border:'0.5px solid #C0392B', background:'#fff', color:'#C0392B', fontSize:11, fontWeight:600, cursor: inlineMkCancel?'not-allowed':'pointer' }}>
+                            {inlineMkCancel === bm.enrollmentId ? '取消中…' : '取消此補課'}
+                          </button>
+                        ) : (
+                          <span style={{ flexShrink:0, fontSize:11, color:'#999' }}>已過取消期限</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
