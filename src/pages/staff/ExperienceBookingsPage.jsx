@@ -326,7 +326,7 @@ export default function ExperienceBookingsPage() {
                         </button>
                       )}
                       {b.status!=='cancelled' && (
-                        <button onClick={()=>openEditParticipants(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>✏️ 編輯參加者</button>
+                        <button onClick={()=>openEditParticipants(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>✏️ 編輯資訊</button>
                       )}
                       {b.status==='confirmed' && (
                         <button onClick={()=>openCoach(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:12, cursor:'pointer' }}>{b.coachName?'👟 改教練':'👟 指定教練'}</button>
