@@ -106,7 +106,7 @@ export default function MemberExperiencePage() {
           const fd = new FormData();
           fd.append('type','experience'); fd.append('referenceId',bookingId);
           fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive||'');
-          fd.append('paymentDate', trialPay.paymentDate||'');
+          fd.append('paymentDate', trialPay.paymentDate||''); fd.append('bankName', trialPay.bankName||'');
           await memberClient.post('/transfers', fd, { headers:{ 'Content-Type':'multipart/form-data' } });
         } catch(e) { /* 不阻斷 */ }
       }
@@ -238,13 +238,15 @@ export default function MemberExperiencePage() {
                 </select>
               </div>
             )}
-            {/* 匯款資訊 */}
+            {/* 付款（共用元件，只開放轉帳；與體驗預約一致） */}
             <div style={{ marginBottom:12 }}>
-              <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>付款方式：銀行匯款</div>
-              <div style={{ display:'flex', gap:8 }}>
-                <input type="date" value={trialPay.paymentDate} onChange={e=>setTrialPay({...trialPay, paymentDate:e.target.value})} style={{ ...inp, flex:1 }} placeholder="匯款日期"/>
-                <input value={trialPay.bankLastFive} onChange={e=>setTrialPay({...trialPay, bankLastFive:e.target.value.replace(/\D/g,'').slice(0,5)})} maxLength={5} style={{ ...inp, flex:1 }} placeholder="帳號末五碼"/>
-              </div>
+              {(() => {
+                const bankKey = trialModal.gymId === 'gym-hsinchu' ? 'hsinchu' : 'shilin';
+                const bank = courseSettings?.bankInfo?.[bankKey] || {};
+                return <PaymentSection value={trialPay} onChange={setTrialPay}
+                  methods={['transfer']}
+                  bankInfo={{ bankName: bank.bankName||'富邦銀行(012)', branch: bank.branch||'竹北分行', account: bank.account||'746102003014', accountName: bank.accountName||'紅石攀岩有限公司' }}/>;
+              })()}
             </div>
             {/* 免責同意 */}
             <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'#444', cursor:'pointer', marginBottom:14, lineHeight:1.6 }}>
@@ -401,6 +403,7 @@ export default function MemberExperiencePage() {
                 const bankKey = gymId === 'gym-hsinchu' ? 'hsinchu' : 'shilin';
                 const bank = courseSettings?.bankInfo?.[bankKey] || {};
                 return <PaymentSection value={payment} onChange={setPayment}
+                  methods={['transfer']}
                   amount={totalFee}
                   bankInfo={{ bankName: bank.bankName||'富邦銀行(012)', branch: bank.branch||'竹北分行', account: bank.account||'746102003014', accountName: bank.accountName||'紅石攀岩有限公司' }}/>;
               })()}
