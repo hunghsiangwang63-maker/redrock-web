@@ -51,6 +51,17 @@ export default function ExperienceBookingsPage() {
   const [coachVal, setCoachVal] = useState({ coachId: null, coachName: '' });
   const [savingCoach, setSavingCoach] = useState(false);
   const [cancelBooking, setCancelBooking] = useState(null); // 取消的預約
+  const [noteBooking, setNoteBooking] = useState(null);     // 員工備註 {b, text}
+  const [noteSaving, setNoteSaving] = useState(false);
+  const doSaveNote = async () => {
+    if (!noteBooking) return;
+    setNoteSaving(true);
+    try {
+      await client.put(`/experience-bookings/${noteBooking.b.id}/staff-note`, { staffNote: noteBooking.text });
+      showMsg('✅ 備註已儲存'); setNoteBooking(null); load();
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'red'); }
+    finally { setNoteSaving(false); }
+  };
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
 
@@ -313,7 +324,21 @@ export default function ExperienceBookingsPage() {
                       {b.status==='confirmed' && (
                         <button onClick={()=>{ setCancelBooking(b); setCancelReason(''); }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>🗑 取消預約</button>
                       )}
+                      <button onClick={()=>setNoteBooking({ b, text: b.staffNote||'' })}
+                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#854F0B', fontSize:12, cursor:'pointer' }}>📝 備註</button>
                     </div>
+                    {b.staffNote && (
+                      <div style={{ fontSize:12, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'6px 10px', marginTop:8, textAlign:'left' }}>
+                        📝 {b.staffNote}<span style={{ color:'#B08A4F', marginLeft:6 }}>（員工備註，會員看不到）</span>
+                      </div>
+                    )}
+                    {b.status==='cancelled' && b.refundRequested && (
+                      <div style={{ fontSize:12, color:'#A32D2D', background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 10px', marginTop:8, textAlign:'left', lineHeight:1.7 }}>
+                        💰 <strong>會員取消・待退款 NT${(b.refundAmount||0).toLocaleString()}</strong>（已繳 NT${(b.totalFee||0).toLocaleString()} − 手續費 NT${(b.refundHandlingFee||0).toLocaleString()}）<br/>
+                        退款帳號：{b.refundBankCode}-{b.refundAccount}{b.refundAccountName?`（${b.refundAccountName}）`:''}
+                        {b.refundStatus==='done' ? <span style={{ color:'#2D7D46', marginLeft:8 }}>✓ 已退款</span> : <span style={{ marginLeft:8 }}>（匯款後請於備註記錄）</span>}
+                      </div>
+                    )}
                     {/* 教練費／發票金額：管理員可改可存；櫃檯（值班/站台）唯讀可見 */}
                     {!isAdmin && b.status==='confirmed' && b.kind!=='trial' && (
                       <div style={{ display:'flex', gap:14, marginTop:10, flexWrap:'wrap', background:'#FBF8F2', border:'0.5px solid #EBDDC2', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8a6d3b' }}>
@@ -515,6 +540,14 @@ export default function ExperienceBookingsPage() {
                   </div>
                 ))}
               </div>
+              {/* 取消退款手續費 */}
+              <div style={{ marginBottom:20 }}>
+                <div style={{ fontSize:14, fontWeight:600, marginBottom:8 }}>💰 會員取消退款手續費（NT$）</div>
+                <input type="number" value={settings.refundHandlingFee ?? 100}
+                  onChange={e=>{ setSettingsDirty(true); setSettings(s=>({ ...s, refundHandlingFee: Math.max(0, Number(e.target.value)||0) })); }}
+                  style={{ width:160, height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, boxSizing:'border-box' }}/>
+                <div style={{ fontSize:11, color:'#999', marginTop:4 }}>會員自行取消已繳費的體驗/試上時，退款＝已繳金額−此手續費（預設 100）。</div>
+              </div>
               {/* 保險名冊寄送設定 */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                 <div style={{ fontSize:14, fontWeight:600, marginBottom:12 }}>📧 保險名冊寄送設定</div>
@@ -603,6 +636,24 @@ export default function ExperienceBookingsPage() {
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>setCoachBooking(null)} disabled={savingCoach} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={saveCoach} disabled={savingCoach} style={{ flex:2, height:44, borderRadius:10, background:savingCoach?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{savingCoach?'儲存中…':'儲存（排課／排班）'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 員工備註 Modal（會員看不到） */}
+      {noteBooking && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:420, maxWidth:'92vw' }}>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:8 }}>📝 員工備註 — {noteBooking.b.contactName || noteBooking.b.memberName}</div>
+            <div style={{ fontSize:12, color:'#854F0B', marginBottom:8 }}>此備註僅員工端可見，會員看不到。</div>
+            <textarea value={noteBooking.text} onChange={e=>setNoteBooking(t=>({ ...t, text:e.target.value }))}
+              rows={4} placeholder="如：現金已收、包場特殊需求、退款已匯…"
+              style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'10px 12px', fontSize:13, boxSizing:'border-box', resize:'vertical', fontFamily:'inherit' }}/>
+            <div style={{ display:'flex', gap:8, marginTop:14 }}>
+              <button onClick={()=>setNoteBooking(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>返回</button>
+              <button onClick={doSaveNote} disabled={noteSaving}
+                style={{ flex:2, height:40, borderRadius:9, background:'#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>{noteSaving?'儲存中...':'儲存備註'}</button>
             </div>
           </div>
         </div>

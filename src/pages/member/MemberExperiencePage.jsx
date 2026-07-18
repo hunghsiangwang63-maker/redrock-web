@@ -42,7 +42,10 @@ export default function MemberExperiencePage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [myBookings, setMyBookings] = useState([]);
-  const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
+  const [reupTarget, setReupTarget] = useState(null);
+  const [bkCancel, setBkCancel] = useState(null);   // 取消預約：{ b, form:{bankCode,account,accountName} }
+  const [bkEdit, setBkEdit] = useState(null);       // 修改預約：{ b, form }
+  const [bkSaving, setBkSaving] = useState(false); // 轉帳被退回 → 重新上傳補正
   const [courseSettings, setCourseSettings] = useState(null);
   const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'my' ? 'my' : 'apply');
   const [loading, setLoading] = useState(false);
@@ -69,6 +72,33 @@ export default function MemberExperiencePage() {
 
   const [alertModal, setAlertModal] = useState(null);
   const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
+
+  const refreshBookings = () => memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])).catch(()=>{});
+  const bkPaid = (b) => ['confirmed','paid'].includes(b.paymentStatus) && (b.totalFee||0) > 0;
+  const bkEditable = (b) => ['pending','confirmed'].includes(b.status) && b.bookingDate && dayjs().format('YYYY-MM-DD') < b.bookingDate;
+  const doBkCancel = async () => {
+    if (!bkCancel) return;
+    const { b, form } = bkCancel;
+    if (bkPaid(b) && (!form.bankCode || !form.account)) { showMsg('請填寫退款銀行代碼與帳號','red'); return; }
+    setBkSaving(true);
+    try {
+      const res = await memberClient.post(`/experience-bookings/${b.id}/member-cancel`,
+        bkPaid(b) ? { refundBankCode:form.bankCode, refundAccount:form.account, refundAccountName:form.accountName||'' } : {});
+      showMsg(res.data?.message || '預約已取消'); setBkCancel(null); refreshBookings();
+    } catch (err) { showMsg(err.response?.data?.message || '取消失敗','red'); }
+    finally { setBkSaving(false); }
+  };
+  const doBkEdit = async () => {
+    if (!bkEdit) return;
+    const { b, form } = bkEdit;
+    setBkSaving(true);
+    try {
+      const payload = b.kind==='trial' ? { sessionId: form.sessionId } : { bookingDate: form.bookingDate, bookingTime: form.bookingTime };
+      const res = await memberClient.put(`/experience-bookings/${b.id}/member-edit`, payload);
+      showMsg(res.data?.message || '已更新'); setBkEdit(null); refreshBookings();
+    } catch (err) { showMsg(err.response?.data?.message || '修改失敗','red'); }
+    finally { setBkSaving(false); }
+  };
 
   const loadTrialSessions = () => {
     memberClient.get('/courses/trial-sessions', { params:{ gymId } })
@@ -498,12 +528,114 @@ export default function MemberExperiencePage() {
                   {b.paymentStatus==='pending_confirm' && b.status!=='cancelled' && (
                     <div style={{ marginTop:8, fontSize:11, color:'#854F0B' }}>轉帳已重新送出，等待館方確認</div>
                   )}
+                  {bkEditable(b) && (
+                    <div style={{ display:'flex', gap:8, marginTop:10 }}>
+                      <button onClick={()=>setBkEdit({ b, form: b.kind==='trial' ? { sessionId:'' } : { bookingDate:b.bookingDate, bookingTime:b.bookingTime||'' } })}
+                        style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#444', fontSize:12, cursor:'pointer' }}>修改</button>
+                      <button onClick={()=>setBkCancel({ b, form:{ bankCode:'', account:'', accountName:'' } })}
+                        style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #C0392B', color:'#C0392B', fontSize:12, cursor:'pointer' }}>取消預約</button>
+                    </div>
+                  )}
+                  {['pending','confirmed'].includes(b.status) && !bkEditable(b) && (
+                    <div style={{ marginTop:8, fontSize:11, color:'#999' }}>活動一天前已鎖定，如需異動請洽櫃檯</div>
+                  )}
                 </div>
               );
             })}
           </div>
         )}
       </div>
+      {/* 取消預約（已繳費需退款帳號、扣手續費退回） */}
+      {bkCancel && (() => {
+        const b = bkCancel.b;
+        const fee = Number(courseSettings?.refundHandlingFee ?? 100);
+        const refund = Math.max(0, (b.totalFee||0) - fee);
+        return (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={()=>{ if(!bkSaving) setBkCancel(null); }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:330, maxWidth:'92vw', maxHeight:'85vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消預約</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:12, textAlign:'left' }}>
+              確定取消 {b.bookingDate} {b.bookingTime} 的{b.kind==='trial'?'試上':'體驗'}預約嗎？
+            </div>
+            {bkPaid(b) ? (
+              <>
+                <div style={{ background:'#FBF5F5', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#444', lineHeight:1.8, textAlign:'left' }}>
+                  已繳金額 NT${(b.totalFee||0).toLocaleString()} − 手續費 NT${fee.toLocaleString()} ＝ <strong style={{ color:'#8B1A1A' }}>預計退款 NT${refund.toLocaleString()}</strong><br/>
+                  退款將由館方匯至您提供的帳號。
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'100px 1fr', gap:8, marginBottom:8 }}>
+                  <input value={bkCancel.form.bankCode} onChange={e=>setBkCancel(t=>({ ...t, form:{ ...t.form, bankCode:e.target.value.replace(/\D/g,'').slice(0,3) } }))}
+                    placeholder="銀行代碼 *" style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
+                  <input value={bkCancel.form.account} onChange={e=>setBkCancel(t=>({ ...t, form:{ ...t.form, account:e.target.value.replace(/\D/g,'').slice(0,16) } }))}
+                    placeholder="退款帳號 *" style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
+                </div>
+                <input value={bkCancel.form.accountName} onChange={e=>setBkCancel(t=>({ ...t, form:{ ...t.form, accountName:e.target.value } }))}
+                  placeholder="戶名（選填）" style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:14 }}/>
+              </>
+            ) : (
+              <div style={{ fontSize:12, color:'#999', marginBottom:14, textAlign:'left' }}>尚未繳費，取消後無需退款。</div>
+            )}
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={()=>setBkCancel(null)} disabled={bkSaving}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={doBkCancel} disabled={bkSaving}
+                style={{ flex:1, height:44, borderRadius:12, background:'#C0392B', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{bkSaving?'處理中...':'確定取消'}</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
+      {/* 修改預約（活動一天前）：體驗改日期/時段、試上換場次 */}
+      {bkEdit && (() => {
+        const b = bkEdit.b;
+        const candidates = b.kind==='trial'
+          ? trialSessions.filter(sx => sx.gymId===b.gymId && sx.id!==b.sessionId && sx.date > dayjs().format('YYYY-MM-DD') && (sx.trialPrice||0)===(b.totalFee||0))
+          : [];
+        return (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={()=>{ if(!bkSaving) setBkEdit(null); }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:330, maxWidth:'92vw', maxHeight:'85vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{b.kind==='trial'?'試上改期（換場次）':'修改體驗日期/時段'}</div>
+            {b.kind==='trial' ? (
+              candidates.length === 0 ? (
+                <div style={{ fontSize:13, color:'#999', marginBottom:14, textAlign:'left' }}>目前沒有其他可改期的同價場次；如需變更請取消後重新報名。</div>
+              ) : (
+                <div style={{ marginBottom:14 }}>
+                  {candidates.map(sx => (
+                    <label key={sx.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:8, border:`1.5px solid ${bkEdit.form.sessionId===sx.id?'#8B1A1A':'#EDE5E5'}`, marginBottom:6, cursor:'pointer', fontSize:13 }}>
+                      <input type="radio" name="bkEditSession" checked={bkEdit.form.sessionId===sx.id}
+                        onChange={()=>setBkEdit(t=>({ ...t, form:{ sessionId: sx.id } }))} style={{ accentColor:'#8B1A1A' }}/>
+                      <span style={{ textAlign:'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}{sx.isFull?'（額滿→候補）':''}</span>
+                    </label>
+                  ))}
+                </div>
+              )
+            ) : (
+              <>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>體驗日期</label>
+                <input type="date" value={bkEdit.form.bookingDate} min={dayjs().add(1,'day').format('YYYY-MM-DD')}
+                  onChange={e=>setBkEdit(t=>({ ...t, form:{ ...t.form, bookingDate:e.target.value } }))}
+                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:10 }}/>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>時段（如 16:00-17:30）</label>
+                <input value={bkEdit.form.bookingTime}
+                  onChange={e=>setBkEdit(t=>({ ...t, form:{ ...t.form, bookingTime:e.target.value } }))}
+                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:14 }}/>
+              </>
+            )}
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={()=>setBkEdit(null)} disabled={bkSaving}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={doBkEdit} disabled={bkSaving || (b.kind==='trial' && !bkEdit.form.sessionId)}
+                style={{ flex:2, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (bkSaving||(b.kind==='trial'&&!bkEdit.form.sessionId))?'not-allowed':'pointer', opacity:(b.kind==='trial'&&!bkEdit.form.sessionId)?.6:1 }}>
+                {bkSaving?'儲存中...':'確認修改'}</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
       {reupTarget && (
         <TransferReuploadModal target={reupTarget} memberName={member?.name}
           onClose={()=>setReupTarget(null)}
