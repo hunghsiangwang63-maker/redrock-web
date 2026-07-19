@@ -28,6 +28,15 @@ const NOTIF_CAT = {
   shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
 };
 const NOTIF_CATS = [
+// 通知未帶 link 時依 type 補預設導向（舊通知/未帶連結的服務端通知「查看」鈕才有得按）
+const NOTIF_LINK = {
+  shift_assigned: '/staff/schedule', shift_updated: '/staff/schedule', shift_reminder: '/staff/schedule',
+  course_roster_claimed: '/staff/courses', course_substitute: '/staff/courses', course_substitute_cancel: '/staff/courses',
+  legacy_vip_claimed: '/staff/members', legacy_pass_claimed: '/staff/members', legacy_team_claimed: '/staff/members',
+  experience_refund: '/staff/experience-bookings',
+  single_entry_ticket_approval: '/staff/pending-tasks', card_bind_disclosure: '/staff/cards',
+  pass_adjustment: '/staff/pending-tasks', installment_due: '/staff/installments',
+};
   { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
   { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
 ];
@@ -358,7 +367,7 @@ export default function PendingTasksPage() {
         const cutoff = Date.now() / 1000 - 7 * 24 * 3600;
         const notifItems = (notifs || [])
           .filter(n => !n.createdAt?._seconds || n.createdAt._seconds >= cutoff)
-          .map(n => ({ key: 'n_' + n.id, notifId: n.id, cat: notifCatOf(n.type), title: n.title || '通知', message: n.message || n.body, ts: n.createdAt?._seconds || 0, link: n.link, catLabel: NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統', canRead: true }));
+          .map(n => ({ key: 'n_' + n.id, notifId: n.id, cat: notifCatOf(n.type), title: n.title || '通知', message: n.message || n.body, ts: n.createdAt?._seconds || 0, link: n.link || NOTIF_LINK[n.type] || null, catLabel: NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統', canRead: true }));
         const regItems = (registrations || []).map(r => ({ key: 'r_' + r.id, cat: 'report', title: `${r.memberName} 報名 ${r.name}`, message: [r.detail, REG_CAT[r.regType]].filter(Boolean).join(' · ') + (r.gymId === 'gym-hsinchu' ? ' · 新竹館' : r.gymId === 'gym-shilin' ? ' · 士林館' : ''), ts: r.createdAt || 0, link: r.link, catLabel: '報名', canRead: false }));
         const feed = [...notifItems, ...regItems].filter(i => !notifCat || i.cat === notifCat).sort((a, b) => b.ts - a.ts);
         return (
