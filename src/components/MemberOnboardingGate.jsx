@@ -4,7 +4,7 @@ import { useMember } from '../store/memberStore.jsx';
 import { memberClient } from '../api/client';
 import { getMemberGyms } from '../api/gyms';
 import { getFallTestSignature, getMyFallTestStatus } from '../api/fallTests';
-import { getMyFallTestBookings, createFallTestBooking } from '../api/fallTestBookings';
+import { getMyFallTestBookings, createFallTestBooking, skipFallTestSchedule } from '../api/fallTestBookings';
 
 /**
  * 新會員入場前置流程（全屏硬卡）：
@@ -23,7 +23,8 @@ export default function MemberOnboardingGate({ children }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [justBooked, setJustBooked] = useState(false);  // 剛送出申請 → 顯示確認畫面（可回首頁）
-  const [bookedGymId, setBookedGymId] = useState('');   // 剛選的場館 id（refresh 尚未回填 booking 前，確認畫面用它顯示館名）
+  const [bookedGymId, setBookedGymId] = useState('');
+  const [skipped, setSkipped] = useState(false);   // 本次剛按「暫不安排」（旗標另存會員文件，下次由 member.fallTestScheduleSkipped 放行）   // 剛選的場館 id（refresh 尚未回填 booking 前，確認畫面用它顯示館名）
 
   const memberId = member?.id;
 
@@ -156,6 +157,8 @@ export default function MemberOnboardingGate({ children }) {
   if (booking) return children;
   // 已通過 → 放行
   if (testPassed) return children;
+  // 已宣告「不入場攀爬、暫不安排」→ 放行（僅影響 App 顯示；入場仍由後端墜測關卡擋）
+  if (skipped || member?.fallTestScheduleSkipped) return children;
 
   // 階段二：兩者已簽 → 請安排墜落測驗（選場館）
   const pick = async (gymId) => {
@@ -180,5 +183,18 @@ export default function MemberOnboardingGate({ children }) {
       </div>
     ))}
     {gyms.length === 0 && <div style={{ textAlign:'center', color:'#999', fontSize:14, padding:'20px 0' }}>載入場館中…</div>}
+    <button disabled={busy}
+      onClick={async () => {
+        setBusy(true); setError('');
+        try { await skipFallTestSchedule(); setSkipped(true); }
+        catch (e) { setError(e.response?.data?.message || '操作失敗，請重試'); }
+        setBusy(false);
+      }}
+      style={{ width:'100%', height:44, marginTop:6, borderRadius:12, background:'#fff', color:'#666', border:'1px solid #DDD', fontSize:14, cursor: busy ? 'wait' : 'pointer' }}>
+      我不入場攀爬，暫不安排
+    </button>
+    <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginTop:8, textAlign:'left' }}>
+      適合只替家庭成員管理帳號的家長。之後若要入場攀爬，可隨時至「墜落測驗」頁安排測驗（通過前無法入場）。
+    </div>
   </>);
 }
