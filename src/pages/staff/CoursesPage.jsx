@@ -1275,7 +1275,23 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                               </div>
                             </div>
                             <div style={{ display:'flex', gap:4, alignItems:'center' }}>
-                              {[['present','出席','#2D7D46'],['late','遲到','#B5762B'],['absent','缺席','#A32D2D']].map(([st,label,color]) => {
+                              {e.isCrossMakeup ? (
+                                e.attendanceStatus === 'present' ? (
+                                  <span style={{ fontSize:11, color:'#2D7D46', fontWeight:600 }}>✓ 已結案</span>
+                                ) : (
+                                  <button onClick={async () => {
+                                      try {
+                                        const r = await client.post(`/courses/cross-makeups/${String(e.id).replace(/^xm_/,'')}/done`);
+                                        alert(r.data?.message || '已結案');
+                                        loadRoster(selectedSession.id);
+                                      } catch (err) { alert(err.response?.data?.message || '結案失敗'); }
+                                    }}
+                                    style={{ height:26, padding:'0 12px', borderRadius:6, fontSize:11, cursor:'pointer', border:'1px solid #5B2D8B', background:'#fff', color:'#5B2D8B', fontWeight:600 }}>
+                                    ✓ 補課完成結案
+                                  </button>
+                                )
+                              ) : (
+                              [['present','出席','#2D7D46'],['late','遲到','#B5762B'],['absent','缺席','#A32D2D']].map(([st,label,color]) => {
                                 const active = e.attendanceStatus === st;
                                 return (
                                   <button key={st} onClick={() => handleMarkAttendance(selectedSession.id, e.memberId, st)}
@@ -1285,7 +1301,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                                     {label}
                                   </button>
                                 );
-                              })}
+                              })
+                              )}
                             </div>
                           </div>
                         ))}
