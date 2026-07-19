@@ -362,8 +362,8 @@ export default function CoursesPage({ embedded = false }) {
       if (num(courseForm.preStartFeeRate) !== undefined) ov.preStartFeeRate = num(courseForm.preStartFeeRate) / 100;
       if (courseForm.alumniOpenDate) ov.alumniOpenDate = courseForm.alumniOpenDate;
       if (courseForm.enrollOpenDate) ov.enrollOpenDate = courseForm.enrollOpenDate;
-      if (courseForm.currentTermRenewalDiscount !== '' && courseForm.currentTermRenewalDiscount != null) ov.currentTermRenewalDiscount = Number(courseForm.currentTermRenewalDiscount);
-      if (courseForm.prevTermRenewalDiscount !== '' && courseForm.prevTermRenewalDiscount != null) ov.prevTermRenewalDiscount = Number(courseForm.prevTermRenewalDiscount);
+      if (courseForm.fullTermRenewalDiscount !== '' && courseForm.fullTermRenewalDiscount != null) ov.fullTermRenewalDiscount = Number(courseForm.fullTermRenewalDiscount);
+      if (courseForm.alumniDiscount !== '' && courseForm.alumniDiscount != null) ov.alumniDiscount = Number(courseForm.alumniDiscount);
       if (courseForm.renewalDeadline) ov.renewalDeadline = courseForm.renewalDeadline;
       const res = await createCourse({
         ...courseForm,
@@ -427,7 +427,7 @@ export default function CoursesPage({ embedded = false }) {
       perSessionDeduction: course.perSessionDeduction ?? '',
       handlingFeeRate: course.handlingFeeRate != null ? Math.round(course.handlingFeeRate * 100) : '',
       alumniOpenDate: course.alumniOpenDate || '', enrollOpenDate: course.enrollOpenDate || '',
-      currentTermRenewalDiscount: course.currentTermRenewalDiscount ?? '', prevTermRenewalDiscount: course.prevTermRenewalDiscount ?? '', renewalDeadline: course.renewalDeadline || '',
+      fullTermRenewalDiscount: course.fullTermRenewalDiscount ?? '', alumniDiscount: course.alumniDiscount ?? '', renewalDeadline: course.renewalDeadline || '',
       preStartFeeRate: course.preStartFeeRate != null ? Math.round(course.preStartFeeRate * 100) : '',
       allowMakeup: course.allowMakeup ?? '',
       allowTrial: course.allowTrial ?? '',
@@ -471,8 +471,8 @@ export default function CoursesPage({ embedded = false }) {
         perSessionDeduction: ovNum(editForm.perSessionDeduction),
         handlingFeeRate: editForm.handlingFeeRate === '' ? null : (parseFloat(editForm.handlingFeeRate) || 0) / 100,
         alumniOpenDate: editForm.alumniOpenDate || null, enrollOpenDate: editForm.enrollOpenDate || null,
-        currentTermRenewalDiscount: editForm.currentTermRenewalDiscount === '' ? null : Number(editForm.currentTermRenewalDiscount),
-        prevTermRenewalDiscount: editForm.prevTermRenewalDiscount === '' ? null : Number(editForm.prevTermRenewalDiscount),
+        fullTermRenewalDiscount: editForm.fullTermRenewalDiscount === '' ? null : Number(editForm.fullTermRenewalDiscount),
+        alumniDiscount: editForm.alumniDiscount === '' ? null : Number(editForm.alumniDiscount),
         renewalDeadline: editForm.renewalDeadline || null,
         preStartFeeRate: editForm.preStartFeeRate === '' ? null : (parseFloat(editForm.preStartFeeRate) || 0) / 100,
         allowMakeup: ovBool(editForm.allowMakeup),
@@ -1710,8 +1710,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     { label:'試上費（NT$）', key:'trialPrice', p: ph(cat.trialPrice, 0) },
                     { label:'舊生續報開始日（選填）', key:'alumniOpenDate', p: '', dtype:'date' },
                     { label:'公開報名開始日（選填）', key:'enrollOpenDate', p: '', dtype:'date' },
-                    { label:'當期續報優惠（NT$ 折抵，選填）', key:'currentTermRenewalDiscount', p: '如 300' },
-                    { label:'隔期續報優惠（NT$ 折抵，選填）', key:'prevTermRenewalDiscount', p: '如 200' },
+                    { label:'續報優惠（前一期整期，NT$ 折抵）', key:'fullTermRenewalDiscount', p: '如 440' },
+                    { label:'舊生優惠（曾報名/插班，NT$ 折抵）', key:'alumniDiscount', p: '如 200' },
                     { label:'續報截止日（選填）', key:'renewalDeadline', p: '', dtype:'date' },
                     { label:'退費：開課前手續費率（%）', key:'preStartFeeRate', p: `班別預設 ${Math.round((cat.preStartFeeRate ?? 0.05) * 100)}` },
                     { label:'退費：開課後手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
@@ -1944,8 +1944,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', type:'number', ph:'留空＝班別預設' },
               { label:'舊生續報開始日（選填）', key:'alumniOpenDate', type:'date', hint:'此日起同班別舊生（當期在籍/上一期）可先報名' },
               { label:'公開報名開始日（選填）', key:'enrollOpenDate', type:'date', hint:'此日起所有人可報；兩欄皆空＝隨時開放' },
-              { label:'當期續報優惠（NT$ 折抵）', key:'currentTermRenewalDiscount', hint:'當期在籍同班別學員報名折抵；留空＝無' },
-              { label:'隔期續報優惠（NT$ 折抵）', key:'prevTermRenewalDiscount', hint:'上一期（已結束梯次）舊生報名折抵；留空＝無' },
+              { label:'續報優惠（NT$ 折抵）', key:'fullTermRenewalDiscount', hint:'前一期「整期」報名學員（插班不算）；留空＝無' },
+              { label:'舊生優惠（NT$ 折抵）', key:'alumniDiscount', hint:'曾報名過或插班生；符合續報資格者優先套續報優惠、不疊加' },
               { label:'續報截止日', key:'renewalDeadline', type:'date', hint:'兩種續報優惠皆只折到此日（含當日）；留空＝不限' },
               { label:'退費-開課前手續費率（%）', key:'preStartFeeRate', type:'number', ph:'留空＝班別預設' },
               { label:'退費-開課後手續費率（%）', key:'handlingFeeRate', type:'number', ph:'留空＝班別預設' },
