@@ -28,6 +28,9 @@ const NOTIF_CAT = {
   shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
 };
 const NOTIF_CATS = [
+  { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
+  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
+];
 // 通知未帶 link 時依 type 補預設導向（舊通知/未帶連結的服務端通知「查看」鈕才有得按）
 const NOTIF_LINK = {
   shift_assigned: '/staff/schedule', shift_updated: '/staff/schedule', shift_reminder: '/staff/schedule',
@@ -37,9 +40,6 @@ const NOTIF_LINK = {
   single_entry_ticket_approval: '/staff/pending-tasks', card_bind_disclosure: '/staff/cards',
   pass_adjustment: '/staff/pending-tasks', installment_due: '/staff/installments',
 };
-  { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
-  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
-];
 const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名' };
 const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
 
