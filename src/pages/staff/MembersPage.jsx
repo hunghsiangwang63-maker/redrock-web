@@ -812,6 +812,12 @@ export default function MembersPage() {
                         {detail.latestFallTest.result === 'passed' ? '已通過' : '未通過'}
                       </Tag>
                     : <Tag type="red">未測驗</Tag>}
+                  {detail.member?.fallTestScheduleSkipped && detail.latestFallTest?.result !== 'passed' && (
+                    <span title="會員已宣告不入場攀爬、暫不安排墜落測驗（僅影響 App 顯示；入場仍擋到通過為止）"
+                      style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:6, background:'#F0F0F0', color:'#666' }}>
+                      🚫 暫不安排（不入場攀爬）
+                    </span>
+                  )}
                   {detail.hasFallTestSignature && (
                     <button onClick={openFallTestView} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', cursor:'pointer' }}>檢視同意書</button>
                   )}
