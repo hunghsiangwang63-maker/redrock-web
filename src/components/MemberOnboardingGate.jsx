@@ -38,7 +38,7 @@ export default function MemberOnboardingGate({ children }) {
         const me = await memberClient.get('/auth/member/me');
         if (me.data?.member) {
           blockReasons = me.data.member.blockReasons || [];
-          updateMember({ blockReasons, fallTestPassed: me.data.member.fallTestPassed });
+          updateMember({ blockReasons, fallTestPassed: me.data.member.fallTestPassed, fallTestScheduleSkipped: me.data.member.fallTestScheduleSkipped });
         }
       } catch (_) {}
 
@@ -186,7 +186,7 @@ export default function MemberOnboardingGate({ children }) {
     <button disabled={busy}
       onClick={async () => {
         setBusy(true); setError('');
-        try { await skipFallTestSchedule(); setSkipped(true); }
+        try { await skipFallTestSchedule(); setSkipped(true); updateMember({ fallTestScheduleSkipped: true }); }
         catch (e) { setError(e.response?.data?.message || '操作失敗，請重試'); }
         setBusy(false);
       }}
