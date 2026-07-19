@@ -619,6 +619,19 @@ export default function CoursesPage({ embedded = false }) {
     setEnrollResults(res.data.members || []);
   };
 
+  const loadLmAll = async (sel) => {
+    setLmSummary({ loading: true, mode: 'all', sel });
+    try {
+      if (sel === 'all') {
+        const params = effectiveGymId ? { gymId: effectiveGymId } : {};
+        const r = await client.get('/courses/leave-makeup-summary/all', { params });
+        setLmSummary({ loading: false, mode: 'all', sel: 'all', groups: r.data.groups || [] });
+      } else {
+        const r = await client.get(`/courses/${sel}/leave-makeup-summary`);
+        setLmSummary({ loading: false, mode: 'all', sel, groups: [r.data] });
+      }
+    } catch (e) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); }
+  };
   const loadLeaveMakeup = async (c) => {
     setLmSummary({ loading: true, courseName: c.name });
     try {
@@ -636,7 +649,25 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       if (selectedCourse) loadSessions(selectedCourse);
     } catch (e) { alert(e.response?.data?.message || '停課失敗'); }
   };
+  const downloadLmAllCSV = () => {
+    const gs = lmSummary?.groups || [];
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const lines = [['課程','姓名','電話','請假日期','請假次數','請假上限','補課額度(剩/共)','補課到期','已排補課'].join(',')];
+    gs.forEach(g => {
+      (g.rows||[]).forEach(r => lines.push([
+        esc(g.course?.name), esc(r.memberName), esc(r.memberPhone), esc((r.leaves||[]).join('、')),
+        r.leaveCount, r.leaveCap, esc(`${r.makeupAvailable}/${r.makeupTotal}`), esc(r.makeupExpiresAt||''),
+        esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.taken?'(已上)':''}`).join('、')),
+      ].join(',')));
+      (g.pendingClaims||[]).forEach(pc => lines.push([esc(g.course?.name), esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
+    });
+    const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `假補總表_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
   const downloadLeaveMakeupCSV = () => {
+    if (lmSummary?.mode === 'all') { downloadLmAllCSV(); return; }
     if (!lmSummary?.rows) return;
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const head = ['姓名','電話','請假日期','請假次數','請假上限','補課額度(剩/共)','補課到期','已排補課'];
@@ -703,6 +734,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
 
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap', marginBottom:16 }}>
         <SegmentedTabs wrap minTabWidth={130} tabs={COURSE_TABS} value={tab} onChange={setTab} style={{ flex:'1 1 280px', minWidth:0 }} />
+        {tab === 'courses' && (
+          <button onClick={() => loadLmAll('all')}
+            style={{ height:36, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:13, cursor:'pointer' }}>
+            📋 假補總表
+          </button>
+        )}
         {tab === 'courses' && selectedCategory && (
           <button onClick={() => {
             setCreateStep(1);
@@ -2000,14 +2037,57 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       {lmSummary && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:220, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setLmSummary(null)}>
           <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:20, width:860, maxWidth:'96vw', maxHeight:'88vh', overflowY:'auto', border:'0.5px solid #E8D5D5' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <div style={{ fontSize:15, fontWeight:700 }}>📋 請假補課總表 — {lmSummary.course?.name || lmSummary.courseName}</div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6, gap:10, flexWrap:'wrap' }}>
+              <div style={{ fontSize:15, fontWeight:700 }}>📋 請假補課總表{lmSummary.mode !== 'all' && ` — ${lmSummary.course?.name || lmSummary.courseName || ''}`}</div>
+              {lmSummary.mode === 'all' && (
+                <select value={lmSummary.sel || 'all'} onChange={e => loadLmAll(e.target.value)}
+                  style={{ height:32, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', maxWidth:280 }}>
+                  <option value="all">全部課程</option>
+                  {courses.filter(c => c.status !== 'cancelled' && c.isActive !== false).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              )}
               <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                 {!lmSummary.loading && <button onClick={downloadLeaveMakeupCSV} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ CSV</button>}
                 <span onClick={()=>setLmSummary(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
               </div>
             </div>
-            {lmSummary.loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : (<>
+            {lmSummary.loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : lmSummary.mode === 'all' ? (<>
+      {(lmSummary.groups||[]).length === 0 && <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有任何請假/補課/待認領資料</div>}
+      {(lmSummary.groups||[]).map(g => (
+        <div key={g.course.id} style={{ marginBottom:18 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'6px 0' }}>{g.course.name}
+            <span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>上限 {g.course.maxLeaves} 次｜補課期限 {g.course.makeupDeadline || '—'}</span></div>
+          <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 }}>
+            <thead><tr style={{ background:'#FBF5F5' }}>
+              {['姓名','請假日期','請假','補課額度(剩/共)','已排補課'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {(g.rows||[]).map(r=>(
+                <tr key={r.memberId} style={{ borderBottom:'0.5px solid #F0E8E8' }}>
+                  <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{r.memberName}</td>
+                  <td style={{ padding:'6px 10px' }}>{(r.leaves||[]).join('、') || <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
+                  <td style={{ padding:'6px 10px', whiteSpace:'nowrap' }}>{r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                </tr>
+              ))}
+              {(g.pendingClaims||[]).map((pc,i)=>(
+                <tr key={'pc'+i} style={{ borderBottom:'0.5px solid #F0E8E8', background:'#FFFBF2' }}>
+                  <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#B5762B' }}>{pc.name}<span style={{ fontSize:10, fontWeight:400, marginLeft:4 }}>未認領</span></td>
+                  <td style={{ padding:'6px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).join('、') || <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).length}</td>
+                  <td colSpan={2} style={{ padding:'6px 10px', fontSize:11, color:'#B5762B' }}>認領時自動入名單＋請假/停課券</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      ))}
+      </>) : (<>
             <div style={{ fontSize:11, color:'#999', marginBottom:10 }}>請假上限 {lmSummary.course?.maxLeaves} 次／補課期限 {lmSummary.course?.makeupDeadline || '—'}（課程結束後）。補課額度＝min(上限, 有效請假數)。</div>
             <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:760 }}>
