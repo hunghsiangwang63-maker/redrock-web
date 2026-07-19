@@ -172,19 +172,28 @@ function MemberRecords({ records }) {
 
 // 名單（分組、條列式、可搜尋、顯示有效起訖）：定期票 / 課程學員 共用
 const fmtDate = (d) => d ? dayjs(d).format('YYYY/MM/DD') : '';
-const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名' }) => {
+const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', groupFilterLabel = null }) => {
   const [q, setQ] = useState('');
+  const [gSel, setGSel] = useState('');
   if (loading) return <div style={{ textAlign:'center', color:'#999', padding:40, fontSize:13 }}>載入中...</div>;
   const kw = q.trim();
   const shown = (groups || [])
+    .filter(g => !gSel || String(g.key) === gSel)
     .map(g => ({ ...g, members: kw ? g.members.filter(m => (m.memberName || m.memberId || '').includes(kw)) : g.members }))
     .filter(g => g.members.length > 0);
   const total = shown.reduce((s, g) => s + g.members.length, 0);
   return (
     <div>
-      <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:12 }}>
+      <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:12, flexWrap:'wrap' }}>
         <input value={q} onChange={e => setQ(e.target.value)} placeholder={searchPlaceholder}
           style={{ flex:1, maxWidth:320, height:38, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 14px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }} />
+        {groupFilterLabel && (
+          <select value={gSel} onChange={e => setGSel(e.target.value)}
+            style={{ height:38, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', maxWidth:260 }}>
+            <option value="">{groupFilterLabel}</option>
+            {(groups || []).map(g => <option key={g.key} value={g.key}>{g.title}</option>)}
+          </select>
+        )}
         <span style={{ fontSize:12, color:'#999' }}>共 {total} 人</span>
       </div>
       {(!groups || shown.length === 0) ? (
@@ -603,7 +612,7 @@ export default function MembersPage() {
           groups={(passList || []).map(g => ({ key: g.passTypeId || g.passTypeName, title: g.passTypeName, members: g.members }))} />
       )}
       {view === 'courses' && (
-        <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名"
+        <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名" groupFilterLabel="全部班別"
           groups={(courseList || []).map(g => ({
             key: g.courseId, title: g.courseName, members: g.members,
             range: g.practiceStart && g.practiceEnd ? `${dayjs(g.practiceStart).format('MM/DD')}–${dayjs(g.practiceEnd).format('MM/DD')}` : (g.practiceEnd ? `至 ${dayjs(g.practiceEnd).format('MM/DD')}` : ''),
