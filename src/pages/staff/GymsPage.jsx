@@ -36,6 +36,8 @@ export default function GymsPage({ embedded = false }) {
   const [loading, setLoading] = useState(true);
   const [showAddAnn, setShowAddAnn] = useState(false);
   const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'' });
+  const [affectCourses, setAffectCourses] = useState('no'); // 休館/特殊時間是否影響課程（yes→停課發券流程）
+  const [affectModal, setAffectModal] = useState(null);       // {sessions, checked:Set, running}
   const [annSaving, setAnnSaving] = useState(false);
   const [annMsg, setAnnMsg] = useState('');
   const [editingAnn, setEditingAnn] = useState(null);
@@ -82,6 +84,22 @@ export default function GymsPage({ embedded = false }) {
     }
   };
 
+const runAffectClosure = async () => {
+    if (!affectModal || affectModal.running) return;
+    const ids = [...affectModal.checked];
+    if (!ids.length) { setAffectModal(null); return; }
+    setAffectModal(m => ({ ...m, running: true }));
+    let ok = 0, fail = 0, issued = 0;
+    for (const id of ids) {
+      try {
+        const r = await client.post(`/courses/sessions/${id}/closure-cancel`, { reason: '休館停課（公告連動）' });
+        ok++; issued += r.data?.issued || 0;
+      } catch (e) { fail++; }
+    }
+    setAffectModal(null);
+    setAnnMsg(`公告已儲存；停課 ${ok} 堂、發出 ${issued} 張休館補課券${fail ? `、${fail} 堂失敗（請至場次管理處理）` : ''}`);
+  };
+
   const handleAddAnn = async () => {
     if (!annForm.title || !annForm.effectiveFrom) { setAnnMsg('請填寫標題和開始日期'); return; }
     setAnnSaving(true);
@@ -96,6 +114,20 @@ export default function GymsPage({ embedded = false }) {
       }
       setShowAddAnn(false);
       setEditingAnn(null);
+      // 休館/特殊營業時間且勾「影響課程」→ 列出生效期間內場次供逐堂停課（發豁免補課券）
+      if (['closure','special_hours'].includes(annForm.type) && affectCourses === 'yes') {
+        try {
+          const from = annForm.effectiveFrom, to = annForm.effectiveTo || annForm.effectiveFrom;
+          const params = { fromDate: from, toDate: to };
+          if (gymPathId && gymPathId !== 'all') params.gymId = gymPathId;
+          const sr = await client.get('/courses/sessions', { params });
+          const sess = (sr.data.sessions || []).filter(x => x.status !== 'cancelled')
+            .sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime));
+          if (!sess.length) setAnnMsg('公告已儲存；期間內無課程場次，無需停課');
+          else setAffectModal({ sessions: sess, checked: new Set(sess.map(x=>x.id)), running:false });
+        } catch (e) { setAnnMsg('公告已儲存，但場次載入失敗——請至課程場次管理逐堂按「休館停課」'); }
+      }
+      setAffectCourses('no');
       setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'' });
       const aRes = await getAnnouncements();
       setAnnouncements(aRes.data.announcements || []);
@@ -350,6 +382,21 @@ export default function GymsPage({ embedded = false }) {
               </div>
             )}
 
+            {['closure','special_hours'].includes(annForm.type) && !editingAnn && (
+              <div style={{ background:'#F5F8FB', border:'0.5px solid #D6E2EE', borderRadius:8, padding:'10px 12px', marginBottom:16 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#185FA5', marginBottom:6 }}>是否影響該時段課程？</div>
+                <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer', marginBottom:4 }}>
+                  <input type="radio" name="affectCourses" checked={affectCourses==='no'} onChange={()=>setAffectCourses('no')} style={{ accentColor:'#185FA5' }}/>
+                  不影響——課程照常上課（休館不停課）
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer' }}>
+                  <input type="radio" name="affectCourses" checked={affectCourses==='yes'} onChange={()=>setAffectCourses('yes')} style={{ accentColor:'#C0392B' }}/>
+                  影響——送出後列出期間內場次，逐堂停課並發休館補課券
+                </label>
+                <div style={{ fontSize:11, color:'#8AA4BC', marginTop:6 }}>「停課但不休館」不用發公告：直接到課程場次管理按「⛔ 休館停課」即可。</div>
+              </div>
+            )}
+
             {annForm.type === 'special_hours' && (
               <>
                 <div style={{ background:'#FFF3E0', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#B5762B', marginBottom:12, lineHeight:1.6 }}>
@@ -506,6 +553,34 @@ export default function GymsPage({ embedded = false }) {
               <button onClick={handleSaveBank} disabled={bankSaving}
                 style={{ flex:2, height:40, borderRadius:8, background: bankSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: bankSaving?'not-allowed':'pointer' }}>
                 {bankSaving ? '儲存中...' : '儲存變更'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 公告連動停課：期間內場次勾選 */}
+      {affectModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:520, maxWidth:'94vw', maxHeight:'85vh', overflowY:'auto', border:'0.5px solid #E8D5D5' }}>
+            <div style={{ fontSize:15, fontWeight:700, marginBottom:6 }}>⛔ 選擇要停課的場次（{affectModal.checked.size}/{affectModal.sessions.length}）</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:12, lineHeight:1.6 }}>
+              勾選的場次將停課並對正取學員發放<strong>休館補課券</strong>（不佔請假額度）；取消勾選＝照常上課。
+            </div>
+            {affectModal.sessions.map(sx => (
+              <label key={sx.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:8, border:'0.5px solid #F0E8E8', marginBottom:6, cursor:'pointer', fontSize:13 }}>
+                <input type="checkbox" checked={affectModal.checked.has(sx.id)}
+                  onChange={() => setAffectModal(m => { const c = new Set(m.checked); c.has(sx.id) ? c.delete(sx.id) : c.add(sx.id); return { ...m, checked: c }; })}
+                  style={{ width:16, height:16, accentColor:'#C0392B' }}/>
+                <span style={{ flex:1, textAlign:'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}</span>
+                <span style={{ fontSize:11, color:'#999' }}>{(sx.registeredCount ?? sx.enrolledCount) || 0} 人</span>
+              </label>
+            ))}
+            <div style={{ display:'flex', gap:8, marginTop:12 }}>
+              <button onClick={() => { if (!affectModal.running) { setAffectModal(null); setAnnMsg('公告已儲存；未停任何課'); } }}
+                style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>全部照常上課</button>
+              <button onClick={runAffectClosure} disabled={affectModal.running}
+                style={{ flex:2, height:42, borderRadius:10, background:'#C0392B', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                {affectModal.running ? '停課處理中…' : `確定停課 ${affectModal.checked.size} 堂並發券`}
               </button>
             </div>
           </div>
