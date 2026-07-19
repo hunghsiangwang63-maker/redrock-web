@@ -1089,7 +1089,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>正取（{enrolled.length}）</div>
                       {enrolled.map((e,i) => (
                         <div key={e.id||i} style={{ display:'flex', justifyContent:'space-between', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4, fontSize:13 }}>
-                          <span>{e.memberName}{e.isMakeup && <span style={{fontSize:10,color:'#185FA5',marginLeft:6}}>補課</span>}</span>
+                          <span>{e.memberName}{e.isMakeup && !e.isCrossMakeup && <span style={{fontSize:10,color:'#185FA5',marginLeft:6}}>補課</span>}{e.isCrossMakeup && <span style={{fontSize:10,color:'#5B2D8B',marginLeft:6}}>跨期補課</span>}</span>
                           <span style={{ color:'#999', fontSize:12 }}>{e.memberPhone}</span>
                         </div>
                       ))}
@@ -1266,7 +1266,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             <div>
                               <div style={{ fontWeight:500, fontSize:13 }}>
                                 {e.memberName}
-                                {e.isMakeup && <span style={{ fontSize:10, color:'#185FA5', marginLeft:6, fontWeight:600 }}>補課</span>}
+                                {e.isMakeup && !e.isCrossMakeup && <span style={{ fontSize:10, color:'#185FA5', marginLeft:6, fontWeight:600 }}>補課</span>}
+                                {e.isCrossMakeup && <span style={{ fontSize:10, color:'#5B2D8B', marginLeft:6, fontWeight:600 }} title={e.crossNote||''}>跨期補課（非會員名單・櫃檯放行）</span>}
                               </div>
                               <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                                 {e.memberPhone}
