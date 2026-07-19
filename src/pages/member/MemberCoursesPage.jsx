@@ -13,7 +13,7 @@ function LeaveMakeupRulesBox({ course }) {
   const _n = course?.ruleMaxLeaves ?? 2;
   const _h = course?.ruleLeaveDeadlineHours ?? 2;
   const _d = course?.ruleMakeupDeadlineDays ?? 60;
-  const _x = _d % 30 === 0 ? `${_d / 30} 個月` : `${_d} 天`;
+  const _x = `${_d} 天`; // 一律顯示天數（30 天≠1 個月，曆月換算有歧義）
   return (
     <div style={RULE_BOX_STYLE}>
       <strong>1. 請假次數限制</strong><br/>
