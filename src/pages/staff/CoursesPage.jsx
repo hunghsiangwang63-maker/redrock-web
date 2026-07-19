@@ -360,6 +360,8 @@ export default function CoursesPage({ embedded = false }) {
       if (num(courseForm.perSessionDeduction) !== undefined) ov.perSessionDeduction = num(courseForm.perSessionDeduction);
       if (num(courseForm.handlingFeeRate) !== undefined) ov.handlingFeeRate = num(courseForm.handlingFeeRate) / 100;
       if (num(courseForm.preStartFeeRate) !== undefined) ov.preStartFeeRate = num(courseForm.preStartFeeRate) / 100;
+      if (courseForm.alumniOpenDate) ov.alumniOpenDate = courseForm.alumniOpenDate;
+      if (courseForm.enrollOpenDate) ov.enrollOpenDate = courseForm.enrollOpenDate;
       const res = await createCourse({
         ...courseForm,
         gymId: courseForm.gymId || effectiveGymId,   // super_admin 未動館別下拉時 courseForm.gymId 為空 → 補當前檢視館別，避免建出 gymId=null 幽靈課
@@ -421,6 +423,7 @@ export default function CoursesPage({ embedded = false }) {
       makeupDeadlineDays: course.makeupDeadlineDays ?? '',
       perSessionDeduction: course.perSessionDeduction ?? '',
       handlingFeeRate: course.handlingFeeRate != null ? Math.round(course.handlingFeeRate * 100) : '',
+      alumniOpenDate: course.alumniOpenDate || '', enrollOpenDate: course.enrollOpenDate || '',
       preStartFeeRate: course.preStartFeeRate != null ? Math.round(course.preStartFeeRate * 100) : '',
       allowMakeup: course.allowMakeup ?? '',
       allowTrial: course.allowTrial ?? '',
@@ -463,6 +466,7 @@ export default function CoursesPage({ embedded = false }) {
         makeupDeadlineDays: ovNum(editForm.makeupDeadlineDays),
         perSessionDeduction: ovNum(editForm.perSessionDeduction),
         handlingFeeRate: editForm.handlingFeeRate === '' ? null : (parseFloat(editForm.handlingFeeRate) || 0) / 100,
+        alumniOpenDate: editForm.alumniOpenDate || null, enrollOpenDate: editForm.enrollOpenDate || null,
         preStartFeeRate: editForm.preStartFeeRate === '' ? null : (parseFloat(editForm.preStartFeeRate) || 0) / 100,
         allowMakeup: ovBool(editForm.allowMakeup),
         allowTrial: ovBool(editForm.allowTrial),
@@ -1697,12 +1701,14 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     { label:'整期可請假次數', key:'maxLeaves', p: ph(cat.maxLeaves, 2) },
                     { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', p: ph(cat.makeupDeadlineDays, 60) },
                     { label:'試上費（NT$）', key:'trialPrice', p: ph(cat.trialPrice, 0) },
+                    { label:'舊生續報開始日（選填）', key:'alumniOpenDate', p: '', dtype:'date' },
+                    { label:'公開報名開始日（選填）', key:'enrollOpenDate', p: '', dtype:'date' },
                     { label:'退費：開課前手續費率（%）', key:'preStartFeeRate', p: `班別預設 ${Math.round((cat.preStartFeeRate ?? 0.05) * 100)}` },
                     { label:'退費：開課後手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
                   ].map(f => (
                     <div key={f.key}>
                       <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
-                      <input type="number" value={courseForm[f.key]} placeholder={f.p}
+                      <input type={f.dtype || 'number'} value={courseForm[f.key] || ''} placeholder={f.p}
                         onChange={e => setCourseForm({...courseForm, [f.key]: e.target.value})}
                         style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                     </div>
@@ -1926,6 +1932,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number', ph:'留空＝班別預設' },
               { label:'整期可請假次數', key:'maxLeaves', type:'number', ph:'留空＝班別預設', hint:'留空＝用班別預設；插班學員可於「查看名單」個別設定' },
               { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', type:'number', ph:'留空＝班別預設' },
+              { label:'舊生續報開始日（選填）', key:'alumniOpenDate', type:'date', hint:'此日起同班別舊生（當期在籍/上一期）可先報名' },
+              { label:'公開報名開始日（選填）', key:'enrollOpenDate', type:'date', hint:'此日起所有人可報；兩欄皆空＝隨時開放' },
               { label:'退費-開課前手續費率（%）', key:'preStartFeeRate', type:'number', ph:'留空＝班別預設' },
               { label:'退費-開課後手續費率（%）', key:'handlingFeeRate', type:'number', ph:'留空＝班別預設' },
             ].map(f => (

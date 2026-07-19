@@ -1023,7 +1023,19 @@ export default function MemberCoursesPage() {
                   <img src={selectedCourse.categoryImageUrl || selectedCourse.imageUrl} alt={selectedCourse.name} style={{ width:'100%', display:'block', objectFit:'cover' }} />
                 )}
                 {/* 課程簡介：從類別層進來已看過（不重複）；單一梯次「直接跳報名頁」時在此顯示（否則簡介永遠沒機會出現） */}
-                {!selectedCategory && (selectedCourse.categoryDescription || selectedCourse.description) && (
+                {(() => {
+                const _t = dayjs().format('YYYY-MM-DD');
+                const eo = selectedCourse.enrollOpenDate, ao = selectedCourse.alumniOpenDate;
+                if (!(eo && _t < eo)) return null;
+                return (
+                  <div style={{ margin:'12px 14px 0', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:10, padding:'10px 12px', fontSize:12.5, color:'#8A5A00', lineHeight:1.7, textAlign:'left' }}>
+                    ⏰ {ao && _t < ao ? `本課程 ${ao} 起開放「舊生續報」、${eo} 全面開放報名。`
+                       : ao ? `目前為舊生續報期間（同班別在籍或上一期學員可先報名）；${eo} 起全面開放。`
+                       : `本課程 ${eo} 開放報名。`}
+                  </div>
+                );
+              })()}
+              {!selectedCategory && (selectedCourse.categoryDescription || selectedCourse.description) && (
                   <div style={{ padding:'14px 14px 0', fontSize:13, color:'#555', whiteSpace:'pre-wrap', lineHeight:1.7, textAlign:'left' }}>
                     {selectedCourse.categoryDescription || selectedCourse.description}
                   </div>
