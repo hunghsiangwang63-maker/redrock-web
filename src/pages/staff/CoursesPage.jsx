@@ -341,7 +341,10 @@ export default function CoursesPage({ embedded = false }) {
     try {
       const res = await getSessionRoster(sessionId);
       setRoster(res.data);
-    } catch (e) {}
+    } catch (e) {
+      // 不吞錯誤：403/失敗顯示真實原因（曾因權限 403 被吞、誤顯示「尚無學員報名」）
+      setRoster({ roster: [], error: e.response?.status === 403 ? '無權限檢視名單' : (e.response?.data?.message || '名單載入失敗') });
+    }
   };
 
   const handleCreateCourse = async () => {
@@ -1092,7 +1095,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               const enrolled = list.filter(e => e.status === 'confirmed');
               const waitlist = list.filter(e => e.status === 'waitlist');
               const onLeave = list.filter(e => e.status === 'leave');
-              if (list.length === 0) return <div style={{ textAlign:'center', padding:30, color:'#999', fontSize:13 }}>尚無學員報名</div>;
+              if (list.length === 0) return <div style={{ textAlign:'center', padding:30, color: roster?.error ? '#A32D2D' : '#999', fontSize:13 }}>{roster?.error || '尚無學員報名'}</div>;
               return (
                 <>
                   {enrolled.length > 0 && (
@@ -1355,7 +1358,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         )}
 
                         {enrolled.length === 0 && waitlist.length === 0 && onLeave.length === 0 && (
-                          <div style={{ padding:32, textAlign:'center', color:'#999', fontSize:13 }}>尚無學員報名</div>
+                          <div style={{ padding:32, textAlign:'center', color: roster?.error ? '#A32D2D' : '#999', fontSize:13 }}>{roster?.error || '尚無學員報名'}</div>
                         )}
                       </>
                     );
