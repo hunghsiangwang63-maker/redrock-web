@@ -626,6 +626,16 @@ export default function CoursesPage({ embedded = false }) {
       setLmSummary({ loading: false, ...r.data });
     } catch (e) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); }
   };
+const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 {session}
+  const doClosureCancel = async () => {
+    if (!closureTarget) return;
+    try {
+      const r = await client.post(`/courses/sessions/${closureTarget.id}/closure-cancel`, { reason: '休館停課' });
+      alert(r.data?.message || '已停課並發放補課券');
+      setClosureTarget(null); setSelectedSession(null); setRoster(null);
+      if (selectedCourse) loadSessions(selectedCourse);
+    } catch (e) { alert(e.response?.data?.message || '停課失敗'); }
+  };
   const downloadLeaveMakeupCSV = () => {
     if (!lmSummary?.rows) return;
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
@@ -1175,10 +1185,18 @@ export default function CoursesPage({ embedded = false }) {
                         {selectedSession.instructor && ` · 教練：${selectedSession.instructor}`}
                       </div>
                     </div>
-                    <button onClick={() => setShowEnroll(true)}
-                      style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                      ＋ 報名
-                    </button>
+                    <div style={{ display:'flex', gap:8 }}>
+                      {selectedSession.status !== 'cancelled' && (
+                        <button onClick={() => setClosureTarget(selectedSession)}
+                          style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #C0392B', color:'#C0392B', fontSize:12, cursor:'pointer' }}>
+                          ⛔ 休館停課
+                        </button>
+                      )}
+                      <button onClick={() => setShowEnroll(true)}
+                        style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                        ＋ 報名
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1958,6 +1976,26 @@ export default function CoursesPage({ embedded = false }) {
       )}
 
       {/* 課程名單 Modal */}
+      {/* 休館停課確認 */}
+      {closureTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:230, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setClosureTarget(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:22, width:400, maxWidth:'92vw', border:'0.5px solid #E8D5D5' }}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:10 }}>⛔ 休館停課</div>
+            <div style={{ fontSize:13, color:'#444', lineHeight:1.8, marginBottom:14, textAlign:'left' }}>
+              確定將 <strong>{dayjs(closureTarget.date).format('MM/DD')} {closureTarget.startTime}</strong> 這堂標記為休館停課？<br/>
+              ・場次取消，<strong>不計入</strong>退費的已開課堂數<br/>
+              ・該堂正取學員自動發放「<strong>休館補課券</strong>」（不佔請假額度、不受上限，效期同一般補課）<br/>
+              ・補課學員的補課券自動還原；試上學員請另行處理退費/改期<br/>
+              ・會員首頁會出現停課＋補課提醒
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>setClosureTarget(null)} style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>返回</button>
+              <button onClick={doClosureCancel} style={{ flex:2, height:42, borderRadius:10, background:'#C0392B', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>確定停課並發券</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 請假補課總表 */}
       {lmSummary && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:220, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setLmSummary(null)}>
