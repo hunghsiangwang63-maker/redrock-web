@@ -20,6 +20,7 @@ import { getMyUpcomingShifts } from '../../api/schedule';
 
 // 通知 type → 類別（待辦頁通知面板過濾用）
 const NOTIF_CAT = {
+  course_leave:'course', course_leave_cancel:'course', course_makeup_booked:'course', course_makeup_cancel:'course',
   transfer_payment:'transfer', experience_transfer:'transfer', transfer:'transfer', transfer_confirm:'transfer',
   single_entry_ticket_approved:'ticket', single_entry_ticket_rejected:'ticket',
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
@@ -29,12 +30,13 @@ const NOTIF_CAT = {
 };
 const NOTIF_CATS = [
   { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
-  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
+  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'course', label:'課程' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
 ];
 // 通知未帶 link 時依 type 補預設導向（舊通知/未帶連結的服務端通知「查看」鈕才有得按）
 const NOTIF_LINK = {
   shift_assigned: '/staff/schedule', shift_updated: '/staff/schedule', shift_reminder: '/staff/schedule',
   course_roster_claimed: '/staff/courses', course_substitute: '/staff/courses', course_substitute_cancel: '/staff/courses',
+  course_leave: '/staff/courses', course_leave_cancel: '/staff/courses', course_makeup_booked: '/staff/courses', course_makeup_cancel: '/staff/courses',
   legacy_vip_claimed: '/staff/members', legacy_pass_claimed: '/staff/members', legacy_team_claimed: '/staff/members',
   experience_refund: '/staff/experience-bookings',
   single_entry_ticket_approval: '/staff/pending-tasks', card_bind_disclosure: '/staff/cards',
