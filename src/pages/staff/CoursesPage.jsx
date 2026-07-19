@@ -59,7 +59,8 @@ export default function CoursesPage({ embedded = false }) {
     { id: 'gym-shilin',  name: '士林館' },
   ];
   const [tab, setTab] = useState('courses');
-  const [rosterModal, setRosterModal] = useState(null); // { course, enrollments }
+  const [rosterModal, setRosterModal] = useState(null);
+  const [lmSummary, setLmSummary] = useState(null); // 請假補課總表 {loading, course, rows, pendingClaims} // { course, enrollments }
   const [editLeave, setEditLeave] = useState(null); // { memberId, value }
   const [savingLeave, setSavingLeave] = useState(false);
   const [rosterLoading, setRosterLoading] = useState(false);
@@ -618,6 +619,29 @@ export default function CoursesPage({ embedded = false }) {
     setEnrollResults(res.data.members || []);
   };
 
+  const loadLeaveMakeup = async (c) => {
+    setLmSummary({ loading: true, courseName: c.name });
+    try {
+      const r = await client.get(`/courses/${c.id}/leave-makeup-summary`);
+      setLmSummary({ loading: false, ...r.data });
+    } catch (e) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); }
+  };
+  const downloadLeaveMakeupCSV = () => {
+    if (!lmSummary?.rows) return;
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const head = ['姓名','電話','請假日期','請假次數','請假上限','補課額度(剩/共)','補課到期','已排補課'];
+    const lines = [head.join(',')];
+    lmSummary.rows.forEach(r => lines.push([
+      esc(r.memberName), esc(r.memberPhone), esc((r.leaves||[]).join('、')),
+      r.leaveCount, r.leaveCap, esc(`${r.makeupAvailable}/${r.makeupTotal}`), esc(r.makeupExpiresAt||''),
+      esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.taken?'(已上)':''}`).join('、')),
+    ].join(',')));
+    (lmSummary.pendingClaims||[]).forEach(pc => lines.push([esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
+    const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `${lmSummary.course?.name||'課程'}_請假補課_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
   const loadCourseRoster = async (course) => {
     setRosterModal({ course, enrollments: null });
     setRosterLoading(true);
@@ -800,6 +824,8 @@ export default function CoursesPage({ embedded = false }) {
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>場次</button>
                       <button onClick={() => loadCourseRoster(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>名單</button>
+                      <button onClick={() => loadLeaveMakeup(c)}
+                        style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>假補</button>
                       {c.status !== 'cancelled' && (inactive ? (
                         <button onClick={() => handleToggleCourseActive(c, true)}
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>啟用</button>
@@ -1932,6 +1958,53 @@ export default function CoursesPage({ embedded = false }) {
       )}
 
       {/* 課程名單 Modal */}
+      {/* 請假補課總表 */}
+      {lmSummary && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:220, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setLmSummary(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:20, width:860, maxWidth:'96vw', maxHeight:'88vh', overflowY:'auto', border:'0.5px solid #E8D5D5' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style={{ fontSize:15, fontWeight:700 }}>📋 請假補課總表 — {lmSummary.course?.name || lmSummary.courseName}</div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                {!lmSummary.loading && <button onClick={downloadLeaveMakeupCSV} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>⬇ CSV</button>}
+                <span onClick={()=>setLmSummary(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
+              </div>
+            </div>
+            {lmSummary.loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : (<>
+            <div style={{ fontSize:11, color:'#999', marginBottom:10 }}>請假上限 {lmSummary.course?.maxLeaves} 次／補課期限 {lmSummary.course?.makeupDeadline || '—'}（課程結束後）。補課額度＝min(上限, 有效請假數)。</div>
+            <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:760 }}>
+              <thead><tr style={{ background:'#FBF5F5' }}>
+                {['姓名','請假日期','請假','補課額度(剩/共)','補課到期','已排補課'].map(h=><th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {(lmSummary.rows||[]).map(r=>(
+                  <tr key={r.memberId} style={{ borderBottom:'0.5px solid #F0E8E8' }}>
+                    <td style={{ padding:'8px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{r.memberName}<div style={{ fontSize:10, color:'#999', fontWeight:400 }}>{r.memberPhone}</div></td>
+                    <td style={{ padding:'8px 10px' }}>{(r.leaves||[]).join('、') || <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
+                    <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>{r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px', whiteSpace:'nowrap', fontSize:11, color:'#666' }}>{r.makeupExpiresAt || '—'}</td>
+                    <td style={{ padding:'8px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  </tr>
+                ))}
+                {(lmSummary.pendingClaims||[]).map((pc,i)=>(
+                  <tr key={'pc'+i} style={{ borderBottom:'0.5px solid #F0E8E8', background:'#FFFBF2' }}>
+                    <td style={{ padding:'8px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#B5762B' }}>{pc.name}<div style={{ fontSize:10, fontWeight:400 }}>未認領（註冊後自動入名單）</div></td>
+                    <td style={{ padding:'8px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).join('、') || <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).length}</td>
+                    <td colSpan={3} style={{ padding:'8px 10px', fontSize:11, color:'#B5762B' }}>認領時自動登記請假＋發補課券</td>
+                  </tr>
+                ))}
+                {!(lmSummary.rows||[]).length && !(lmSummary.pendingClaims||[]).length && (
+                  <tr><td colSpan={6} style={{ padding:20, textAlign:'center', color:'#999' }}>尚無資料</td></tr>
+                )}
+              </tbody>
+            </table>
+            </div>
+            </>)}
+          </div>
+        </div>
+      )}
       {rosterModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
           onClick={() => setRosterModal(null)}>
