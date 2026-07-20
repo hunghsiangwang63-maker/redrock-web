@@ -67,6 +67,7 @@ export default function CoursesPage({ embedded = false }) {
   ];
   const [tab, setTab] = useState('courses');
   const [rosterModal, setRosterModal] = useState(null);
+  const [calCourseFilter, setCalCourseFilter] = useState('');   // 課程月曆篩選（''＝全部課程）
   const [lmSummary, setLmSummary] = useState(null); // 請假補課總表 {loading, course, rows, pendingClaims} // { course, enrollments }
   const [editLeave, setEditLeave] = useState(null); // { memberId, value }
   const [savingLeave, setSavingLeave] = useState(false);
@@ -934,6 +935,18 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               style={{ height:34, padding:'0 12px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:12, color:'#666' }}>回到本月</button>
           </div>
 
+          {/* 課程篩選（依月曆內實際出現的課程動態列出；選定後日格與點日詳情都只顯示該課） */}
+          <div style={{ display:'flex', justifyContent:'center', marginBottom:14 }}>
+            <select value={calCourseFilter} onChange={e => setCalCourseFilter(e.target.value)}
+              style={{ height:34, minWidth:220, maxWidth:'90%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', outline:'none' }}>
+              <option value=''>全部課程</option>
+              {[...new Map(calendarSessions.filter(s => s.status !== 'cancelled' && s.courseId)
+                  .map(s => [s.courseId, s.courseName || s.courseId])).entries()]
+                .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'zh-Hant'))
+                .map(([cid, cname]) => <option key={cid} value={cid}>{cname}</option>)}
+            </select>
+          </div>
+
           {calendarLoading ? (
             <div style={{ textAlign:'center', padding:60, color:'#999', fontSize:13 }}>載入中...</div>
           ) : (() => {
@@ -944,7 +957,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             for (let i = 0; i < firstDow; i++) cells.push(null);
             for (let d = 1; d <= daysInMonth; d++) cells.push(startOfMonth.date(d).format('YYYY-MM-DD'));
 
-            const sessionsForDate = (date) => calendarSessions.filter(s => s.date === date && s.status !== 'cancelled');
+            const sessionsForDate = (date) => calendarSessions.filter(s => s.date === date && s.status !== 'cancelled' && (!calCourseFilter || s.courseId === calCourseFilter));
             const today = dayjs().format('YYYY-MM-DD');
 
             return (
