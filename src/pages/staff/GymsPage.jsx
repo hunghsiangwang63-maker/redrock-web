@@ -35,7 +35,8 @@ export default function GymsPage({ embedded = false }) {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddAnn, setShowAddAnn] = useState(false);
-  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'' });
+  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'', bannerImage:'' });
+  const [annImageFile, setAnnImageFile] = useState(null);   // 待上傳的公告圖片（儲存時上傳）
   const [affectCourses, setAffectCourses] = useState('no'); // 休館/特殊時間是否影響課程（yes→停課發券流程）
   const [affectModal, setAffectModal] = useState(null);       // {sessions, checked:Set, running}
   const [annSaving, setAnnSaving] = useState(false);
@@ -105,12 +106,22 @@ const runAffectClosure = async () => {
     setAnnSaving(true);
     try {
       const gymPathId = editingAnn ? (editingAnn.gymId || 'all') : (selected?.id || 'all');
+      let annId = editingAnn?.id || null;
       if (editingAnn) {
         await updateAnnouncement(gymPathId, editingAnn.id, annForm);
         setAnnMsg('公告已更新');
       } else {
-        await createAnnouncement(gymPathId, annForm);
+        const cr = await createAnnouncement(gymPathId, annForm);
+        annId = cr.data?.announcement?.id || null;
         setAnnMsg('公告已新增');
+      }
+      // 圖片：有選檔 → 儲存後上傳（失敗不阻斷公告本體）
+      if (annImageFile && annId) {
+        try {
+          const fd = new FormData();
+          fd.append('file', annImageFile);
+          await client.post(`/gyms/${gymPathId}/announcements/${annId}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        } catch (e) { setAnnMsg('公告已儲存，但圖片上傳失敗，請編輯重傳'); }
       }
       setShowAddAnn(false);
       setEditingAnn(null);
@@ -128,7 +139,8 @@ const runAffectClosure = async () => {
         } catch (e) { setAnnMsg('公告已儲存，但場次載入失敗——請至課程場次管理逐堂按「休館停課」'); }
       }
       setAffectCourses('no');
-      setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'' });
+      setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'', bannerImage:'' });
+      setAnnImageFile(null);
       const aRes = await getAnnouncements();
       setAnnouncements(aRes.data.announcements || []);
     } catch (e) {
@@ -138,7 +150,8 @@ const runAffectClosure = async () => {
 
   const openEditAnn = (a) => {
     setEditingAnn(a);
-    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', specialOpen:a.specialOpen||'', specialClose:a.specialClose||'', showOnBanner:!!a.showOnBanner, publishAt:tsToLocalInput(a.publishAt), publishUntil:tsToLocalInput(a.publishUntil) });
+    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', specialOpen:a.specialOpen||'', specialClose:a.specialClose||'', showOnBanner:!!a.showOnBanner, publishAt:tsToLocalInput(a.publishAt), publishUntil:tsToLocalInput(a.publishUntil), bannerImage:a.bannerImage||'' });
+    setAnnImageFile(null);
     setAnnMsg('');
     setShowAddAnn(true);
   };
@@ -438,6 +451,27 @@ const runAffectClosure = async () => {
                 onChange={e => setAnnForm(p => ({...p, publishUntil: e.target.value}))}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:4 }}>到此時間後，會員端不再顯示此公告（不影響休館生效日期）。</div>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>公告圖片（選填；建議 1200×400 橫幅，JPG/PNG）</label>
+              {(annImageFile || annForm.bannerImage) && (
+                <div style={{ marginBottom:8 }}>
+                  <img src={annImageFile ? URL.createObjectURL(annImageFile) : annForm.bannerImage} alt="公告圖片"
+                    style={{ width:'100%', maxHeight:140, objectFit:'cover', borderRadius:8, border:'0.5px solid #E8D5D5' }} />
+                </div>
+              )}
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <input type="file" accept="image/*" onChange={e => setAnnImageFile(e.target.files?.[0] || null)}
+                  style={{ fontSize:12, color:'#444' }} />
+                {(annImageFile || annForm.bannerImage) && (
+                  <button type="button" onClick={() => { setAnnImageFile(null); setAnnForm(p => ({...p, bannerImage:''})); }}
+                    style={{ height:30, padding:'0 12px', borderRadius:8, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
+                    移除圖片
+                  </button>
+                )}
+              </div>
+              <div style={{ fontSize:11, color:'#999', marginTop:4 }}>沒上傳圖片時，輪播與公告以文字顯示（原樣式）。</div>
             </div>
 
             <div style={{ display:'flex', gap:8 }}>

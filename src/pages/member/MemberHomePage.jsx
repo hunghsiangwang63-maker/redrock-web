@@ -180,7 +180,15 @@ export default function MemberHomePage() {
           }}
         >
           <div style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', height:'100%', display:'flex', alignItems:'center', padding:'0 20px', position:'relative' }}>
-            <div style={{ color:'#fff', flex:1 }}>
+            {banners[bannerIdx % bannerLen]?.bannerImage && (
+              <>
+                <img src={banners[bannerIdx % bannerLen].bannerImage} alt=""
+                  style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                {/* 文字可讀性：圖上壓左深右淺漸層 */}
+                <div style={{ position:'absolute', inset:0, background:'linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.15))' }} />
+              </>
+            )}
+            <div style={{ color:'#fff', flex:1, position:'relative', zIndex:1 }}>
               <div style={{ fontSize:10, opacity:.75, letterSpacing:.5, marginBottom:4 }}>
                 {annTypeLabel(banners[bannerIdx % bannerLen]?.type)}
               </div>
@@ -193,7 +201,7 @@ export default function MemberHomePage() {
               </div>
             </div>
             {banners.length > 1 && (
-              <div style={{ position:'absolute', bottom:10, right:14, display:'flex', gap:4 }}>
+              <div style={{ position:'absolute', bottom:10, right:14, display:'flex', gap:4, zIndex:1 }}>
                 {banners.map((_,i) => {
                   const active = i === bannerIdx % bannerLen;
                   return (
@@ -375,6 +383,9 @@ export default function MemberHomePage() {
                 <span style={{ fontSize:11, color:'#999', marginLeft:'auto' }}>{a.effectiveFrom}</span>
               </div>
               <div style={{ fontSize:13, fontWeight:500 }}>{`【${annGymLabel(a.gymId)}】${a.title}`}</div>
+              {a.bannerImage && (
+                <img src={a.bannerImage} alt="" style={{ width:'100%', maxHeight:120, objectFit:'cover', borderRadius:8, marginTop:6, display:'block' }} />
+              )}
               {a.content && <div style={{ fontSize:12, color:'#6b6b6b', marginTop:3, lineHeight:1.5 }}>{a.content}</div>}
             </div>
           ))}
