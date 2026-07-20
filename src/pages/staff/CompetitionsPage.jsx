@@ -232,6 +232,7 @@ export default function CompetitionsPage() {
   const regRemark = (r) => {
     const a = [];
     if (r.isHonorary) a.push('榮譽');
+    if (r.memberNote || r.customFieldValues?.notes) a.push('備註');
     if (r.isEarlyBird) a.push('早鳥');
     if (r.isTeamDiscount) a.push('隊員9折');
     if (r.paymentMethod==='cash' && r.status!=='cancelled') a.push('臨櫃');
@@ -524,6 +525,7 @@ export default function CompetitionsPage() {
                 {(r.formReturnReason && r.status!=='cancelled') && <div style={{ fontSize:12, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'6px 10px' }}>↩ 退回原因：{r.formReturnReason}</div>}
                 {r.paymentRejectReason && r.paymentStatus==='transfer_rejected' && <div style={{ fontSize:12, color:'#A32D2D', marginTop:6, background:'#FCEBEB', borderRadius:6, padding:'6px 10px' }}>要求重填原因：{r.paymentRejectReason}</div>}
                 {r.cancelReason && r.status==='cancelled' && <div style={{ fontSize:12, color:'#999', marginTop:6 }}>取消原因：{r.cancelReason==='payment_expired'?'逾期未繳費自動取消':r.cancelReason}</div>}
+                {(r.memberNote || r.customFieldValues?.notes) && <div style={{ fontSize:12, color:'#555', marginTop:6, background:'#F3F4F6', borderRadius:6, padding:'6px 10px' }}>💬 會員備註：{r.memberNote || r.customFieldValues?.notes}</div>}
                 {r.staffNote && <div style={{ fontSize:12, color:'#854F0B', marginTop:6, background:'#FFF8E6', borderRadius:6, padding:'6px 10px' }}>📝 員工備註：{r.staffNote}</div>}
               </div>
               {act()}

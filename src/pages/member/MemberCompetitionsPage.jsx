@@ -82,6 +82,7 @@ export default function MemberCompetitionsPage() {
   const [emergencyPhone, setEmergencyPhone] = useState('');
   const [height, setHeight] = useState('');
   const [armSpan, setArmSpan] = useState('');
+  const [memberNote, setMemberNote] = useState('');
   const [regGender, setRegGender] = useState('');
   const [regBirthday, setRegBirthday] = useState('');
   const [regPhone, setRegPhone] = useState('');
@@ -124,7 +125,7 @@ export default function MemberCompetitionsPage() {
       divisionId: r.divisionId || '', gender: r.gender || '', birthday: r.birthday || '',
       phone: r.phone || '', email: r.email || '', idNumber: r.idNumber || '',
       emergencyContact: r.emergencyContact || '', emergencyRelation: r.emergencyRelation || '', emergencyPhone: r.emergencyPhone || '',
-      height: r.height || '', armSpan: r.armSpan || '', isHonorary: !!r.isHonorary,
+      height: r.height || '', armSpan: r.armSpan || '', isHonorary: !!r.isHonorary, memberNote: r.memberNote || '',
     });
     setEditErr('');
   };
@@ -283,6 +284,7 @@ export default function MemberCompetitionsPage() {
     const hasSep = !!(r?.emergencyRelation || r?.emergencyPhone);
     if (hasSep) {
       setEmergencyContact(r?.emergencyContact || '');
+      setMemberNote('');
       setEmergencyRelation(r?.emergencyRelation || '');
       setEmergencyPhone(r?.emergencyPhone || '');
     } else {
@@ -337,6 +339,7 @@ export default function MemberCompetitionsPage() {
         emergencyPhone,
         height: height ? Number(height) : null,
         armSpan: armSpan ? Number(armSpan) : null,
+        memberNote: memberNote.trim() || null,
         paymentMethod,
         paymentDate: (paymentMethod === 'transfer' || paymentMethod === 'cash') ? paymentDate : null,
         bankLastFive: paymentMethod === 'transfer' ? bankLastFive : null,
@@ -490,6 +493,7 @@ export default function MemberCompetitionsPage() {
                       </div>
                       <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>
                         組別：{r.divisionName} {r.isHonorary && '（榮譽參賽）'}
+                        {r.memberNote && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>備註：{r.memberNote}</div>}
                         {r.status==='waitlist' && <span style={{ color:'#854F0B', marginLeft:6 }}>候補第 {r.waitlistPosition} 位</span>}
                       </div>
                       <div style={{ fontSize:12, marginBottom:6 }}>
@@ -752,6 +756,11 @@ export default function MemberCompetitionsPage() {
                     <input type="number" value={armSpan} onChange={e=>setArmSpan(e.target.value)} placeholder="例：175"
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
+                </div>
+                <div style={{ marginTop:12 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填，如特殊需求／飲食／身體狀況等）</label>
+                  <textarea value={memberNote} onChange={e=>setMemberNote(e.target.value)} rows={2} placeholder="有需要告知館方的事項可填寫於此"
+                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a', resize:'vertical' }}/>
                 </div>
               </>)}
 
@@ -1108,6 +1117,7 @@ export default function MemberCompetitionsPage() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <div><label style={lbl}>身高(cm)</label><input value={editForm.height} onChange={e=>set('height', e.target.value)} style={inp}/></div>
                 <div><label style={lbl}>臂展(cm)</label><input value={editForm.armSpan} onChange={e=>set('armSpan', e.target.value)} style={inp}/></div>
+                <div style={{ gridColumn:'1/-1' }}><label style={lbl}>備註</label><textarea value={editForm.memberNote||''} onChange={e=>set('memberNote', e.target.value)} rows={2} style={{ ...inp, height:'auto', padding:'8px 10px', resize:'vertical' }}/></div>
               </div>
               <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444' }}>
                 <input type="checkbox" checked={editForm.isHonorary} onChange={e=>set('isHonorary', e.target.checked)}/> 榮譽參賽（不列入排名）
