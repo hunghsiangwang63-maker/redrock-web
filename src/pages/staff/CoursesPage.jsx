@@ -740,10 +740,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
   const courseStatus = (c) => STATUS_LABEL_MAP[c.statusLabel] || { type:'blue', label:'計畫中' };
 
   const COURSE_TABS = [
-    { key:'courses',    icon:'📚', label:'課程列表' },
-    { key:'calendar',   icon:'📅', label:'月曆' },
-    { key:'sessions',   icon:'🕐', label:'場次管理' },
     { key:'categories', icon:'🏷️', label:'班別管理' },
+    { key:'courses',    icon:'📚', label:'課程列表' },
+    { key:'sessions',   icon:'🕐', label:'場次管理' },
+    { key:'calendar',   icon:'📅', label:'月曆' },
   ];
 
   return (
