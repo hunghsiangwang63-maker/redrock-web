@@ -765,11 +765,6 @@ export default function MemberCompetitionsPage() {
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 </div>
-                <div style={{ marginTop:12 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
-                  <textarea value={memberNote} onChange={e=>setMemberNote(e.target.value)} rows={2} placeholder="有需要告知館方的事項可填寫於此"
-                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a', resize:'vertical' }}/>
-                </div>
                 {Number(selectedComp?.fees?.partnerGymDiscount) > 0 && Number(selectedComp?.fees?.partnerGymDiscount) < 1 && partnerGymList.length > 0 && (
                   <div style={{ marginTop:12 }}>
                     <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>友館會員優惠（{Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10} 折，選填）</label>
@@ -781,6 +776,11 @@ export default function MemberCompetitionsPage() {
                     <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>選擇後享折扣，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回原價。與隊員折扣擇優、不疊加。</div>
                   </div>
                 )}
+                <div style={{ marginTop:12 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
+                  <textarea value={memberNote} onChange={e=>setMemberNote(e.target.value)} rows={2} placeholder="有需要告知館方的事項可填寫於此"
+                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a', resize:'vertical' }}/>
+                </div>
               </>)}
 
               {/* Step 2: 付款資訊 */}
