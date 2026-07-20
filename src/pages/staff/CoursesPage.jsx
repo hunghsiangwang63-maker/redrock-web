@@ -935,15 +935,19 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               style={{ height:34, padding:'0 12px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:12, color:'#666' }}>回到本月</button>
           </div>
 
-          {/* 課程篩選（依月曆內實際出現的課程動態列出；選定後日格與點日詳情都只顯示該課） */}
+          {/* 課程篩選：依「課程（班別）」而非梯次——選定後顯示該班別所有梯次的場次 */}
           <div style={{ display:'flex', justifyContent:'center', marginBottom:14 }}>
             <select value={calCourseFilter} onChange={e => setCalCourseFilter(e.target.value)}
               style={{ height:34, minWidth:220, maxWidth:'90%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', outline:'none' }}>
               <option value=''>全部課程</option>
-              {[...new Map(calendarSessions.filter(s => s.status !== 'cancelled' && s.courseId)
-                  .map(s => [s.courseId, s.courseName || s.courseId])).entries()]
-                .sort((a, b) => String(a[1]).localeCompare(String(b[1]), 'zh-Hant'))
-                .map(([cid, cname]) => <option key={cid} value={cid}>{cname}</option>)}
+              {(() => {
+                const catByCourse = {};
+                courses.forEach(c => { catByCourse[c.id] = c.categoryName || '其他'; });
+                const cats = [...new Set(calendarSessions.filter(s => s.status !== 'cancelled' && s.courseId)
+                  .map(s => catByCourse[s.courseId] || '其他'))];
+                return cats.sort((a, b) => a === '其他' ? 1 : b === '其他' ? -1 : a.localeCompare(b, 'zh-Hant'))
+                  .map(cat => <option key={cat} value={cat}>{cat}</option>);
+              })()}
             </select>
           </div>
 
@@ -957,7 +961,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             for (let i = 0; i < firstDow; i++) cells.push(null);
             for (let d = 1; d <= daysInMonth; d++) cells.push(startOfMonth.date(d).format('YYYY-MM-DD'));
 
-            const sessionsForDate = (date) => calendarSessions.filter(s => s.date === date && s.status !== 'cancelled' && (!calCourseFilter || s.courseId === calCourseFilter));
+            const _catByCourse = {};
+            courses.forEach(c => { _catByCourse[c.id] = c.categoryName || '其他'; });
+            const sessionsForDate = (date) => calendarSessions.filter(s => s.date === date && s.status !== 'cancelled'
+              && (!calCourseFilter || (_catByCourse[s.courseId] || '其他') === calCourseFilter));
             const today = dayjs().format('YYYY-MM-DD');
 
             return (
