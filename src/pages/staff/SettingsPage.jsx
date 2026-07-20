@@ -29,6 +29,7 @@ const TAB_GROUPS = [
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
       { key: 'discountCardValidity', icon: '🎟️', label: '優惠卡期限', superAdminOnly: true },
       { key: 'partnerVendor',icon: '🤝', label: '特約廠商優惠', superAdminOnly: true },
+      { key: 'partnerGyms',  icon: '🧗', label: '友館折扣清單', superAdminOnly: true },
       { key: 'paymentMethods',icon: '💳', label: '付款方式', superAdminOnly: true },
     ],
   },
@@ -146,6 +147,7 @@ export default function SettingsPage() {
     if (activeTab === 'bonus' && isSuperAdmin) loadBonus();
     if (activeTab === 'discountCardValidity' && isSuperAdmin) loadDcv();
     if (activeTab === 'partnerVendor' && isSuperAdmin) loadPartnerVendor();
+    if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
   }, [activeTab]);
 
@@ -404,6 +406,21 @@ export default function SettingsPage() {
   // ─── 特約廠商入場優惠（啟用 + 折扣金額）──────────────────────────
   const [partnerVendor, setPartnerVendor] = useState({ enabled: true, discount: 20 });
   const [partnerVendorDirty, setPartnerVendorDirty] = useState(false);
+  const [partnerGyms, setPartnerGyms] = useState([]);   // [{id?,name}]
+  const [partnerGymsDirty, setPartnerGymsDirty] = useState(false);
+  const loadPartnerGyms = async () => {
+    try { const res = await client.get('/settings/partner-gyms'); setPartnerGyms(res.data.gyms || []); setPartnerGymsDirty(false); } catch (e) {}
+  };
+  const handleSavePartnerGyms = async () => {
+    setLoading(true);
+    try {
+      const clean = partnerGyms.map(g => ({ id: g.id, name: (g.name || '').trim() })).filter(g => g.name);
+      const res = await client.put('/settings/partner-gyms', { gyms: clean });
+      setPartnerGyms(res.data.gyms || []); setPartnerGymsDirty(false);
+      showMsg('友館清單已儲存');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
   const loadPartnerVendor = async () => {
     try { const res = await client.get('/settings/partner-vendor'); setPartnerVendor({ enabled: res.data.enabled !== false, discount: res.data.discount ?? 20 }); setPartnerVendorDirty(false); } catch (e) {}
   };
@@ -831,6 +848,33 @@ export default function SettingsPage() {
                 style={{ ...s.input, width:'100%' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 0～1000 元，預設 20 元。停用或金額 0 時，會員端不顯示特約選項。</div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'partnerGyms' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🧗 友館折扣清單</span>
+            <SaveButton onSave={handleSavePartnerGyms} isDirty={partnerGymsDirty} label='儲存友館清單' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16, textAlign:'left' }}>
+              管理與紅石有互惠優惠的友館（如心流、爬森）。名單維護於此，各<strong>比賽／講座</strong>可在其設定中開啟折扣並填折扣率。
+              會員報名時可選擇所屬友館先享折扣，<strong>櫃檯依友館提供名單人工核對</strong>後確認；折扣與隊員 9 折<strong>擇優不疊加</strong>。
+            </div>
+            {partnerGyms.map((g, i) => (
+              <div key={i} style={{ display:'flex', gap:8, alignItems:'center', marginBottom:10 }}>
+                <input value={g.name} placeholder="友館名稱（如 心流攀岩館）"
+                  onChange={e => { const v=[...partnerGyms]; v[i]={ ...v[i], name:e.target.value }; setPartnerGyms(v); setPartnerGymsDirty(true); }}
+                  style={{ ...s.input, flex:1 }} />
+                <button onClick={() => { setPartnerGyms(partnerGyms.filter((_,j)=>j!==i)); setPartnerGymsDirty(true); }}
+                  style={{ height:38, padding:'0 12px', borderRadius:8, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>移除</button>
+              </div>
+            ))}
+            {partnerGyms.length === 0 && <div style={{ fontSize:13, color:'#999', padding:'8px 0' }}>尚無友館，點下方新增。</div>}
+            <button onClick={() => { setPartnerGyms([...partnerGyms, { name:'' }]); setPartnerGymsDirty(true); }}
+              style={{ marginTop:6, height:38, padding:'0 16px', borderRadius:8, border:'0.5px dashed #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>＋ 新增友館</button>
           </div>
         </div>
       )}

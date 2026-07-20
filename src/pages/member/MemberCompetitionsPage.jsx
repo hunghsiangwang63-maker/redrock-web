@@ -83,6 +83,8 @@ export default function MemberCompetitionsPage() {
   const [height, setHeight] = useState('');
   const [armSpan, setArmSpan] = useState('');
   const [memberNote, setMemberNote] = useState('');
+  const [partnerGymId, setPartnerGymId] = useState('');
+  const [partnerGymList, setPartnerGymList] = useState([]);
   const [regGender, setRegGender] = useState('');
   const [regBirthday, setRegBirthday] = useState('');
   const [regPhone, setRegPhone] = useState('');
@@ -221,7 +223,10 @@ export default function MemberCompetitionsPage() {
     let fee = isChild
       ? (isEarlyBird ? fees.childEarlyBird : fees.childRegular) ?? 950
       : (isEarlyBird ? fees.adultEarlyBird : fees.adultRegular) ?? 1100;
-    return { fee, isEarlyBird, isChild };
+    let partnerApplied = false;
+    const pRate = Number(fees.partnerGymDiscount);
+    if (partnerGymId && pRate > 0 && pRate < 1) { fee = Math.round(fee * pRate); partnerApplied = true; }
+    return { fee, isEarlyBird, isChild, partnerApplied };
   };
 
   const feeInfo = calcFee(selectedComp);
@@ -231,6 +236,7 @@ export default function MemberCompetitionsPage() {
     try {
       const compRes = await getMemberCompetitions().catch(() => ({ data: { competitions: [] } }));
       setCompetitions(compRes.data.competitions || []);
+      memberClient.get('/settings/partner-gyms').then(r => setPartnerGymList(r.data.gyms || [])).catch(() => {});
       if (member?.id) {
         // 本人＋子女的報名一併載入（子女標 👦 名字）
         let kids = [];
@@ -285,6 +291,7 @@ export default function MemberCompetitionsPage() {
     if (hasSep) {
       setEmergencyContact(r?.emergencyContact || '');
       setMemberNote('');
+      setPartnerGymId('');
       setEmergencyRelation(r?.emergencyRelation || '');
       setEmergencyPhone(r?.emergencyPhone || '');
     } else {
@@ -340,6 +347,7 @@ export default function MemberCompetitionsPage() {
         height: height ? Number(height) : null,
         armSpan: armSpan ? Number(armSpan) : null,
         memberNote: memberNote.trim() || null,
+        partnerGymId: partnerGymId || null,
         paymentMethod,
         paymentDate: (paymentMethod === 'transfer' || paymentMethod === 'cash') ? paymentDate : null,
         bankLastFive: paymentMethod === 'transfer' ? bankLastFive : null,
@@ -647,7 +655,7 @@ export default function MemberCompetitionsPage() {
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:14 }}>
                   <div style={{ fontSize:12, color:'#666' }}>姓名：{member?.name}　生日：{member?.birthday}</div>
                   {feeInfo && <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:600, marginTop:4 }}>
-                    {feeInfo.isEarlyBird ? '🐦 早鳥優惠　' : ''}報名費：NT${feeInfo.fee}
+                    {feeInfo.isEarlyBird ? '🐦 早鳥優惠　' : ''}{feeInfo.partnerApplied ? '🧗 友館折扣　' : ''}報名費：NT${feeInfo.fee}
                   </div>}
                 </div>
                 {/* 為誰報名 */}
@@ -762,6 +770,17 @@ export default function MemberCompetitionsPage() {
                   <textarea value={memberNote} onChange={e=>setMemberNote(e.target.value)} rows={2} placeholder="有需要告知館方的事項可填寫於此"
                     style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a', resize:'vertical' }}/>
                 </div>
+                {Number(selectedComp?.fees?.partnerGymDiscount) > 0 && Number(selectedComp?.fees?.partnerGymDiscount) < 1 && partnerGymList.length > 0 && (
+                  <div style={{ marginTop:12 }}>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>友館會員優惠（{Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10} 折，選填）</label>
+                    <select value={partnerGymId} onChange={e=>setPartnerGymId(e.target.value)}
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}>
+                      <option value=''>不使用（非友館會員）</option>
+                      {partnerGymList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                    <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>選擇後享折扣，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回原價。與隊員折扣擇優、不疊加。</div>
+                  </div>
+                )}
               </>)}
 
               {/* Step 2: 付款資訊 */}

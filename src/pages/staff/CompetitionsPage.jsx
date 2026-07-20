@@ -4,6 +4,7 @@ import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
+import { verifyCompetitionPartnerGym } from '../../api/competitions';
 import SegmentedTabs from '../../components/SegmentedTabs';
 
 const Tag = ({ type='ok', children }) => {
@@ -233,6 +234,7 @@ export default function CompetitionsPage() {
     const a = [];
     if (r.isHonorary) a.push('榮譽');
     if (r.memberNote || r.customFieldValues?.notes) a.push('備註');
+    if (r.isPartnerGymDiscount) a.push(r.partnerGymPending ? '友館待核' : '友館');
     if (r.isEarlyBird) a.push('早鳥');
     if (r.isTeamDiscount) a.push('隊員9折');
     if (r.paymentMethod==='cash' && r.status!=='cancelled') a.push('臨櫃');
@@ -350,6 +352,7 @@ export default function CompetitionsPage() {
                 { k:'childEarlyBird', label:'兒童早鳥' },
                 { k:'childRegular', label:'兒童一般' },
                 { k:'childAgeLimit', label:'兒童年齡上限（歲）' },
+                { k:'partnerGymDiscount', label:'友館折扣（如0.95，空=不開放）' },
               ].map(({k,label})=>(
                 <div key={k}>
                   <label style={lbl}>{label}</label>
@@ -496,6 +499,10 @@ export default function CompetitionsPage() {
             else btns.push(B('退回修改','#854F0B',()=>{ setRegDetail(null); setFormAction({type:'return',reg:r}); setFormReason(''); },'ret'));
           }
           btns.push(B('駁回報名','#A32D2D',()=>{ setRegDetail(null); setFormAction({type:'reject',reg:r}); setFormReason(''); },'rej'));
+          if (r.isPartnerGymDiscount && r.partnerGymPending) {
+            btns.push(B('核准友館折扣','#2D7D46',async()=>{ try { await verifyCompetitionPartnerGym(r.id, true); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'vpg'));
+            btns.push(B('取消友館折扣','#854F0B',async()=>{ if(!window.confirm('確定取消此友館折扣、費用改回原價？')) return; try { await verifyCompetitionPartnerGym(r.id, false); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'rpg'));
+          }
           return <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:14 }}>{btns}</div>;
         };
         return (
@@ -510,7 +517,8 @@ export default function CompetitionsPage() {
               </div>
               <div style={{ borderTop:'0.5px solid #F0E4E4', paddingTop:8 }}>
                 {Row('報名日期', sec?dayjs(sec*1000).format('YYYY-MM-DD HH:mm'):'—')}
-                {Row('費用', `NT$${r.registrationFee}${r.isEarlyBird?'（早鳥）':''}${r.isTeamDiscount?'（隊員9折）':''}`)}
+                {Row('費用', `NT$${r.registrationFee}${r.isEarlyBird?'（早鳥）':''}${r.isTeamDiscount?'（隊員9折）':''}${r.isPartnerGymDiscount?'（友館折扣）':''}`)}
+                {r.isPartnerGymDiscount && Row('友館', `${r.partnerGym||'友館'}${r.partnerGymPending?'（⏳ 待核對）':'（✓ 已核對）'}`)}
                 {Row('付款方式', r.paymentMethod==='cash'?'臨櫃現金':r.paymentMethod==='transfer'?'銀行轉帳':(r.paymentMethod||'—'))}
                 {(r.paymentMethod==='transfer' || r.bankLastFive) && Row('匯款末五碼', r.bankLastFive)}
                 {(r.paymentMethod==='transfer' || r.bankName) && Row('匯款銀行', r.bankName)}
