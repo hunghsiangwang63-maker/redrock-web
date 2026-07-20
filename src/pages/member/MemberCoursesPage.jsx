@@ -465,7 +465,8 @@ export default function MemberCoursesPage() {
         // 補課額度未存 categoryId（舊資料）時不以類別過濾，交由後端核銷時驗證
         (!makeup.categoryId || c.categoryId === makeup.categoryId) &&
         c.id !== makeup.courseId &&  // 排除自己請假的課程
-        (c.gymId === makeup.gymId || !c.gymId || !makeup.gymId)
+        (c.gymId === makeup.gymId || !c.gymId || !makeup.gymId) &&
+        c.makeupTargetOpen !== false  // 該梯次未開放作為補課場次（如密集班/常態報名未達2人）→ 不列入
       );
       const today = dayjs().format('YYYY-MM-DD');
       // 查「今天～未來180天」全部場次再按課程過濾（不用課程起訖日當範圍——

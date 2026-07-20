@@ -124,7 +124,7 @@ export default function CoursesPage({ embedded = false }) {
     gymAccessDays: 1, midpointSurcharge: 1.05,
     // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
     leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
-    allowTrial: '', trialPrice: '', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
+    allowTrial: '', trialPrice: '', trialTarget: 'auto', makeupTarget: 'auto', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
     unlimitedPracticeStart: '', unlimitedPracticeEnd: '',
     installment: { enabled: false, periods: [] },
   };
@@ -367,6 +367,7 @@ export default function CoursesPage({ embedded = false }) {
       if (courseForm.allowMakeup !== '') ov.allowMakeup = courseForm.allowMakeup === true || courseForm.allowMakeup === 'true';
       if (num(courseForm.makeupDeadlineDays) !== undefined) ov.makeupDeadlineDays = num(courseForm.makeupDeadlineDays);
       if (courseForm.allowTrial !== '') ov.allowTrial = courseForm.allowTrial === true || courseForm.allowTrial === 'true';
+      ov.trialTarget = courseForm.trialTarget || 'auto'; ov.makeupTarget = courseForm.makeupTarget || 'auto';
       if (num(courseForm.trialPrice) !== undefined) ov.trialPrice = num(courseForm.trialPrice);
       if (num(courseForm.perSessionDeduction) !== undefined) ov.perSessionDeduction = num(courseForm.perSessionDeduction);
       if (num(courseForm.handlingFeeRate) !== undefined) ov.handlingFeeRate = num(courseForm.handlingFeeRate) / 100;
@@ -441,7 +442,7 @@ export default function CoursesPage({ embedded = false }) {
       fullTermRenewalDiscount: course.fullTermRenewalDiscount ?? '', alumniDiscount: course.alumniDiscount ?? '', renewalDeadline: course.renewalDeadline || '',
       preStartFeeRate: course.preStartFeeRate != null ? Math.round(course.preStartFeeRate * 100) : '',
       allowMakeup: course.allowMakeup ?? '',
-      allowTrial: course.allowTrial ?? '',
+      allowTrial: course.allowTrial ?? '', trialTarget: course.trialTarget || 'auto', makeupTarget: course.makeupTarget || 'auto',
       trialPrice: course.trialPrice ?? '',
       midpointSurcharge: course.midpointSurcharge || 1.05,
       type: course.type || 'weekly',
@@ -488,6 +489,7 @@ export default function CoursesPage({ embedded = false }) {
         preStartFeeRate: editForm.preStartFeeRate === '' ? null : (parseFloat(editForm.preStartFeeRate) || 0) / 100,
         allowMakeup: ovBool(editForm.allowMakeup),
         allowTrial: ovBool(editForm.allowTrial),
+        trialTarget: editForm.trialTarget || 'auto', makeupTarget: editForm.makeupTarget || 'auto',
         trialPrice: ovNum(editForm.trialPrice),
       });
       showMsg(needRegen ? '課程已更新，正在依新課表重排場次…' : '課程已更新');
@@ -1785,6 +1787,17 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <option value="false">關閉</option>
                     </select>
                   </div>
+                  {['trialTarget','makeupTarget'].map(k => (
+                    <div key={k}>
+                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{k==='trialTarget'?'可作為試上場次':'可作為補課場次'}</label>
+                      <select value={courseForm[k] || 'auto'} onChange={e => setCourseForm({...courseForm, [k]: e.target.value})}
+                        style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}>
+                        <option value="auto">自動（達 2 人開放）</option>
+                        <option value="on">強制開放</option>
+                        <option value="off">不開放</option>
+                      </select>
+                    </div>
+                  ))}
                 </div>
               );
             })()}
@@ -2035,6 +2048,17 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
               </div>
             )}
+            {(editForm.type || editingCourse?.type) === 'weekly' && (['trialTarget','makeupTarget'].map(k => (
+              <div key={k}>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{k==='trialTarget'?'可作為試上場次':'可作為補課場次'}</label>
+                <select value={editForm[k] || 'auto'} onChange={e => setEditForm({...editForm, [k]: e.target.value})}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                  <option value="auto">自動（常態報名達 2 人開放）</option>
+                  <option value="on">強制開放</option>
+                  <option value="off">不開放</option>
+                </select>
+              </div>
+            )))}
             <div style={{ gridColumn:'1/-1' }}>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期（可複選）</label>
               <div style={{ display:'flex', gap:8 }}>
