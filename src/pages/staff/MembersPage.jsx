@@ -723,7 +723,8 @@ export default function MembersPage() {
 
       {/* 右側：詳情 */}
       <div style={isMobile && selected ? {
-        position:'fixed', inset:0, background:'#fff', zIndex:100, overflowY:'auto', padding:16
+        position:'fixed', inset:0, background:'#fff', zIndex:100, overflowY:'auto', WebkitOverflowScrolling:'touch',
+        padding:'16px 16px calc(96px + env(safe-area-inset-bottom))'   // 底部留白避開固定導覽列、確保最後一顆鈕可捲到
       } : {
         background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16, alignSelf:'start', position:'sticky', top:20
       }}>
