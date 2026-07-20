@@ -401,9 +401,9 @@ export default function MemberExperiencePage() {
                       <input value={p.idNumber} onChange={e=>updateParticipant(i,'idNumber',e.target.value)} placeholder="A123456789" style={{ ...inp, background:'#fff', fontFamily:'monospace', letterSpacing:1 }}/>
                     </div>
                     <div>
-                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>生日（民國）*</label>
-                      <input value={p.birthday} onChange={e=>updateParticipant(i,'birthday',e.target.value)} placeholder="920110" maxLength={7}
-                        style={{ ...inp, background:'#fff', fontFamily:'monospace', letterSpacing:1 }}/>
+                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>生日（西元）*</label>
+                      <input type="date" value={p.birthday} onChange={e=>updateParticipant(i,'birthday',e.target.value)} max={new Date().toISOString().slice(0,10)}
+                        style={{ ...inp, background:'#fff' }}/>
                     </div>
                     <div>
                       <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>國籍</label>

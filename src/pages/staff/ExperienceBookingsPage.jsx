@@ -617,7 +617,7 @@ export default function ExperienceBookingsPage() {
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                   <div style={{ gridColumn:'1/-1' }}><label style={{ fontSize:11, color:'#666' }}>姓名 *</label><input value={p.name||''} onChange={e=>updPart(i,'name',e.target.value)} style={tinp}/></div>
                   <div style={{ gridColumn:'1/-1' }}><label style={{ fontSize:11, color:'#666' }}>身分證/居留證號</label><input value={p.idNumber||''} onChange={e=>updPart(i,'idNumber',e.target.value)} style={{ ...tinp, fontFamily:'monospace' }}/></div>
-                  <div><label style={{ fontSize:11, color:'#666' }}>生日（民國）</label><input value={p.birthday||''} onChange={e=>updPart(i,'birthday',e.target.value)} placeholder="920110" maxLength={7} style={{ ...tinp, fontFamily:'monospace' }}/></div>
+                  <div><label style={{ fontSize:11, color:'#666' }}>生日（西元或民國皆可）</label><input value={p.birthday||''} onChange={e=>updPart(i,'birthday',e.target.value)} placeholder="2003-01-10 或 920110" maxLength={10} style={{ ...tinp, fontFamily:'monospace' }}/></div>
                   <div><label style={{ fontSize:11, color:'#666' }}>國籍</label><input value={p.nationality||''} onChange={e=>updPart(i,'nationality',e.target.value)} style={tinp}/></div>
                 </div>
               </div>
