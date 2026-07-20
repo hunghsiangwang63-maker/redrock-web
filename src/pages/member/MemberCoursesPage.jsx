@@ -162,9 +162,56 @@ export default function MemberCoursesPage() {
 
   const gymId = member?.defaultGymId || 'gym-hsinchu';
   const [browseGymId, setBrowseGymId] = useState(''); // '' = 全部館別
+  // ── 試上（課程總覽 → 試上分頁；階層 館別→班別→梯次→場次；只列報名日 2 週內開放試上場次）──
+  const [trialSessions, setTrialSessions] = useState([]);
+  const [trialGymId, setTrialGymId] = useState('');
+  const [trialCategory, setTrialCategory] = useState(null);   // 選定班別 categoryName
+  const [trialCourseId, setTrialCourseId] = useState(null);   // 選定梯次 courseId
+  const [trialModal, setTrialModal] = useState(null);         // 選中的可試上場次
+  const [trialConsent, setTrialConsent] = useState(false);
+  const [trialFor, setTrialFor] = useState('self');
+  const [trialPay, setTrialPay] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
+  const [trialSubmitting, setTrialSubmitting] = useState(false);
+  const [trialBankInfo, setTrialBankInfo] = useState(null);   // /experience-bookings/settings bankInfo
 
   const [errorModal, setErrorModal] = useState(null); // 通知彈窗（成功/錯誤一律彈窗）
   const showMsg = (text, type='ok') => setErrorModal({ message: text, type });
+
+  // 試上報名對象（本人/子女）＋送出
+  const trialTarget = trialFor === 'self' ? member : familyMembers.find(c => c.id === trialFor);
+  const trialTargetUnder5 = (() => { const b = trialTarget?.birthday; if (!b) return false; return dayjs().diff(dayjs(b), 'year') < 5; })();
+  const submitTrial = async () => {
+    if (trialTargetUnder5) { showMsg('未滿 5 歲無法報名課程／試上', 'red'); return; }
+    if (!trialConsent) { showMsg('請先勾選同意免責同意書', 'red'); return; }
+    if (trialPay.method === 'transfer' && (!trialPay.paymentDate || !trialPay.bankLastFive)) { showMsg('請填寫匯款日期與末五碼', 'red'); return; }
+    setTrialSubmitting(true);
+    try {
+      const res = await memberClient.post('/experience-bookings', {
+        memberId: member.id, trialSessionId: trialModal.id, consentSigned: true,
+        ...(trialFor !== 'self' ? { childMemberId: trialFor } : {}),
+        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, paidAmount: trialPay.paidAmount || null,
+      });
+      const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
+      if (trialPay.method === 'transfer' && bookingId) {
+        try {
+          const fd = new FormData();
+          fd.append('type', 'experience'); fd.append('referenceId', bookingId);
+          fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive || '');
+          fd.append('paymentDate', trialPay.paymentDate || ''); fd.append('bankName', trialPay.bankName || '');
+          if (trialPay.paidAmount) fd.append('paidAmount', trialPay.paidAmount);
+          await memberClient.post('/transfers', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+        } catch (e) { /* 不阻斷 */ }
+      }
+      setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
+      memberClient.get('/courses/trial-sessions').then(r => setTrialSessions(r.data.sessions || [])).catch(() => {});
+      if (res.data.isWaitlist) showMsg('此場次已額滿，已為您排入候補；名額釋出將依序轉正', 'orange');
+      else {
+        const dl = res.data.paymentDeadline ? dayjs(res.data.paymentDeadline).format('MM/DD HH:mm') : '';
+        showMsg(`試上名額已保留！請於${dl ? ` ${dl} 前` : '期限內'}完成付款（可至體驗課程「我的預約」查看），逾期名額將釋出`);
+      }
+    } catch (e) { showMsg(e.response?.data?.message || '送出失敗', 'red'); }
+    finally { setTrialSubmitting(false); }
+  };
 
   // 報名對象（本人或子會員）；未成年判定以「報名對象」為準，非登入者
   // → 家長代未成年子女報名時，也會自動出現法定代理人簽名欄位
@@ -180,6 +227,10 @@ export default function MemberCoursesPage() {
   }, [selectedCourse]);
   useEffect(() => {
     if (tab === 'calendar') loadCalendarSessions();
+    if (tab === 'trial') {
+      memberClient.get('/courses/trial-sessions').then(r => setTrialSessions(r.data.sessions || [])).catch(() => setTrialSessions([]));
+      if (!trialBankInfo) memberClient.get('/experience-bookings/settings').then(r => setTrialBankInfo(r.data.settings?.bankInfo || {})).catch(() => setTrialBankInfo({}));
+    }
   }, [tab, calendarMonth]);
 
   const loadCalendarSessions = async () => {
@@ -849,7 +900,7 @@ export default function MemberCoursesPage() {
 
       {/* Tabs */}
       <div style={{ display:'flex', margin:'12px 16px 0', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>
-        {[{key:'browse',label:'課程總覽'},{key:'my',label:`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount} 門進行中)` : ''}`},{key:'calendar',label:'月曆'}].map(t => (
+        {[{key:'browse',label:'總覽'},{key:'trial',label:'試上'},{key:'my',label:`我的${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`},{key:'calendar',label:'月曆'}].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ flex:1, height:32, borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
             {t.label}
@@ -1174,6 +1225,140 @@ export default function MemberCoursesPage() {
       )}
 
       {/* ── 月曆 ── */}
+      {tab === 'trial' && (() => {
+        const inp = { width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' };
+        // 只列有名額（含候補未滿）的場次
+        const openSessions = trialSessions.filter(sx => !sx.isFull && (sx.remaining == null || sx.remaining > 0));
+        const list = trialGymId ? openSessions.filter(sx => sx.gymId === trialGymId) : openSessions;
+        return (
+          <div>
+            <div style={{ fontSize:12, color:'#8A5A00', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:10, padding:'10px 12px', margin:'0 0 12px', lineHeight:1.7, textAlign:'left' }}>
+              🧗 試上為單堂體驗、另收試上費、<strong>免保險</strong>；僅開放<strong>報名日 2 週內</strong>的場次，額滿不顯示。
+            </div>
+            {/* 第一層：館別 + 班別 */}
+            {!trialCategory && !trialCourseId && (<>
+              <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+                {[{id:'',label:'全部館別'},{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g => (
+                  <button key={g.id} onClick={() => setTrialGymId(g.id)}
+                    style={{ flex:1, height:32, borderRadius:8, border:'0.5px solid #E8D5D5', background: trialGymId===g.id?'#8B1A1A':'#fff', color: trialGymId===g.id?'#fff':'#666', fontSize:12, cursor:'pointer' }}>{g.label}</button>
+                ))}
+              </div>
+              {(() => {
+                const cats = {};
+                list.forEach(sx => { const k = sx.categoryName || '其他'; (cats[k] = cats[k] || []).push(sx); });
+                const names = Object.keys(cats).sort((a,b)=> a==='其他'?1:b==='其他'?-1:a.localeCompare(b,'zh-Hant'));
+                if (names.length === 0) return <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有開放試上的課程</div>;
+                return names.map(cn => {
+                  const gyms = [...new Set(cats[cn].map(x=>x.gymId))];
+                  const nCohorts = new Set(cats[cn].map(x=>x.courseId)).size;
+                  return (
+                    <div key={cn} onClick={() => setTrialCategory(cn)}
+                      style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:600 }}>{gyms.length===1?gymPrefix(gyms[0]):''}{cn}</div>
+                        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{nCohorts} 個梯次開放試上</div>
+                      </div>
+                      <span style={{ color:'#8B1A1A', fontSize:13 }}>›</span>
+                    </div>
+                  );
+                });
+              })()}
+            </>)}
+            {/* 第二層：梯次 */}
+            {trialCategory && !trialCourseId && (() => {
+              const cohorts = {};
+              list.filter(sx => (sx.categoryName||'其他')===trialCategory).forEach(sx => { (cohorts[sx.courseId] = cohorts[sx.courseId] || { name: sx.courseName, gymId: sx.gymId, sessions: [] }).sessions.push(sx); });
+              const ids = Object.keys(cohorts);
+              return (<>
+                <button onClick={() => setTrialCategory(null)} style={{ background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer', marginBottom:10 }}>← 返回班別</button>
+                <div style={{ fontSize:16, fontWeight:700, marginBottom:12 }}>{trialCategory}</div>
+                {ids.map(cid => {
+                  const c = cohorts[cid];
+                  return (
+                    <div key={cid} onClick={() => setTrialCourseId(cid)}
+                      style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:600 }}>{gymPrefix(c.gymId)}{c.name}</div>
+                        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{c.sessions.length} 個可試上場次 · 試上費 NT${(c.sessions[0]?.trialPrice||0).toLocaleString()}</div>
+                      </div>
+                      <span style={{ color:'#8B1A1A', fontSize:13 }}>›</span>
+                    </div>
+                  );
+                })}
+              </>);
+            })()}
+            {/* 第三層：場次 */}
+            {trialCourseId && (() => {
+              const sess = list.filter(sx => sx.courseId === trialCourseId).sort((a,b)=> (a.date+a.startTime).localeCompare(b.date+b.startTime));
+              const cname = sess[0]?.courseName || '';
+              return (<>
+                <button onClick={() => setTrialCourseId(null)} style={{ background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer', marginBottom:10 }}>← 返回梯次</button>
+                <div style={{ fontSize:16, fontWeight:700, marginBottom:12 }}>{sess[0]?gymPrefix(sess[0].gymId):''}{cname}</div>
+                {sess.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>此梯次目前無可試上場次</div>}
+                {sess.map(sx => (
+                  <div key={sx.id} style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:600 }}>{dayjs(sx.date).format('MM/DD')}（{WEEKDAYS[dayjs(sx.date).day()]}）{sx.startTime}～{sx.endTime}</div>
+                      <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{sx.instructor?`教練 ${sx.instructor} · `:''}試上費 NT${(sx.trialPrice||0).toLocaleString()}{sx.isFull?' · 額滿可候補':` · 剩 ${sx.remaining}`}</div>
+                    </div>
+                    <button onClick={() => { setTrialModal(sx); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' }); }}
+                      style={{ height:38, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', flexShrink:0 }}>試上</button>
+                  </div>
+                ))}
+              </>);
+            })()}
+          </div>
+        );
+      })()}
+
+      {/* 試上報名 Modal */}
+      {trialModal && (() => {
+        const inp = { width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' };
+        const bankKey = trialModal.gymId === 'gym-hsinchu' ? 'hsinchu' : 'shilin';
+        const bank = trialBankInfo?.[bankKey] || {};
+        return (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:420, maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+              <div style={{ fontWeight:700, fontSize:16 }}>🧗 報名試上</div>
+              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <div style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:14, fontSize:13 }}>
+              <div style={{ fontWeight:600 }}>{gymPrefix(trialModal.gymId)}{trialModal.courseName}</div>
+              <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{WEEKDAYS[dayjs(trialModal.date).day()]}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?` · 教練 ${trialModal.instructor}`:''}</div>
+              <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>試上費 NT${(trialModal.trialPrice||0).toLocaleString()}</div>
+            </div>
+            {familyMembers.length > 0 && (
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>報名對象</div>
+                <select value={trialFor} onChange={e=>setTrialFor(e.target.value)} style={{ ...inp, width:'100%' }}>
+                  <option value="self">{member?.name || '本人'}（本人）</option>
+                  {familyMembers.map(c => <option key={c.id} value={c.id}>{c.name}（子女）</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ marginBottom:12 }}>
+              <PaymentSection value={trialPay} onChange={setTrialPay} methods={['transfer']}
+                bankInfo={{ bankName: bank.bankName||'富邦銀行(012)', branch: bank.branch||'竹北分行', account: bank.account||'746102003014', accountName: bank.accountName||'紅石攀岩有限公司' }}/>
+            </div>
+            <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'#444', cursor:'pointer', marginBottom:14, lineHeight:1.6 }}>
+              <input type="checkbox" checked={trialConsent} onChange={e=>setTrialConsent(e.target.checked)} style={{ marginTop:2 }}/>
+              <span>我已閱讀並同意<strong>免責同意書／攀岩活動風險告知</strong>，並瞭解試上為單堂體驗、不含保險。</span>
+            </label>
+            {trialTargetUnder5 && (
+              <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
+                {trialTarget?.name || '報名對象'} 未滿 5 歲，無法報名課程／試上。
+              </div>
+            )}
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={submitTrial} disabled={trialSubmitting || trialTargetUnder5} style={{ flex:2, height:44, borderRadius:10, background:(trialSubmitting||trialTargetUnder5)?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:(trialTargetUnder5?'not-allowed':'pointer') }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
+            </div>
+          </div>
+        </div>
+        );
+      })()}
+
       {tab === 'calendar' && (
         <div style={{ padding:'12px 16px' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:14 }}>

@@ -308,7 +308,7 @@ export default function MemberExperiencePage() {
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'apply',label:'填寫預約'},{key:'trial',label:`課程試上${openTrialSessions.length?` (${openTrialSessions.length})`:''}`},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
+        {[{key:'apply',label:'填寫預約'},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
             {t.label}
@@ -457,40 +457,6 @@ export default function MemberExperiencePage() {
               style={{ width:'100%', height:48, borderRadius:12, background:(submitting||anyParticipantUnder5)?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:(submitting||anyParticipantUnder5)?'not-allowed':'pointer' }}>
               {submitting ? '送出中...' : '✓ 送出預約申請'}
             </button>
-          </div>
-        )}
-
-        {tab==='trial' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, fontSize:12, color:'#666', lineHeight:1.9 }}>
-              🧗 以下為開放試上的課程場次（單堂）。試上另收費用、<strong>免保險</strong>；額滿的場次不會顯示。<br/>
-              💳 報名後請於期限內匯款，待館方確認收款即完成。
-            </div>
-            {/* 場館切換沿用填寫預約的 gymId */}
-            <div style={{ display:'flex', gap:8 }}>
-              {[{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g=>(
-                <button key={g.id} onClick={()=>setGymId(g.id)}
-                  style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${gymId===g.id?'#8B1A1A':'#E8D5D5'}`, background:gymId===g.id?'#FBF5F5':'#fff', color:gymId===g.id?'#8B1A1A':'#666', fontSize:13, fontWeight:gymId===g.id?600:400, cursor:'pointer' }}>
-                  {g.label}
-                </button>
-              ))}
-            </div>
-            {openTrialSessions.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有開放試上的場次</div>}
-            {openTrialSessions.map(s=>(
-              <div key={s.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
-                <div style={{ minWidth:0 }}>
-                  <div style={{ fontWeight:600, fontSize:14 }}>{s.courseName}</div>
-                  <div style={{ fontSize:12, color:'#666', marginTop:3 }}>
-                    {dayjs(s.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(s.date).day()]}）{s.startTime}～{s.endTime}{s.instructor?` · 👟 ${s.instructor}`:''}
-                  </div>
-                  <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginTop:3 }}>
-                    試上費 NT${(s.trialPrice||0).toLocaleString()}
-                  </div>
-                </div>
-                <button onClick={()=>{ setTrialModal(s); setTrialConsent(false); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' }); }}
-                  style={{ height:38, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', flexShrink:0 }}>試上</button>
-              </div>
-            ))}
           </div>
         )}
 
