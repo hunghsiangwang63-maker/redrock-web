@@ -900,7 +900,7 @@ export default function MemberCoursesPage() {
 
       {/* Tabs */}
       <div style={{ display:'flex', margin:'12px 16px 0', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>
-        {[{key:'browse',label:'總覽'},{key:'trial',label:'試上'},{key:'my',label:`我的${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`},{key:'calendar',label:'月曆'}].map(t => (
+        {[{key:'browse',label:'課程總覽'},{key:'trial',label:'課程試上'},{key:'my',label:`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`},{key:'calendar',label:'課程月曆'}].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ flex:1, height:32, borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:12, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer' }}>
             {t.label}
