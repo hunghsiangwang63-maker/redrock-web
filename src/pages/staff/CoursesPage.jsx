@@ -847,7 +847,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
         }
 
         // ── 第二層：某類別的各梯次 ──
-        const list = groups[selectedCategory] || [];
+        // 排序：週一→週日（週日排最後）、同日再依開始時間（與會員端一致）
+        const _wkKey = (c) => { const d = (c.weekdays && c.weekdays.length) ? c.weekdays[0] : 99; return d === 0 ? 7 : d; };
+        const list = [...(groups[selectedCategory] || [])].sort((a, b) => _wkKey(a) - _wkKey(b) || (a.startTime || '').localeCompare(b.startTime || ''));
         return (
           <>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
