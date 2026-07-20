@@ -451,8 +451,17 @@ export default function MemberCoursesPage() {
   const loadMakeupRights = async () => {
     if (!member?.id) return;
     try {
-      const res = await memberClient.get(`/courses/makeup/member/${member.id}`);
-      setMakeupRights(res.data.rights || []);
+      // 家長帳號：一併載入子女的補課資格（券擁有者為子女，家長代操作）
+      let childList = familyMembers;
+      if (childList.length === 0) {
+        try { const r = await memberClient.get('/members/my/children'); childList = r.data.children || []; } catch (e) {}
+      }
+      const owners = [{ id: member.id, name: member.name, self: true }, ...childList.map(c => ({ id: c.id, name: c.name, self: false }))];
+      const lists = await Promise.all(owners.map(o =>
+        memberClient.get(`/courses/makeup/member/${o.id}`)
+          .then(r => (r.data.rights || []).map(x => ({ ...x, _ownerId: o.id, _ownerName: o.name, _isSelf: o.self })))
+          .catch(() => [])));
+      setMakeupRights(lists.flat());
     } catch (e) {}
   };
 
@@ -489,7 +498,7 @@ export default function MemberCoursesPage() {
     setLoading(true);
     try {
       const res = await memberClient.post(`/courses/makeup/${selectedMakeup.id}/use`, {
-        memberId: member.id,
+        memberId: selectedMakeup._ownerId || selectedMakeup.memberId || member.id, // 券擁有者（家長代子女時為子女）
         targetSessionId,
       });
       showMsg(res.data.message || '補課報名成功');
@@ -549,7 +558,7 @@ export default function MemberCoursesPage() {
       showMsg(r.data?.message || '已取消補課');
       setCancelMakeupTarget(null);
       await loadMyEnrollments();
-      try { const mk = await memberClient.get(`/courses/makeup/member/${cancelMakeupTarget.memberId || member.id}`); setMakeupRights(mk.data.makeupRights || mk.data.rights || []); } catch(e) {}
+      await loadMakeupRights(); // 重載本人＋子女全部補課券（勿用單一 member 覆蓋）
     } catch (err) {
       showMsg(err.response?.data?.message || '取消補課失敗', 'red');
       setCancelMakeupTarget(null);
@@ -1549,7 +1558,10 @@ export default function MemberCoursesPage() {
                 return (
                 <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8, background:'#fff', borderRadius:8, padding:'8px 12px', opacity: frozen ? 0.55 : 1 }}>
                   <div>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{m.courseName}</div>
+                    <div style={{ fontSize:13, fontWeight:500 }}>
+                      {m.courseName}
+                      {m._isSelf === false && <span style={{ fontSize:11, color:'#185FA5', marginLeft:6, fontWeight:600 }}>👦 {m._ownerName}</span>}
+                    </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                       有效期至 {dayjs(m.expiresAt?._seconds ? new Date(m.expiresAt._seconds * 1000) : m.expiresAt).format('MM/DD')}
                     </div>
