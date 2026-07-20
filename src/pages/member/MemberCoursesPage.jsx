@@ -1234,7 +1234,7 @@ export default function MemberCoursesPage() {
         return (
           <div>
             <div style={{ fontSize:12, color:'#8A5A00', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:10, padding:'10px 12px', margin:'0 0 12px', lineHeight:1.7, textAlign:'left' }}>
-              🧗 試上為單堂體驗、另收試上費、<strong>免保險</strong>；僅開放<strong>報名日 2 週內</strong>的場次，額滿不顯示。
+              🧗 試上為常態課程單堂體驗、另收試上費、<strong>保險自理</strong>；僅開放<strong>報名日 2 週內</strong>的場次，額滿不顯示。
             </div>
             {/* 第一層：館別 + 班別 */}
             {!trialCategory && !trialCourseId && (<>
