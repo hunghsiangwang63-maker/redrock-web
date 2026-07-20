@@ -2229,8 +2229,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
                 const byMember = {};
                 rosterModal.enrollments.forEach(e => {
-                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, count:0, leaveUsed:0, override:null });
+                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null });
                   m.count++;
+                  if (e.memberPaidAmount != null && m.paidAmount == null) m.paidAmount = e.memberPaidAmount;
                   if (e.status==='leave') m.leaveUsed++;
                   if (e.maxLeavesAllowed != null) m.override = e.maxLeavesAllowed;
                 });
@@ -2242,6 +2243,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>學員</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>電話</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>報名堂數</th>
+                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>實際匯款</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>付款方式</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>可請假（已用/上限）</th>
                     </tr>
@@ -2255,6 +2257,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         <td style={{ padding:'10px 12px', fontWeight:500 }}>{m.memberName}</td>
                         <td style={{ padding:'10px 12px', color:'#666', fontFamily:'monospace', fontSize:12 }}>{m.memberPhone}</td>
                         <td style={{ padding:'10px 12px', color:'#666' }}>{m.count} 堂</td>
+                        <td style={{ padding:'10px 12px', color:'#666', fontSize:12 }}>
+                          {m.paidAmount != null ? `NT$${Number(m.paidAmount).toLocaleString()}` : '—'}
+                        </td>
                         <td style={{ padding:'10px 12px', color:'#666', fontSize:12 }}>
                           {m.paymentMethod === 'transfer' ? `轉帳${m.bankLastFive ? ` (末五碼 ${m.bankLastFive})` : ''}` : m.paymentMethod || '—'}
                         </td>
