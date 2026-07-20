@@ -15,6 +15,13 @@ import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import dayjs from 'dayjs';
 
+// 場次剩餘名額＝maxStudents −（原報名−請假＋補課＋試上）（expectedCount＝實際佔位；候補不佔位）
+const sessionRemain = (s) => {
+  const max = s?.maxStudents || 0;
+  if (!max) return null;
+  return Math.max(0, max - (s.expectedCount ?? s.enrolledCount ?? 0));
+};
+
 const Tag = ({ type='ok', children }) => {
   const s = {
     ok:      { bg:'#E6F4EB', color:'#2D7D46' },
@@ -967,7 +974,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                                     return (
                                     <div key={s.id} style={{ fontSize:9, background:col.bg, borderRadius:4, padding:'2px 3px', lineHeight:1.25, overflow:'hidden' }}>
                                       <div style={{ fontWeight:600, color:col.fg, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{s.courseName}</div>
-                                      <div style={{ color:col.fg, opacity:.8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>👟{s.instructor || '—'}·{(s.registeredCount ?? s.enrolledCount ?? 0)}人</div>
+                                      <div style={{ color:col.fg, opacity:.8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>👟{s.instructor || '—'}·{(s.registeredCount ?? s.enrolledCount ?? 0)}人{sessionRemain(s) !== null && (sessionRemain(s) === 0 ? '·滿' : `·剩${sessionRemain(s)}`)}</div>
                                     </div>
                                     );
                                   })}
@@ -1001,6 +1008,11 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             {(s.leaveCount||0) > 0 && <Tag type="gray">請假 {s.leaveCount}</Tag>}
                             {(s.makeupCount||0) > 0 && <Tag type="blue">補課 {s.makeupCount}</Tag>}
                             {(s.trialCount||0) > 0 && <Tag type="blue">試上 {s.trialCount}</Tag>}
+                            {sessionRemain(s) !== null && (
+                              sessionRemain(s) === 0
+                                ? <Tag type="red">額滿</Tag>
+                                : <Tag type="warn">剩 {sessionRemain(s)}</Tag>
+                            )}
                           </div>
                         </div>
                         <div style={{ marginTop:8, textAlign:'right', display:'flex', gap:6, justifyContent:'flex-end' }}>
@@ -1194,6 +1206,13 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             <span style={{ fontSize:11, color: (s.enrolledCount||0) >= selectedCourse.maxStudents ? '#A32D2D' : '#999' }}>
                               {s.enrolledCount||0}/{selectedCourse.maxStudents}
                             </span>
+                            {s.status !== 'cancelled' && sessionRemain(s) !== null && (
+                              <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6,
+                                background: sessionRemain(s) === 0 ? '#FCEBEB' : '#E6F4EB',
+                                color: sessionRemain(s) === 0 ? '#A32D2D' : '#2D7D46' }}>
+                                {sessionRemain(s) === 0 ? '額滿' : `剩 ${sessionRemain(s)}`}
+                              </span>
+                            )}
                             {s.status !== 'cancelled' && (
                               <button onClick={e => { e.stopPropagation(); openEditSession(s); }}
                                 style={{ fontSize:10, color:'#666', background:'none', border:'0.5px solid #E8D5D5', borderRadius:4, padding:'1px 5px', cursor:'pointer' }}>
