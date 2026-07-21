@@ -690,7 +690,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       ].join(',')));
       (g.pendingClaims||[]).forEach(pc => lines.push([esc(g.course?.name), esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
     });
-    (lmSummary?.crossMakeups||[]).forEach(cm => lines.push([esc('跨期補課（'+(cm.sourceCourse||'')+'）'), esc(cm.name),'',esc((cm.leaveDates||[]).join('、')),(cm.leaveDates||[]).length,'','','',esc(cm.targetDate?`${cm.targetCourse||''} ${cm.targetDate}`:'待安排')].join(',')));
+    (lmSummary?.crossMakeups||[]).forEach(cm => lines.push([esc('跨期補課（'+(cm.sourceCourse||'')+'）'), esc(cm.name),'',esc((cm.leaveDates||[]).join('、')),(cm.leaveDates||[]).length,'','',esc(cm.deadline||''),esc(cm.targetDate?`${cm.targetCourse||''} ${cm.targetDate}`:'待安排')].join(',')));
     (lmSummary?.overdueMakeups||[]).forEach(o => lines.push([esc('近三個月逾期未補課'), esc(o.memberName),'','','','','',esc(o.expiredDate||''),esc(o.courseName||'')].join(',')));
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -2215,8 +2215,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
         <div style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#5B2D8B', margin:'6px 0' }}>跨期補課（前期・未過期）<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>以原班級(前一梯)為主，後接補課班級與日期</span></div>
           <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:640 }}>
-            <thead><tr style={{ background:'#F7F2FB' }}>{['原班級(前一梯)','姓名','前期請假日','補課班級','補課日期'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#5B2D8B', borderBottom:'0.5px solid #E0D3EE', whiteSpace:'nowrap' }}>{h}</th>)}</tr></thead>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 }}>
+            <thead><tr style={{ background:'#F7F2FB' }}>{['原班級(前一梯)','姓名','前期請假日','補課班級','補課日期','補課期限'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#5B2D8B', borderBottom:'0.5px solid #E0D3EE', whiteSpace:'nowrap' }}>{h}</th>)}</tr></thead>
             <tbody>{lmSummary.crossMakeups.map((cm,i)=>(
               <tr key={'cm'+i} style={{ borderBottom:'0.5px solid #EFE8F5' }}>
                 <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#5B2D8B' }}>{cm.sourceCourse||'—'}</td>
@@ -2224,6 +2224,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 <td style={{ padding:'6px 10px', color:'#5B2D8B' }}>{(cm.leaveDates||[]).length ? (cm.leaveDates||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
                 <td style={{ padding:'6px 10px', color:'#5B2D8B' }}>{cm.targetDate ? (cm.targetCourse||'—') : <span style={{ color:'#B5762B' }}>待安排</span>}</td>
                 <td style={{ padding:'6px 10px', color:'#5B2D8B', whiteSpace:'nowrap' }}>{cm.targetDate || <span style={{ color:'#ccc' }}>—</span>}</td>
+                <td style={{ padding:'6px 10px', color:'#5B2D8B', whiteSpace:'nowrap' }}>{cm.deadline || <span style={{ color:'#ccc' }}>—</span>}</td>
               </tr>))}</tbody>
           </table></div>
         </div>
