@@ -352,6 +352,8 @@ export default function MemberHomePage() {
                 <div style={{ fontSize:13, fontWeight:700, color: a.kind === 'action' ? '#854F0B' : '#A32D2D', textAlign:'left' }}>
                   {a.type === 'course_closure_makeup'
                     ? `休館停課補課通知:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    : a.type === 'experience_cancelled'
+                    ? `${a.label}因場次取消:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
                     : a.kind === 'action'
                     ? `${a.label}待補文件:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
                     : a.kind === 'reject'

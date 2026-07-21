@@ -468,11 +468,18 @@ export default function MemberCoursesPage() {
   const openMakeupModal = async (makeup) => {
     setSelectedMakeup(makeup);
     try {
-      // 查詢同類別同館的未來場次（排除自己請假的那堂課）
+      // 查詢可補課的未來場次（同班別 或 同補課類型，對齊後端 enrollMakeup；排除自己請假的那堂課）
       const courseRes = await memberClient.get(`/courses`);
-      const sameCategoryCourses = (courseRes.data.courses || []).filter(c =>
+      const allCourses = courseRes.data.courses || [];
+      // 補課券所屬班別的補課類型（由該班別任一梯次帶出，與後端 makeupTypeIds 交集判定）
+      // 單向：來源班(makeup.categoryId)的「可補課去類型」(makeupTypeIds) 含目標班的「本班別類型」(makeupSelfType) 才列出
+      const catTypeMap = {};
+      allCourses.forEach(c => { if (c.categoryId) catTypeMap[c.categoryId] = c.makeupTypeIds || []; });
+      const myDestTypes = new Set(catTypeMap[makeup.categoryId] || []);
+      const shareType = (c) => !!c.makeupSelfType && myDestTypes.has(c.makeupSelfType);
+      const sameCategoryCourses = allCourses.filter(c =>
         // 補課額度未存 categoryId（舊資料）時不以類別過濾，交由後端核銷時驗證
-        (!makeup.categoryId || c.categoryId === makeup.categoryId) &&
+        (!makeup.categoryId || c.categoryId === makeup.categoryId || shareType(c)) &&
         c.id !== makeup.courseId &&  // 排除自己請假的課程
         (c.gymId === makeup.gymId || !c.gymId || !makeup.gymId) &&
         c.makeupTargetOpen !== false  // 該梯次未開放作為補課場次（如密集班/常態報名未達2人）→ 不列入
@@ -486,7 +493,7 @@ export default function MemberCoursesPage() {
       });
       const futureSessions = (sres.data.sessions || []).filter(s => s.date >= today && s.status !== 'cancelled');
       for (const c of sameCategoryCourses) {
-        futureSessions.filter(s => s.courseId === c.id).forEach(s => allSessions.push({ ...s, courseName: c.name }));
+        futureSessions.filter(s => s.courseId === c.id).forEach(s => allSessions.push({ ...s, courseName: c.name, categoryName: c.categoryName }));
       }
       setMakeupSessions(allSessions.sort((a,b) => a.date.localeCompare(b.date)));
     } catch (e) {}
@@ -2075,8 +2082,13 @@ export default function MemberCoursesPage() {
               <div style={{ fontWeight:600, fontSize:16 }}>選擇補課場次</div>
               <button onClick={() => setShowMakeupModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
-            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>
-              {selectedMakeup?.courseName} · 同類別同館場次
+            <div style={{ fontSize:12, color:'#666', marginBottom:14, textAlign:'left' }}>
+              {selectedMakeup?.courseName ? <>此補課券來自「{selectedMakeup.courseName}」，</> : null}
+              可補課至<b>同補課類型</b>的班別場次。
+              {(() => {
+                const names = [...new Set(makeupSessions.map(s => s.categoryName).filter(Boolean))];
+                return names.length ? <div style={{ marginTop:4, color:'#8B1A1A' }}>可補課班別：{names.join('、')}</div> : null;
+              })()}
             </div>
             {(() => {
               const targetMid = selectedMakeup?.memberId || member?.id;

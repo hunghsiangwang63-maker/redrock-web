@@ -17,10 +17,10 @@ const DENOMINATIONS = [
 ];
 
 const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','其他退款','其他'];
-const INCOME_KEYS = ['entry', 'shoeRental', 'product', 'course', 'pass'];
+const INCOME_KEYS = ['entry', 'shoeRental', 'equipmentRental', 'product', 'course', 'pass'];
 
 // ── 入場費固定六分類（結帳畫面預設就顯示、可逐類手動輸入）──────────────────
-const ENTRY_CATS = ['成人', '學生', '兒童', '個別使用優惠券', '隊員折扣', '隊員＋優惠券'];
+const ENTRY_CATS = ['成人', '學生', '兒童', '成人使用優惠券', '學生使用優惠券', '隊員折扣', '隊員＋優惠券'];
 // 某分類的系統值（自 income.entryItems 取；無則 0）
 const sysEntryVal = (income, cat) => (income?.entryItems || []).find(x => x.label === cat)?.value || 0;
 // 顯示用分類清單：固定六類 ＋ 其他有系統值的分類（如 VIP/定期票入場/單次入場券）
@@ -42,7 +42,7 @@ const entryManualTotal = (income, im) => {
 };
 // 手計總額：入場走逐類加總，其餘項有手動值取手動、缺項回退系統；無 incomeManual 回 null
 const manualIncomeTotal = (income, im) => im
-  ? entryManualTotal(income, im) + ['shoeRental', 'product', 'course', 'pass']
+  ? entryManualTotal(income, im) + ['shoeRental', 'equipmentRental', 'product', 'course', 'pass']
       .reduce((s, k) => s + ((im[k] !== '' && im[k] != null) ? (Number(im[k]) || 0) : (income?.[k] || 0)), 0)
   : null;
 
@@ -76,6 +76,7 @@ export default function DailySettlementPage() {
   const removeSegment = (i) => setInvoiceSegments(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
   const [voidList, setVoidList] = useState([]);   // 作廢發票號碼（逐張標籤）
   const [voidInput, setVoidInput] = useState('');
+  const [voidInvoiceAmount, setVoidInvoiceAmount] = useState('');   // 作廢票號碼總金額（打錯發票金額，僅備註）
   const addVoid = () => {
     const parts = voidInput.split(/[,、\s]+/).map(x => x.trim()).filter(Boolean);
     if (!parts.length) return;
@@ -129,6 +130,7 @@ export default function DailySettlementPage() {
         if (Array.isArray(draft.invoiceSegments) && draft.invoiceSegments.length) setInvoiceSegments(draft.invoiceSegments);
         else if (draft.invoiceStartNumber || draft.invoiceLastNumber) setInvoiceSegments([{ start: draft.invoiceStartNumber || '', last: draft.invoiceLastNumber || '' }]);
         if (draft.invoiceVoidNumbers) setVoidList(String(draft.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean));
+        if (draft.voidInvoiceAmount) setVoidInvoiceAmount(String(draft.voidInvoiceAmount));
         setCardOrangeFirst(draft.cardOrangeFirst || ''); setCardFullFirst(draft.cardFullFirst || '');
         setNotes(draft.notes || '');
         if (draft.incomeManual) setIncomeManual(draft.incomeManual);
@@ -177,6 +179,7 @@ export default function DailySettlementPage() {
     deductions, denominations, notes,
     invoiceSegments: cleanSegments(),
     invoiceVoidNumbers: [...voidList, voidInput.trim()].filter(Boolean).join(', '),
+    voidInvoiceAmount: Number(voidInvoiceAmount) || 0,
     cardOrangeFirst, cardFullFirst,
     checkinCount: settlement?.checkinCount ?? null,
     ...(transition.settlementManualInput ? { incomeManual, paymentManual } : {}),
@@ -214,6 +217,7 @@ export default function DailySettlementPage() {
     if (Array.isArray(st?.invoiceSegments) && st.invoiceSegments.length) setInvoiceSegments(st.invoiceSegments);
     else setInvoiceSegments([{ start: st?.invoiceStartNumber || '', last: st?.invoiceLastNumber || '' }]);
     setVoidList(st?.invoiceVoidNumbers ? String(st.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []);
+    setVoidInvoiceAmount(st?.voidInvoiceAmount ? String(st.voidInvoiceAmount) : '');
     setCardOrangeFirst(st?.cardOrangeFirst || ''); setCardFullFirst(st?.cardFullFirst || '');
     setNotes(st?.notes || ''); setResettleReason('');
     if (st?.incomeManual) setIncomeManual(st.incomeManual);
@@ -335,7 +339,8 @@ export default function DailySettlementPage() {
                     actualCash={h.actualCashBalance || 0}
                     difference={h.difference || 0}
                     segments={(h.invoiceSegments && h.invoiceSegments.length) ? h.invoiceSegments : [{ start: h.invoiceStartNumber || '', last: h.invoiceLastNumber || '' }]}
-                    voids={h.invoiceVoidNumbers ? String(h.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []} />
+                    voids={h.invoiceVoidNumbers ? String(h.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
+                    voidAmount={h.voidInvoiceAmount || 0} />
                 </div>
               )}
             </div>
@@ -361,7 +366,8 @@ export default function DailySettlementPage() {
               actualCash={settlement?.actualCashBalance || 0}
               difference={settlement?.difference || 0}
               segments={(settlement?.invoiceSegments && settlement.invoiceSegments.length) ? settlement.invoiceSegments : [{ start: settlement?.invoiceStartNumber || '', last: settlement?.invoiceLastNumber || '' }]}
-              voids={settlement?.invoiceVoidNumbers ? String(settlement.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []} />
+              voids={settlement?.invoiceVoidNumbers ? String(settlement.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
+              voidAmount={settlement?.voidInvoiceAmount || 0} />
           </div>
           <button onClick={startResettle}
             style={{ width:'100%', height:46, borderRadius:12, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:20 }}>
@@ -381,6 +387,7 @@ export default function DailySettlementPage() {
             {[
               { key:'entry', label:'入場收入', value: settlement?.income?.entry || 0 },
               { key:'shoeRental', label:'岩鞋租借', value: settlement?.income?.shoeRental || 0 },
+              { key:'equipmentRental', label:'器材租借', value: settlement?.income?.equipmentRental || 0 },
               { key:'product', label:'商品銷售', value: settlement?.income?.product || 0 },
               { key:'course', label:'課程收入', value: settlement?.income?.course || 0 },
               { key:'pass', label:'定期票', value: settlement?.income?.pass || 0, sub: settlement?.income?.passItems },
@@ -575,7 +582,12 @@ export default function DailySettlementPage() {
                 )}
               </div>
             </div>
-            <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>作廢多張可逐一加入（也可一次貼多組、以逗號分隔）；起訖／作廢號碼會帶入月銷售紀錄</div>
+            <div style={{ ...s.row }}>
+              <span style={s.label}>作廢票號碼總金額</span>
+              <input type="number" value={voidInvoiceAmount} onChange={e => setVoidInvoiceAmount(e.target.value)}
+                placeholder="打錯發票金額（僅備註、不扣總計）" style={{ ...s.input, width:220 }} />
+            </div>
+            <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>作廢多張可逐一加入（也可一次貼多組、以逗號分隔）；起訖／作廢號碼／作廢票號碼總金額會帶入月銷售紀錄（作廢金額僅備註、不影響總計）</div>
           </div>
 
           {/* 票卡資訊 + check-in（月銷售紀錄用） */}
@@ -641,7 +653,8 @@ export default function DailySettlementPage() {
             incomeManual={transition.settlementManualInput ? incomeManual : null}
             deductions={deductions} netAdjust={netAdjust}
             actualCash={actualCash} difference={difference}
-            segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)} />
+            segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
+            voidAmount={Number(voidInvoiceAmount) || 0} />
           {resettleMode && (
             <div style={{ marginTop:12 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
@@ -664,7 +677,7 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids }) {
+function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const bigDiff = Math.abs(difference) > 200;
@@ -678,6 +691,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
     { key:'course', label:'課程', value: income.course || 0 },
     { key:'product', label:'裝備銷售', value: income.product || 0 },
     { key:'shoeRental', label:'出租', value: income.shoeRental || 0 },
+    { key:'equipmentRental', label:'器材租借', value: income.equipmentRental || 0 },
     { key:'pass', label:'定期票', value: income.pass || 0, sub: income.passItems },
   ] : [];
   return (
@@ -774,6 +788,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
             <span key={i} style={{ fontFamily:'monospace', fontSize:12.5 }}>{segments.length > 1 ? `第${i+1}段：` : ''}{sg.start || '—'} ～ {sg.last || '—'}</span>
           ))}
           {voids && voids.length > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢：{voids.join('、')}</span>}
+          {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}（僅備註）</span>}
         </div>
       </div>
     </div>

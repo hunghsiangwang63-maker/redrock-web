@@ -76,7 +76,7 @@ export default function CoursesPage({ embedded = false }) {
   const [categories, setCategories] = useState([]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const EMPTY_CAT_FORM = {
-    name: '', group: 'adult', description: '', color: '#8B1A1A', makeupTypeIds: [],
+    name: '', group: 'adult', description: '', color: '#8B1A1A', makeupTypeIds: [], makeupSelfType: '',
     allowTrial: false, trialPrice: '', leaveDeadlineHours: 2, maxLeaves: 2,
     allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 20, preStartFeeRate: 5,
   };
@@ -232,6 +232,7 @@ export default function CoursesPage({ embedded = false }) {
     name: categoryForm.name, group: categoryForm.group,
     description: categoryForm.description || '', color: categoryForm.color || '#8B1A1A',
     makeupTypeIds: categoryForm.makeupTypeIds || [],
+    makeupSelfType: categoryForm.makeupSelfType || null,
     allowTrial: !!categoryForm.allowTrial,
     trialPrice: categoryForm.trialPrice === '' ? null : Number(categoryForm.trialPrice),
     leaveDeadlineHours: categoryForm.leaveDeadlineHours === '' ? null : Number(categoryForm.leaveDeadlineHours),
@@ -283,6 +284,7 @@ export default function CoursesPage({ embedded = false }) {
     setCategoryForm({
       name: c.name || '', group: c.group || 'adult', description: c.description || '', color: c.color || '#8B1A1A',
       makeupTypeIds: c.makeupTypeIds || [],
+      makeupSelfType: c.makeupSelfType || '',
       allowTrial: c.allowTrial === true, trialPrice: c.trialPrice ?? '',
       leaveDeadlineHours: c.leaveDeadlineHours ?? 2, maxLeaves: c.maxLeaves ?? 2,
       allowMakeup: c.allowMakeup !== false, makeupDeadlineDays: c.makeupDeadlineDays ?? 60,
@@ -566,8 +568,11 @@ export default function CoursesPage({ embedded = false }) {
 
   const handleUpdateSession = async (sessionId, data) => {
     try {
-      await updateSession(sessionId, data);
-      showMsg('場次已更新');
+      const res = await updateSession(sessionId, data);
+      const restored = res?.data?.session?.makeupRestored || res?.data?.makeupRestored || 0;
+      showMsg(data.status === 'cancelled'
+        ? `場次已取消${restored ? `，已退回 ${restored} 張補課券` : ''}`
+        : '場次已更新');
       await loadSessions();
       if (selectedSession?.id === sessionId) setSelectedSession(null);
     } catch (err) {
@@ -576,7 +581,7 @@ export default function CoursesPage({ embedded = false }) {
   };
 
   const handleCancelSession = async (sessionId) => {
-    if (!window.confirm('確定要取消此場次？')) return;
+    if (!window.confirm('確定要取消此場次？\n（補課進來的學員會自動退回補課券、可重新選場次）')) return;
     await handleUpdateSession(sessionId, { status: 'cancelled' });
   };
 
@@ -649,7 +654,7 @@ export default function CoursesPage({ embedded = false }) {
       if (sel === 'all') {
         const params = effectiveGymId ? { gymId: effectiveGymId } : {};
         const r = await client.get('/courses/leave-makeup-summary/all', { params });
-        setLmSummary({ loading: false, mode: 'all', sel: 'all', groups: r.data.groups || [] });
+        setLmSummary({ loading: false, mode: 'all', sel: 'all', groups: r.data.groups || [], crossMakeups: r.data.crossMakeups || [], overdueMakeups: r.data.overdueMakeups || [] });
       } else {
         const r = await client.get(`/courses/${sel}/leave-makeup-summary`);
         setLmSummary({ loading: false, mode: 'all', sel, groups: [r.data] });
@@ -685,6 +690,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       ].join(',')));
       (g.pendingClaims||[]).forEach(pc => lines.push([esc(g.course?.name), esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
     });
+    (lmSummary?.crossMakeups||[]).forEach(cm => lines.push([esc('跨期補課（'+(cm.sourceCourse||'')+'）'), esc(cm.name),'',esc((cm.leaveDates||[]).join('、')),(cm.leaveDates||[]).length,'','','',esc(cm.targetDate?`${cm.targetCourse||''} ${cm.targetDate}`:'待安排')].join(',')));
+    (lmSummary?.overdueMakeups||[]).forEach(o => lines.push([esc('近三個月逾期未補課'), esc(o.memberName),'','','','','',esc(o.expiredDate||''),esc(o.courseName||'')].join(',')));
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
@@ -1458,9 +1465,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         <div style={{ minWidth:0 }}>
                           <div style={{ fontWeight:600, fontSize:14 }}>{c.name}
                             {c.allowTrial === true && <span style={{ fontSize:10, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>試上 ${c.trialPrice ?? 0}</span>}
-                            {(c.makeupTypeIds || []).length > 0 && (
+                            {((c.makeupTypeIds || []).length > 0 || c.makeupSelfType) && (
                               <span style={{ fontSize:10, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>
-                                補課類型：{(c.makeupTypeIds || []).map(id => makeupTypes.find(t => t.id === id)?.name).filter(Boolean).join('、')}
+                                本班類型：{makeupTypes.find(t => t.id === c.makeupSelfType)?.name || '未設'}｜可補課去：{(c.makeupTypeIds || []).map(id => makeupTypes.find(t => t.id === id)?.name).filter(Boolean).join('、') || '（僅本班別）'}
                               </span>
                             )}
                           </div>
@@ -1560,7 +1567,15 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   </div>
                 )}
                 <div style={{ gridColumn:'1/-1' }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>適用補課類型（可多選；掛同一類型的班別可互相補課，不勾＝只能補本班別的其他梯次）</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>本班別類型（別人補課過來時，這班算哪一類；單向判定用）</label>
+                  <select value={categoryForm.makeupSelfType || ''} onChange={e => setCategoryForm(f => ({ ...f, makeupSelfType: e.target.value }))}
+                    style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff' }}>
+                    <option value="">（未設；別人無法補課到本班別）</option>
+                    {makeupTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>可補課去的類型（本班學員能補去哪些類型的課；<b>單向</b>——勾了才能補去，不勾＝只能補本班別的其他梯次）</label>
                   <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', padding:'8px 12px', display:'flex', flexWrap:'wrap', gap:'6px 14px' }}>
                     {makeupTypes.length === 0 && <span style={{ fontSize:12, color:'#bbb' }}>尚無補課類型——到列表上方「補課類型」先新增</span>}
                     {makeupTypes.map(t => (
@@ -2161,7 +2176,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               </div>
             </div>
             {lmSummary.loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : lmSummary.mode === 'all' ? (<>
-      {(lmSummary.groups||[]).length === 0 && <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有任何請假/補課/待認領資料</div>}
+      {(lmSummary.groups||[]).length === 0 && !(lmSummary.crossMakeups||[]).length && !(lmSummary.overdueMakeups||[]).length && <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有任何請假/補課/待認領資料</div>}
       {(lmSummary.groups||[]).map(g => (
         <div key={g.course.id} style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'6px 0' }}>{g.course.name}
@@ -2194,6 +2209,38 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           </div>
         </div>
       ))}
+      {(lmSummary.crossMakeups||[]).length > 0 && (
+        <div style={{ marginBottom:18 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#5B2D8B', margin:'6px 0' }}>跨期補課（前期・未過期）<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>以原班級(前一梯)為主，後接補課班級與日期</span></div>
+          <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:640 }}>
+            <thead><tr style={{ background:'#F7F2FB' }}>{['原班級(前一梯)','姓名','前期請假日','補課班級','補課日期'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#5B2D8B', borderBottom:'0.5px solid #E0D3EE', whiteSpace:'nowrap' }}>{h}</th>)}</tr></thead>
+            <tbody>{lmSummary.crossMakeups.map((cm,i)=>(
+              <tr key={'cm'+i} style={{ borderBottom:'0.5px solid #EFE8F5' }}>
+                <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#5B2D8B' }}>{cm.sourceCourse||'—'}</td>
+                <td style={{ padding:'6px 10px', color:'#5B2D8B', whiteSpace:'nowrap' }}>{cm.name}</td>
+                <td style={{ padding:'6px 10px', color:'#5B2D8B' }}>{(cm.leaveDates||[]).join('、') || <span style={{ color:'#ccc' }}>—</span>}</td>
+                <td style={{ padding:'6px 10px', color:'#5B2D8B' }}>{cm.targetDate ? (cm.targetCourse||'—') : <span style={{ color:'#B5762B' }}>待安排</span>}</td>
+                <td style={{ padding:'6px 10px', color:'#5B2D8B', whiteSpace:'nowrap' }}>{cm.targetDate || <span style={{ color:'#ccc' }}>—</span>}</td>
+              </tr>))}</tbody>
+          </table></div>
+        </div>
+      )}
+      {(lmSummary.overdueMakeups||[]).length > 0 && (
+        <div style={{ marginBottom:18 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#A32D2D', margin:'6px 0' }}>近三個月逾期未補課<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>補課券已過期、未使用</span></div>
+          <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:520 }}>
+            <thead><tr style={{ background:'#FBF0F0' }}>{['姓名','課程','到期日'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#A32D2D', borderBottom:'0.5px solid #E8C5C5', whiteSpace:'nowrap' }}>{h}</th>)}</tr></thead>
+            <tbody>{lmSummary.overdueMakeups.map((o,i)=>(
+              <tr key={'od'+i} style={{ borderBottom:'0.5px solid #F3E5E5' }}>
+                <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#A32D2D' }}>{o.memberName}</td>
+                <td style={{ padding:'6px 10px', color:'#A32D2D' }}>{o.courseName||'—'}</td>
+                <td style={{ padding:'6px 10px', color:'#A32D2D', whiteSpace:'nowrap' }}>{o.expiredDate}</td>
+              </tr>))}</tbody>
+          </table></div>
+        </div>
+      )}
       </>) : (<>
             <div style={{ fontSize:11, color:'#999', marginBottom:10 }}>請假上限 {lmSummary.course?.maxLeaves} 次／補課期限 {lmSummary.course?.makeupDeadline || '—'}（課程結束後）。補課額度＝min(上限, 有效請假數)。</div>
             <div style={{ overflowX:'auto' }}>
