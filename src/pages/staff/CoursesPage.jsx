@@ -904,8 +904,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>場次</button>
                       <button onClick={() => loadCourseRoster(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>名單</button>
+                      {c.type !== 'workshop' && c.categoryGroup !== 'workshop' && (
                       <button onClick={() => loadLeaveMakeup(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>假補</button>
+                      )}
                       {c.status !== 'cancelled' && (inactive ? (
                         <button onClick={() => handleToggleCourseActive(c, true)}
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>啟用</button>
