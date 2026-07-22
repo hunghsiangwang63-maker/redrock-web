@@ -29,6 +29,7 @@ const TAB_GROUPS = [
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
       { key: 'discountCardValidity', icon: '🎟️', label: '優惠卡期限', superAdminOnly: true },
       { key: 'partnerVendor',icon: '🤝', label: '特約廠商優惠', superAdminOnly: true },
+      { key: 'partnerGymMember',icon: '🧗', label: '友館隊員優惠', superAdminOnly: true },
       { key: 'partnerGyms',  icon: '🧗', label: '友館折扣清單', superAdminOnly: true },
       { key: 'paymentMethods',icon: '💳', label: '付款方式', superAdminOnly: true },
     ],
@@ -147,6 +148,7 @@ export default function SettingsPage() {
     if (activeTab === 'bonus' && isSuperAdmin) loadBonus();
     if (activeTab === 'discountCardValidity' && isSuperAdmin) loadDcv();
     if (activeTab === 'partnerVendor' && isSuperAdmin) loadPartnerVendor();
+    if (activeTab === 'partnerGymMember' && isSuperAdmin) loadPartnerGymMember();
     if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
   }, [activeTab]);
@@ -430,6 +432,21 @@ export default function SettingsPage() {
       const res = await client.put('/settings/partner-vendor', { enabled: !!partnerVendor.enabled, discount: Number(partnerVendor.discount) });
       setPartnerVendor({ enabled: res.data.enabled, discount: res.data.discount }); setPartnerVendorDirty(false);
       showMsg('特約廠商優惠設定已儲存');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+  // ─── 友館隊員入場優惠（啟用 + 折扣率，預設9折）──────────────────────────
+  const [partnerGymMember, setPartnerGymMember] = useState({ enabled: true, rate: 0.9 });
+  const [partnerGymMemberDirty, setPartnerGymMemberDirty] = useState(false);
+  const loadPartnerGymMember = async () => {
+    try { const res = await client.get('/settings/partner-gym-member'); setPartnerGymMember({ enabled: res.data.enabled !== false, rate: res.data.rate ?? 0.9 }); setPartnerGymMemberDirty(false); } catch (e) {}
+  };
+  const handleSavePartnerGymMember = async () => {
+    setLoading(true);
+    try {
+      const res = await client.put('/settings/partner-gym-member', { enabled: !!partnerGymMember.enabled, rate: Number(partnerGymMember.rate) });
+      setPartnerGymMember({ enabled: res.data.enabled, rate: res.data.rate }); setPartnerGymMemberDirty(false);
+      showMsg('友館隊員優惠設定已儲存');
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -847,6 +864,34 @@ export default function SettingsPage() {
                 onChange={e => { setPartnerVendor(p => ({ ...p, discount: e.target.value })); setPartnerVendorDirty(true); }}
                 style={{ ...s.input, width:'100%' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 0～1000 元，預設 20 元。停用或金額 0 時，會員端不顯示特約選項。</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'partnerGymMember' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🧗 友館隊員入場優惠</span>
+            <SaveButton onSave={handleSavePartnerGymMember} isDirty={partnerGymMemberDirty} label='儲存友館隊員優惠' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
+              友館隊員憑證明入場，全票／學生票在<strong>無其他折扣</strong>時打折（預設 9 折，成人 300→270、學生 250→225）。與隊員 9 折、舊折扣卡 8 折<strong>互斥</strong>；與特約廠商優惠擇一（友館隊員較優先）；兒童票不適用。會員入場 QR 自選，櫃檯掃碼時提示請會員出示友館隊員證明。
+            </div>
+            <label onClick={() => { setPartnerGymMember(p => ({ ...p, enabled: !p.enabled })); setPartnerGymMemberDirty(true); }}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', borderRadius:10, border:'0.5px solid #E8D5D5', marginBottom:16, cursor:'pointer' }}>
+              <span style={{ fontSize:14, fontWeight:600 }}>啟用友館隊員優惠</span>
+              <span style={{ width:44, height:26, borderRadius:13, background: partnerGymMember.enabled ? '#2D7D46' : '#ccc', position:'relative', transition:'.2s', flexShrink:0 }}>
+                <span style={{ position:'absolute', top:3, left: partnerGymMember.enabled ? 21 : 3, width:20, height:20, borderRadius:10, background:'#fff', transition:'.2s' }} />
+              </span>
+            </label>
+            <div style={{ maxWidth:260, opacity: partnerGymMember.enabled ? 1 : 0.5 }}>
+              <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>折扣率（0～1，如 0.9＝九折）</label>
+              <input type="number" value={partnerGymMember.rate} min="0.1" max="0.99" step="0.05" disabled={!partnerGymMember.enabled}
+                onChange={e => { setPartnerGymMember(p => ({ ...p, rate: e.target.value })); setPartnerGymMemberDirty(true); }}
+                style={{ ...s.input, width:'100%' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:6 }}>填 0～1 之間，預設 0.9（九折）。停用時會員端不顯示友館隊員選項。</div>
             </div>
           </div>
         </div>

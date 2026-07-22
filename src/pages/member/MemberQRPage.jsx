@@ -44,6 +44,7 @@ export default function MemberQRPage() {
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [buyPassPlan, setBuyPassPlan] = useState('full'); // 購定期票：'full' | 'installment'
   const [partnerVendor, setPartnerVendor] = useState(false); // 特約廠商優惠（−20，需出示證件；後端權威）
+  const [partnerGymMember, setPartnerGymMember] = useState(false); // 友館隊員優惠（9折，需出示證明；後端權威；與特約廠商互斥）
   const [renewOptIn, setRenewOptIn] = useState(false);    // 續約：是否順便續約
   const [renewPlan, setRenewPlan] = useState('full');     // 續約：'full' | 'installment'
   const [rentShoes, setRentShoes] = useState(false);
@@ -177,12 +178,16 @@ export default function MemberQRPage() {
       if (!selectedEntry.freeEntry) {
         payload.paymentMethod = payMethod;
         payload.originalAmount = selectedEntry.price || 0;
-        // 特約廠商（全票/學生票、非隊員、一般付款）：−20（後端權威覆核，前端僅顯示一致）
-        const pvActive = selectedEntry.kind === 'pay' && selectedEntry.partnerVendorEligible === true && partnerVendor;
+        // 友館隊員(9折)／特約廠商(−20)：全票/學生票、非隊員、一般付款；互斥、友館隊員優先（後端權威覆核，前端僅顯示一致）
+        const _base = selectedEntry.discountedPrice ?? selectedEntry.price ?? 0;
+        const pgmActive = selectedEntry.kind === 'pay' && selectedEntry.partnerGymMemberEligible === true && partnerGymMember;
+        const pgmRate = verifyResult?.partnerGymMemberRate || 0.9;
+        const pvActive = !pgmActive && selectedEntry.kind === 'pay' && selectedEntry.partnerVendorEligible === true && partnerVendor;
         const pvCut = pvActive ? (verifyResult?.partnerVendorDiscount || 20) : 0;
-        payload.amount = Math.max(0, (selectedEntry.discountedPrice ?? selectedEntry.price ?? 0) - pvCut);
+        payload.amount = pgmActive ? Math.round(_base * pgmRate) : Math.max(0, _base - pvCut);
         payload.isTeamDiscount = selectedEntry.teamDiscount || false;
         if (pvActive) payload.partnerVendor = true;
+        if (pgmActive) payload.partnerGymMember = true;
       }
       // 免費入場但有加租器材（岩鞋/粉袋）：帶「租借付款方式」（供結帳付款方式正確歸類，不再一律現金）
       if (selectedEntry.freeEntry && (shoes || chalk)) {
@@ -408,7 +413,7 @@ export default function MemberQRPage() {
     const basePrice = st.discountedPrice ?? st.price ?? 0;       // 一般付款（含隊員折扣）
     const methods = [
       { kind:'pay', type:st.type, baseEntryType:st.type, label:t('一般付款'), price:st.price, discountedPrice:basePrice,
-        teamDiscount:st.teamDiscount, partnerVendorEligible:st.partnerVendorEligible === true, freeEntry:false, requiresPayment:true },
+        teamDiscount:st.teamDiscount, partnerVendorEligible:st.partnerVendorEligible === true, partnerGymMemberEligible:st.partnerGymMemberEligible === true, freeEntry:false, requiresPayment:true },
     ];
     if (inst.discountCard?.available) {
       const dp = Math.round((st.price || 0) * (inst.discountCard.rate || 0.8));
@@ -496,9 +501,13 @@ export default function MemberQRPage() {
 
   if (step === 'select_payment') {
    const pvDiscount = verifyResult?.partnerVendorDiscount || 20;
+   const pgmRate = verifyResult?.partnerGymMemberRate || 0.9;
    const pvEligible = selectedEntry?.kind === 'pay' && selectedEntry?.partnerVendorEligible === true && !selectedEntry?.freeEntry;
+   const pgmEligible = selectedEntry?.kind === 'pay' && selectedEntry?.partnerGymMemberEligible === true && !selectedEntry?.freeEntry;
    const basePayPrice = selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0;
-   const pvShownPrice = basePayPrice - ((pvEligible && partnerVendor) ? pvDiscount : 0);
+   const _pgmOn = pgmEligible && partnerGymMember;
+   const _pvOn = !_pgmOn && pvEligible && partnerVendor;
+   const pvShownPrice = _pgmOn ? Math.round(basePayPrice * pgmRate) : (basePayPrice - (_pvOn ? pvDiscount : 0));
    return wrap(
     <>
       <Header title={t('選擇付款方式')} onBack={() => setStep('shoes')} />
@@ -516,9 +525,22 @@ export default function MemberQRPage() {
             </div>
           )}
         </div>
+        {/* 友館隊員優惠（全票/學生票、非隊員、非票券）：勾選 9折，需櫃檯出示友館隊員證明；與特約廠商互斥；金額後端權威 */}
+        {pgmEligible && (
+          <div onClick={() => { setPartnerGymMember(v => !v); setPartnerVendor(false); }}
+            style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'12px 14px', marginBottom:12, borderRadius:12, border:`1.5px solid ${partnerGymMember?'#8B1A1A':'#E8D5D5'}`, background: partnerGymMember?'#FBF5F5':'#fff', cursor:'pointer' }}>
+            <div style={{ width:22, height:22, borderRadius:6, border:`1.5px solid ${partnerGymMember?'#8B1A1A':'#ccc'}`, background:partnerGymMember?'#8B1A1A':'#fff', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}>
+              {partnerGymMember && <span style={{ color:'#fff', fontSize:14, fontWeight:700 }}>✓</span>}
+            </div>
+            <div style={{ flex:1, textAlign:'left' }}>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{isEn() ? `Partner-gym athlete (${Math.round(pgmRate*100)}% off)` : `友館隊員優惠（${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`}</div>
+              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{isEn() ? 'Show partner-gym athlete proof at counter; otherwise full price.' : '需於櫃檯出示友館隊員證明核對，未出示或不符將以原價計。'}</div>
+            </div>
+          </div>
+        )}
         {/* 特約廠商優惠（全票/學生票、非隊員、非票券）：勾選 −NT$20，需櫃檯出示證件；金額後端權威 */}
         {pvEligible && (
-          <div onClick={() => setPartnerVendor(v => !v)}
+          <div onClick={() => { setPartnerVendor(v => !v); setPartnerGymMember(false); }}
             style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'12px 14px', marginBottom:16, borderRadius:12, border:`1.5px solid ${partnerVendor?'#8B1A1A':'#E8D5D5'}`, background: partnerVendor?'#FBF5F5':'#fff', cursor:'pointer' }}>
             <div style={{ width:22, height:22, borderRadius:6, border:`1.5px solid ${partnerVendor?'#8B1A1A':'#ccc'}`, background:partnerVendor?'#8B1A1A':'#fff', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}>
               {partnerVendor && <span style={{ color:'#fff', fontSize:14, fontWeight:700 }}>✓</span>}
@@ -701,9 +723,12 @@ export default function MemberQRPage() {
     const firstPeriod = bpInst
       ? Math.round((selectedEntry.price || 0) * (Number(selectedEntry.installment.periods[0].percent) || 0) / 100)
       : null;
-    const pvActive = selectedEntry?.kind === 'pay' && selectedEntry?.partnerVendorEligible === true && partnerVendor && !selectedEntry?.freeEntry;
+    const pgmActive = selectedEntry?.kind === 'pay' && selectedEntry?.partnerGymMemberEligible === true && partnerGymMember && !selectedEntry?.freeEntry;
+    const pgmRate = verifyResult?.partnerGymMemberRate || 0.9;
+    const pvActive = !pgmActive && selectedEntry?.kind === 'pay' && selectedEntry?.partnerVendorEligible === true && partnerVendor && !selectedEntry?.freeEntry;
     const pvCut = pvActive ? (verifyResult?.partnerVendorDiscount || 20) : 0;
-    const entryPrice = selectedEntry?.freeEntry ? 0 : (bpInst ? firstPeriod : Math.max(0, (selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0) - pvCut));
+    const _qbase = selectedEntry?.discountedPrice ?? selectedEntry?.price ?? 0;
+    const entryPrice = selectedEntry?.freeEntry ? 0 : (bpInst ? firstPeriod : (pgmActive ? Math.round(_qbase * pgmRate) : Math.max(0, _qbase - pvCut)));
     const totalAmount = entryPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0) + renewDueNow;
     const minutesLeft = qrExpiry ? Math.max(0, dayjs(qrExpiry).diff(dayjs(), 'minute')) : 0;
     return wrap(
@@ -721,7 +746,7 @@ export default function MemberQRPage() {
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? t('折扣優惠券') : selectedEntry?.type === 'buy_pass' ? (bpInst ? t('定期票（頭款・第1期）') : t('定期票')) : (pvActive ? (isEn() ? `Entry Fee (partner −${pvCut})` : `入場費（特約 −${pvCut}）`) : t('入場費'))}</span>
+                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? t('折扣優惠券') : selectedEntry?.type === 'buy_pass' ? (bpInst ? t('定期票（頭款・第1期）') : t('定期票')) : (pgmActive ? (isEn() ? `Entry Fee (partner-gym ${Math.round(pgmRate*100)}%)` : `入場費（友館隊員 ${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`) : (pvActive ? (isEn() ? `Entry Fee (partner −${pvCut})` : `入場費（特約 −${pvCut}）`) : t('入場費')))}</span>
                   <span>NT${entryPrice}</span>
                 </div>
               )}
@@ -768,10 +793,10 @@ export default function MemberQRPage() {
             <div style={{ marginTop:8, fontSize:11, color:'#999' }}>{isEn() ? `⏱ Valid for about ${minutesLeft} more minutes` : `⏱ 有效時間剩餘約 ${minutesLeft} 分鐘`}</div>
           </div>
           {/* 特約廠商 / 學生入場：提醒會員入場時於櫃檯出示證件（櫃檯員工端亦有查驗提醒）*/}
-          {(pvActive || selectedEntry?.type === 'student_free') && (
+          {(pvActive || pgmActive || selectedEntry?.type === 'student_free') && (
             <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:10, padding:'12px 14px', marginTop:14, fontSize:13, color:'#8A5A00', fontWeight:600, display:'flex', gap:8, textAlign:'left', alignItems:'flex-start' }}>
               <span style={{ flexShrink:0 }}>🪪</span>
-              <span>{isEn() ? `Please show your ${[selectedEntry?.type === 'student_free' && 'student ID', pvActive && 'partner-company ID'].filter(Boolean).join(' and ')} at the front desk; full price applies if not presented.` : `入場時請於櫃檯出示${[selectedEntry?.type === 'student_free' && '學生證', pvActive && '特約廠商證件'].filter(Boolean).join('、')}供核對，未出示或不符將以原價計。`}</span>
+              <span>{isEn() ? `Please show your ${[selectedEntry?.type === 'student_free' && 'student ID', pvActive && 'partner-company ID', pgmActive && 'partner-gym athlete proof'].filter(Boolean).join(' and ')} at the front desk; full price applies if not presented.` : `入場時請於櫃檯出示${[selectedEntry?.type === 'student_free' && '學生證', pvActive && '特約廠商證件', pgmActive && '友館隊員證明'].filter(Boolean).join('、')}供核對，未出示或不符將以原價計。`}</span>
             </div>
           )}
           {qrClosedReason === 'expired' ? (
