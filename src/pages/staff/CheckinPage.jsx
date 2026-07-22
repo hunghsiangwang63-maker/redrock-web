@@ -49,9 +49,17 @@ export default function CheckinPage() {
 
   const [trend, setTrend] = useState(null);   // 每日入場數折線（本月 vs 上月）
   useEffect(() => {
-    // super_admin 不帶 gymId → 後端回兩館各自序列，圖表分線（新竹紅/士林藍）
-    client.get('/checkin/monthly-daily-counts', { params: { gymId: isSuperAdmin ? undefined : (targetGymId || undefined) } })
-      .then(r => setTrend(r.data)).catch(() => setTrend({ data: [] }));
+    // 圖表延後到瀏覽器閒置才載入，讓「今日課程學員/統計」先出來（非關鍵資訊、不阻塞主內容）
+    let cancelled = false;
+    const run = () => {
+      // super_admin 不帶 gymId → 後端回兩館各自序列，圖表分線（新竹紅/士林藍）
+      client.get('/checkin/monthly-daily-counts', { params: { gymId: isSuperAdmin ? undefined : (targetGymId || undefined) } })
+        .then(r => { if (!cancelled) setTrend(r.data); }).catch(() => { if (!cancelled) setTrend({ data: [] }); });
+    };
+    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 1200));
+    const cic = window.cancelIdleCallback || clearTimeout;
+    const id = ric(run, { timeout: 2500 });
+    return () => { cancelled = true; cic(id); };
   }, [targetGymId, isSuperAdmin]);
 
   const [courseStudents, setCourseStudents] = useState([]);
