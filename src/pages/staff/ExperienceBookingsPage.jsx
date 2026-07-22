@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import client from '../../api/client';
 import SaveButton from '../../components/SaveButton';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -24,6 +25,9 @@ export default function ExperienceBookingsPage() {
   const { staff, token } = useAuth();
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
   const [tab, setTab] = useState('bookings');
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [linkQr, setLinkQr] = useState('');
+  const PUBLIC_BOOK_URL = 'https://app.redrocktaiwan.com/book/experience';
   const [bookings, setBookings] = useState([]);
   const [showPast, setShowPast] = useState(false); // 已完成（過期）預約收合
   const [loading, setLoading] = useState(true);
@@ -235,8 +239,8 @@ export default function ExperienceBookingsPage() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div style={{ fontSize:20, fontWeight:700 }}>🧗 體驗課程預約管理</div>
         <div style={{ display:'flex', gap:8 }}>
-          <button onClick={() => { const url='https://app.redrocktaiwan.com/book/experience'; if(navigator.clipboard?.writeText){ navigator.clipboard.writeText(url).then(()=>showMsg('公開預約連結已複製（可貼給非會員）：\n'+url), ()=>window.prompt('複製此公開預約連結：', url)); } else window.prompt('複製此公開預約連結：', url); }}
-            style={{ height:36, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:13, cursor:'pointer' }}>🔗 公開預約連結</button>
+          <button onClick={() => { setShowLinkModal(true); QRCode.toDataURL(PUBLIC_BOOK_URL, { width: 240, margin: 2 }).then(setLinkQr).catch(()=>setLinkQr('')); }}
+            style={{ height:36, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>🔗 產生免登入預約連結</button>
           <button onClick={downloadXLS} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>⬇ XLS 名單</button>
           <button onClick={()=>downloadInsurance()} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>📋 保險名冊</button>
         </div>
@@ -690,6 +694,22 @@ export default function ExperienceBookingsPage() {
               <button onClick={()=>setCancelBooking(null)} disabled={cancelling} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>返回</button>
               <button onClick={doCancel} disabled={cancelling} style={{ flex:2, height:44, borderRadius:10, background:cancelling?'#C99':'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{cancelling?'取消中…':'確認取消預約'}</button>
             </div>
+          </div>
+        </div>
+      )}
+      {showLinkModal && (
+        <div onClick={() => setShowLinkModal(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:380, maxWidth:'92vw', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.2)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>🔗 免登入體驗預約連結</div>
+            <div style={{ fontSize:12, color:'#999', marginTop:6, lineHeight:1.6 }}>非會員也能用此連結預約體驗課；<br/>可貼到 LINE、或讓客人掃下方 QR 直接進預約頁。</div>
+            {linkQr && <img src={linkQr} alt="QR" style={{ width:200, height:200, margin:'16px auto 8px', display:'block', border:'1px solid #EEE', borderRadius:8 }} />}
+            <div style={{ display:'flex', gap:8, alignItems:'stretch', marginTop:12 }}>
+              <input readOnly value={PUBLIC_BOOK_URL} onFocus={e => e.target.select()}
+                style={{ flex:1, height:40, borderRadius:8, border:'1px solid #E0D4D4', padding:'0 10px', fontSize:12, color:'#333', background:'#FBF7F7' }} />
+              <button onClick={() => { if(navigator.clipboard?.writeText){ navigator.clipboard.writeText(PUBLIC_BOOK_URL).then(()=>showMsg('連結已複製'),()=>window.prompt('複製連結：',PUBLIC_BOOK_URL)); } else window.prompt('複製連結：',PUBLIC_BOOK_URL); }}
+                style={{ height:40, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>複製</button>
+            </div>
+            <button onClick={() => setShowLinkModal(false)} style={{ marginTop:14, height:38, width:'100%', borderRadius:9, background:'#fff', color:'#666', border:'0.5px solid #E0D4D4', fontSize:13, cursor:'pointer' }}>關閉</button>
           </div>
         </div>
       )}
