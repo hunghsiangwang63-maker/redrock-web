@@ -1003,7 +1003,7 @@ export default function MemberCoursesPage() {
                               : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>剩 {remaining} 位</span>}
                           </div>
                           <div style={{ fontSize:12, color:'#777', lineHeight:1.7 }}>
-                            <div>🗓 每週{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>
+                            {c.type !== 'workshop' && <div>🗓 每週{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>}
                             <div>📅 {c.startDate} ～ {c.endDate}</div>
                             <div>👟 教練：{c.instructor || '—'}</div>
                           </div>
@@ -1065,7 +1065,7 @@ export default function MemberCoursesPage() {
                         )}
                       </div>
                     </div>
-                    {single && (
+                    {single && g[0].type !== 'workshop' && (
                       <div style={{ fontSize:12, color:'#999', marginTop:6 }}>
                         每週{g[0].weekdays?.map(d => WEEKDAYS[d]).join('、')} {g[0].startTime}～{g[0].endTime} · {g[0].startDate} 起
                       </div>
@@ -1130,9 +1130,11 @@ export default function MemberCoursesPage() {
                     {selectedCourse.startDate} ～ {selectedCourse.endDate}
                     {selectedCourse.instructor && ` · 教練：${selectedCourse.instructor}`}
                   </div>
+                  {selectedCourse.type !== 'workshop' && (
                   <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
                     每週{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}
                   </div>
+                  )}
                 </div>
               </div>
 

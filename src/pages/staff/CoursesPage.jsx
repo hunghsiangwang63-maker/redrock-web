@@ -889,7 +889,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         <Tag type={st.type}>{st.label}</Tag>
                       </div>
                       <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
-                        {wk ? `每週${wk} ` : ''}{c.startTime}~{c.endTime} · {c.startDate}~{c.endDate} · 👟{c.instructor || '—'}
+                        {wk && c.type !== 'workshop' ? `每週${wk} ` : ''}{c.startTime}~{c.endTime} · {c.type === 'workshop' ? c.startDate : `${c.startDate}~${c.endDate}`} · 👟{c.instructor || '—'}
                       </div>
                     </div>
                     <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', width:90, textAlign:'right' }}>NT${(c.price||0).toLocaleString()}</div>
