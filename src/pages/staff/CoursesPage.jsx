@@ -1163,12 +1163,21 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   {enrolled.length > 0 && (
                     <div style={{ marginBottom:14 }}>
                       <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>正取（{enrolled.length}）</div>
-                      {enrolled.map((e,i) => (
-                        <div key={e.id||i} style={{ display:'flex', justifyContent:'space-between', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4, fontSize:13 }}>
-                          <span>{e.memberName}{e.isMakeup && !e.isCrossMakeup && <span style={{fontSize:10,color:'#185FA5',marginLeft:6}}>補課</span>}{e.isCrossMakeup && <span style={{fontSize:10,color:'#5B2D8B',marginLeft:6}}>跨期補課</span>}</span>
-                          <span style={{ color:'#999', fontSize:12 }}>{e.memberPhone}</span>
+                      {enrolled.map((e,i) => {
+                        const gsex = e.enrollGender==='male'?'男':e.enrollGender==='female'?'女':e.enrollGender;
+                        const info = [gsex, e.enrollAge && (e.enrollAge+'歲')].filter(Boolean).join(' · ');
+                        return (
+                        <div key={e.id||i} style={{ padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4, fontSize:13 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between' }}>
+                            <span>{e.memberName}{e.isMakeup && !e.isCrossMakeup && <span style={{fontSize:10,color:'#185FA5',marginLeft:6}}>補課</span>}{e.isCrossMakeup && <span style={{fontSize:10,color:'#5B2D8B',marginLeft:6}}>跨期補課</span>}</span>
+                            <span style={{ color:'#999', fontSize:12 }}>{e.memberPhone}</span>
+                          </div>
+                          {info && <div style={{ fontSize:11, color:'#666', marginTop:3 }}>{info}</div>}
+                          {e.enrollNote && <div style={{ fontSize:11.5, color:'#8B1A1A', marginTop:3, fontWeight:600 }}>🩹 想處理部位：{e.enrollNote}</div>}
+                          {e.healthNote && <div style={{ fontSize:11, color:'#B5651D', marginTop:2 }}>💊 健康備註：{e.healthNote}</div>}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   {waitlist.length > 0 && (
