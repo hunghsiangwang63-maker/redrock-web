@@ -278,6 +278,7 @@ export default function StaffLayout() {
                 ...(isAdmin ? [{ path:'/staff/finance', icon:'ti-chart-bar', label:'財務' }] : []),
                 { path:'/staff/settlement',    icon:'ti-calculator',   label:'每日結算' },
                 { path:'/staff/schedule',      icon:'ti-calendar-time',label:'排班表' },
+                { path:'/staff/staff-entry',   icon:'ti-qrcode',       label:'員工入館' },
                 { path:'/staff/settings',      icon:'ti-settings',     label:'系統設定' },
               ].filter(n => canSeeNav(n.path) && (n.path !== '/staff/finance' || isAdmin) && (n.path !== '/staff/settlement' || (isStationMode && operator) || isSuperAdmin)).map(n => {
                 const active = location.pathname === n.path;
