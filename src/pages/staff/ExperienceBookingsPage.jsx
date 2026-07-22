@@ -235,6 +235,8 @@ export default function ExperienceBookingsPage() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div style={{ fontSize:20, fontWeight:700 }}>🧗 體驗課程預約管理</div>
         <div style={{ display:'flex', gap:8 }}>
+          <button onClick={() => { const url='https://app.redrocktaiwan.com/book/experience'; if(navigator.clipboard?.writeText){ navigator.clipboard.writeText(url).then(()=>showMsg('公開預約連結已複製（可貼給非會員）：\n'+url), ()=>window.prompt('複製此公開預約連結：', url)); } else window.prompt('複製此公開預約連結：', url); }}
+            style={{ height:36, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:13, cursor:'pointer' }}>🔗 公開預約連結</button>
           <button onClick={downloadXLS} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>⬇ XLS 名單</button>
           <button onClick={()=>downloadInsurance()} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>📋 保險名冊</button>
         </div>

@@ -4,6 +4,7 @@ import { MemberProvider, useMember } from './store/memberStore.jsx';
 
 // Staff imports
 import LoginPage from './pages/staff/LoginPage';
+import PublicExperienceBookingPage from './pages/public/PublicExperienceBookingPage';
 import CheckinPage from './pages/staff/CheckinPage';
 import MembersPage from './pages/staff/MembersPage';
 import PassesPage from './pages/staff/PassesPage';
@@ -99,6 +100,7 @@ function MemberRoutes() {
       <Route path="/member/forgot-password"  element={<MemberForgotPasswordPage />} />
       <Route path="/member/reset-password"   element={<MemberResetPasswordPage />} />
       <Route path="/member/register" element={<MemberRegisterPage />} />
+      <Route path="/book/experience" element={<PublicExperienceBookingPage />} />
       <Route path="/member/verify"   element={<MemberVerifyResultPage />} />
       <Route path="/member/home"    element={<MemberRoute><MemberHomePage /></MemberRoute>} />
       <Route path="/member/qr"      element={<MemberRoute><MemberQRPage /></MemberRoute>} />
