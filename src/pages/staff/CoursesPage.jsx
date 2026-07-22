@@ -379,6 +379,9 @@ export default function CoursesPage({ embedded = false }) {
       if (courseForm.fullTermRenewalDiscount !== '' && courseForm.fullTermRenewalDiscount != null) ov.fullTermRenewalDiscount = Number(courseForm.fullTermRenewalDiscount);
       if (courseForm.alumniDiscount !== '' && courseForm.alumniDiscount != null) ov.alumniDiscount = Number(courseForm.alumniDiscount);
       if (courseForm.renewalDeadline) ov.renewalDeadline = courseForm.renewalDeadline;
+      if (courseForm.teamOpenDate) ov.teamOpenDate = courseForm.teamOpenDate;
+      if (courseForm.generalOpenDate) ov.generalOpenDate = courseForm.generalOpenDate;
+      if (courseForm.teamPrice !== '' && courseForm.teamPrice != null) ov.teamPrice = Number(courseForm.teamPrice);
       const res = await createCourse({
         ...courseForm,
         gymId: courseForm.gymId || effectiveGymId,   // super_admin 未動館別下拉時 courseForm.gymId 為空 → 補當前檢視館別，避免建出 gymId=null 幽靈課
@@ -441,6 +444,7 @@ export default function CoursesPage({ embedded = false }) {
       perSessionDeduction: course.perSessionDeduction ?? '',
       handlingFeeRate: course.handlingFeeRate != null ? Math.round(course.handlingFeeRate * 100) : '',
       alumniOpenDate: course.alumniOpenDate || '', enrollOpenDate: course.enrollOpenDate || '',
+      teamOpenDate: course.teamOpenDate || '', generalOpenDate: course.generalOpenDate || '', teamPrice: course.teamPrice != null ? course.teamPrice : '',
       fullTermRenewalDiscount: course.fullTermRenewalDiscount ?? '', alumniDiscount: course.alumniDiscount ?? '', renewalDeadline: course.renewalDeadline || '',
       preStartFeeRate: course.preStartFeeRate != null ? Math.round(course.preStartFeeRate * 100) : '',
       allowMakeup: course.allowMakeup ?? '',
@@ -485,6 +489,8 @@ export default function CoursesPage({ embedded = false }) {
         perSessionDeduction: ovNum(editForm.perSessionDeduction),
         handlingFeeRate: editForm.handlingFeeRate === '' ? null : (parseFloat(editForm.handlingFeeRate) || 0) / 100,
         alumniOpenDate: editForm.alumniOpenDate || null, enrollOpenDate: editForm.enrollOpenDate || null,
+        teamOpenDate: editForm.teamOpenDate || null, generalOpenDate: editForm.generalOpenDate || null,
+        teamPrice: editForm.teamPrice === '' ? null : Number(editForm.teamPrice),
         fullTermRenewalDiscount: editForm.fullTermRenewalDiscount === '' ? null : Number(editForm.fullTermRenewalDiscount),
         alumniDiscount: editForm.alumniDiscount === '' ? null : Number(editForm.alumniDiscount),
         renewalDeadline: editForm.renewalDeadline || null,
@@ -2120,6 +2126,29 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               </div>
             </div>
           </div>
+          {editingCourse?.type === 'workshop' && (
+            <div style={{ marginTop:16, padding:14, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#FBF7F2' }}>
+              <label style={{ fontSize:13, color:'#854F0B', fontWeight:700, display:'block', marginBottom:4 }}>🏅 分階段報名 / 隊員優惠價（工作坊）</label>
+              <div style={{ fontSize:11, color:'#999', marginBottom:10, lineHeight:1.5 }}>留空＝不限制。隊員專屬期(隊員開放日～一般開放日)只有隊員可報名；一般會員在一般開放日起才可報名；隊員任何時候報名都用隊員優惠價。</div>
+              <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
+                <div style={{ flex:'1 1 140px' }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>隊員報名開放日</label>
+                  <input type="date" value={editForm.teamOpenDate || ''} onChange={e => setEditForm({...editForm, teamOpenDate:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div style={{ flex:'1 1 140px' }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>一般會員報名開放日</label>
+                  <input type="date" value={editForm.generalOpenDate || ''} onChange={e => setEditForm({...editForm, generalOpenDate:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div style={{ flex:'1 1 140px' }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>隊員優惠價（NT$）</label>
+                  <input type="number" min="0" value={editForm.teamPrice ?? ''} placeholder={`一般價 ${editForm.price||0}`} onChange={e => setEditForm({...editForm, teamPrice:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+              </div>
+            </div>
+          )}
           <div style={{ marginTop:16 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>分期付款規則</label>
             <InstallmentRuleEditor value={editForm.installment} price={editForm.price}

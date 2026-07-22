@@ -1208,10 +1208,23 @@ export default function MemberCoursesPage() {
                 );
               })()}
 
-              {/* 工作坊：選場次報名 */}
+              {/* 工作坊：選場次報名（分階段報名＋隊員分級定價；依登入者隊員身份顯示價格與開放狀態，後端權威） */}
               {selectedCourse.type === 'workshop' && sessions.filter(s => s.status !== 'cancelled').map(s => {
                 const enrolled = isEnrolled(s.id);
                 const full = s.enrolledCount >= s.maxStudents;
+                const _wsTeam = !!member?.isTeamMember;
+                const _hasTeamPrice = selectedCourse.teamPrice != null;
+                const _myPrice = (_wsTeam && _hasTeamPrice) ? selectedCourse.teamPrice : selectedCourse.price;
+                const _td = dayjs().format('YYYY-MM-DD');
+                const _staged = selectedCourse.teamOpenDate || selectedCourse.generalOpenDate;
+                const _myOpen = _wsTeam
+                  ? (!selectedCourse.teamOpenDate || _td >= selectedCourse.teamOpenDate)
+                  : (!selectedCourse.generalOpenDate || _td >= selectedCourse.generalOpenDate);
+                const _notOpenMsg = _wsTeam
+                  ? `隊員 ${selectedCourse.teamOpenDate} 起開放`
+                  : (selectedCourse.teamOpenDate && _td >= selectedCourse.teamOpenDate
+                      ? `隊員專屬報名中，一般會員 ${selectedCourse.generalOpenDate} 起開放`
+                      : `一般會員 ${selectedCourse.generalOpenDate} 起開放`);
                 return (
                   <div key={s.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -1222,6 +1235,15 @@ export default function MemberCoursesPage() {
                         <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                           {s.startTime}～{s.endTime}{s.instructor && ` · ${s.instructor}`}
                         </div>
+                        <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:700, marginTop:4 }}>
+                          NT${_myPrice}{_wsTeam && _hasTeamPrice && <span style={{ fontSize:11, color:'#854F0B', fontWeight:600, marginLeft:6 }}>🏅隊員價</span>}
+                        </div>
+                        {_staged && _hasTeamPrice && !_wsTeam && (
+                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>隊員價 NT${selectedCourse.teamPrice}</div>
+                        )}
+                        {_staged && !_myOpen && (
+                          <div style={{ fontSize:11, color:'#B5651D', marginTop:3 }}>⏳ {_notOpenMsg}</div>
+                        )}
                       </div>
                       <div style={{ textAlign:'right' }}>
                         {full && !enrolled && (
@@ -1230,9 +1252,9 @@ export default function MemberCoursesPage() {
                         {enrolled ? (
                           <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>已報名</span>
                         ) : (
-                          <button onClick={() => { setEnrollSession(s); setShowEnrollModal(true); }}
-                            style={{ marginTop:4, height:30, padding:'0 12px', borderRadius:8, background: full?'#f5f5f5':'#8B1A1A', color: full?'#999':'#fff', border:'none', fontSize:12, cursor: full?'not-allowed':'pointer' }}
-                            disabled={full}>
+                          <button onClick={() => { if (full || !_myOpen) return; setEnrollSession({ ...s, fee: _myPrice }); setShowEnrollModal(true); }}
+                            style={{ marginTop:4, height:30, padding:'0 12px', borderRadius:8, background: (full||!_myOpen)?'#f5f5f5':'#8B1A1A', color: (full||!_myOpen)?'#999':'#fff', border:'none', fontSize:12, cursor: (full||!_myOpen)?'not-allowed':'pointer' }}
+                            disabled={full || !_myOpen}>
                             {full ? '候補' : '報名'}
                           </button>
                         )}
