@@ -1,4 +1,5 @@
-import { useState, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
+import { memberClient } from '../api/client';
 
 const MemberContext = createContext(null);
 
@@ -30,6 +31,24 @@ export const MemberProvider = ({ children }) => {
       return next;
     });
   };
+
+  // App 載入時若已登入 → 向後端刷新最新會員資料（含即時 isTeamMember/blockReasons），
+  // 避免「登入後才被加入隊員」的人身分卡在登入當下的快取（需手動 refresh 才更新）。
+  useEffect(() => {
+    if (!localStorage.getItem('member_token')) return;
+    memberClient.get('/auth/member/me')
+      .then(res => {
+        const fresh = res.data?.member;
+        if (fresh && fresh.id) {
+          setMember(prev => {
+            const next = { ...(prev || {}), ...fresh };
+            localStorage.setItem('member', JSON.stringify(next));
+            return next;
+          });
+        }
+      })
+      .catch(() => {}); // 失敗（離線等）維持既有快取；401 由 client 攔截器處理
+  }, []);
 
   return (
     <MemberContext.Provider value={{ member, login, logout, updateMember, isLoggedIn: !!member }}>
