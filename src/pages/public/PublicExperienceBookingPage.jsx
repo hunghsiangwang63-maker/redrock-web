@@ -117,11 +117,11 @@ export default function PublicExperienceBookingPage() {
           </select>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label style={label}>體驗日期</label>
               <input type="date" value={bookingDate} min={new Date(Date.now() + 864e5).toISOString().slice(0, 10)} onChange={e => setBookingDate(e.target.value)} style={input} />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label style={label}>希望時段（選填）</label>
               <input placeholder="如 14:00" value={bookingTime} onChange={e => setBookingTime(e.target.value)} style={input} />
             </div>
@@ -133,18 +133,18 @@ export default function PublicExperienceBookingPage() {
           {participants.map((p, i) => (
             <div key={i} style={{ marginTop: 12, paddingTop: i ? 12 : 0, borderTop: i ? '1px dashed #EEE' : 'none' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label style={{ ...label, marginTop: 0 }}>姓名</label>
                   <input value={p.name} onChange={e => setP(i, 'name', e.target.value)} style={input} placeholder="參加者姓名" />
                 </div>
                 {participants.length > 1 && <button onClick={() => rmP(i)} style={{ height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid #E5B5B5', background: '#fff', color: '#A32D2D', fontSize: 13, cursor: 'pointer' }}>移除</button>}
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label style={label}>生日</label>
                   <input type="date" value={p.birthday} onChange={e => setP(i, 'birthday', e.target.value)} style={input} />
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <label style={label}>國籍</label>
                   <input value={p.nationality} onChange={e => setP(i, 'nationality', e.target.value)} style={input} placeholder="台灣" />
                 </div>
@@ -187,11 +187,11 @@ export default function PublicExperienceBookingPage() {
             ) : null;
           })()}
           <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label style={label}>匯款帳號末五碼 *</label>
               <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={input} inputMode="numeric" placeholder="12345" />
             </div>
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <label style={label}>匯款日期（選填）</label>
               <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={input} />
             </div>
