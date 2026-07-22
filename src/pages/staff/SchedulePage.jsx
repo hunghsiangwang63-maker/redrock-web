@@ -374,7 +374,10 @@ export default function SchedulePage() {
                       <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400, marginBottom:4 }}>
                         {dayjs(date).date()}
                       </div>
-                      {dayShifts.map(s => (
+                      {dayShifts.map(s => {
+                        const isCourse = s.source === 'course' || String(s.note || '').startsWith('體驗課程');
+                        const cname = s.courseName || String(s.note || '').replace(/^體驗課程・/, '').split('・')[0];
+                        return (
                         <div key={s.id} onClick={e => { e.stopPropagation(); openEditShift(s); }}
                           style={{
                             fontSize:10, fontWeight:700, padding:'2px 5px', borderRadius:4, marginBottom:2,
@@ -383,11 +386,13 @@ export default function SchedulePage() {
                             color: staffColor(s.staffId),
                             border: s.type === 'full_day' ? 'none' : `1.5px solid ${staffColor(s.staffId)}`,
                             cursor: canManage ? 'pointer' : 'default',
-                            whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                            whiteSpace: isCourse ? 'normal' : 'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                           }}>
                           {s.staffName} {s.type === 'full_day' ? '全天' : `${s.startTime}-${s.endTime}`}
+                          {isCourse && cname && <div style={{ fontSize:9, fontWeight:600, opacity:0.92 }}>📚 {cname}</div>}
                         </div>
-                      ))}
+                        );
+                      })}
                 
                     </>
                   )}
@@ -605,6 +610,8 @@ export default function SchedulePage() {
                 <tr style={{ background:'#FBF5F5' }}>
                   <th style={{ padding:'8px 10px', textAlign:'left', fontWeight:500, color:'#999', fontSize:11 }}>員工</th>
                   <th style={{ padding:'8px 10px', textAlign:'right', fontWeight:500, color:'#999', fontSize:11 }}>班次數</th>
+                  <th style={{ padding:'8px 10px', textAlign:'right', fontWeight:500, color:'#999', fontSize:11 }}>值班工時</th>
+                  <th style={{ padding:'8px 10px', textAlign:'right', fontWeight:500, color:'#999', fontSize:11 }}>課程工時</th>
                   <th style={{ padding:'8px 10px', textAlign:'right', fontWeight:500, color:'#999', fontSize:11 }}>總工時</th>
                 </tr>
               </thead>
@@ -613,6 +620,8 @@ export default function SchedulePage() {
                   <tr key={s.staffId} style={{ borderTop:'0.5px solid #F5EFEF' }}>
                     <td style={{ padding:'10px' }}>{s.staffName}</td>
                     <td style={{ padding:'10px', textAlign:'right', color:'#999' }}>{s.shiftCount} 班</td>
+                    <td style={{ padding:'10px', textAlign:'right', color:'#444' }}>{s.dutyHours ?? s.totalHours} 小時<div style={{ fontSize:10, color:'#bbb' }}>{s.dutyShiftCount ?? s.shiftCount} 班</div></td>
+                    <td style={{ padding:'10px', textAlign:'right', color: (s.courseHours>0)?'#185FA5':'#ccc' }}>{s.courseHours || 0} 小時<div style={{ fontSize:10, color:'#bbb' }}>{s.courseShiftCount || 0} 班</div></td>
                     <td style={{ padding:'10px', textAlign:'right', fontWeight:600, color:'#8B1A1A' }}>{s.totalHours} 小時</td>
                   </tr>
                 ))}
@@ -620,7 +629,7 @@ export default function SchedulePage() {
             </table>
           )}
           <div style={{ fontSize:11, color:'#999', marginTop:14, lineHeight:1.6 }}>
-            ⓘ 整天班以8小時計算工時，自由時段班按實際填寫的開始/結束時間計算。
+            ⓘ 整天班依「標準工時設定」的各星期時數計算，自由時段班按實際開始/結束時間計算。<br/>課程帶入班（教練授課，📚）的工時獨立為「課程工時」，與「值班工時」分開統計，總工時為兩者相加。
           </div>
         </Modal>
       )}
