@@ -1953,7 +1953,7 @@ export default function MemberCoursesPage() {
                 plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
               <PaymentSection
                 value={paymentData}
-                methods={['cash','transfer']} /* 課程端隱藏電子支付，只留現金/轉帳 */
+                methods={selectedCourse?.paymentMethods?.length ? selectedCourse.paymentMethods : ['cash','transfer']} /* 課程端隱藏電子支付；課程可覆寫(如運動按摩只現金) */
                 onChange={d => { setPaymentData(d); setPaymentMethod(d.method); }}
                 amount={(() => { const full = enrollSession?.fee || selectedCourse?.price || 0; const fp = (selectedCourse?.installment?.periods||[])[0]?.percent; return (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full; })()}
                 bankInfo={bankAccounts[gymId] ? { bankName: bankAccounts[gymId].bankName, branch: bankAccounts[gymId].branch||'', account: bankAccounts[gymId].accountNumber, accountName: bankAccounts[gymId].accountName } : null}
