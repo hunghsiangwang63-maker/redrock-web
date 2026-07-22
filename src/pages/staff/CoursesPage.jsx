@@ -2136,6 +2136,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 ))}
               </div>
             </div>
+            {editingCourse?.type !== 'workshop' && (
             <div style={{ gridColumn:'1/-1', background:'#FFFBF0', border:'0.5px solid #F0D9A8', borderRadius:8, padding:12, marginTop:4 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
                 <label style={{ fontSize:12, color:'#854F0B', fontWeight:600 }}>無限練習期間</label>
@@ -2162,6 +2163,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 </div>
               </div>
             </div>
+            )}
           </div>
           {editingCourse?.type === 'workshop' && (
             <div style={{ marginTop:16, padding:14, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#FBF7F2' }}>
