@@ -82,6 +82,7 @@ export default function CoursesPage({ embedded = false }) {
   };
   const [categoryForm, setCategoryForm] = useState(EMPTY_CAT_FORM);
   const [catImageFile, setCatImageFile] = useState(null);      // 班別廣告照片（建立/編輯後上傳）
+  const [descEditorOpen, setDescEditorOpen] = useState(false); // 課程介紹放大編輯彈窗
   const [makeupTypes, setMakeupTypes] = useState([]);           // 補課類型（named 實體；班別多選掛類型、同類型可互補）
   const [newTypeName, setNewTypeName] = useState('');
   const GROUP_LABEL = { adult: '成人班', youth: '青少年兒童班', special: '專班課程', workshop: '工作坊' };
@@ -231,13 +232,13 @@ export default function CoursesPage({ embedded = false }) {
   const catPayload = () => ({
     name: categoryForm.name, group: categoryForm.group,
     description: categoryForm.description || '', color: categoryForm.color || '#8B1A1A',
-    makeupTypeIds: categoryForm.makeupTypeIds || [],
-    makeupSelfType: categoryForm.makeupSelfType || null,
-    allowTrial: !!categoryForm.allowTrial,
+    makeupTypeIds: categoryForm.group === 'workshop' ? [] : (categoryForm.makeupTypeIds || []),
+    makeupSelfType: categoryForm.group === 'workshop' ? null : (categoryForm.makeupSelfType || null),
+    allowTrial: categoryForm.group === 'workshop' ? false : !!categoryForm.allowTrial,
     trialPrice: categoryForm.trialPrice === '' ? null : Number(categoryForm.trialPrice),
     leaveDeadlineHours: categoryForm.leaveDeadlineHours === '' ? null : Number(categoryForm.leaveDeadlineHours),
     maxLeaves: categoryForm.maxLeaves === '' ? null : Number(categoryForm.maxLeaves),
-    allowMakeup: !!categoryForm.allowMakeup,
+    allowMakeup: categoryForm.group === 'workshop' ? false : !!categoryForm.allowMakeup,
     makeupDeadlineDays: categoryForm.makeupDeadlineDays === '' ? null : Number(categoryForm.makeupDeadlineDays),
     perSessionDeduction: categoryForm.perSessionDeduction === '' ? null : Number(categoryForm.perSessionDeduction),
     handlingFeeRate: categoryForm.handlingFeeRate === '' ? null : Number(categoryForm.handlingFeeRate) / 100,
@@ -1540,8 +1541,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 </div>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>課程介紹（同班別所有梯次共用）</label>
-                  <textarea value={categoryForm.description} onChange={e => setCategoryForm({...categoryForm, description:e.target.value})} rows={4}
-                    style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', resize:'vertical' }}/>
+                  <div onClick={() => setDescEditorOpen(true)}
+                    style={{ width:'100%', minHeight:64, maxHeight:120, overflow:'auto', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', color: categoryForm.description ? '#1a1a1a' : '#aaa', boxSizing:'border-box', whiteSpace:'pre-wrap', cursor:'pointer' }}>
+                    {categoryForm.description || '點此編輯課程介紹…'}
+                  </div>
+                  <button type="button" onClick={() => setDescEditorOpen(true)}
+                    style={{ marginTop:6, height:30, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #C99', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>✎ 放大編輯</button>
                 </div>
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>廣告照片（同班別所有梯次共用）</label>
@@ -1551,6 +1556,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   <input type="file" accept="image/*" onChange={e => setCatImageFile(e.target.files?.[0] || null)} style={{ fontSize:12, width:'100%' }}/>
                   {catImageFile && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {catImageFile.name}（儲存後上傳）</div>}
                 </div>
+                {categoryForm.group !== 'workshop' && (<>
                 <div style={{ gridColumn:'1/-1', borderTop:'0.5px solid #F0E5E5', paddingTop:10, fontSize:12, fontWeight:700, color:'#8B1A1A' }}>規則（此班別所有梯次的預設，梯次可個別覆寫）</div>
                 <div>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>請假截止（上課前 N 小時）</label>
@@ -1617,6 +1623,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     ))}
                   </div>
                 </div>
+                </>)}
               </div>
               <div style={{ display:'flex', gap:8, marginTop:18 }}>
                 <button onClick={() => { setShowAddCategory(false); setEditingCategory(null); }}
@@ -1625,6 +1632,16 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
                   {editingCategory ? '儲存變更' : '建立班別'}
                 </button>
+              </div>
+            </Modal>
+          )}
+          {descEditorOpen && (
+            <Modal title="編輯課程介紹" width={620} onClose={() => setDescEditorOpen(false)}>
+              <textarea autoFocus value={categoryForm.description} onChange={e => setCategoryForm({ ...categoryForm, description: e.target.value })}
+                placeholder="輸入此班別的課程介紹（同班別所有梯次共用）…"
+                style={{ width:'100%', minHeight:'min(60vh,460px)', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'12px 14px', fontSize:14, lineHeight:1.7, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', resize:'vertical' }}/>
+              <div style={{ display:'flex', justifyContent:'flex-end', marginTop:14 }}>
+                <button onClick={() => setDescEditorOpen(false)} style={{ height:40, padding:'0 28px', borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>完成</button>
               </div>
             </Modal>
           )}

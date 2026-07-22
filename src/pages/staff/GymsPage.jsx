@@ -43,7 +43,7 @@ export default function GymsPage({ embedded = false }) {
   const [annMsg, setAnnMsg] = useState('');
   const [editingAnn, setEditingAnn] = useState(null);
   const [showEditGym, setShowEditGym] = useState(false);
-  const [gymForm, setGymForm] = useState({ name:'', shortName:'', address:'', phone:'', googleMapsUrl:'', parkingInfo:'', transitInfo:'', description:'' });
+  const [gymForm, setGymForm] = useState({ name:'', shortName:'', address:'', phone:'', googleMapsUrl:'', parkingInfo:'', transitInfo:'', description:'', standardWorkHours:'' });
   const [gymSaving, setGymSaving] = useState(false);
   const [gymMsg, setGymMsg] = useState('');
   const [showEditHours, setShowEditHours] = useState(false);
@@ -172,6 +172,7 @@ const runAffectClosure = async () => {
       name: selected.name || '', shortName: selected.shortName || '', address: selected.address || '',
       phone: selected.phone || '', googleMapsUrl: selected.googleMapsUrl || '',
       parkingInfo: selected.parkingInfo || '', transitInfo: selected.transitInfo || '', description: selected.description || '',
+      standardWorkHours: selected.standardWorkHours ?? '',
     });
     setGymMsg('');
     setShowEditGym(true);
@@ -501,10 +502,11 @@ const runAffectClosure = async () => {
               { label:'停車資訊（選填）', key:'parkingInfo' },
               { label:'交通資訊（選填）', key:'transitInfo' },
               { label:'場館描述（選填）', key:'description' },
+              { label:'標準工時（整天班每日時數，員工入館工時計算用）', key:'standardWorkHours', type:'number' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:12 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
-                <input value={gymForm[f.key]}
+                <input value={gymForm[f.key]} type={f.type || 'text'}
                   onChange={e => setGymForm(p => ({...p, [f.key]: e.target.value}))}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               </div>
