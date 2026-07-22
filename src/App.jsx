@@ -4,6 +4,7 @@ import { MemberProvider, useMember } from './store/memberStore.jsx';
 
 // Staff imports
 import LoginPage from './pages/staff/LoginPage';
+import StaffEntryQrPage from './pages/staff/StaffEntryQrPage';
 import PublicExperienceBookingPage from './pages/public/PublicExperienceBookingPage';
 import CheckinPage from './pages/staff/CheckinPage';
 import MembersPage from './pages/staff/MembersPage';
@@ -86,6 +87,7 @@ function StaffRoutes() {
         <Route path="shop"           element={<ShopPage />} />
         <Route path="pending-tasks"  element={<PendingTasksPage />} />
         <Route path="experience"     element={<ExperienceBookingsPage />} />
+        <Route path="staff-entry"    element={<StaffEntryQrPage />} />
         <Route path="activities"     element={<CourseActivitiesPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />

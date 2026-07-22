@@ -115,6 +115,7 @@ export default function CheckinPage() {
   const scanningRef = useRef(false);
   const [scanResult, setScanResult] = useState(null);
   const [compScan, setCompScan] = useState(null); // 比賽報到掃描結果（compchk: QR）
+  const [staffScan, setStaffScan] = useState(null); // 員工入館掃描結果（staffentry: QR）
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneMember, setPhoneMember] = useState(null);
@@ -248,10 +249,22 @@ export default function CheckinPage() {
       } finally { setLoading(false); }
       return;
     }
+    // 員工入館 QR（staffentry: 前綴）
+    if (t.startsWith('staffentry:')) {
+      setLoading(true); setScanResult(null); setConfirmedCheckIn(null); setCompScan(null); setStaffScan(null);
+      try {
+        const res = await client.post('/staff-entry/scan', { token: t });
+        setStaffScan({ ...res.data, token: t });
+      } catch (err) {
+        setStaffScan({ error: err.response?.data?.message || '掃描失敗' });
+      } finally { setLoading(false); }
+      return;
+    }
     setLoading(true);
     setScanResult(null);
     setConfirmedCheckIn(null);
     setCompScan(null);
+    setStaffScan(null);
     try {
       const res = await scanQrCode(t);
       setScanResult(res.data);
@@ -573,6 +586,36 @@ export default function CheckinPage() {
                         ✓ 確認報到（不卡墜落測驗）
                       </button>
                     )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* 員工入館掃描結果 */}
+            {staffScan && (
+              <div style={{ background:'#F7F3F3', borderRadius:10, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
+                {staffScan.error ? (
+                  <div style={{ color:'#A32D2D', fontSize:13 }}>❌ {staffScan.error}</div>
+                ) : (
+                  <>
+                    <div style={{ fontWeight:600, fontSize:15, marginBottom:10 }}>🎫 員工入館</div>
+                    <div style={{ fontSize:13, lineHeight:2 }}>
+                      <div>員工：<strong>{staffScan.staffName}</strong></div>
+                      <div>資格：{staffScan.free
+                        ? <span style={{ color:'#2D7D46', fontWeight:700 }}>免費入館</span>
+                        : <span style={{ color:'#A32D2D', fontWeight:700 }}>{staffScan.tier==='half'?'半價':'一般價'} NT${staffScan.fee}（請收現金）</span>}</div>
+                      <div style={{ fontSize:12, color:'#999' }}>{staffScan.reason}</div>
+                    </div>
+                    <button onClick={async () => {
+                      try {
+                        const r = await client.post('/staff-entry/confirm', { token: staffScan.token });
+                        setStaffScan(null);
+                        setConfirmedCheckIn({ memberName: staffScan.staffName, entryType: 'staff_entry', amountPaid: staffScan.fee, message: r.data.message });
+                      } catch (err) { setStaffScan(prev => ({ ...prev, error: err.response?.data?.message || '入館失敗' })); }
+                    }}
+                      style={{ marginTop:12, width:'100%', height:42, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+                      ✓ 確認入館{staffScan.free ? '' : `（收現金 NT$${staffScan.fee}）`}
+                    </button>
                   </>
                 )}
               </div>
