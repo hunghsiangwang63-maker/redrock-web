@@ -12,7 +12,7 @@ export default function PublicExperienceBookingPage() {
   const [courseType, setCourseType] = useState('general');
   const [bookingDate, setBookingDate] = useState('');
   const [bookingTime, setBookingTime] = useState('');
-  const [participants, setParticipants] = useState([{ name: '', birthday: '' }]);
+  const [participants, setParticipants] = useState([{ name: '', birthday: '', idNumber: '', nationality: '台灣' }]);
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -48,7 +48,7 @@ export default function PublicExperienceBookingPage() {
   const under5 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 5; };
   const anyUnder5 = participants.some(p => under5(p.birthday));
 
-  const addP = () => participants.length < 8 && setParticipants(p => [...p, { name: '', birthday: '' }]);
+  const addP = () => participants.length < 8 && setParticipants(p => [...p, { name: '', birthday: '', idNumber: '', nationality: '台灣' }]);
   const rmP = (i) => participants.length > 1 && setParticipants(p => p.filter((_, j) => j !== i));
   const setP = (i, k, v) => setParticipants(p => p.map((x, j) => j === i ? { ...x, [k]: v } : x));
 
@@ -59,6 +59,8 @@ export default function PublicExperienceBookingPage() {
     if (!gymId) return setErr('請選擇場館');
     if (!bookingDate) return setErr('請選擇體驗日期');
     if (participants.some(p => !p.name.trim())) return setErr('請填寫每位參加者姓名');
+    if (participants.some(p => !p.idNumber?.trim())) return setErr('請填寫每位參加者身分證字號／護照號碼（投保用）');
+    if (participants.some(p => !p.birthday)) return setErr('請填寫每位參加者生日');
     if (anyUnder5) return setErr('未滿 5 歲無法報名體驗');
     if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
     if (!agreedTerms) return setErr('請閱讀並勾選同意注意事項');
@@ -114,11 +116,6 @@ export default function PublicExperienceBookingPage() {
             {settings.gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
 
-          <label style={label}>體驗課程</label>
-          <select value={courseType} onChange={e => setCourseType(e.target.value)} style={input}>
-            {settings.courseTypes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 1 }}>
               <label style={label}>體驗日期</label>
@@ -142,8 +139,18 @@ export default function PublicExperienceBookingPage() {
                 </div>
                 {participants.length > 1 && <button onClick={() => rmP(i)} style={{ height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid #E5B5B5', background: '#fff', color: '#A32D2D', fontSize: 13, cursor: 'pointer' }}>移除</button>}
               </div>
-              <label style={label}>生日</label>
-              <input type="date" value={p.birthday} onChange={e => setP(i, 'birthday', e.target.value)} style={input} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <label style={label}>生日</label>
+                  <input type="date" value={p.birthday} onChange={e => setP(i, 'birthday', e.target.value)} style={input} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={label}>國籍</label>
+                  <input value={p.nationality} onChange={e => setP(i, 'nationality', e.target.value)} style={input} placeholder="台灣" />
+                </div>
+              </div>
+              <label style={label}>身分證字號／護照號碼</label>
+              <input value={p.idNumber} onChange={e => setP(i, 'idNumber', e.target.value.toUpperCase())} style={input} placeholder="投保用" />
               {under5(p.birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 5 歲無法報名體驗</div>}
             </div>
           ))}
