@@ -686,7 +686,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       (g.rows||[]).forEach(r => lines.push([
         esc(g.course?.name), esc(r.memberName), esc(r.memberPhone), esc((r.leaves||[]).join('、')),
         r.leaveCount, r.leaveCap, esc(`${r.makeupAvailable}/${r.makeupTotal}`), esc(r.makeupExpiresAt||''),
-        esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.taken?'(已上)':''}`).join('、')),
+        esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.note?'('+b.note+')':''}${b.taken?'(已上)':''}`).join('、')),
       ].join(',')));
       (g.pendingClaims||[]).forEach(pc => lines.push([esc(g.course?.name), esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
     });
@@ -706,7 +706,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
     lmSummary.rows.forEach(r => lines.push([
       esc(r.memberName), esc(r.memberPhone), esc((r.leaves||[]).join('、')),
       r.leaveCount, r.leaveCap, esc(`${r.makeupAvailable}/${r.makeupTotal}`), esc(r.makeupExpiresAt||''),
-      esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.taken?'(已上)':''}`).join('、')),
+      esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.note?'('+b.note+')':''}${b.taken?'(已上)':''}`).join('、')),
     ].join(',')));
     (lmSummary.pendingClaims||[]).forEach(pc => lines.push([esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
@@ -1210,7 +1210,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 {sessions.filter(s => s.courseId === selectedCourse.id).length === 0 ? (
                   <div style={{ padding:20, textAlign:'center', color:'#999', fontSize:12 }}>尚無場次</div>
                 ) : (() => {
-                  const filtered = sessions.filter(s => s.courseId === selectedCourse.id).sort((a,b) => a.date.localeCompare(b.date));
+                  const filtered = sessions.filter(s => s.courseId === selectedCourse.id).sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||''));
                   // 按月分組
                   const byMonth = {};
                   filtered.forEach(s => {
@@ -2195,7 +2195,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   <td style={{ padding:'6px 10px' }}>{(r.leaves||[]).length ? (r.leaves||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
                   <td style={{ padding:'6px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
                   <td style={{ padding:'6px 10px', whiteSpace:'nowrap' }}>{r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}</td>
-                  <td style={{ padding:'6px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
                 </tr>
               ))}
               {(g.pendingClaims||[]).map((pc,i)=>(
@@ -2259,7 +2259,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>{r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}</td>
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap', fontSize:11, color:'#666' }}>{r.makeupExpiresAt || '—'}</td>
-                    <td style={{ padding:'8px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
                   </tr>
                 ))}
                 {(lmSummary.pendingClaims||[]).map((pc,i)=>(

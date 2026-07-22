@@ -495,7 +495,7 @@ export default function MemberCoursesPage() {
       for (const c of sameCategoryCourses) {
         futureSessions.filter(s => s.courseId === c.id).forEach(s => allSessions.push({ ...s, courseName: c.name, categoryName: c.categoryName }));
       }
-      setMakeupSessions(allSessions.sort((a,b) => a.date.localeCompare(b.date)));
+      setMakeupSessions(allSessions.sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||'')));
     } catch (e) {}
     setShowMakeupModal(true);
   };
@@ -762,8 +762,10 @@ export default function MemberCoursesPage() {
           onClick={() => setRulesModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'82vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{rulesModal.courseName}｜課程規則</div>
-            <div style={{ fontWeight:600, fontSize:13, marginBottom:8, textAlign:'left' }}>📋 課程請假、補課方式</div>
-            <LeaveMakeupRulesBox course={rulesModal.course}/>
+            {rulesModal.course?.type !== 'workshop' && (<>
+              <div style={{ fontWeight:600, fontSize:13, marginBottom:8, textAlign:'left' }}>📋 課程請假、補課方式</div>
+              <LeaveMakeupRulesBox course={rulesModal.course}/>
+            </>)}
             <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>💰 退費方式（依法令規定）</div>
             <RefundRulesBox course={rulesModal.course}/>
             {!rulesModal.course && (
@@ -1520,7 +1522,7 @@ export default function MemberCoursesPage() {
                             </div>
                             {isExpanded && (
                               <div style={{ marginTop:10, paddingTop:10, borderTop:'0.5px solid #F5EFEF' }}>
-                                {group.sessions.sort((a,b) => a.date.localeCompare(b.date)).map(s => (
+                                {group.sessions.sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||'')).map(s => (
                                   <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'7px 0', fontSize:12, borderBottom:'0.5px solid #FBF5F5' }}>
                                     <span>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}
                                       {s.isMakeup && <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>補課</span>}
@@ -1636,7 +1638,7 @@ export default function MemberCoursesPage() {
                 );
               }
               const today = dayjs().format('YYYY-MM-DD');
-              const future = confirmed.filter(s => s.date >= today).sort((a,b) => a.date.localeCompare(b.date));
+              const future = confirmed.filter(s => s.date >= today).sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||''));
               const past = confirmed.filter(s => s.date < today).sort((a,b) => b.date.localeCompare(a.date));
               const next = future[0];
               const leaveLimit = group.sessions.find(s => s.leaveLimit != null)?.leaveLimit ?? 2;
@@ -1995,6 +1997,7 @@ export default function MemberCoursesPage() {
 
             {/* Step 3: 規則確認 */}
             {enrollStep === 3 && (<>
+              {selectedCourse.type !== 'workshop' && (
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假、補課方式</div>
                 <LeaveMakeupRulesBox course={selectedCourse}/>
@@ -2003,6 +2006,7 @@ export default function MemberCoursesPage() {
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedLeavePolicy?'#2D7D46':'#444' }}>我已了解課程請假/補課方式</span>
                 </label>
               </div>
+              )}
               <div>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式（依法令規定）</div>
                 <RefundRulesBox course={selectedCourse}/>
@@ -2055,8 +2059,8 @@ export default function MemberCoursesPage() {
               )}
               {enrollStep < 4 ? (
                 <button onClick={() => {
-                  if (enrollStep === 3 && (!confirmedLeavePolicy || !confirmedRefundPolicy)) {
-                    showMsg('請確認請假與退費方式', 'red'); return;
+                  if (enrollStep === 3 && (!confirmedRefundPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
+                    showMsg(selectedCourse.type === 'workshop' ? '請確認退費方式' : '請確認請假與退費方式', 'red'); return;
                   }
                   setEnrollStep(s => s+1);
                 }}
