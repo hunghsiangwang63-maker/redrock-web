@@ -35,6 +35,17 @@ export const MemberProvider = ({ children }) => {
   // App 載入時若已登入 → 向後端刷新最新會員資料（含即時 isTeamMember/blockReasons），
   // 避免「登入後才被加入隊員」的人身分卡在登入當下的快取（需手動 refresh 才更新）。
   useEffect(() => {
+    // 🧪 模擬報名：deepLink 帶 ?sim=<token> → 以模擬帳號自動登入（移除網址參數，避免外流）
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const simTok = params.get('sim');
+      if (simTok) {
+        localStorage.setItem('member_token', simTok);
+        params.delete('sim');
+        const q = params.toString();
+        window.history.replaceState({}, '', window.location.pathname + (q ? '?' + q : ''));
+      }
+    } catch (e) {}
     if (!localStorage.getItem('member_token')) return;
     memberClient.get('/auth/member/me')
       .then(res => {
@@ -52,6 +63,11 @@ export const MemberProvider = ({ children }) => {
 
   return (
     <MemberContext.Provider value={{ member, login, logout, updateMember, isLoggedIn: !!member }}>
+      {member?.isSimulation && (
+        <div style={{ position:'fixed', top:0, left:0, right:0, zIndex:9999, background:'#8B6914', color:'#fff', textAlign:'center', fontSize:12, fontWeight:600, padding:'5px 8px', letterSpacing:0.3 }}>
+          🧪 模擬報名模式 — 此為員工測試流程，送出不會真正報名、不佔名額
+        </div>
+      )}
       {children}
     </MemberContext.Provider>
   );

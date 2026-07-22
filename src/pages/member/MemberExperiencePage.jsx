@@ -131,6 +131,7 @@ export default function MemberExperiencePage() {
         ...(trialFor !== 'self' ? { childMemberId: trialFor } : {}),
         paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, paidAmount: trialPay.paidAmount || null,
       });
+      if (res.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); setTrialModal(null); return; }
       const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
       if (trialPay.method==='transfer' && bookingId) {
         try {
@@ -183,6 +184,7 @@ export default function MemberExperiencePage() {
         contactName: member.name, contactEmail: member.email, contactPhone: member.phone, facebookName,
         participants, totalFee, paymentDate: payment.paymentDate, bankLastFive: payment.bankLastFive, paymentMethod: payment.method, paidAmount: payment.paidAmount || null, notes,
       });
+      if (res.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); return; }
       const bookingId = res.data.id; const fee = totalFee;
       // 轉帳：建立 transferRecords（填末五碼）→ 待辦頁確認收款（確認時自動確認此預約）
       if (payment.method === 'transfer' && bookingId) {

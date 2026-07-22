@@ -425,6 +425,7 @@ export default function MemberCoursesPage() {
           ...extraFields,
         });
       }
+      if (res.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); resetEnrollModal(); return; }
       const isWaitlisted = !!(res.data.isWaitlist);
       setEnrollWaitlisted(isWaitlisted);
       const enrInfo = enrollSession.isCourse

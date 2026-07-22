@@ -374,6 +374,7 @@ export default function MemberCompetitionsPage() {
         signatureData: memberSig,
         guardianSignature: guardianSig || null,
       });
+      if (res?.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); setShowModal(false); return; }
       const reg = res?.data?.registration;
       // 轉帳：若報名當下已填末五碼 → 建 transferRecords（走轉帳確認）；未填 → 略過，
       // 之後在「待確認付款」用「填寫轉帳資訊」補上（方案 B：可先報名、之後補上傳轉帳）。
