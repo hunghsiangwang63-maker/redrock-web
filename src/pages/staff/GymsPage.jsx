@@ -502,7 +502,7 @@ const runAffectClosure = async () => {
               { label:'停車資訊（選填）', key:'parkingInfo' },
               { label:'交通資訊（選填）', key:'transitInfo' },
               { label:'場館描述（選填）', key:'description' },
-              { label:'標準工時（整天班每日時數，員工入館工時計算用）', key:'standardWorkHours', type:'number' },
+              { label:'整天班後備工時（僅該日無營業時段時採用；平時整天班依當日營業時數計）', key:'standardWorkHours', type:'number' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:12 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
