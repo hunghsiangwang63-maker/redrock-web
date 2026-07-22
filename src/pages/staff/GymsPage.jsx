@@ -43,7 +43,7 @@ export default function GymsPage({ embedded = false }) {
   const [annMsg, setAnnMsg] = useState('');
   const [editingAnn, setEditingAnn] = useState(null);
   const [showEditGym, setShowEditGym] = useState(false);
-  const [gymForm, setGymForm] = useState({ name:'', shortName:'', address:'', phone:'', googleMapsUrl:'', parkingInfo:'', transitInfo:'', description:'', standardWorkHours:'' });
+  const [gymForm, setGymForm] = useState({ name:'', shortName:'', address:'', phone:'', googleMapsUrl:'', parkingInfo:'', transitInfo:'', description:'' });
   const [gymSaving, setGymSaving] = useState(false);
   const [gymMsg, setGymMsg] = useState('');
   const [showEditHours, setShowEditHours] = useState(false);
@@ -172,7 +172,6 @@ const runAffectClosure = async () => {
       name: selected.name || '', shortName: selected.shortName || '', address: selected.address || '',
       phone: selected.phone || '', googleMapsUrl: selected.googleMapsUrl || '',
       parkingInfo: selected.parkingInfo || '', transitInfo: selected.transitInfo || '', description: selected.description || '',
-      standardWorkHours: selected.standardWorkHours ?? '',
     });
     setGymMsg('');
     setShowEditGym(true);
@@ -502,7 +501,6 @@ const runAffectClosure = async () => {
               { label:'停車資訊（選填）', key:'parkingInfo' },
               { label:'交通資訊（選填）', key:'transitInfo' },
               { label:'場館描述（選填）', key:'description' },
-              { label:'整天班後備工時（僅該日無營業時段時採用；平時整天班依當日營業時數計）', key:'standardWorkHours', type:'number' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:12 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
