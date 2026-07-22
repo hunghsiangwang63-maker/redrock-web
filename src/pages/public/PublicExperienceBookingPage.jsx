@@ -80,7 +80,7 @@ export default function PublicExperienceBookingPage() {
 
   const wrap = { maxWidth: 480, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
   const label = { fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6, marginTop: 16 };
-  const input = { width: '100%', height: 44, borderRadius: 10, border: '1px solid #E0D4D4', padding: '0 14px', fontSize: 15, boxSizing: 'border-box', outline: 'none', background: '#fff' };
+  const input = { width: '100%', minWidth: 0, height: 44, borderRadius: 10, border: '1px solid #E0D4D4', padding: '0 12px', fontSize: 15, boxSizing: 'border-box', outline: 'none', background: '#fff', WebkitAppearance: 'none' };
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
 
   if (loadErr) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#A32D2D' }}>{loadErr}</div>;
