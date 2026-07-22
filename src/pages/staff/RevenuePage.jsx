@@ -74,7 +74,7 @@ export default function RevenuePage({ embedded = false }) {
       a.href = url;
       a.download = `checkin-${dayjs().format('YYYYMMDD')}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) {
       alert('匯出失敗');
     }
@@ -88,7 +88,7 @@ export default function RevenuePage({ embedded = false }) {
       a.href = url;
       a.download = `adjustments-${dayjs().format('YYYYMMDD')}.csv`;
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) {
       alert('匯出失敗');
     }

@@ -43,7 +43,7 @@ export default function FinancePage() {
       const m1 = String((bimonth - 1) * 2 + 1).padStart(2, '0');
       const a = document.createElement('a'); a.href = url;
       a.download = `發票明細_${gym === 'gym-hsinchu' ? '新竹' : '士林'}_${ivYear}${m1}.xlsx`; a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) { setErr2('下載失敗：' + e.message); }
     finally { setBusy2(false); }
   };
@@ -59,7 +59,7 @@ export default function FinancePage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
       a.download = `月銷售紀錄_${gym === 'gym-hsinchu' ? '新竹' : '士林'}_${month}.xlsx`; a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) { setErr('下載失敗：' + e.message); }
     finally { setBusy(false); }
   };

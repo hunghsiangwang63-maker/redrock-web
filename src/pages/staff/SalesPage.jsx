@@ -291,7 +291,7 @@ export default function SalesPage({ embedded = false }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = '庫存清單.xlsx'; a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) { showMsg('匯出失敗', 'red'); }
   };
 

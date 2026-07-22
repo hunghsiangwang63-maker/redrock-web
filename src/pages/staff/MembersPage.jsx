@@ -498,7 +498,7 @@ export default function MembersPage() {
       a.href = url;
       a.download = `members_${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (err) {
       alert('下載失敗：' + (err.response?.data?.message || err.message));
     } finally { setDownloading(false); }

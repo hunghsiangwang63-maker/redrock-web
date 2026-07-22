@@ -641,7 +641,7 @@ export default function CoursesPage({ embedded = false }) {
       const url = URL.createObjectURL(r.data);
       const a = document.createElement('a'); a.href = url;
       a.download = `${courseName || '課程'}_出缺席_${dayjs().format('YYYY-MM-DD')}.csv`;
-      a.click(); URL.revokeObjectURL(url);
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) {
       showMsg(e.response?.status === 403 ? '權限不足：僅管理員可下載' : '下載失敗，請重新登入後再試', 'red');
     }
@@ -701,7 +701,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
-    a.download = `假補總表_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+    a.download = `假補總表_${new Date().toISOString().slice(0,10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
   };
   const downloadLeaveMakeupCSV = () => {
     if (lmSummary?.mode === 'all') { downloadLmAllCSV(); return; }
@@ -718,7 +718,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
-    a.download = `${lmSummary.course?.name||'課程'}_請假補課_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+    a.download = `${lmSummary.course?.name||'課程'}_請假補課_${new Date().toISOString().slice(0,10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
   };
   const copyEnrollLink = (c) => {
     const url = `https://app.redrocktaiwan.com/member/courses?course=${c.id}`;

@@ -100,7 +100,7 @@ export default function PassesPage() {
       const url = URL.createObjectURL(r.data);
       const a = document.createElement('a'); a.href = url;
       a.download = `${type}_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click(); URL.revokeObjectURL(url);
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) {
       showMsg(e.response?.status === 403 ? '權限不足：僅管理員/值班可下載' : '下載失敗，請重新登入後再試', 'red');
     }

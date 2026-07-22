@@ -238,7 +238,7 @@ export default function DailySettlementPage() {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
-      a.download = `月銷售紀錄_${exportMonth}.xlsx`; a.click(); URL.revokeObjectURL(url);
+      a.download = `月銷售紀錄_${exportMonth}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) { showMsg('下載失敗 ' + e.message, 'err'); }
   };
 

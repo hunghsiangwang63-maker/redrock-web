@@ -209,7 +209,7 @@ export default function ExperienceBookingsPage() {
     if (fromDate) params.set('from',fromDate);
     if (toDate) params.set('to',toDate);
     fetch(`${API}/experience-bookings/download?${params}`, { headers:{ Authorization:`Bearer ${getToken()}` } })
-      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`experience_${dayjs().format('YYYYMMDD')}.xlsx`; a.click(); URL.revokeObjectURL(url); });
+      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`experience_${dayjs().format('YYYYMMDD')}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); });
   };
 
   const downloadInsurance = (bookingId) => {
@@ -217,7 +217,7 @@ export default function ExperienceBookingsPage() {
     if (bookingId) { params.set('bookingId',bookingId); }
     else { if (gymFilter) params.set('gymId',gymFilter); if (fromDate) params.set('from',fromDate); if (toDate) params.set('to',toDate); }
     fetch(`${API}/experience-bookings/insurance-download?${params}`, { headers:{ Authorization:`Bearer ${getToken()}` } })
-      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`旅平險名冊_${dayjs().format('YYYYMMDD')}.xls`; a.click(); URL.revokeObjectURL(url); });
+      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`旅平險名冊_${dayjs().format('YYYYMMDD')}.xls`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); });
   };
 
   const saveSettings = async () => {

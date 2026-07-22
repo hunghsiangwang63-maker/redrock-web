@@ -216,7 +216,7 @@ export default function CheckinPage() {
     const csv = '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
-    a.href = url; a.download = `入場紀錄_${historyDate}.csv`; a.click(); URL.revokeObjectURL(url);
+    a.href = url; a.download = `入場紀錄_${historyDate}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
   };
 
   const handleCancelCheckin = async (checkInId, force = false) => {

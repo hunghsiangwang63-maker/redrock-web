@@ -169,7 +169,7 @@ export default function VipPage({ embedded = false, section = null }) {
       const a = document.createElement('a');
       a.href = url; a.download = `攀岩隊員_${teamYear}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) {
       alert('下載失敗');
     } finally { setDownloading(false); }
