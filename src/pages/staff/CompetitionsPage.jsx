@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getCompetitions, createCompetition, updateCompetition, getCompetitionRegistrations, returnCompetitionForm, rejectCompetitionForm, rejectCompetitionPayment } from '../../api/competitions';
 import client from '../../api/client';
+import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
@@ -293,6 +294,7 @@ export default function CompetitionsPage() {
                     {c.status==='closed' && <button onClick={()=>handleStatusChange(c,'open')} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46', border:'0.5px solid #B3DEC0', fontSize:12, cursor:'pointer' }}>重新開放</button>}
                     <button onClick={()=>openRegistrations(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F1FB', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>查看名單</button>
                     {c.status==='open' && <button onClick={()=>copyCompLink(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#2D7D46', border:'0.5px solid #2D7D46', fontSize:12, cursor:'pointer' }}>🔗 連結</button>}
+                    {c.status==='open' && <SimulateRegistrationButton type="competition" targetId={c.id} btnStyle={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#8B4513', border:'0.5px solid #C99', fontSize:12, cursor:'pointer' }} />}
                     {c.scoringSystem==='competition_management_v2' && (
                       <button onClick={()=>startScoring(c)} disabled={syncingId===c.id}
                         title={c.scoringSyncEnabled ? '已對接，可重新推送目前名單' : '在計分系統建立此賽事並推送目前正取名單'}

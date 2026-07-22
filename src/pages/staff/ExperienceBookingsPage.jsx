@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import client from '../../api/client';
 import SaveButton from '../../components/SaveButton';
+import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import CoachSelect from '../../components/CoachSelect';
 import { useAuth } from '../../store/authStore';
@@ -519,7 +520,10 @@ export default function ExperienceBookingsPage() {
                 {(settings.courseTypes||[]).map((ct,ctIdx)=>(
                   <div key={ct.id} style={{ background:'#FBF5F5', borderRadius:10, padding:14, marginBottom:12, border:'0.5px solid #E8D5D5' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-                      <div style={{ fontWeight:600, fontSize:13, color:'#8B1A1A' }}>{ct.id}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ fontWeight:600, fontSize:13, color:'#8B1A1A' }}>{ct.id}</span>
+                        <SimulateRegistrationButton type="experience" targetId={ct.id} />
+                      </div>
                       <div style={{ display:'flex', gap:14, alignItems:'center' }}>
                         <label style={{ display:'flex', alignItems:'center', gap:6, cursor:'pointer', fontSize:12 }}>
                           <input type="checkbox" checked={ct.active!==false} onChange={e=>updateCT(ctIdx,'active',e.target.checked)} style={{ accentColor:'#8B1A1A' }}/>開放報名

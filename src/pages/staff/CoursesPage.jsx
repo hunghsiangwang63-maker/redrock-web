@@ -5,6 +5,7 @@ import { getCourses, createCourse, getSessions, createSession,
          generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, permanentDeleteCourse } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import client from '../../api/client';
+import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
 import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import CoachSelect from '../../components/CoachSelect';
@@ -922,6 +923,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>名單</button>
                       <button onClick={() => copyEnrollLink(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>🔗 連結</button>
+                      <SimulateRegistrationButton type="course" targetId={c.id} />
                       {c.type !== 'workshop' && c.categoryGroup !== 'workshop' && (
                       <button onClick={() => loadLeaveMakeup(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>假補</button>
