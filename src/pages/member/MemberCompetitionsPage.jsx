@@ -278,6 +278,16 @@ export default function MemberCompetitionsPage() {
     setShowModal(true);
   };
 
+  // 深連結報名：?comp=<id> → 賽事載入後自動開該賽事報名（供分享報名連結；只開一次；限開放中）
+  const _compDeepLinkDone = useRef(false);
+  useEffect(() => {
+    if (_compDeepLinkDone.current || !competitions.length) return;
+    const cid = new URLSearchParams(window.location.search).get('comp');
+    if (!cid) return;
+    const c = competitions.find(x => x.id === cid && x.status === 'open');
+    if (c) { _compDeepLinkDone.current = true; setTab('open'); openRegister(c); }
+  }, [competitions, familyMembers]);
+
   // 性別/生日/手機/Email 自動帶入（依報名對象；缺漏由表單補填，後端會回寫會員資料）
   useEffect(() => {
     const r = registerForId ? (familyMembers.find(c => c.id === registerForId) || member) : member;

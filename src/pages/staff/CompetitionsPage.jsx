@@ -78,6 +78,11 @@ export default function CompetitionsPage() {
   const [formSaving, setFormSaving] = useState(false);
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
+  const copyCompLink = (c) => {
+    const url = `https://app.redrocktaiwan.com/member/competitions?comp=${c.id}`;
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(() => showMsg('報名連結已複製，可貼到 LINE 分享：\n' + url), () => window.prompt('複製此報名連結：', url));
+    else window.prompt('複製此報名連結：', url);
+  };
 
   const submitFormAction = async () => {
     if (!formReason.trim()) { showMsg('請填寫原因（報名者會看到）', 'red'); return; }
@@ -287,6 +292,7 @@ export default function CompetitionsPage() {
                     {c.status==='open'   && <button onClick={()=>handleStatusChange(c,'closed')} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C4C4', fontSize:12, cursor:'pointer' }}>關閉報名</button>}
                     {c.status==='closed' && <button onClick={()=>handleStatusChange(c,'open')} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46', border:'0.5px solid #B3DEC0', fontSize:12, cursor:'pointer' }}>重新開放</button>}
                     <button onClick={()=>openRegistrations(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F1FB', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>查看名單</button>
+                    {c.status==='open' && <button onClick={()=>copyCompLink(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#2D7D46', border:'0.5px solid #2D7D46', fontSize:12, cursor:'pointer' }}>🔗 連結</button>}
                     {c.scoringSystem==='competition_management_v2' && (
                       <button onClick={()=>startScoring(c)} disabled={syncingId===c.id}
                         title={c.scoringSyncEnabled ? '已對接，可重新推送目前名單' : '在計分系統建立此賽事並推送目前正取名單'}
