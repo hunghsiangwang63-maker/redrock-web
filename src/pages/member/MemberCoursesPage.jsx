@@ -96,6 +96,9 @@ export default function MemberCoursesPage() {
   const [confirmedRefundPolicy, setConfirmedRefundPolicy] = useState(false);
   const [portraitSig, setPortraitSig] = useState(null);
   const [guardianSig, setGuardianSig] = useState(null);
+  const [massageGender, setMassageGender] = useState('');   // 客製報名：性別
+  const [massageAge, setMassageAge] = useState('');         // 客製報名：年齡
+  const [massageNote, setMassageNote] = useState('');       // 客製報名：自訂必填備註（如想特別處理的部位）
   const [leaveReason, setLeaveReason] = useState('');
   const [bankAccounts, setBankAccounts] = useState({});
   const [screenshot, setScreenshot] = useState(null);
@@ -354,6 +357,14 @@ export default function MemberCoursesPage() {
     } catch (e) {}
   };
 
+  // 客製報名（如運動按摩）：性別/年齡自動抓報名對象的會員資料
+  useEffect(() => {
+    if (!showEnrollModal || !selectedCourse?.collectGenderAge) return;
+    const t = enrollForMemberId ? familyMembers.find(c => c.id === enrollForMemberId) : member;
+    setMassageGender(t?.gender || '');
+    setMassageAge(t?.birthday ? String(dayjs().diff(dayjs(t.birthday), 'year')) : '');
+  }, [showEnrollModal, enrollForMemberId, selectedCourse]);
+
   const resetEnrollModal = () => {
     setShowEnrollModal(false); // 關閉報名 Modal（原本漏了此行 → 送出成功後只重置到步驟1、Modal 不關 → 使用者以為失敗重複送出、造成重複報名/重複收費）
     setEnrollSession(null);
@@ -367,6 +378,7 @@ export default function MemberCoursesPage() {
     setConfirmedLeavePolicy(false);
     setConfirmedRefundPolicy(false);
     setPortraitSig(null);
+    setMassageGender(''); setMassageAge(''); setMassageNote('');
     setGuardianSig(null);
     setScreenshot(null);
     setUploadDone(false);
@@ -385,8 +397,11 @@ export default function MemberCoursesPage() {
         referralSource: referralSources.length ? referralSources.join('、') : null,
         confirmedLeavePolicy,
         confirmedRefundPolicy,
-        portraitSignature: portraitSig || null,
-        guardianSignature: guardianSig || null,
+        portraitSignature: selectedCourse?.skipSignature ? null : (portraitSig || null),
+        guardianSignature: selectedCourse?.skipSignature ? null : (guardianSig || null),
+        enrollGender: massageGender || null,
+        enrollAge: massageAge || null,
+        enrollNote: massageNote || null,
       };
       let res;
       if (enrollSession.isCourse) {
@@ -1934,11 +1949,11 @@ export default function MemberCoursesPage() {
                 <button onClick={resetEnrollModal} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
               </div>
               <div style={{ display:'flex', gap:6 }}>
-                {[(enrollSession.isWaitlist ? '候補說明' : '付款資訊'),'健康備註','規則確認','肖像授權'].map((s,i) => (
+                {[(enrollSession.isWaitlist ? '候補說明' : '付款資訊'),'健康備註','規則確認',...(selectedCourse?.skipSignature ? [] : ['肖像授權'])].map((s,i) => (
                   <div key={i} style={{ flex:1, height:3, borderRadius:2, background: enrollStep > i+1 ? '#2D7D46' : enrollStep === i+1 ? '#8B1A1A' : '#E8D5D5' }} />
                 ))}
               </div>
-              <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'center' }}>步驟 {enrollStep} / 4</div>
+              <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'center' }}>步驟 {enrollStep} / {selectedCourse?.skipSignature ? 3 : 4}</div>
             </div>
 
             {/* Scrollable content */}
@@ -2004,6 +2019,27 @@ export default function MemberCoursesPage() {
 
             {/* Step 2: 健康備註 + 得知管道 */}
             {enrollStep === 2 && (<>
+              {selectedCourse?.collectGenderAge && (
+                <div style={{ display:'flex', gap:10, marginBottom:14 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>性別 *</label>
+                    <select value={massageGender} onChange={e=>setMassageGender(e.target.value)} style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}>
+                      <option value="">請選擇</option><option value="male">男</option><option value="female">女</option>
+                    </select>
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>年齡 *</label>
+                    <input type="number" min="0" value={massageAge} onChange={e=>setMassageAge(e.target.value)} placeholder="歲" style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                  </div>
+                </div>
+              )}
+              {selectedCourse?.enrollNoteLabel && (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>{selectedCourse.enrollNoteLabel}{selectedCourse.enrollNoteRequired && ' *'}</label>
+                  <textarea value={massageNote} onChange={e=>setMassageNote(e.target.value)} rows={3}
+                    placeholder="請具體描述，供講師事先準備" style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FFF9F0', color:'#1a1a1a' }}/>
+                </div>
+              )}
               <div style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>健康狀況備註</label>
                 <div style={{ fontSize:11, color:'#999', marginBottom:8 }}>請告知教練您的體能、健康狀況或需注意事項（選填）</div>
@@ -2091,22 +2127,39 @@ export default function MemberCoursesPage() {
                 <button onClick={() => setEnrollStep(s => s-1)}
                   style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>← 上一步</button>
               )}
-              {enrollStep < 4 ? (
-                <button onClick={() => {
-                  if (enrollStep === 3 && (!confirmedRefundPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
-                    showMsg(selectedCourse.type === 'workshop' ? '請確認退費方式' : '請確認請假與退費方式', 'red'); return;
-                  }
-                  setEnrollStep(s => s+1);
-                }}
-                  style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                  下一步 →
-                </button>
-              ) : (
-                <button onClick={handleEnroll} disabled={loading || targetUnder5 || !portraitSig || (targetIsMinor && !guardianSig)}
-                  style={{ flex:2, height:44, borderRadius:10, background: (targetUnder5 || !portraitSig || (targetIsMinor && !guardianSig)) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: (targetUnder5 || !portraitSig) ? 'not-allowed' : 'pointer' }}>
-                  {loading ? '送出中...' : (enrollSession.isWaitlist ? '✓ 確認加入候補' : '✓ 確認報名')}
-                </button>
-              )}
+              {(() => {
+                const _lastStep = selectedCourse?.skipSignature ? 3 : 4;
+                const _step2Ok = () => {
+                  if (selectedCourse?.collectGenderAge && (!massageGender || !massageAge)) { showMsg('請填寫性別與年齡', 'red'); return false; }
+                  if (selectedCourse?.enrollNoteRequired && !massageNote.trim()) { showMsg(`請填寫「${selectedCourse.enrollNoteLabel || '備註'}」`, 'red'); return false; }
+                  return true;
+                };
+                const _sigOk = selectedCourse?.skipSignature || (portraitSig && (!targetIsMinor || guardianSig));
+                const _submitDisabled = loading || targetUnder5 || !_sigOk;
+                return enrollStep < _lastStep ? (
+                  <button onClick={() => {
+                    if (enrollStep === 2 && !_step2Ok()) return;
+                    if (enrollStep === 3 && (!confirmedRefundPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
+                      showMsg(selectedCourse.type === 'workshop' ? '請確認退費方式' : '請確認請假與退費方式', 'red'); return;
+                    }
+                    setEnrollStep(s => s+1);
+                  }}
+                    style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
+                    下一步 →
+                  </button>
+                ) : (
+                  <button onClick={() => {
+                    if (enrollStep === 2 && !_step2Ok()) return;
+                    if (enrollStep === 3 && (!confirmedRefundPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
+                      showMsg(selectedCourse.type === 'workshop' ? '請確認退費方式' : '請確認請假與退費方式', 'red'); return;
+                    }
+                    handleEnroll();
+                  }} disabled={_submitDisabled}
+                    style={{ flex:2, height:44, borderRadius:10, background: _submitDisabled ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: _submitDisabled ? 'not-allowed' : 'pointer' }}>
+                    {loading ? '送出中...' : (enrollSession.isWaitlist ? '✓ 確認加入候補' : '✓ 確認報名')}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
