@@ -222,6 +222,16 @@ export default function MemberCoursesPage() {
   const targetUnder5 = isUnder5(enrollTarget);
 
   useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, [member?.id]);
+
+  // 深連結報名：?course=<id> → 課程載入後自動切到課程總覽並開啟該課報名頁（供分享報名連結；只開一次）
+  const _deepLinkDone = useRef(false);
+  useEffect(() => {
+    if (_deepLinkDone.current || !courses.length) return;
+    const cid = new URLSearchParams(location.search).get('course');
+    if (!cid) return;
+    const c = courses.find(x => x.id === cid);
+    if (c) { _deepLinkDone.current = true; setSelectedCategory(null); setTab('browse'); setSelectedCourse(c); }
+  }, [courses, location.search]);
   useEffect(() => {
     if (selectedCourse) loadSessions(selectedCourse);
   }, [selectedCourse]);

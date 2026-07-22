@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { memberLogin, resendMemberVerification } from '../../api/memberAuth';
 import { useMember } from '../../store/memberStore.jsx';
 import PasswordInput from '../../components/PasswordInput';
@@ -13,6 +13,7 @@ export default function MemberLoginPage() {
   const [loading, setLoading] = useState(false);
   const { login, isLoggedIn } = useMember();
   const navigate = useNavigate();
+  const _redirect = new URLSearchParams(useLocation().search).get('redirect');
 
   // Email 未驗證面板狀態
   const [needsVerify, setNeedsVerify] = useState(false);
@@ -24,7 +25,7 @@ export default function MemberLoginPage() {
 
   // 等 isLoggedIn 真的變成 true 才跳頁，避免手機上 setState 還沒完成就 navigate 的 race condition
   useEffect(() => {
-    if (isLoggedIn) navigate('/member/home', { replace: true });
+    if (isLoggedIn) navigate((_redirect && _redirect.startsWith('/member/')) ? _redirect : '/member/home', { replace: true });
   }, [isLoggedIn]);
 
   const normId = () => identifier.includes('@') ? identifier.trim() : identifier.replace(/[\s-]/g, '');

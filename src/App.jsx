@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './store/authStore.jsx';
 import { MemberProvider, useMember } from './store/memberStore.jsx';
 
@@ -57,7 +57,8 @@ const StaffRoute = ({ children }) => {
 
 const MemberRoute = ({ children }) => {
   const { isLoggedIn } = useMember();
-  return isLoggedIn ? children : <Navigate to="/member/login" replace />;
+  const loc = useLocation();
+  return isLoggedIn ? children : <Navigate to={`/member/login?redirect=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
 };
 
 function StaffRoutes() {

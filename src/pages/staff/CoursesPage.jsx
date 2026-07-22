@@ -720,6 +720,15 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
     const a = document.createElement('a'); a.href = url;
     a.download = `${lmSummary.course?.name||'課程'}_請假補課_${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
   };
+  const copyEnrollLink = (c) => {
+    const url = `https://app.redrocktaiwan.com/member/courses?course=${c.id}`;
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => showMsg('報名連結已複製，可貼到 LINE 分享：\n' + url),
+        () => window.prompt('複製此報名連結：', url)
+      );
+    } else { window.prompt('複製此報名連結：', url); }
+  };
   const loadCourseRoster = async (course) => {
     setRosterModal({ course, enrollments: null });
     setRosterLoading(true);
@@ -910,6 +919,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>場次</button>
                       <button onClick={() => loadCourseRoster(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>名單</button>
+                      <button onClick={() => copyEnrollLink(c)}
+                        style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>🔗 連結</button>
                       {c.type !== 'workshop' && c.categoryGroup !== 'workshop' && (
                       <button onClick={() => loadLeaveMakeup(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>假補</button>
