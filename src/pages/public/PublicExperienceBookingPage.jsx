@@ -194,7 +194,7 @@ export default function PublicExperienceBookingPage() {
 
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 18, cursor: 'pointer', fontSize: 13, color: '#444', lineHeight: 1.6 }}>
           <input type="checkbox" checked={agreedTerms} onChange={e => setAgreedTerms(e.target.checked)} style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: RED }} />
-          <span>我已了解：體驗課程需先完成匯款、館方確認後始生效；報到當天須現場簽署<b>風險安全聲明書</b>；體驗費不含保險（保險費另計）。</span>
+          <span>我已了解：體驗課程需先完成匯款、館方確認後始生效；報到當天須現場簽署<b>風險安全聲明書</b>；體驗費<b>已含保險</b>。</span>
         </label>
 
         {err && <div style={{ color: '#A32D2D', fontSize: 14, marginTop: 14, textAlign: 'center' }}>{err}</div>}
