@@ -175,7 +175,17 @@ export default function PublicExperienceBookingPage() {
             應繳金額：<b style={{ color: RED, fontSize: 17 }}>NT${totalFee}</b>
             <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>（{n} 人 × NT${unitPrice}）</span>
           </div>
-          {settings.bankInfo && <div style={{ fontSize: 13, color: '#666', marginTop: 10, whiteSpace: 'pre-wrap' }}>匯款資訊：{typeof settings.bankInfo === 'string' ? settings.bankInfo : JSON.stringify(settings.bankInfo)}</div>}
+          {(() => {
+            const bank = settings.bankInfo?.[String(gymId || '').replace('gym-', '')];
+            return bank ? (
+              <div style={{ fontSize: 13, color: '#555', marginTop: 10, background: '#F7F1F1', borderRadius: 8, padding: '10px 12px', lineHeight: 1.8 }}>
+                <div style={{ fontWeight: 700, color: RED, marginBottom: 2 }}>匯款帳號（{settings.gyms.find(g => g.id === gymId)?.name || ''}）</div>
+                <div>{bank.bankName} {bank.branch || ''}</div>
+                <div>帳號：<b style={{ letterSpacing: .5 }}>{bank.account}</b></div>
+                <div>戶名：{bank.accountName}</div>
+              </div>
+            ) : null;
+          })()}
           <label style={label}>匯款帳號末五碼 *</label>
           <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={input} inputMode="numeric" placeholder="12345" />
           <label style={label}>匯款日期（選填）</label>
