@@ -1,7 +1,7 @@
 // 入場類型顯示名稱（全站統一）：pass=定期票、buy_pass=購買定期票…
 // 各頁面顯示 entryType 一律走此表，避免有些地方顯示原始英文 key（pass / buy_pass）。
 export const ENTRY_TYPE_LABEL = {
-  pass: '定期票', competition: '比賽報到',
+  pass: '定期票', competition: '比賽報到', staff_entry: '員工入館',
   monthly_pass: '定期票',
   buy_pass: '購買定期票',
   vip: 'VIP',
