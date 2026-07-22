@@ -80,7 +80,8 @@ export default function PublicExperienceBookingPage() {
 
   const wrap = { maxWidth: 480, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
   const label = { fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6, marginTop: 16 };
-  const input = { width: '100%', minWidth: 0, height: 44, borderRadius: 10, border: '1px solid #E0D4D4', padding: '0 12px', fontSize: 15, boxSizing: 'border-box', outline: 'none', background: '#fff', WebkitAppearance: 'none' };
+  const input = { width: '100%', minWidth: 0, height: 44, borderRadius: 10, border: '1px solid #E0D4D4', padding: '0 12px', fontSize: 15, boxSizing: 'border-box', outline: 'none', background: '#fff' };
+  const dinput = { ...input, width: '100%', maxWidth: 220 };  // 日期/窄欄：各自一行、固定不過寬（避免 iOS date 在 flex 溢出）
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
 
   if (loadErr) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#A32D2D' }}>{loadErr}</div>;
@@ -116,16 +117,10 @@ export default function PublicExperienceBookingPage() {
             {settings.gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={label}>體驗日期</label>
-              <input type="date" value={bookingDate} min={new Date(Date.now() + 864e5).toISOString().slice(0, 10)} onChange={e => setBookingDate(e.target.value)} style={input} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={label}>希望時段（選填）</label>
-              <input placeholder="如 14:00" value={bookingTime} onChange={e => setBookingTime(e.target.value)} style={input} />
-            </div>
-          </div>
+          <label style={label}>體驗日期</label>
+          <input type="date" value={bookingDate} min={new Date(Date.now() + 864e5).toISOString().slice(0, 10)} onChange={e => setBookingDate(e.target.value)} style={dinput} />
+          <label style={label}>希望時段（選填）</label>
+          <input placeholder="如 14:00" value={bookingTime} onChange={e => setBookingTime(e.target.value)} style={dinput} />
         </div>
 
         <div style={card}>
@@ -139,16 +134,10 @@ export default function PublicExperienceBookingPage() {
                 </div>
                 {participants.length > 1 && <button onClick={() => rmP(i)} style={{ height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid #E5B5B5', background: '#fff', color: '#A32D2D', fontSize: 13, cursor: 'pointer' }}>移除</button>}
               </div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <label style={label}>生日</label>
-                  <input type="date" value={p.birthday} onChange={e => setP(i, 'birthday', e.target.value)} style={input} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <label style={label}>國籍</label>
-                  <input value={p.nationality} onChange={e => setP(i, 'nationality', e.target.value)} style={input} placeholder="台灣" />
-                </div>
-              </div>
+              <label style={label}>生日</label>
+              <input type="date" value={p.birthday} onChange={e => setP(i, 'birthday', e.target.value)} style={dinput} />
+              <label style={label}>國籍</label>
+              <input value={p.nationality} onChange={e => setP(i, 'nationality', e.target.value)} style={dinput} placeholder="台灣" />
               <label style={label}>身分證字號／護照號碼</label>
               <input value={p.idNumber} onChange={e => setP(i, 'idNumber', e.target.value.toUpperCase())} style={input} placeholder="投保用" />
               {under5(p.birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 5 歲無法報名體驗</div>}
@@ -186,16 +175,10 @@ export default function PublicExperienceBookingPage() {
               </div>
             ) : null;
           })()}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={label}>匯款帳號末五碼 *</label>
-              <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={input} inputMode="numeric" placeholder="12345" />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <label style={label}>匯款日期（選填）</label>
-              <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={input} />
-            </div>
-          </div>
+          <label style={label}>匯款帳號末五碼 *</label>
+          <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={dinput} inputMode="numeric" placeholder="12345" />
+          <label style={label}>匯款日期（選填）</label>
+          <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={dinput} />
         </div>
 
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 18, cursor: 'pointer', fontSize: 13, color: '#444', lineHeight: 1.6 }}>
