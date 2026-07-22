@@ -186,10 +186,16 @@ export default function PublicExperienceBookingPage() {
               </div>
             ) : null;
           })()}
-          <label style={label}>匯款帳號末五碼 *</label>
-          <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={input} inputMode="numeric" placeholder="12345" />
-          <label style={label}>匯款日期（選填）</label>
-          <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={input} />
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <label style={label}>匯款帳號末五碼 *</label>
+              <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={input} inputMode="numeric" placeholder="12345" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={label}>匯款日期（選填）</label>
+              <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={input} />
+            </div>
+          </div>
         </div>
 
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 18, cursor: 'pointer', fontSize: 13, color: '#444', lineHeight: 1.6 }}>
