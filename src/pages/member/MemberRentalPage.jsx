@@ -120,6 +120,7 @@ export default function MemberRentalPage() {
 
   const handleApply = async () => {
     if (!pickupDate) { showMsg('請選擇借出日期', 'red'); return; }
+    if (payMethod === 'transfer' && (!bankLastFive.trim() || !payDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
     setSubmitting(true);
     try {
       const items = Object.entries(quantities)

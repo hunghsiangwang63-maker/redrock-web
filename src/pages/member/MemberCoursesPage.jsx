@@ -386,6 +386,7 @@ export default function MemberCoursesPage() {
 
   const handleEnroll = async () => {
     if (!enrollSession) return;
+    if (paymentMethod === 'transfer' && (!paymentData.bankLastFive?.trim() || !paymentData.paymentDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
     setLoading(true);
     try {
       const extraFields = {

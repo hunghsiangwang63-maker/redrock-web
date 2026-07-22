@@ -12,7 +12,8 @@ export default function TransferReuploadModal({ target, memberName, onClose, onD
   const [err, setErr] = useState('');
 
   const submit = async () => {
-    if (!last5.trim() && !file) { setErr('請填寫匯款帳號末五碼，或上傳轉帳截圖'); return; }
+    if (!last5.trim()) { setErr('請填寫匯款帳號末五碼'); return; }
+    if (!date.trim()) { setErr('請填寫轉帳日期'); return; }
     setBusy(true); setErr('');
     try {
       await submitTransferRecord({
@@ -43,7 +44,7 @@ export default function TransferReuploadModal({ target, memberName, onClose, onD
               style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
           </div>
           <div>
-            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>匯款帳號末五碼</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>匯款帳號末五碼 *</div>
             <input value={last5} onChange={e=>setLast5(e.target.value.replace(/[^\d]/g,'').slice(0,5))} placeholder="12345" inputMode="numeric"
               style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
           </div>
@@ -53,7 +54,7 @@ export default function TransferReuploadModal({ target, memberName, onClose, onD
               style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
           </div>
           <div>
-            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>轉帳截圖（選填，與末五碼擇一）</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>轉帳截圖（選填）</div>
             <input type="file" accept="image/*" onChange={e=>setFile(e.target.files?.[0] || null)} style={{ fontSize:12 }} />
           </div>
         </div>

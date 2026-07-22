@@ -37,6 +37,7 @@ export default function MemberTeamPage() {
   const [reupBusy, setReupBusy] = useState(false);
   const handleReupload = async () => {
     if (!reupLast5.trim()) { alert('請填寫匯款帳號末五碼'); return; }
+    if (!reupDate.trim()) { alert('請填寫轉帳日期'); return; }
     setReupBusy(true);
     try {
       const { submitTransferRecord } = await import('../../api/transfers');
@@ -98,6 +99,8 @@ export default function MemberTeamPage() {
     if (!idNumber.trim()) { showMsg('請填寫身分證字號（山協保險用）', 'red'); return; }
     if (!address.trim()) { showMsg('請填寫地址', 'red'); return; }
     if (!lineId.trim()) { showMsg('請填寫 Line ID（加入隊群組用）', 'red'); return; }
+    if (!bankLastFive.trim()) { showMsg('請填寫匯款帳號末五碼', 'red'); return; }
+    if (!paymentDate.trim()) { showMsg('請填寫轉帳日期', 'red'); return; }
     if (!joinReasons.length) { showMsg('請選擇至少一項加入原因', 'red'); return; }
     if (!currentGrade) { showMsg('請選擇目前抱石最高級數', 'red'); return; }
     if (!weeklyFrequency) { showMsg('請選擇每週頻率', 'red'); return; }

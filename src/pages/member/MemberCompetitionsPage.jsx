@@ -160,6 +160,7 @@ export default function MemberCompetitionsPage() {
   const [repayErr, setRepayErr] = useState('');
   const submitRepay = async () => {
     if (!repayDate) { setRepayErr('請填寫繳費日期'); return; }
+    if (repayMethod === 'transfer' && !repayLast5.trim()) { setRepayErr('請填寫匯款帳號末五碼'); return; }
     setRepaySaving(true); setRepayErr('');
     try {
       const { memberClient } = await import('../../api/client');
@@ -326,6 +327,7 @@ export default function MemberCompetitionsPage() {
     }
     if (step === 2) {
       if (paymentMethod === 'cash' && !paymentDate) { showMsg('請填寫臨櫃繳款日期', 'red'); return; }
+      if (paymentMethod === 'transfer' && (!bankLastFive.trim() || !paymentDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
     }
     if (step === 3) {
       if (!agreedWaiver || !agreedPhoto) { showMsg('請確認同意所有事項', 'red'); return; }
