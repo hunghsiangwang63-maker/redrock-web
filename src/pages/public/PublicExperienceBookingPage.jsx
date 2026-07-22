@@ -209,7 +209,7 @@ export default function PublicExperienceBookingPage() {
           style={{ width: '100%', height: 50, borderRadius: 12, background: submitting ? '#C99' : RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', marginTop: 18 }}>
           {submitting ? '送出中…' : '送出預約'}
         </button>
-        <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 14 }}>紅石攀岩 RedRock · 新竹館 03-6686635 · 士林館 02-28837591</div>
+        <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 14, lineHeight: 1.8 }}>紅石攀岩 RedRock<br/>新竹館 03-6686635 · 士林館 02-28837591</div>
       </div>
     </div>
   );
