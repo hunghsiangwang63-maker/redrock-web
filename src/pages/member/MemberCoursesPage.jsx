@@ -387,6 +387,7 @@ export default function MemberCoursesPage() {
   const handleEnroll = async () => {
     if (!enrollSession) return;
     if (paymentMethod === 'transfer' && (!paymentData.bankLastFive?.trim() || !paymentData.paymentDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
+    const enrollGymId = selectedCourse?.gymId || enrollSession?.gymId || gymId; // 用課程所屬館（銀行帳號/待收款歸該館）
     setLoading(true);
     try {
       const extraFields = {
@@ -410,7 +411,7 @@ export default function MemberCoursesPage() {
         const targetName = familyMembers.find(c=>c.id===targetId)?.name || member.name;
         res = await memberClient.post(`/courses/${enrollSession.courseId}/enroll-all`, {
           memberId: targetId,
-          gymId,
+          gymId: enrollGymId,
           paymentMethod,
           memberName: targetName,
           ...extraFields,
@@ -419,7 +420,7 @@ export default function MemberCoursesPage() {
         const targetId = enrollForMemberId || member.id;
         res = await memberClient.post(`/courses/sessions/${enrollSession.id}/enroll`, {
           memberId: targetId,
-          gymId,
+          gymId: enrollGymId,
           paymentMethod,
           ...extraFields,
         });
@@ -436,7 +437,7 @@ export default function MemberCoursesPage() {
           if (screenshot) formData.append('screenshot', screenshot);
           formData.append('memberId', member.id);
           formData.append('memberName', member.name || '');
-          formData.append('gymId', gymId);
+          formData.append('gymId', enrollGymId);
           formData.append('orderType', 'course');
           formData.append('refId', enrInfo.id);
           formData.append('orderName', selectedCourse?.name || '');
@@ -1989,7 +1990,7 @@ export default function MemberCoursesPage() {
               <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:14 }}>
                 <div style={{ fontSize:12, color:'#666' }}>
                   {enrollForMemberId ? `報名人：${familyMembers.find(c=>c.id===enrollForMemberId)?.name} ｜ ` : ''}
-                  {dayjs(enrollSession.date).format('MM/DD')}（{WEEKDAYS[dayjs(enrollSession.date).day()]}）{enrollSession.startTime}～{enrollSession.endTime}
+                  {dayjs(enrollSession.date).format('MM/DD')}（{WEEKDAYS[dayjs(enrollSession.date).day()]}）{enrollSession.startTime && enrollSession.endTime ? ` ${enrollSession.startTime}～${enrollSession.endTime}` : ''}
                 </div>
               </div>
               {enrollSession.isWaitlist ? (
@@ -2006,7 +2007,7 @@ export default function MemberCoursesPage() {
                 methods={selectedCourse?.paymentMethods?.length ? selectedCourse.paymentMethods : ['cash','transfer']} /* 課程端隱藏電子支付；課程可覆寫(如運動按摩只現金) */
                 onChange={d => { setPaymentData(d); setPaymentMethod(d.method); }}
                 amount={(() => { const full = enrollSession?.fee || selectedCourse?.price || 0; const fp = (selectedCourse?.installment?.periods||[])[0]?.percent; return (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full; })()}
-                bankInfo={bankAccounts[gymId] ? { bankName: bankAccounts[gymId].bankName, branch: bankAccounts[gymId].branch||'', account: bankAccounts[gymId].accountNumber, accountName: bankAccounts[gymId].accountName } : null}
+                bankInfo={(() => { const bk = bankAccounts[selectedCourse?.gymId || enrollSession?.gymId || gymId]; return bk ? { bankName: bk.bankName, branch: bk.branch||'', account: bk.accountNumber, accountName: bk.accountName } : null; })()}
               />
               {(paymentData.method==='cash'||paymentData.method==='transfer') && (
                 <div style={{ marginBottom:12 }}>

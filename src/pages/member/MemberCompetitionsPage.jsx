@@ -128,6 +128,8 @@ export default function MemberCompetitionsPage() {
       phone: r.phone || '', email: r.email || '', idNumber: r.idNumber || '',
       emergencyContact: r.emergencyContact || '', emergencyRelation: r.emergencyRelation || '', emergencyPhone: r.emergencyPhone || '',
       height: r.height || '', armSpan: r.armSpan || '', isHonorary: !!r.isHonorary, memberNote: r.memberNote || '',
+      paymentMethod: r.paymentMethod || 'transfer', paymentDate: r.paymentDate || '', bankLastFive: r.bankLastFive || '', bankName: r.bankName || '',
+      _paid: r.paymentStatus === 'confirmed',
     });
     setEditErr('');
   };
@@ -138,6 +140,10 @@ export default function MemberCompetitionsPage() {
     if (!f.phone?.trim()) { setEditErr('請填寫手機'); return; }
     if (!f.email?.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) { setEditErr('請填寫有效 Email'); return; }
     if (!f.emergencyContact?.trim() || !f.emergencyPhone?.trim()) { setEditErr('請填寫緊急聯絡人'); return; }
+    if (!f._paid) {
+      if (!f.paymentDate) { setEditErr(f.paymentMethod === 'cash' ? '請填寫繳款日期' : '請填寫轉帳日期'); return; }
+      if (f.paymentMethod === 'transfer' && !f.bankLastFive?.trim()) { setEditErr('轉帳請填寫匯款帳號末五碼'); return; }
+    }
     setEditSaving(true); setEditErr('');
     try {
       await updateCompetitionForm(editTarget.id, {
@@ -1153,6 +1159,25 @@ export default function MemberCompetitionsPage() {
               <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444' }}>
                 <input type="checkbox" checked={editForm.isHonorary} onChange={e=>set('isHonorary', e.target.checked)}/> 榮譽參賽（不列入排名）
               </label>
+              {editForm._paid ? (
+                <div style={{ marginTop:12, paddingTop:12, borderTop:'0.5px solid #F0E8E8', fontSize:12, color:'#999' }}>此報名已確認收款，繳費資訊不可修改。</div>
+              ) : (
+                <div style={{ marginTop:12, paddingTop:12, borderTop:'0.5px solid #F0E8E8' }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:10 }}>繳費資訊</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                    <div><label style={lbl}>付款方式 *</label>
+                      <select value={editForm.paymentMethod||'transfer'} onChange={e=>set('paymentMethod', e.target.value)} style={{ ...inp, appearance:'auto' }}>
+                        <option value="transfer">轉帳</option><option value="cash">現金（臨櫃）</option>
+                      </select></div>
+                    <div><label style={lbl}>{editForm.paymentMethod==='cash'?'繳款日期 *':'轉帳日期 *'}</label>
+                      <input type="date" value={editForm.paymentDate||''} onChange={e=>set('paymentDate', e.target.value)} style={inp}/></div>
+                    {editForm.paymentMethod==='transfer' && (<>
+                      <div><label style={lbl}>匯款帳號末五碼 *</label><input value={editForm.bankLastFive||''} maxLength={5} onChange={e=>set('bankLastFive', e.target.value.slice(0,5))} style={inp}/></div>
+                      <div><label style={lbl}>匯款銀行名稱</label><input value={editForm.bankName||''} onChange={e=>set('bankName', e.target.value)} style={inp}/></div>
+                    </>)}
+                  </div>
+                </div>
+              )}
             </div>
             {editErr && <div style={{ fontSize:12, color:'#A32D2D', marginTop:10 }}>{editErr}</div>}
             <div style={{ display:'flex', gap:8, marginTop:16 }}>
