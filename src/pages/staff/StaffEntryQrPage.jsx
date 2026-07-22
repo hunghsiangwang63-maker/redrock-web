@@ -57,7 +57,7 @@ export default function StaffEntryQrPage() {
       <div style={{ fontSize: 11, color: '#999', marginTop: 18, lineHeight: 1.8, background: '#FBF7F7', borderRadius: 10, padding: '12px 14px' }}>
         <div style={{ fontWeight: 600, color: '#666', marginBottom: 4 }}>入館優惠規則</div>
         · 正職員工：免費入館<br />
-        · 兼職人員：依<b>上一個月</b>排班表排定時數，<b>次月</b>適用——<br />
+        · 兼職人員：依<b>上一個月</b>排班表排定的<b>值班時數</b>（不含課程/體驗授課），<b>次月</b>適用——<br />
         　工時 ≥ 40 小時 → 免費｜≥ 20 小時 → 半價｜未滿 20 小時 → 一般價
       </div>
     </div>
