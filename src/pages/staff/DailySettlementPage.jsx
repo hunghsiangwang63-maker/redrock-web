@@ -340,7 +340,8 @@ export default function DailySettlementPage() {
                     difference={h.difference || 0}
                     segments={(h.invoiceSegments && h.invoiceSegments.length) ? h.invoiceSegments : [{ start: h.invoiceStartNumber || '', last: h.invoiceLastNumber || '' }]}
                     voids={h.invoiceVoidNumbers ? String(h.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
-                    voidAmount={h.voidInvoiceAmount || 0} />
+                    voidAmount={h.voidInvoiceAmount || 0}
+                    denominations={h.denominations} />
                 </div>
               )}
             </div>
@@ -367,7 +368,8 @@ export default function DailySettlementPage() {
               difference={settlement?.difference || 0}
               segments={(settlement?.invoiceSegments && settlement.invoiceSegments.length) ? settlement.invoiceSegments : [{ start: settlement?.invoiceStartNumber || '', last: settlement?.invoiceLastNumber || '' }]}
               voids={settlement?.invoiceVoidNumbers ? String(settlement.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
-              voidAmount={settlement?.voidInvoiceAmount || 0} />
+              voidAmount={settlement?.voidInvoiceAmount || 0}
+              denominations={settlement?.denominations} />
           </div>
           <button onClick={startResettle}
             style={{ width:'100%', height:46, borderRadius:12, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:20 }}>
@@ -654,7 +656,7 @@ export default function DailySettlementPage() {
             deductions={deductions} netAdjust={netAdjust}
             actualCash={actualCash} difference={difference}
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
-            voidAmount={Number(voidInvoiceAmount) || 0} />
+            voidAmount={Number(voidInvoiceAmount) || 0} denominations={denominations} />
           {resettleMode && (
             <div style={{ marginTop:12 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
@@ -677,9 +679,11 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount }) {
+function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
+  const denom = denominations || {};
+  const denomList = DENOMINATIONS.map(d => ({ ...d, count: Number(denom[d.key]) || 0 })).filter(d => d.count > 0);
   const bigDiff = Math.abs(difference) > 200;
   const sysTotal = income?.total ?? invoiceTotal ?? 0;
   const hasManual = manualTotal !== null && manualTotal !== undefined;
@@ -775,7 +779,25 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
           </div>
         )}
       </div>
-      <div style={row}><span style={{ color:'#666' }}>實際現金</span><span style={{ fontWeight:600 }}>{money(actualCash)}</span></div>
+      {/* 現金清點（點鈔明細）*/}
+      <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', marginBottom: denomList.length ? 4 : 0 }}>
+          <span style={{ color:'#666' }}>現金清點</span>
+          {!denomList.length && <span style={{ fontWeight:600 }}>{money(actualCash)}</span>}
+        </div>
+        {denomList.length > 0 && (
+          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+            {denomList.map((d, i) => (
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12.5, color:'#666' }}>
+                <span style={{ textAlign:'left' }}>{d.label} × {d.count}</span><span>{money(d.value * d.count)}</span>
+              </div>
+            ))}
+            <div style={{ display:'flex', justifyContent:'space-between', fontWeight:600, marginTop:2 }}>
+              <span style={{ textAlign:'left' }}>實際現金合計</span><span>{money(actualCash)}</span>
+            </div>
+          </div>
+        )}
+      </div>
       <div style={row}><span style={{ color:'#666' }}>差異（實際−預期）</span>
         <span style={{ fontWeight:700, color: bigDiff ? '#A32D2D' : '#2D7D46' }}>
           {difference >= 0 ? '+' : ''}{money(difference)}{bigDiff ? '　⚠ 將通知管理員' : ''}
