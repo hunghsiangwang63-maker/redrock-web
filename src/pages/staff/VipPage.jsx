@@ -406,10 +406,10 @@ export default function VipPage({ embedded = false, section = null }) {
               <option key={y} value={y}>{y} 年度</option>
             ))}
           </select>
-          <button onClick={handleDownload} disabled={downloading}
+          {['super_admin','gym_manager'].includes(staff?.role) && <button onClick={handleDownload} disabled={downloading}
             style={{ height:40, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:13, cursor: downloading ? 'not-allowed' : 'pointer' }}>
             {downloading ? '下載中...' : '⬇ 下載 Excel'}
-          </button>
+          </button>}
           <button onClick={openAddTeam}
             style={{ height:40, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
             + 新增隊員

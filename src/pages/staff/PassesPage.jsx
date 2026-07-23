@@ -599,6 +599,7 @@ export default function PassesPage() {
               </div>
             );
             const DlBtn = ({ type, label }) => (
+              !canManageTypes ? null :
               <button onClick={() => downloadAnalyticsCSV(type)}
                 style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>
                 ⬇ {label}

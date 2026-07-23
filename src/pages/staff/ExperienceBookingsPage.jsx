@@ -242,8 +242,8 @@ export default function ExperienceBookingsPage() {
         <div style={{ display:'flex', gap:8 }}>
           <button onClick={() => { setShowLinkModal(true); QRCode.toDataURL(PUBLIC_BOOK_URL, { width: 240, margin: 2 }).then(setLinkQr).catch(()=>setLinkQr('')); }}
             style={{ height:36, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>🔗 產生免登入預約連結</button>
-          <button onClick={downloadXLS} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>⬇ XLS 名單</button>
-          <button onClick={()=>downloadInsurance()} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>📋 保險名冊</button>
+          {isAdmin && <button onClick={downloadXLS} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>⬇ XLS 名單</button>}
+          {isAdmin && <button onClick={()=>downloadInsurance()} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>📋 保險名冊</button>}
         </div>
       </div>
 
@@ -251,7 +251,7 @@ export default function ExperienceBookingsPage() {
 
       {/* Tabs */}
       <SegmentedTabs
-        tabs={[{key:'bookings',label:'預約管理'},{key:'history',label:'📁 歷史名冊'},...(isAdmin?[{key:'settings',label:'⚙ 課程設定'}]:[])]}
+        tabs={[{key:'bookings',label:'預約管理'},...(isAdmin?[{key:'history',label:'📁 歷史名冊'},{key:'settings',label:'⚙ 課程設定'}]:[])]}
         value={tab}
         onChange={k=>{ setTab(k); if(k==='settings') loadSettings(); if(k==='history') loadHistory(); }}
         style={{ marginBottom:16 }} />
@@ -315,7 +315,7 @@ export default function ExperienceBookingsPage() {
                     </div>
                     <div style={{ display:'flex', gap:8, marginTop:10, flexWrap:'wrap', alignItems:'center' }}>
                       {b.status==='pending' && <span style={{ fontSize:11, color:'#854F0B' }}>待確認（於待辦總覽確認/取消）</span>}
-                      {b.status!=='cancelled' && b.needsInsurance!==false && ctNeedsInsurance(b.courseType) && (
+                      {isAdmin && b.status!=='cancelled' && b.needsInsurance!==false && ctNeedsInsurance(b.courseType) && (
                         <button onClick={()=>downloadInsurance(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>📋 保險名冊</button>
                       )}
                       {b.status!=='cancelled' && b.needsInsurance!==false && ctNeedsInsurance(b.courseType) && (

@@ -24,6 +24,7 @@ export default function CheckinPage() {
   const enabledPay = useEnabledPayments();
   const { staff, operator, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
+  const isManagerOnly = ['super_admin', 'gym_manager'].includes(staff?.role); // 下載明細限管理員
   // 入場動作限值班(operator)/管理員（與後端 requireManagerOrStation 一致）；報表 tab 不限
   const canCheckin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator;
   const [gyms, setGyms] = useState([]);
@@ -138,8 +139,9 @@ export default function CheckinPage() {
   const [chalkRental, setChalkRental] = useState({ price: 50, active: true });
   const [phoneRentShoes, setPhoneRentShoes] = useState(false);
   const [phoneRentChalk, setPhoneRentChalk] = useState(false);
-  // 歷史入場（按日期、全館逐筆）
-  const [historyDate, setHistoryDate] = useState(dayjs().format('YYYY-MM-DD'));
+  // 歷史入場（區間、全館逐筆）
+  const [historyFrom, setHistoryFrom] = useState(dayjs().format('YYYY-MM-DD'));
+  const [historyTo, setHistoryTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [historyCheckIns, setHistoryCheckIns] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const inputRef = useRef(null);
@@ -151,7 +153,7 @@ export default function CheckinPage() {
     if (tab === 'today') loadTodayCheckIns();
     if (tab === 'history') loadHistory();
   }, [tab]);
-  useEffect(() => { if (tab === 'history') loadHistory(); /* eslint-disable-next-line */ }, [historyDate, targetGymId]);
+  useEffect(() => { if (tab === 'history') loadHistory(); /* eslint-disable-next-line */ }, [historyFrom, historyTo, targetGymId]);
   useEffect(() => { if (tab === 'scan' && confirmedCheckIn) setTimeout(() => inputRef.current?.focus(), 300); }, [confirmedCheckIn]);
 
   const loadStats = async () => {
@@ -186,16 +188,17 @@ export default function CheckinPage() {
     finally { setTodayLoading(false); }
   };
 
-  // 歷史入場：指定日期（台灣時間整日）全館逐筆
+  // 歷史入場：指定區間（台灣時間，含起訖整日）全館逐筆
   const loadHistory = async () => {
     if (!targetGymId && !isSuperAdmin) return;
+    if (historyFrom > historyTo) { setHistoryCheckIns([]); return; }
     setHistoryLoading(true);
     try {
       const res = await getCheckInHistory({
         gymId: targetGymId || undefined,
-        dateFrom: `${historyDate}T00:00:00+08:00`,
-        dateTo: `${historyDate}T23:59:59+08:00`,
-        limit: 500,
+        dateFrom: `${historyFrom}T00:00:00+08:00`,
+        dateTo: `${historyTo}T23:59:59+08:00`,
+        limit: 10000,
       });
       setHistoryCheckIns((res.data.checkIns || []).filter(c => !c.isCancelled));
     } catch (e) { setHistoryCheckIns([]); }
@@ -217,7 +220,8 @@ export default function CheckinPage() {
     const csv = '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
-    a.href = url; a.download = `入場紀錄_${historyDate}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
+    const fname = historyFrom === historyTo ? `入場紀錄_${historyFrom}.csv` : `入場紀錄_${historyFrom}_至_${historyTo}.csv`;
+    a.href = url; a.download = fname; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
   };
 
   const handleCancelCheckin = async (checkInId, force = false) => {
@@ -1099,21 +1103,27 @@ export default function CheckinPage() {
         {tab === 'history' && (
           <div style={{ padding:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, marginBottom:12, flexWrap:'wrap' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
                 <span style={{ fontSize:14, fontWeight:600 }}>歷史入場</span>
-                <input type="date" value={historyDate} max={dayjs().format('YYYY-MM-DD')}
-                  onChange={e => setHistoryDate(e.target.value)}
+                <input type="date" value={historyFrom} max={historyTo || dayjs().format('YYYY-MM-DD')}
+                  onChange={e => setHistoryFrom(e.target.value)}
+                  style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, color:'#1a1a1a' }} />
+                <span style={{ fontSize:12, color:'#999' }}>～</span>
+                <input type="date" value={historyTo} min={historyFrom} max={dayjs().format('YYYY-MM-DD')}
+                  onChange={e => setHistoryTo(e.target.value)}
                   style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, color:'#1a1a1a' }} />
                 <span style={{ fontSize:12, color:'#999' }}>共 {historyCheckIns.length} 筆</span>
               </div>
               <div style={{ display:'flex', gap:8 }}>
                 <button onClick={loadHistory} style={{ height:34, padding:'0 12px', borderRadius:8, background:'#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color:'#8B1A1A' }}>重新整理</button>
-                <button onClick={exportHistoryCsv} disabled={!historyCheckIns.length}
-                  style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:12, cursor: historyCheckIns.length?'pointer':'default', color:'#6b6b6b', opacity: historyCheckIns.length?1:.5 }}>↓ 匯出 CSV</button>
+                {isManagerOnly && (
+                  <button onClick={exportHistoryCsv} disabled={!historyCheckIns.length}
+                    style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:12, cursor: historyCheckIns.length?'pointer':'default', color:'#6b6b6b', opacity: historyCheckIns.length?1:.5 }}>↓ 匯出 CSV</button>
+                )}
               </div>
             </div>
             {historyLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
-            {!historyLoading && historyCheckIns.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:24 }}>{dayjs(historyDate).format('MM/DD')} 無入場紀錄</div>}
+            {!historyLoading && historyCheckIns.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:24 }}>{historyFrom === historyTo ? dayjs(historyFrom).format('MM/DD') : `${dayjs(historyFrom).format('MM/DD')}～${dayjs(historyTo).format('MM/DD')}`} 無入場紀錄</div>}
             {!historyLoading && historyCheckIns.map(c => {
               const t = c.checkedInAt?._seconds ? new Date(c.checkedInAt._seconds * 1000) : new Date(c.checkedInAt);
               return (

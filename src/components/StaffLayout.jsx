@@ -50,7 +50,7 @@ export default function StaffLayout() {
   const PERSONAL_NAV = {
     // 個人登入(非值班)：待辦/排班/員工入館；正職另加 課程活動 + 商品(庫存)
     part_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/staff-entry'],
-    full_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/activities', '/staff/shop', '/staff/staff-entry'],
+    full_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/activities', '/staff/shop', '/staff/staff-entry', '/staff/settings'],
   };
   const canSeeNav = (path) => (isAdmin || onDuty) ? true : (PERSONAL_NAV[navRole] ? PERSONAL_NAV[navRole].includes(path) : true);
   // 全域場館切換僅 super_admin：載入場館清單

@@ -90,18 +90,44 @@ export default function SalesPage({ embedded = false }) {
   const [msgType, setMsgType] = useState('ok');
   const [selectedProduct, setSelectedProduct] = useState(null);
 
-  // 銷售紀錄 / 退貨
+  // 銷售紀錄 / 退貨（區間查詢）
   const [salesList, setSalesList] = useState([]);
   const [salesLoading, setSalesLoading] = useState(false);
+  const [salesFrom, setSalesFrom] = useState(dayjs().subtract(29, 'day').format('YYYY-MM-DD'));
+  const [salesTo, setSalesTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [confirmReturn, setConfirmReturn] = useState(null); // 待退貨的銷售
   const [returnReason, setReturnReason] = useState('');
   const loadSales = async () => {
+    if (salesFrom > salesTo) { setSalesList([]); return; }
     setSalesLoading(true);
     try {
-      const res = await getProductSales(targetGymId && targetGymId !== 'warehouse' ? { gymId: targetGymId, days: 30 } : { days: 30 });
+      const base = { dateFrom: salesFrom, dateTo: salesTo };
+      const res = await getProductSales(targetGymId && targetGymId !== 'warehouse' ? { gymId: targetGymId, ...base } : base);
       setSalesList(res.data.sales || []);
     } catch (e) { setSalesList([]); }
     finally { setSalesLoading(false); }
+  };
+  const exportSalesCsv = () => {
+    const method = { cash:'現金', linepay:'Line Pay', jkopay:'街口', taiwanpay:'台灣Pay' };
+    const rows = [['日期時間', '經手人', '付款方式', '會員', '館別', '品項', '金額']];
+    salesList.forEach(s => {
+      const t = s.soldAt?.seconds ? s.soldAt.seconds*1000 : s.soldAt?._seconds ? s.soldAt._seconds*1000 : s.soldAt;
+      const items = (s.items||[]).map(i => `${i.brand?i.brand+' ':''}${i.productName}${i.size?` ${i.size}`:''}×${Math.abs(i.quantity)}`).join('、');
+      rows.push([
+        dayjs(t).format('YYYY-MM-DD HH:mm'),
+        s.staffName || '',
+        method[s.paymentMethod] || s.paymentMethod || '',
+        s.memberName && s.memberName !== '匿名' ? s.memberName : '',
+        gyms.find(g=>g.id===s.gymId)?.shortName || s.gymId || '',
+        (s.isReturn ? '[退貨] ' : s.returned ? '[已退貨] ' : '') + items,
+        (s.isReturn ? -1 : 1) * Math.abs(s.totalAmount||0),
+      ]);
+    });
+    const csv = '﻿' + rows.map(r => r.map(x => `"${String(x).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = salesFrom === salesTo ? `銷售紀錄_${salesFrom}.csv` : `銷售紀錄_${salesFrom}_至_${salesTo}.csv`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
   };
   const handleReturn = async () => {
     const sale = confirmReturn; setConfirmReturn(null);
@@ -170,7 +196,7 @@ export default function SalesPage({ embedded = false }) {
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3000); };
 
   useEffect(() => { loadProducts(); }, [targetGymId]);
-  useEffect(() => { if (tab === 'history') loadSales(); }, [tab, targetGymId]);
+  useEffect(() => { if (tab === 'history') loadSales(); /* eslint-disable-next-line */ }, [tab, targetGymId, salesFrom, salesTo]);
 
   const loadProducts = async () => {
     try {
@@ -479,10 +505,10 @@ export default function SalesPage({ embedded = false }) {
         {tab === 'inventory' && (
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
             <input ref={fileRef} type="file" accept=".xlsx,.xls" style={{ display:'none' }} onChange={handleImport}/>
-            <button onClick={handleExport}
+            {isAdmin && <button onClick={handleExport}
               style={{ height:isMobile?40:36, padding:`0 ${isMobile?16:14}px`, borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize: isMobile?14:13, cursor:'pointer' }}>
               📤 匯出庫存
-            </button>
+            </button>}
             <button onClick={openStocktake} disabled={products.length === 0}
               style={{ height:36, padding:'0 14px', borderRadius:8, background:'#854F0B', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
               📋 庫存盤點
@@ -623,11 +649,26 @@ export default function SalesPage({ embedded = false }) {
       {/* ── 銷售紀錄 tab ── */}
       {tab === 'history' && (
         <div>
-          <div style={{ fontSize:12, color:'#999', marginBottom:10 }}>近 30 天銷售（{isWarehouse ? '全部館別' : '本館'}）。退貨會還原庫存並沖銷當日營收。</div>
+          <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+            <input type="date" value={salesFrom} max={salesTo || dayjs().format('YYYY-MM-DD')}
+              onChange={e => setSalesFrom(e.target.value)}
+              style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, color:'#1a1a1a' }} />
+            <span style={{ fontSize:12, color:'#999' }}>～</span>
+            <input type="date" value={salesTo} min={salesFrom} max={dayjs().format('YYYY-MM-DD')}
+              onChange={e => setSalesTo(e.target.value)}
+              style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, color:'#1a1a1a' }} />
+            <span style={{ fontSize:12, color:'#999' }}>共 {salesList.length} 筆</span>
+            <div style={{ flex:1 }} />
+            {isAdmin && (
+              <button onClick={exportSalesCsv} disabled={!salesList.length}
+                style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:12, cursor: salesList.length?'pointer':'default', color:'#6b6b6b', opacity: salesList.length?1:.5 }}>↓ 匯出 CSV</button>
+            )}
+          </div>
+          <div style={{ fontSize:12, color:'#999', marginBottom:10 }}>{isWarehouse ? '全部館別' : '本館'}銷售。退貨會還原庫存並沖銷當日營收。</div>
           {salesLoading ? (
             <div style={{ padding:30, textAlign:'center', color:'#999', fontSize:13 }}>載入中...</div>
           ) : salesList.length === 0 ? (
-            <div style={{ padding:30, textAlign:'center', color:'#999', fontSize:13 }}>近 30 天無銷售紀錄</div>
+            <div style={{ padding:30, textAlign:'center', color:'#999', fontSize:13 }}>此區間無銷售紀錄</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {salesList.map(sale => (

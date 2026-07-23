@@ -22,10 +22,10 @@ const TAB_GROUPS = [
   {
     group: '入場規則',
     items: [
-      { key: 'entryTypes',   icon: '🚪', label: '入場類型' },
-      { key: 'waiver',       icon: '📄', label: 'Waiver 內容' },
-      { key: 'fallTest',     icon: '🧗', label: '墜落測驗' },
-      { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借' },
+      { key: 'entryTypes',   icon: '🚪', label: '入場類型', managerOnly: true },
+      { key: 'waiver',       icon: '📄', label: 'Waiver 內容', managerOnly: true },
+      { key: 'fallTest',     icon: '🧗', label: '墜落測驗', managerOnly: true },
+      { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借', managerOnly: true },
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
       { key: 'discountCardValidity', icon: '🎟️', label: '優惠卡期限', superAdminOnly: true },
       { key: 'partnerVendor',icon: '🤝', label: '特約廠商優惠', superAdminOnly: true },
@@ -41,8 +41,9 @@ export default function SettingsPage() {
   const { staff, operator } = useAuth();
   const _role = operator?.role || staff?.role;
   const isSuperAdmin = _role === 'super_admin';
-  // 場館公告分頁：非 super 的館別管理員或值班 operator 可見（super 走「場館設置」）
-  const canOwnGymAnnounce = !isSuperAdmin && (_role === 'gym_manager' || !!operator);
+  const isManagerPlus = ['super_admin', 'gym_manager'].includes(_role); // 管理員等級以上
+  // 場館公告分頁：非 super 的館別管理員 / 值班 operator / 正職員工可見（super 走「場館設置」）
+  const canOwnGymAnnounce = !isSuperAdmin && (_role === 'gym_manager' || _role === 'full_time' || !!operator);
   const [gyms, setGyms] = useState([]);
   const [showAddGym, setShowAddGym] = useState(false);
   const [newGymName, setNewGymName] = useState('');
@@ -56,6 +57,13 @@ export default function SettingsPage() {
   }, []);
   const isAdmin = ['super_admin', 'admin'].includes(staff?.role);
   const [activeTab, setActiveTab] = useState('entryTypes');
+  // 若預設分頁對此角色不可見（如正職/值班只看得到場館公告），自動切到第一個可見分頁
+  useEffect(() => {
+    const vis = t => (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce) && (!t.managerOnly || isManagerPlus);
+    const cur = TAB_ITEMS.find(t => t.key === activeTab);
+    if (cur && !vis(cur)) { const first = TAB_ITEMS.find(vis); if (first) setActiveTab(first.key); }
+    // eslint-disable-next-line
+  }, [isSuperAdmin, isAdmin, canOwnGymAnnounce, isManagerPlus]);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -604,7 +612,7 @@ export default function SettingsPage() {
       <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
         {TAB_GROUPS.map(group => {
           const visible = group.items.filter(t =>
-            (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce)
+            (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce) && (!t.managerOnly || isManagerPlus)
           );
           if (!visible.length) return null;
           return (

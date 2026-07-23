@@ -99,7 +99,7 @@ export default function DailySettlementPage() {
   const [tab, setTab] = useState('today');
 
   useEffect(() => {
-    if (isOperatorMode) { loadToday(); loadHistory(); return; }
+    if (isOperatorMode) { loadToday(); if (isAdmin) loadHistory(); return; } // 歷史結帳限管理員
     if (isSuperAdmin) {
       getGyms().then(res => setGyms(res.data.gyms || [])).catch(() => {});
     }
