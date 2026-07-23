@@ -1241,15 +1241,17 @@ export default function MemberCoursesPage() {
                 const enrolled = isEnrolled(s.id);
                 const full = s.enrolledCount >= s.maxStudents;
                 const _wsTeam = !!member?.isTeamMember;
+                const _wsStaff = !!member?.isStaff; // 員工會員：比照隊員於 teamOpenDate 起可報
+                const _wsPriority = _wsTeam || _wsStaff;
                 const _hasTeamPrice = selectedCourse.teamPrice != null;
                 const _myPrice = (_wsTeam && _hasTeamPrice) ? selectedCourse.teamPrice : selectedCourse.price;
                 const _td = dayjs().format('YYYY-MM-DD');
                 const _staged = selectedCourse.teamOpenDate || selectedCourse.generalOpenDate;
-                const _myOpen = _wsTeam
+                const _myOpen = _wsPriority
                   ? (!selectedCourse.teamOpenDate || _td >= selectedCourse.teamOpenDate)
                   : (!selectedCourse.generalOpenDate || _td >= selectedCourse.generalOpenDate);
-                const _notOpenMsg = _wsTeam
-                  ? `隊員 ${selectedCourse.teamOpenDate} 起開放`
+                const _notOpenMsg = _wsPriority
+                  ? `${_wsStaff ? '員工' : '隊員'} ${selectedCourse.teamOpenDate} 起開放`
                   : (selectedCourse.teamOpenDate && _td >= selectedCourse.teamOpenDate
                       ? `隊員專屬報名中，一般會員 ${selectedCourse.generalOpenDate} 起開放`
                       : `一般會員 ${selectedCourse.generalOpenDate} 起開放`);
