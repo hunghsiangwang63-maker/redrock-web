@@ -58,7 +58,8 @@ const StaffRoute = ({ children }) => {
 };
 
 const MemberRoute = ({ children }) => {
-  const { isLoggedIn } = useMember();
+  const { isLoggedIn, simResolving } = useMember();
+  if (simResolving) return null; // ?sim= 自動登入解析中 → 先不導向登入頁
   const loc = useLocation();
   return isLoggedIn ? children : <Navigate to={`/member/login?redirect=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
 };

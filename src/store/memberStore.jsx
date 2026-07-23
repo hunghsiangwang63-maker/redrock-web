@@ -8,6 +8,14 @@ export const MemberProvider = ({ children }) => {
     const m = localStorage.getItem('member');
     return m ? JSON.parse(m) : null;
   });
+  // ?sim=<token> 自動登入：同步（首次 render 前）判定，避免路由守衛在會員載入前先導去登入
+  const [simResolving, setSimResolving] = useState(() => {
+    try {
+      const t = new URLSearchParams(window.location.search).get('sim');
+      if (t) { localStorage.setItem('member_token', t); return true; } // 同步先寫 token
+    } catch (e) {}
+    return false;
+  });
 
   const login = (token, memberData) => {
     localStorage.setItem('member_token', token);
@@ -35,18 +43,16 @@ export const MemberProvider = ({ children }) => {
   // App 載入時若已登入 → 向後端刷新最新會員資料（含即時 isTeamMember/blockReasons），
   // 避免「登入後才被加入隊員」的人身分卡在登入當下的快取（需手動 refresh 才更新）。
   useEffect(() => {
-    // 🧪 模擬報名：deepLink 帶 ?sim=<token> → 以模擬帳號自動登入（移除網址參數，避免外流）
+    // ?sim= 已於同步階段寫入 token；此處移除網址參數（避免外流）
     try {
       const params = new URLSearchParams(window.location.search);
-      const simTok = params.get('sim');
-      if (simTok) {
-        localStorage.setItem('member_token', simTok);
+      if (params.has('sim')) {
         params.delete('sim');
         const q = params.toString();
         window.history.replaceState({}, '', window.location.pathname + (q ? '?' + q : ''));
       }
     } catch (e) {}
-    if (!localStorage.getItem('member_token')) return;
+    if (!localStorage.getItem('member_token')) { setSimResolving(false); return; }
     memberClient.get('/auth/member/me')
       .then(res => {
         const fresh = res.data?.member;
@@ -58,11 +64,12 @@ export const MemberProvider = ({ children }) => {
           });
         }
       })
-      .catch(() => {}); // 失敗（離線等）維持既有快取；401 由 client 攔截器處理
+      .catch(() => {}) // 失敗（離線等）維持既有快取；401 由 client 攔截器處理
+      .finally(() => setSimResolving(false)); // 解析完 → 路由守衛可放行
   }, []);
 
   return (
-    <MemberContext.Provider value={{ member, login, logout, updateMember, isLoggedIn: !!member }}>
+    <MemberContext.Provider value={{ member, login, logout, updateMember, isLoggedIn: !!member, simResolving }}>
       {member?.isSimulation && (
         <div style={{ position:'fixed', top:0, left:0, right:0, zIndex:9999, background:'#8B6914', color:'#fff', textAlign:'center', fontSize:12, fontWeight:600, padding:'5px 8px', letterSpacing:0.3 }}>
           🧪 模擬報名模式 — 此為員工測試流程，送出不會真正報名、不佔名額
