@@ -28,6 +28,17 @@ export default function MemberOnboardingGate({ children }) {
 
   const memberId = member?.id;
 
+  // 本人不入場、只幫家庭成員建立資料 → 略過本人入場文件 gate，直接跳家庭成員建立
+  const handleSkipSelfEntry = async () => {
+    setBusy(true); setError('');
+    try {
+      await memberClient.post('/members/my/skip-self-entry');
+      updateMember({ selfEntrySkipped: true });
+      navigate('/member/profile?family=1');
+    } catch (e) { setError('操作失敗，請稍後再試'); }
+    finally { setBusy(false); }
+  };
+
   const refresh = useCallback(async () => {
     if (!memberId) return;
     setLoading(true);
@@ -71,6 +82,7 @@ export default function MemberOnboardingGate({ children }) {
 
   // 尚未判斷完成前，若會員物件已明確通過則直接放行，避免閃現遮罩
   if (!member) return children;
+  if (member?.selfEntrySkipped) return children; // 本人不入場：只管理家庭成員，直接放行（QR 會反白本人）
   if (!state && !loading) return children;
   // 完成（waiver + 同意書 + 墜測通過）→ 放行；或已簽兩項且持體驗券豁免 → 放行（憑體驗券入場）
   if (state && !state.needsWaiver && state.consentSigned && (state.testPassed || state.hasExperience)) return children;
@@ -130,6 +142,19 @@ export default function MemberOnboardingGate({ children }) {
           📧 兩份文件已完成本人簽署，並已寄送 email 給法定代理人（家長／監護人）。請其點開連結於同一頁面一次簽署完成即可入場。
         </div>
       )}
+      {/* 家長不入場：只幫家庭成員（兒童/青少年）建立資料 */}
+      <div style={{ marginTop:22, paddingTop:18, borderTop:'0.5px solid #EAD9D9' }}>
+        <div style={{ fontSize:13, color:'#888', textAlign:'center', marginBottom:10, lineHeight:1.6 }}>
+          本人不入場攀爬，只想幫<strong>家庭成員（兒童／青少年）</strong>建立資料？
+        </div>
+        <button onClick={handleSkipSelfEntry} disabled={busy}
+          style={{ width:'100%', height:48, borderRadius:12, background:'#fff', border:'1.5px solid #8B1A1A', color:'#8B1A1A', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>
+          🙋 本人不入場，前往建立家庭成員 →
+        </button>
+        <div style={{ fontSize:11, color:'#bbb', textAlign:'center', marginTop:8, lineHeight:1.6 }}>
+          將略過本人入場文件簽署；日後想自己入場，可於「個人」頁重新啟用簽署。
+        </div>
+      </div>
     </>);
   }
 

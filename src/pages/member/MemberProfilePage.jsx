@@ -54,6 +54,16 @@ export default function MemberProfilePage() {
   const [showFamily, setShowFamily] = useState(false);
   // 每次開啟家庭成員面板都重新載入（確保簽署後狀態更新）
   useEffect(() => { if (showFamily) loadChildren(); }, [showFamily]);
+  // deepLink ?family=1（本人不入場後跳來）→ 自動開家庭成員面板
+  useEffect(() => { if (new URLSearchParams(window.location.search).get('family') === '1') setShowFamily(true); }, []);
+  // 重啟本人入場文件簽署（撤銷「本人不入場」）
+  const handleResumeSelfEntry = async () => {
+    try {
+      await memberClient.post('/members/my/resume-self-entry');
+      updateMember({ selfEntrySkipped: false });
+      navigate('/member/home'); // 回首頁 → gate 重新要求簽署入場文件
+    } catch (e) {}
+  };
   const [children, setChildren] = useState([]);
   const [showAddChild, setShowAddChild] = useState(false);
   const [childName, setChildName] = useState('');
@@ -197,6 +207,14 @@ export default function MemberProfilePage() {
             {member?.emailVerified && <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>✓ Email 已驗證</span>}
           </div>
         </div>
+        {member?.selfEntrySkipped && (
+          <div style={{ background:'#FFF7EC', border:'0.5px solid #F0D9A8', borderRadius:14, padding:'14px 16px', marginBottom:12 }}>
+            <div style={{ fontSize:13, fontWeight:600, color:'#8B6914', marginBottom:4 }}>🙋 本人目前設定為「不入場」</div>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.7, marginBottom:10 }}>您已略過本人入場文件簽署，僅用於管理家庭成員。若日後想自己入場攀爬，請重新啟用並完成入場文件簽署。</div>
+            <button onClick={handleResumeSelfEntry}
+              style={{ height:40, padding:'0 18px', borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>重啟入場文件簽署 →</button>
+          </div>
+        )}
         {/* 基本資訊 */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
           <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>基本資訊</div>

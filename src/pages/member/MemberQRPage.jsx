@@ -97,6 +97,8 @@ export default function MemberQRPage() {
       .catch(() => {});
   }, [member]);
 
+  // 本人不入場：入場對象預設落在第一個家庭成員（不驗本人）
+  useEffect(() => { if (member?.selfEntrySkipped && !targetId && children.length) setTargetId(children[0].id); }, [member, children]); // eslint-disable-line
   // 切換入場人員 / 場館（或初次進入）時重新驗票
   useEffect(() => { if (member) doVerify(); /* eslint-disable-next-line */ }, [member, targetId, gymId]);
 
@@ -281,11 +283,12 @@ export default function MemberQRPage() {
           {[member, ...children].map(m => {
             const active = entrant?.id === m.id;
             const isChild = m.id !== member.id;
+            const selfDisabled = !isChild && member?.selfEntrySkipped; // 本人不入場 → 反白不可選
             return (
-              <button key={m.id} type="button"
-                onClick={() => { if (!active) setTargetId(isChild ? m.id : null); }}
-                style={{ height:34, padding:'0 14px', borderRadius:18, border:`1.5px solid ${active?'#8B1A1A':'#E8D5D5'}`, background: active?'#8B1A1A':'#fff', color: active?'#fff':'#666', fontSize:13, fontWeight: active?600:400, cursor:'pointer' }}>
-                {m.name}{isChild ? t('（子）') : ''}
+              <button key={m.id} type="button" disabled={selfDisabled}
+                onClick={() => { if (!active && !selfDisabled) setTargetId(isChild ? m.id : null); }}
+                style={{ height:34, padding:'0 14px', borderRadius:18, border:`1.5px solid ${active?'#8B1A1A':'#E8D5D5'}`, background: active?'#8B1A1A':'#fff', color: selfDisabled?'#bbb':(active?'#fff':'#666'), fontSize:13, fontWeight: active?600:400, cursor: selfDisabled?'not-allowed':'pointer', opacity: selfDisabled?0.55:1 }}>
+                {m.name}{isChild ? t('（子）') : (selfDisabled ? t('（本人不入場）') : '')}
               </button>
             );
           })}
