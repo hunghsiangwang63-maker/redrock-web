@@ -24,7 +24,8 @@ export default function MemberOnboardingGate({ children }) {
   const [error, setError] = useState('');
   const [justBooked, setJustBooked] = useState(false);  // 剛送出申請 → 顯示確認畫面（可回首頁）
   const [bookedGymId, setBookedGymId] = useState('');
-  const [skipped, setSkipped] = useState(false);   // 本次剛按「暫不安排」（旗標另存會員文件，下次由 member.fallTestScheduleSkipped 放行）   // 剛選的場館 id（refresh 尚未回填 booking 前，確認畫面用它顯示館名）
+  const [skipped, setSkipped] = useState(false);
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false); // 本人不入場 確認（避免誤觸）   // 本次剛按「暫不安排」（旗標另存會員文件，下次由 member.fallTestScheduleSkipped 放行）   // 剛選的場館 id（refresh 尚未回填 booking 前，確認畫面用它顯示館名）
 
   const memberId = member?.id;
 
@@ -147,7 +148,7 @@ export default function MemberOnboardingGate({ children }) {
         <div style={{ fontSize:13, color:'#888', textAlign:'center', marginBottom:10, lineHeight:1.6 }}>
           本人不入場攀爬，只想幫<strong>家庭成員（兒童／青少年）</strong>建立資料？
         </div>
-        <button onClick={handleSkipSelfEntry} disabled={busy}
+        <button onClick={() => setShowSkipConfirm(true)} disabled={busy}
           style={{ width:'100%', height:48, borderRadius:12, background:'#fff', border:'1.5px solid #8B1A1A', color:'#8B1A1A', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>
           🙋 本人不入場，前往建立家庭成員 →
         </button>
@@ -155,6 +156,21 @@ export default function MemberOnboardingGate({ children }) {
           將略過本人入場文件簽署；日後想自己入場，可於「個人」頁重新啟用簽署。
         </div>
       </div>
+      {showSkipConfirm && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={() => setShowSkipConfirm(false)}>
+          <div style={{ background:'#fff', borderRadius:14, padding:22, width:'100%', maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:700, fontSize:16, marginBottom:8 }}>確認本人不入場？</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:18 }}>
+              將<strong>略過本人的入場文件簽署</strong>，僅用於建立與管理家庭成員（兒童／青少年）。<br/>
+              本人將無法入場攀爬；日後想自己入場，可到「個人」頁重新啟用簽署。
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setShowSkipConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={handleSkipSelfEntry} disabled={busy} style={{ flex:1, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>確定不入場</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>);
   }
 
