@@ -56,11 +56,13 @@ export default function MemberProfilePage() {
   useEffect(() => { if (showFamily) loadChildren(); }, [showFamily]);
   // deepLink ?family=1（本人不入場後跳來）→ 自動開家庭成員面板
   useEffect(() => { if (new URLSearchParams(window.location.search).get('family') === '1') setShowFamily(true); }, []);
-  // 重啟本人入場文件簽署（撤銷「本人不入場」）
+  // 重啟本人入場文件簽署（撤銷「本人不入場」）——先確認，避免誤觸
+  const [showResumeConfirm, setShowResumeConfirm] = useState(false);
   const handleResumeSelfEntry = async () => {
     try {
       await memberClient.post('/members/my/resume-self-entry');
       updateMember({ selfEntrySkipped: false });
+      setShowResumeConfirm(false);
       navigate('/member/home'); // 回首頁 → gate 重新要求簽署入場文件
     } catch (e) {}
   };
@@ -211,7 +213,7 @@ export default function MemberProfilePage() {
           <div style={{ background:'#FFF7EC', border:'0.5px solid #F0D9A8', borderRadius:14, padding:'14px 16px', marginBottom:12 }}>
             <div style={{ fontSize:13, fontWeight:600, color:'#8B6914', marginBottom:4 }}>🙋 本人目前設定為「不入場」</div>
             <div style={{ fontSize:12, color:'#999', lineHeight:1.7, marginBottom:10 }}>您已略過本人入場文件簽署，僅用於管理家庭成員。若日後想自己入場攀爬，請重新啟用並完成入場文件簽署。</div>
-            <button onClick={handleResumeSelfEntry}
+            <button onClick={() => setShowResumeConfirm(true)}
               style={{ height:40, padding:'0 18px', borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>重啟入場文件簽署 →</button>
           </div>
         )}
@@ -478,6 +480,23 @@ export default function MemberProfilePage() {
             <div style={{ fontSize:13, color:'#999', textAlign:'center', marginBottom:20 }}>登出後需重新輸入手機號碼與密碼</div>
             <button onClick={() => { logout(); navigate('/member/login'); }} style={{ width:'100%', height:48, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor:'pointer', marginBottom:10 }}>確認登出</button>
             <button onClick={() => setShowLogout(false)} style={{ width:'100%', height:48, borderRadius:12, background:'none', border:'0.5px solid #E8D5D5', fontSize:15, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+          </div>
+        </div>
+      )}
+
+      {/* 重啟入場文件簽署 確認 */}
+      {showResumeConfirm && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={() => setShowResumeConfirm(false)}>
+          <div style={{ background:'#fff', borderRadius:14, padding:22, width:'100%', maxWidth:360 }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight:700, fontSize:16, marginBottom:8 }}>重啟本人入場？</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:18 }}>
+              重啟後將要求你完成<strong>入場文件簽署</strong>（風險安全聲明＋墜落測驗同意書）才能自己入場。<br/>
+              若只是要管理家庭成員、本人不入場，請按「取消」。
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setShowResumeConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={handleResumeSelfEntry} style={{ flex:1, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確定重啟</button>
+            </div>
           </div>
         </div>
       )}
