@@ -148,11 +148,10 @@ export default function MemberOnboardingGate({ children }) {
             style={{ background:'#fff', borderRadius:18, padding:'26px 22px', maxWidth:360, width:'100%', textAlign:'center', boxShadow:'0 6px 24px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:34, marginBottom:10 }}>⚠️</div>
             <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', marginBottom:12 }}>觀看安全影片注意事項</div>
-            <div style={{ fontSize:14.5, color:'#333', lineHeight:1.85, textAlign:'left', marginBottom:20 }}>
-              安全影片<strong style={{ color:'#8B1A1A' }}>絕對不能快轉</strong>。<br/>
-              請<strong>從頭以正常速度</strong>看完 <strong>90%</strong> 以上，系統才會開放簽署墜落測驗同意書。<br/>
-              <span style={{ color:'#B5651D' }}>快轉或跳看會導致進度停住、無法簽署。</span><br/>
-              <span style={{ color:'#666' }}>如遇問題，請重新開啟或重整瀏覽器。</span>
+            <div style={{ fontSize:14.5, color:'#333', lineHeight:1.9, textAlign:'left', marginBottom:20 }}>
+              請<strong>從頭以正常速度</strong>觀看安全影片，看完 <strong style={{ color:'#8B1A1A' }}>90% 以上</strong>，系統才會開放簽署墜落測驗同意書。<br/><br/>
+              <span style={{ color:'#8B1A1A' }}>請勿<strong>快轉、跳看或全螢幕播放</strong>，否則影片進度會停住、無法簽署。</span><br/><br/>
+              <span style={{ color:'#666' }}>如遇問題，請重新開啟或重整瀏覽器再試。</span>
             </div>
             <button onClick={() => { setShowFallTestWarn(false); navigate('/member/fall-test?onboarding=1'); }}
               style={{ width:'100%', height:46, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
