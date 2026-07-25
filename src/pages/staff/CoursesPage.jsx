@@ -1176,8 +1176,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             <span style={{ color:'#999', fontSize:12 }}>{e.memberPhone}</span>
                           </div>
                           {info && <div style={{ fontSize:11, color:'#666', marginTop:3 }}>{info}</div>}
-                          {e.enrollNote && <div style={{ fontSize:11.5, color:'#8B1A1A', marginTop:3, fontWeight:600 }}>🩹 想處理部位：{e.enrollNote}</div>}
+                          {e.enrollNote && <div style={{ fontSize:11.5, color:'#8B1A1A', marginTop:3, fontWeight:600 }}>🩹 備註：{e.enrollNote}</div>}
                           {e.healthNote && <div style={{ fontSize:11, color:'#B5651D', marginTop:2 }}>💊 健康備註：{e.healthNote}</div>}
+                          {e.referralSource && <div style={{ fontSize:11, color:'#666', marginTop:2 }}>📣 如何得知：{e.referralSource}</div>}
                         </div>
                         );
                       })}
@@ -2373,11 +2374,14 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
                 const byMember = {};
                 rosterModal.enrollments.forEach(e => {
-                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null });
+                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null, enrollNote:null, healthNote:null, referralSource:null });
                   m.count++;
                   if (e.memberPaidAmount != null && m.paidAmount == null) m.paidAmount = e.memberPaidAmount;
                   if (e.status==='leave') m.leaveUsed++;
                   if (e.maxLeavesAllowed != null) m.override = e.maxLeavesAllowed;
+                  if (!m.enrollNote && e.enrollNote) m.enrollNote = e.enrollNote;
+                  if (!m.healthNote && e.healthNote) m.healthNote = e.healthNote;
+                  if (!m.referralSource && e.referralSource) m.referralSource = e.referralSource;
                 });
                 const members = Object.values(byMember);
                 return (
@@ -2390,6 +2394,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>實際匯款</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>付款方式</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>可請假（已用/上限）</th>
+                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>備註</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2428,6 +2433,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                                 style={{ height:26, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:11, cursor:'pointer' }}>✏️ 填寫</button>
                             </span>
                           )}
+                        </td>
+                        <td style={{ padding:'10px 12px', fontSize:11.5, color:'#666', maxWidth:200 }}>
+                          {m.enrollNote && <div style={{ color:'#8B1A1A' }}>🩹 {m.enrollNote}</div>}
+                          {m.healthNote && <div style={{ color:'#B5651D' }}>💊 {m.healthNote}</div>}
+                          {m.referralSource && <div>📣 {m.referralSource}</div>}
+                          {!m.enrollNote && !m.healthNote && !m.referralSource && '—'}
                         </td>
                       </tr>
                       );

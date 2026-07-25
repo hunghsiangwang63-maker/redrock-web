@@ -25,7 +25,8 @@ export default function MemberOnboardingGate({ children }) {
   const [justBooked, setJustBooked] = useState(false);  // 剛送出申請 → 顯示確認畫面（可回首頁）
   const [bookedGymId, setBookedGymId] = useState('');
   const [skipped, setSkipped] = useState(false);
-  const [showSkipConfirm, setShowSkipConfirm] = useState(false); // 本人不入場 確認（避免誤觸）   // 本次剛按「暫不安排」（旗標另存會員文件，下次由 member.fallTestScheduleSkipped 放行）   // 剛選的場館 id（refresh 尚未回填 booking 前，確認畫面用它顯示館名）
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false); // 本人不入場 確認（避免誤觸）
+  const [showFallTestWarn, setShowFallTestWarn] = useState(false); // 進墜測同意書前的「影片不可快轉」警語   // 本次剛按「暫不安排」（旗標另存會員文件，下次由 member.fallTestScheduleSkipped 放行）   // 剛選的場館 id（refresh 尚未回填 booking 前，確認畫面用它顯示館名）
 
   const memberId = member?.id;
 
@@ -137,7 +138,32 @@ export default function MemberOnboardingGate({ children }) {
       <Box icon="🧗" title="安全墜落測驗同意書" sub="觀看安全影片並簽署墜落測驗同意書"
         done={consentSigned}
         doneText={awaitingParent ? '已簽署（待法定代理人簽署）' : '已簽署同意書'}
-        onClick={() => navigate('/member/fall-test?onboarding=1')} />
+        onClick={() => setShowFallTestWarn(true)} />
+
+      {/* 進墜測同意書前的警語：安全影片不可快轉 */}
+      {showFallTestWarn && (
+        <div onClick={() => setShowFallTestWarn(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div onClick={e => e.stopPropagation()}
+            style={{ background:'#fff', borderRadius:18, padding:'26px 22px', maxWidth:360, width:'100%', textAlign:'center', boxShadow:'0 6px 24px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:34, marginBottom:10 }}>⚠️</div>
+            <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', marginBottom:12 }}>觀看安全影片注意事項</div>
+            <div style={{ fontSize:14.5, color:'#333', lineHeight:1.85, textAlign:'left', marginBottom:20 }}>
+              安全影片<strong style={{ color:'#8B1A1A' }}>絕對不能快轉</strong>。<br/>
+              請<strong>從頭以正常速度</strong>看完 <strong>90%</strong> 以上，系統才會開放簽署墜落測驗同意書。<br/>
+              <span style={{ color:'#B5651D' }}>快轉或跳看會導致進度停住、無法簽署。</span>
+            </div>
+            <button onClick={() => { setShowFallTestWarn(false); navigate('/member/fall-test?onboarding=1'); }}
+              style={{ width:'100%', height:46, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
+              我知道了，開始觀看
+            </button>
+            <button onClick={() => setShowFallTestWarn(false)}
+              style={{ width:'100%', height:40, borderRadius:12, background:'none', color:'#999', border:'none', fontSize:13, cursor:'pointer', marginTop:6 }}>
+              取消
+            </button>
+          </div>
+        </div>
+      )}
       {awaitingParent && (
         <div style={{ background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', fontSize:13, color:'#B5762B', marginTop:4, lineHeight:1.6 }}>
           📧 兩份文件已完成本人簽署，並已寄送 email 給法定代理人（家長／監護人）。請其點開連結於同一頁面一次簽署完成即可入場。

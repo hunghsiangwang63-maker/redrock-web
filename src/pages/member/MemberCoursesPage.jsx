@@ -73,6 +73,9 @@ export default function MemberCoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null); // 兩層式：先選類別（同課多梯次）再選梯次
   const [sessions, setSessions] = useState([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false); // 場次載入中→插班費用尚未算好，先鎖住報名鈕避免溢繳
+  const [quote, setQuote] = useState(null);          // 後端權威報價（插班×續報/舊生×隊員折）＝實收
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myMakeups, setMyMakeups] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -238,6 +241,22 @@ export default function MemberCoursesPage() {
   useEffect(() => {
     if (selectedCourse) loadSessions(selectedCourse);
   }, [selectedCourse]);
+  // 後端權威報價（插班×續報/舊生×隊員折）＝實收：週課依「報名對象」取，切課/切對象重取
+  useEffect(() => {
+    setQuote(null);
+    if (!selectedCourse || selectedCourse.type !== 'weekly') return;
+    const targetId = enrollForMemberId || member?.id;
+    if (!targetId) return;
+    setQuoteLoading(true);
+    memberClient.get(`/courses/${selectedCourse.id}/quote`, { params: { memberId: targetId } })
+      .then(r => setQuote(r.data))
+      .catch(() => setQuote(null))
+      .finally(() => setQuoteLoading(false));
+  }, [selectedCourse, enrollForMemberId, member?.id]);
+  // 報價更新時，同步報名 modal 已捕捉的費用（切換報名對象後付款金額跟著對）
+  useEffect(() => {
+    if (quote && showEnrollModal) setEnrollSession(prev => (prev && prev.isCourse && !prev.isWaitlist) ? { ...prev, fee: quote.fee } : prev);
+  }, [quote, showEnrollModal]);
   useEffect(() => {
     if (tab === 'calendar') loadCalendarSessions();
     if (tab === 'trial') {
@@ -325,13 +344,15 @@ export default function MemberCoursesPage() {
   };
 
   const loadSessions = async (course) => {
+    setSessionsLoading(true);
+    setSessions([]); // 清掉前一門課的場次，避免以舊資料算出錯誤（原價）插班費
     try {
-      const fromDate = course.startDate || dayjs().format('YYYY-MM-DD');
-      const toDate = course.endDate || dayjs().add(180, 'day').format('YYYY-MM-DD');
-      const res = await memberClient.get('/courses/sessions', { params: { fromDate, toDate } });
+      // 只查該課程場次（後端快速路徑、極小 payload）→ 插班費用即時算好，避免溢繳
+      const res = await memberClient.get('/courses/sessions', { params: { courseId: course.id } });
       const filtered = (res.data.sessions || []).filter(s => s.courseId === course.id);
       setSessions(filtered);
     } catch (e) {}
+    finally { setSessionsLoading(false); }
   };
 
   const loadMyEnrollments = async () => {
@@ -1019,8 +1040,10 @@ export default function MemberCoursesPage() {
                       </div>
                     )}
                     {sorted.map(c => {
+                      const isWorkshop = c.type === 'workshop';
                       const remaining = Math.max(0, (c.maxStudents || 0) - (c.enrolledCount || 0));
-                      const isFull = c.statusLabel === 'full' || remaining <= 0;
+                      // 工作坊：名額看場次層（anySessionOpen）——部分場次額滿、只要還有場次有名額就顯「尚有名額」
+                      const isFull = isWorkshop ? (c.anySessionOpen === false) : (c.statusLabel === 'full' || remaining <= 0);
                       return (
                         <div key={c.id} onClick={() => setSelectedCourse(c)}
                           style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, cursor:'pointer' }}>
@@ -1028,7 +1051,7 @@ export default function MemberCoursesPage() {
                             <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(c.gymId)}{c.name}</div>
                             {isFull
                               ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E0E0', color:'#8B1A1A' }}>額滿</span>
-                              : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>剩 {remaining} 位</span>}
+                              : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>{isWorkshop ? '尚有名額' : `剩 ${remaining} 位`}</span>}
                           </div>
                           <div style={{ fontSize:12, color:'#777', lineHeight:1.7 }}>
                             {c.type !== 'workshop' && <div>🗓 每週{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>}
@@ -1170,19 +1193,18 @@ export default function MemberCoursesPage() {
               {selectedCourse.type === 'weekly' && (() => {
                 const alreadyEnrolled = myEnrollments.some(e => e.courseId === selectedCourse.id && e.status !== 'cancelled');
                 const today = dayjs().format('YYYY-MM-DD');
-                const completedCount = sessions.filter(s => s.courseId === selectedCourse.id && s.date < today && s.status !== 'cancelled').length;
-                const totalCount = sessions.filter(s => s.courseId === selectedCourse.id && s.status !== 'cancelled').length;
-                const isLateJoin = completedCount > 0;
-                const remainingCount = totalCount - completedCount;
-                const ratio = totalCount > 0 ? remainingCount / totalCount : 1;
-                const isBelowHalf = ratio < 0.5;
+                // 金額一律以後端權威報價（插班×續報/舊生×隊員折）為準＝實收；未回前鎖住顯示與報名鈕避免溢繳
+                const feeReady = !!quote && !quoteLoading && !sessionsLoading;
+                const completedCount = quote?.completedCount ?? sessions.filter(s => s.courseId === selectedCourse.id && s.date < today && s.status !== 'cancelled').length;
+                const totalCount = quote?.totalCount ?? sessions.filter(s => s.courseId === selectedCourse.id && s.status !== 'cancelled').length;
+                const isLateJoin = quote?.isLateJoin ?? (completedCount > 0);
+                const remainingCount = quote?.remainingCount ?? (totalCount - completedCount);
+                const isBelowHalf = quote?.isBelowHalf ?? false;
                 const surcharge = selectedCourse.midpointSurcharge || 1.05;
-                const baseFee = isLateJoin
-                  ? Math.round(selectedCourse.price * ratio * (isBelowHalf ? surcharge : 1))
-                  : selectedCourse.price;
-                const isTeam = !!member?.isTeamMember;
-                const teamDiscount = isTeam && baseFee >= 100 ? Math.round(baseFee * 0.1) : 0;
-                const fee = baseFee - teamDiscount;
+                const baseFee = quote?.baseFee ?? 0;
+                const fee = quote?.fee ?? 0;
+                const teamDiscount = quote?.teamDiscount ?? 0;
+                const renewalDiscount = quote?.renewalDiscount ?? 0;
                 // 名額是否已滿（正取）→ 報名將進候補。enrolledCount 已含 reservedSlots
                 const capRemaining = (selectedCourse.maxStudents || 0) - (selectedCourse.enrolledCount || 0);
                 const isCourseFull = selectedCourse.statusLabel === 'full' || capRemaining <= 0;
@@ -1203,17 +1225,26 @@ export default function MemberCoursesPage() {
                         {isBelowHalf && ` × ${surcharge}（低於一半加成）`}
                       </div>
                     )}
+                    {feeReady && renewalDiscount > 0 && (
+                      <div style={{ background:'#FFF8E6', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#8A5A00', textAlign:'left' }}>
+                        🎁 {quote?.renewalDiscountType === 'full_term_renewal' ? '續報' : '舊生'}優惠已折抵 NT${renewalDiscount.toLocaleString()}
+                      </div>
+                    )}
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
                       <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
-                        NT${fee.toLocaleString()}
-                        {baseFee !== fee && (
-                          <span style={{ fontSize:12, color:'#999', textDecoration:'line-through', marginLeft:8 }}>
-                            NT${baseFee.toLocaleString()}
-                          </span>
-                        )}
-                        {isCourseFull && <span style={{ fontSize:12, color:'#999', fontFamily:'inherit', marginLeft:8 }}>（遞補後收費）</span>}
+                        {!feeReady ? (
+                          <span style={{ fontSize:14, color:'#999', fontFamily:'inherit' }}>費用計算中…</span>
+                        ) : (<>
+                          NT${fee.toLocaleString()}
+                          {baseFee !== fee && (
+                            <span style={{ fontSize:12, color:'#999', textDecoration:'line-through', marginLeft:8 }}>
+                              NT${baseFee.toLocaleString()}
+                            </span>
+                          )}
+                          {isCourseFull && <span style={{ fontSize:12, color:'#999', fontFamily:'inherit', marginLeft:8 }}>（遞補後收費）</span>}
+                        </>)}
                       </div>
-                      {teamDiscount > 0 && (
+                      {feeReady && teamDiscount > 0 && (
                         <span style={{ fontSize:10, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>
                           🏔️ 隊員九折
                         </span>
@@ -1224,12 +1255,13 @@ export default function MemberCoursesPage() {
                         ✓ 已報名此課程
                       </div>
                     ) : (
-                      <button onClick={() => {
+                      <button disabled={!feeReady} onClick={() => {
+                        if (!feeReady) return;
                         setEnrollSession({ id: sessions.find(s => s.courseId === selectedCourse.id && s.date >= today)?.id, courseId: selectedCourse.id, isCourse: true, fee, isWaitlist: isCourseFull });
                         setShowEnrollModal(true);
                       }}
-                        style={{ width:'100%', height:44, borderRadius:10, background: isCourseFull?'#B5651D':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor:'pointer' }}>
-                        {isCourseFull ? '加入候補名單' : '報名課程'}
+                        style={{ width:'100%', height:44, borderRadius:10, background: !feeReady?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: !feeReady?'not-allowed':'pointer' }}>
+                        {!feeReady ? '費用計算中…' : (isCourseFull ? '加入候補名單' : '報名課程')}
                       </button>
                     )}
                   </div>
