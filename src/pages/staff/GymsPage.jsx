@@ -474,9 +474,10 @@ const runAffectClosure = async () => {
               <div style={{ fontSize:11, color:'#999', marginTop:4 }}>沒上傳圖片時，輪播與公告以文字顯示（原樣式）。</div>
             </div>
 
-            <div style={{ display:'flex', gap:8 }}>
+            {/* 底部按鈕固定黏底（手機不用捲就看得到確認鍵）*/}
+            <div style={{ display:'flex', gap:8, position:'sticky', bottom:-24, background:'#fff', paddingTop:12, paddingBottom:12, marginTop:8, marginLeft:-24, marginRight:-24, marginBottom:-24, paddingLeft:24, paddingRight:24, borderTop:'0.5px solid #F0EAEA' }}>
               <button onClick={() => { setShowAddAnn(false); setEditingAnn(null); setAnnMsg(''); }}
-                style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
+                style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
               <button onClick={handleAddAnn} disabled={annSaving}
                 style={{ flex:2, height:40, borderRadius:8, background: annSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: annSaving?'not-allowed':'pointer' }}>
                 {annSaving ? '處理中...' : editingAnn ? '儲存變更' : '確認新增'}
