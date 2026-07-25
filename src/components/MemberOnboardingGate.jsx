@@ -4,7 +4,7 @@ import { useMember } from '../store/memberStore.jsx';
 import { memberClient } from '../api/client';
 import { getMemberGyms } from '../api/gyms';
 import { getFallTestSignature, getMyFallTestStatus } from '../api/fallTests';
-import { isEn } from '../utils/memberI18n';
+import { isEn, t } from '../utils/memberI18n';
 import { getMyFallTestBookings, createFallTestBooking, skipFallTestSchedule } from '../api/fallTestBookings';
 
 /**
@@ -38,7 +38,7 @@ export default function MemberOnboardingGate({ children }) {
       await memberClient.post('/members/my/skip-self-entry');
       updateMember({ selfEntrySkipped: true });
       navigate('/member/profile?family=1');
-    } catch (e) { setError('操作失敗，請稍後再試'); }
+    } catch (e) { setError(t('操作失敗，請稍後再試')); }
     finally { setBusy(false); }
   };
 
@@ -95,14 +95,14 @@ export default function MemberOnboardingGate({ children }) {
     <div style={{ position:'fixed', inset:0, zIndex:300, background:'#F7F3F3', overflowY:'auto', padding:'0 0 40px' }}>
       <div style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', padding:'40px 22px 26px', color:'#fff' }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:22 }}>RedRock</div>
-        <div style={{ fontSize:13, opacity:.9, marginTop:6 }}>嗨，{member?.name}，入場前請先完成以下步驟</div>
+        <div style={{ fontSize:13, opacity:.9, marginTop:6 }}>{isEn() ? `Hi ${member?.name || ''}, please complete the steps below before entering` : `嗨，${member?.name}，入場前請先完成以下步驟`}</div>
       </div>
       <div style={{ padding:'20px 16px', maxWidth:520, margin:'0 auto' }}>{inner}</div>
     </div>
   );
 
   if (loading && !state) {
-    return overlay(<div style={{ textAlign:'center', color:'#999', fontSize:14, padding:'40px 0' }}>載入中…</div>);
+    return overlay(<div style={{ textAlign:'center', color:'#999', fontSize:14, padding:'40px 0' }}>{t('載入中…')}</div>);
   }
 
   const { needsWaiver, parentPending, consentSigned, testPassed, booking } = state;
@@ -123,22 +123,24 @@ export default function MemberOnboardingGate({ children }) {
         ) : waiting ? (
           <div style={{ display:'inline-block', fontSize:14, fontWeight:600, color:'#B5762B', background:'#FFF3E0', borderRadius:20, padding:'8px 20px' }}>{doneText}</div>
         ) : (
-          <div style={{ display:'inline-block', fontSize:15, fontWeight:600, color:'#fff', background:'#8B1A1A', borderRadius:20, padding:'10px 28px' }}>前往簽署 →</div>
+          <div style={{ display:'inline-block', fontSize:15, fontWeight:600, color:'#fff', background:'#8B1A1A', borderRadius:20, padding:'10px 28px' }}>{t('前往簽署 →')}</div>
         )}
       </div>
     );
     return overlay(<>
       <div style={{ fontSize:15, color:'#666', lineHeight:1.7, marginBottom:18 }}>
-        入場前請先簽署 <strong>風險安全聲明（Waiver）</strong> 與 <strong>安全墜落測驗同意書</strong>，兩者皆完成後即可安排墜落測驗。
+        {isEn()
+          ? <>Before entering, please sign the <strong>Liability Waiver</strong> and the <strong>Fall Test Consent Form</strong>. Once both are done you can schedule your fall test.</>
+          : <>入場前請先簽署 <strong>風險安全聲明（Waiver）</strong> 與 <strong>安全墜落測驗同意書</strong>，兩者皆完成後即可安排墜落測驗。</>}
       </div>
       {/* 未成年：本人 waiver + 墜測同意書「兩份都簽完」才寄家長 email → 兩份都簽完才顯示「待家長簽署」 */}
-      <Box icon="📝" title="風險安全聲明" sub="RedRock 攀岩館入場免責與安全聲明書"
+      <Box icon="📝" title={t('風險安全聲明')} sub={t('RedRock 攀岩館入場免責與安全聲明書')}
         done={!needsWaiver || parentPending}
-        doneText={!needsWaiver ? '已完成簽署' : (awaitingParent ? '已簽署（待法定代理人簽署）' : '已簽署')}
+        doneText={!needsWaiver ? t('已完成簽署') : (awaitingParent ? t('已簽署（待法定代理人簽署）') : t('已簽署'))}
         onClick={() => navigate('/member/waiver?onboarding=1')} />
-      <Box icon="🧗" title="安全墜落測驗同意書" sub="觀看安全影片並簽署墜落測驗同意書"
+      <Box icon="🧗" title={t('安全墜落測驗同意書')} sub={t('觀看安全影片並簽署墜落測驗同意書')}
         done={consentSigned}
-        doneText={awaitingParent ? '已簽署（待法定代理人簽署）' : '已簽署同意書'}
+        doneText={awaitingParent ? t('已簽署（待法定代理人簽署）') : t('已簽署同意書')}
         onClick={() => setShowFallTestWarn(true)} />
 
       {/* 進墜測同意書前的警語：安全影片不可快轉 */}
@@ -175,33 +177,36 @@ export default function MemberOnboardingGate({ children }) {
       )}
       {awaitingParent && (
         <div style={{ background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', fontSize:13, color:'#B5762B', marginTop:4, lineHeight:1.6 }}>
-          📧 兩份文件已完成本人簽署，並已寄送 email 給法定代理人（家長／監護人）。請其點開連結於同一頁面一次簽署完成即可入場。
+          {isEn() ? '📧 Both forms have been signed by you and an email has been sent to your legal guardian (parent). Ask them to open the link and sign both on the same page to complete entry.' : '📧 兩份文件已完成本人簽署，並已寄送 email 給法定代理人（家長／監護人）。請其點開連結於同一頁面一次簽署完成即可入場。'}
         </div>
       )}
       {/* 家長不入場：只幫家庭成員（兒童/青少年）建立資料 */}
       <div style={{ marginTop:22, paddingTop:18, borderTop:'0.5px solid #EAD9D9' }}>
         <div style={{ fontSize:13, color:'#888', textAlign:'center', marginBottom:10, lineHeight:1.6 }}>
-          本人不入場攀爬，只想幫<strong>家庭成員（兒童／青少年）</strong>建立資料？
+          {isEn()
+            ? <>Not climbing yourself and just want to set up <strong>family members (children / teens)</strong>?</>
+            : <>本人不入場攀爬，只想幫<strong>家庭成員（兒童／青少年）</strong>建立資料？</>}
         </div>
         <button onClick={() => setShowSkipConfirm(true)} disabled={busy}
           style={{ width:'100%', height:48, borderRadius:12, background:'#fff', border:'1.5px solid #8B1A1A', color:'#8B1A1A', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>
-          🙋 本人不入場，前往建立家庭成員 →
+          {t('🙋 本人不入場，前往建立家庭成員 →')}
         </button>
         <div style={{ fontSize:11, color:'#bbb', textAlign:'center', marginTop:8, lineHeight:1.6 }}>
-          將略過本人入場文件簽署；日後想自己入場，可於「個人」頁重新啟用簽署。
+          {t('將略過本人入場文件簽署；日後想自己入場，可於「個人」頁重新啟用簽署。')}
         </div>
       </div>
       {showSkipConfirm && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={() => setShowSkipConfirm(false)}>
           <div style={{ background:'#fff', borderRadius:14, padding:22, width:'100%', maxWidth:360 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight:700, fontSize:16, marginBottom:8 }}>確認本人不入場？</div>
+            <div style={{ fontWeight:700, fontSize:16, marginBottom:8 }}>{t('確認本人不入場？')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:18 }}>
-              將<strong>略過本人的入場文件簽署</strong>，僅用於建立與管理家庭成員（兒童／青少年）。<br/>
-              本人將無法入場攀爬；日後想自己入場，可到「個人」頁重新啟用簽署。
+              {isEn()
+                ? <>Your <strong>own entry documents will be skipped</strong> — this is only for creating and managing family members (children / teens).<br/>You won't be able to climb yourself; to climb later, re-enable signing on the "Me" page.</>
+                : <>將<strong>略過本人的入場文件簽署</strong>，僅用於建立與管理家庭成員（兒童／青少年）。<br/>本人將無法入場攀爬；日後想自己入場，可到「個人」頁重新啟用簽署。</>}
             </div>
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setShowSkipConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={handleSkipSelfEntry} disabled={busy} style={{ flex:1, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>確定不入場</button>
+              <button onClick={() => setShowSkipConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
+              <button onClick={handleSkipSelfEntry} disabled={busy} style={{ flex:1, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>{t('確定不入場')}</button>
             </div>
           </div>
         </div>
@@ -209,22 +214,22 @@ export default function MemberOnboardingGate({ children }) {
     </>);
   }
 
-  const gymName = (id) => (gyms.find(g => g.id === id)?.shortName) || (id === 'gym-hsinchu' ? '新竹館' : id === 'gym-shilin' ? '士林館' : id);
+  const gymName = (id) => (gyms.find(g => g.id === id)?.shortName) || (id === 'gym-hsinchu' ? t('新竹館') : id === 'gym-shilin' ? t('士林館') : id);
 
   // 剛送出申請 → 確認畫面（按「回到首頁」即回正常首頁）
   if (justBooked) {
     return overlay(<>
       <div style={{ background:'#fff', border:'1.5px solid #B3DEC0', borderRadius:18, padding:'28px 22px', textAlign:'center', boxShadow:'0 1px 4px rgba(0,0,0,.04)' }}>
         <div style={{ fontSize:44, marginBottom:12 }}>✅</div>
-        <div style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>已送出墜落測驗申請</div>
+        <div style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>{t('已送出墜落測驗申請')}</div>
         <div style={{ fontSize:14, color:'#666', lineHeight:1.7, textAlign:'left' }}>
-          已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/>
-          <span style={{ color:'#B5762B' }}>測驗通過前暫不可入場</span>（持當日體驗課程券者不受此限）。
+          {isEn() ? <><strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong> has been notified — please go to the gym and staff will conduct your fall test.<br/><span style={{ color:'#B5762B' }}>You cannot enter until you pass</span> (holders of a same-day trial-class ticket are exempt).</>
+          : <>已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/><span style={{ color:'#B5762B' }}>測驗通過前暫不可入場</span>（持當日體驗課程券者不受此限）。</>}
         </div>
       </div>
       <button onClick={() => setJustBooked(false)}
         style={{ width:'100%', height:46, marginTop:18, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-        回到首頁
+        {t('回到首頁')}
       </button>
     </>);
   }
@@ -240,12 +245,12 @@ export default function MemberOnboardingGate({ children }) {
   const pick = async (gymId) => {
     setBusy(true); setError('');
     try { await createFallTestBooking({ gymId }); setBookedGymId(gymId); setJustBooked(true); await refresh(); setBusy(false); }
-    catch (e) { setError(e.response?.data?.message || '安排失敗，請重試'); setBusy(false); }
+    catch (e) { setError(e.response?.data?.message || t('安排失敗，請重試')); setBusy(false); }
   };
   return overlay(<>
-    <div style={{ fontSize:20, fontWeight:700, marginBottom:6 }}>請安排墜落測驗</div>
+    <div style={{ fontSize:20, fontWeight:700, marginBottom:6 }}>{t('請安排墜落測驗')}</div>
     <div style={{ fontSize:14, color:'#666', lineHeight:1.7, marginBottom:20 }}>
-      已完成兩項簽署。請選擇要進行墜落測驗的場館，選定後將通知該館工作人員為您安排。
+      {t('已完成兩項簽署。請選擇要進行墜落測驗的場館，選定後將通知該館工作人員為您安排。')}
     </div>
     {error && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#A32D2D', marginBottom:14 }}>{error}</div>}
     {gyms.map(g => (
@@ -253,24 +258,24 @@ export default function MemberOnboardingGate({ children }) {
         style={{ background:'#fff', border:'1.5px solid #E8D5D5', borderRadius:16, padding:'20px 22px', marginBottom:14, cursor: busy ? 'wait' : 'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', boxShadow:'0 1px 4px rgba(0,0,0,.04)' }}>
         <div>
           <div style={{ fontSize:17, fontWeight:700 }}>{g.shortName || g.name}</div>
-          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{g.todayStatus?.isOpen ? '今日營業中' : '今日休館'}</div>
+          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{g.todayStatus?.isOpen ? t('今日營業中') : t('今日休館')}</div>
         </div>
-        <div style={{ fontSize:15, fontWeight:600, color:'#8B1A1A' }}>在此測驗 →</div>
+        <div style={{ fontSize:15, fontWeight:600, color:'#8B1A1A' }}>{t('在此測驗 →')}</div>
       </div>
     ))}
-    {gyms.length === 0 && <div style={{ textAlign:'center', color:'#999', fontSize:14, padding:'20px 0' }}>載入場館中…</div>}
+    {gyms.length === 0 && <div style={{ textAlign:'center', color:'#999', fontSize:14, padding:'20px 0' }}>{t('載入場館中…')}</div>}
     <button disabled={busy}
       onClick={async () => {
         setBusy(true); setError('');
         try { await skipFallTestSchedule(); setSkipped(true); updateMember({ fallTestScheduleSkipped: true }); }
-        catch (e) { setError(e.response?.data?.message || '操作失敗，請重試'); }
+        catch (e) { setError(e.response?.data?.message || t('操作失敗，請重試')); }
         setBusy(false);
       }}
       style={{ width:'100%', height:44, marginTop:6, borderRadius:12, background:'#fff', color:'#666', border:'1px solid #DDD', fontSize:14, cursor: busy ? 'wait' : 'pointer' }}>
-      我不入場攀爬，暫不安排
+      {t('我不入場攀爬，暫不安排')}
     </button>
     <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginTop:8, textAlign:'left' }}>
-      適合只替家庭成員管理帳號的家長。之後若要入場攀爬，可隨時至「墜落測驗」頁安排測驗（通過前無法入場）。
+      {t('適合只替家庭成員管理帳號的家長。之後若要入場攀爬，可隨時至「墜落測驗」頁安排測驗（通過前無法入場）。')}
     </div>
   </>);
 }
