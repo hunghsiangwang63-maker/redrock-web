@@ -4,6 +4,7 @@ import { useMember } from '../store/memberStore.jsx';
 import { memberClient } from '../api/client';
 import { getMemberGyms } from '../api/gyms';
 import { getFallTestSignature, getMyFallTestStatus } from '../api/fallTests';
+import { isEn } from '../utils/memberI18n';
 import { getMyFallTestBookings, createFallTestBooking, skipFallTestSchedule } from '../api/fallTestBookings';
 
 /**
@@ -147,19 +148,27 @@ export default function MemberOnboardingGate({ children }) {
           <div onClick={e => e.stopPropagation()}
             style={{ background:'#fff', borderRadius:18, padding:'26px 22px', maxWidth:360, width:'100%', textAlign:'center', boxShadow:'0 6px 24px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:34, marginBottom:10 }}>⚠️</div>
-            <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', marginBottom:12 }}>觀看安全影片注意事項</div>
+            <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', marginBottom:12 }}>
+              {isEn() ? 'Before watching the safety video' : '觀看安全影片注意事項'}
+            </div>
             <div style={{ fontSize:14.5, color:'#333', lineHeight:1.9, textAlign:'left', marginBottom:20 }}>
-              請<strong>從頭以正常速度</strong>觀看安全影片，看完 <strong style={{ color:'#8B1A1A' }}>90% 以上</strong>，系統才會開放簽署墜落測驗同意書。<br/><br/>
-              <span style={{ color:'#8B1A1A' }}>請勿<strong>快轉、跳看或全螢幕播放</strong>，否則影片進度會停住、無法簽署。</span><br/><br/>
-              <span style={{ color:'#666' }}>如遇問題，請重新開啟或重整瀏覽器再試。</span>
+              {isEn() ? (<>
+                Please watch the safety video <strong>from the beginning at normal speed</strong>. You must watch at least <strong style={{ color:'#8B1A1A' }}>90%</strong> before the fall-test consent form can be signed.<br/><br/>
+                <span style={{ color:'#8B1A1A' }}>Do <strong>not fast-forward, skip, or play in fullscreen</strong>, or the video progress will freeze and you won't be able to sign.</span><br/><br/>
+                <span style={{ color:'#666' }}>If you have any problems, please reopen or refresh your browser and try again.</span>
+              </>) : (<>
+                請<strong>從頭以正常速度</strong>觀看安全影片，看完 <strong style={{ color:'#8B1A1A' }}>90% 以上</strong>，系統才會開放簽署墜落測驗同意書。<br/><br/>
+                <span style={{ color:'#8B1A1A' }}>請勿<strong>快轉、跳看或全螢幕播放</strong>，否則影片進度會停住、無法簽署。</span><br/><br/>
+                <span style={{ color:'#666' }}>如遇問題，請重新開啟或重整瀏覽器再試。</span>
+              </>)}
             </div>
             <button onClick={() => { setShowFallTestWarn(false); navigate('/member/fall-test?onboarding=1'); }}
               style={{ width:'100%', height:46, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-              我知道了，開始觀看
+              {isEn() ? 'Got it, start watching' : '我知道了，開始觀看'}
             </button>
             <button onClick={() => setShowFallTestWarn(false)}
               style={{ width:'100%', height:40, borderRadius:12, background:'none', color:'#999', border:'none', fontSize:13, cursor:'pointer', marginTop:6 }}>
-              取消
+              {isEn() ? 'Cancel' : '取消'}
             </button>
           </div>
         </div>
