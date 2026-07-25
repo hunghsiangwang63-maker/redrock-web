@@ -361,7 +361,7 @@ const runAffectClosure = async () => {
       {/* 新增/編輯公告 Modal */}
       {showAddAnn && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:480 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:480, maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch' }}>
             <div style={{ fontWeight:600, fontSize:16, marginBottom:20 }}>{editingAnn ? '編輯公告' : '新增公告'}</div>
             {annMsg && <div style={{ background: annMsg.includes('成功')||annMsg.includes('已') ? '#E6F4EB' : '#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color: annMsg.includes('成功')||annMsg.includes('已') ? '#2D7D46' : '#A32D2D', marginBottom:12 }}>{annMsg}</div>}
             {[
