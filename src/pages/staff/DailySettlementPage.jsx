@@ -314,15 +314,22 @@ export default function DailySettlementPage() {
               <div onClick={() => setExpandedDay(open ? null : h.id)}
                 style={{ padding:'12px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
                 <div>
-                  <div style={{ fontWeight:600, fontSize:14 }}>{h.date}{h.resettleCount ? <span style={{ fontSize:11, color:'#999', marginLeft:6 }}>· 再結 {h.resettleCount} 次</span> : ''}</div>
-                  <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{h.staffName}</div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>{h.date}
+                    {h.status === 'draft' && <span style={{ fontSize:10.5, fontWeight:700, color:'#fff', background:'#C0392B', borderRadius:6, padding:'2px 7px', marginLeft:8 }}>暫存·未完成結帳</span>}
+                    {h.resettleCount ? <span style={{ fontSize:11, color:'#999', marginLeft:6 }}>· 再結 {h.resettleCount} 次</span> : ''}
+                  </div>
+                  <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{h.staffName || '—'}</div>
                 </div>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                   <div style={{ textAlign:'right' }}>
                     <div style={{ fontWeight:600, color:'#8B1A1A' }}>NT${(h.income?.total || 0).toLocaleString()}</div>
-                    <div style={{ fontSize:11, color: Math.abs(h.difference||0) > 200 ? '#A32D2D' : '#2D7D46', marginTop:2 }}>
-                      差異 NT${h.difference || 0}
-                    </div>
+                    {h.status === 'draft' ? (
+                      <div style={{ fontSize:11, color:'#C0392B', marginTop:2, fontWeight:600 }}>尚未完成結帳</div>
+                    ) : (
+                      <div style={{ fontSize:11, color: Math.abs(h.difference||0) > 200 ? '#A32D2D' : '#2D7D46', marginTop:2 }}>
+                        差異 NT${h.difference || 0}
+                      </div>
+                    )}
                   </div>
                   <span style={{ fontSize:12, color:'#8B1A1A', whiteSpace:'nowrap' }}>{open ? '收合 ▲' : '結帳摘要 ▼'}</span>
                 </div>
@@ -684,6 +691,10 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const denom = denominations || {};
   const denomList = DENOMINATIONS.map(d => ({ ...d, count: Number(denom[d.key]) || 0 })).filter(d => d.count > 0);
+  // 有點鈔明細時「實際現金合計」一律以明細即時加總（與上方逐面額列一致）；無明細才用傳入的已存 actualCash。
+  // 修：暫存檔(draft)只存 denominations、未存 actualCashBalance → 原本合計讀已存欄位顯示 0，與明細打架。
+  const denomTotal = DENOMINATIONS.reduce((s, dd) => s + (Number(denom[dd.key]) || 0) * dd.value, 0);
+  const actualCashShown = denomList.length ? denomTotal : (Number(actualCash) || 0);
   const bigDiff = Math.abs(difference) > 200;
   const sysTotal = income?.total ?? invoiceTotal ?? 0;
   const hasManual = manualTotal !== null && manualTotal !== undefined;
@@ -783,7 +794,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom: denomList.length ? 4 : 0 }}>
           <span style={{ color:'#666' }}>現金清點</span>
-          {!denomList.length && <span style={{ fontWeight:600 }}>{money(actualCash)}</span>}
+          {!denomList.length && <span style={{ fontWeight:600 }}>{money(actualCashShown)}</span>}
         </div>
         {denomList.length > 0 && (
           <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
@@ -793,7 +804,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
               </div>
             ))}
             <div style={{ display:'flex', justifyContent:'space-between', fontWeight:600, marginTop:2 }}>
-              <span style={{ textAlign:'left' }}>實際現金合計</span><span>{money(actualCash)}</span>
+              <span style={{ textAlign:'left' }}>實際現金合計</span><span>{money(actualCashShown)}</span>
             </div>
           </div>
         )}
