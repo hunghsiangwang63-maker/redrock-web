@@ -16,7 +16,7 @@ const DENOMINATIONS = [
   { key:'d1',    label:'NT$1',    value:1    },
 ];
 
-const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','其他退款','其他'];
+const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','押金收取','押金退還','其他退款','其他'];
 const INCOME_KEYS = ['entry', 'shoeRental', 'equipmentRental', 'product', 'course', 'pass'];
 
 // ── 入場費固定六分類（結帳畫面預設就顯示、可逐類手動輸入）──────────────────
