@@ -1219,15 +1219,36 @@ export default function MemberCoursesPage() {
                         ⚠️ 此班正取已額滿。報名將加入<b>候補名單</b>，<b>候補期間不需付款</b>；待有名額遞補為正取後，我們會另行通知您繳費。
                       </div>
                     )}
-                    {isLateJoin && !isCourseFull && (
-                      <div style={{ background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#854F0B', textAlign:'left' }}>
-                        插班報名：剩餘 {remainingCount}/{totalCount} 堂，費用依比例計算
-                        {isBelowHalf && ` × ${surcharge}（低於一半加成）`}
-                      </div>
-                    )}
-                    {feeReady && renewalDiscount > 0 && (
-                      <div style={{ background:'#FFF8E6', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#8A5A00', textAlign:'left' }}>
-                        🎁 {quote?.renewalDiscountType === 'full_term_renewal' ? '續報' : '舊生'}優惠已折抵 NT${renewalDiscount.toLocaleString()}
+                    {/* 完整計費明細：原價 → 插班比例 → 續報/舊生折抵 → 隊員九折 → 應繳（金額全依後端權威 quote，與實收一致） */}
+                    {feeReady && (isLateJoin || renewalDiscount > 0 || teamDiscount > 0) && (
+                      <div style={{ background:'#FAFAFA', border:'0.5px solid #EEE', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#444', textAlign:'left' }}>
+                        <div style={{ fontWeight:600, color:'#666', marginBottom:6 }}>計費明細</div>
+                        <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0' }}>
+                          <span>原價（單期全額）</span>
+                          <span style={{ fontFamily:'monospace' }}>NT${(quote?.price || 0).toLocaleString()}</span>
+                        </div>
+                        {isLateJoin && (
+                          <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0' }}>
+                            <span>插班計費（剩 {remainingCount}/{totalCount} 堂{isBelowHalf ? ` ×${surcharge}` : ''}）</span>
+                            <span style={{ fontFamily:'monospace' }}>NT${baseFee.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {renewalDiscount > 0 && (
+                          <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0', color:'#2D7D46' }}>
+                            <span>🎁 {quote?.renewalDiscountType === 'full_term_renewal' ? '續報優惠' : '舊生優惠'}</span>
+                            <span style={{ fontFamily:'monospace' }}>− NT${renewalDiscount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        {teamDiscount > 0 && (
+                          <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0', color:'#2D7D46' }}>
+                            <span>🏔️ 隊員九折</span>
+                            <span style={{ fontFamily:'monospace' }}>− NT${teamDiscount.toLocaleString()}</span>
+                          </div>
+                        )}
+                        <div style={{ borderTop:'0.5px solid #E0E0E0', marginTop:6, paddingTop:6, display:'flex', justifyContent:'space-between', fontWeight:700, color:'#8B1A1A' }}>
+                          <span>應繳</span>
+                          <span style={{ fontFamily:'monospace' }}>NT${fee.toLocaleString()}</span>
+                        </div>
                       </div>
                     )}
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
@@ -1235,12 +1256,8 @@ export default function MemberCoursesPage() {
                         {!feeReady ? (
                           <span style={{ fontSize:14, color:'#999', fontFamily:'inherit' }}>費用計算中…</span>
                         ) : (<>
+                          <span style={{ fontSize:13, color:'#666', fontFamily:'inherit', fontWeight:600, marginRight:8 }}>應繳</span>
                           NT${fee.toLocaleString()}
-                          {baseFee !== fee && (
-                            <span style={{ fontSize:12, color:'#999', textDecoration:'line-through', marginLeft:8 }}>
-                              NT${baseFee.toLocaleString()}
-                            </span>
-                          )}
                           {isCourseFull && <span style={{ fontSize:12, color:'#999', fontFamily:'inherit', marginLeft:8 }}>（遞補後收費）</span>}
                         </>)}
                       </div>
