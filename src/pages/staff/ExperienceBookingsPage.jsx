@@ -99,15 +99,42 @@ export default function ExperienceBookingsPage() {
   };
 
   const issueTickets = async (b) => {
-    if (!window.confirm(`發放體驗入場券給 ${b.contactName}？\n數量＝報名人數 ${b.numParticipants} 張，限 ${b.bookingDate} 當天使用，無另外收費。`)) return;
+    if (!window.confirm(`發放體驗入場券給 ${b.contactName}？\n數量＝報名人數 ${b.numParticipants} 張，限 ${b.bookingDate} 當天使用，無另外收費。\n系統會依「姓名＋生日」自動比對發給各參加者本人；比對不到者為「待指派」，可於體驗當天指定發送。`)) return;
     setIssuingId(b.id);
     try {
       const r = await client.post(`/experience-bookings/${b.id}/issue-tickets`);
       showMsg('🎟️ ' + (r.data.message || '已發放'));
-      load();
+      load(); loadTickets(b.id);
     } catch (e) { showMsg(e.response?.data?.message || '發放失敗', 'red'); }
     finally { setIssuingId(null); }
   };
+
+  // ── 單日券逐參加者指派（姓名+生日自動比對；待指派可體驗當天指定發送）──
+  const [ticketsByBooking, setTicketsByBooking] = useState({}); // { bid: tickets[] }
+  const [assignQ, setAssignQ] = useState({});     // { ticketId: query }
+  const [assignRes, setAssignRes] = useState({}); // { ticketId: members[] }
+  const [assigningTid, setAssigningTid] = useState(null);
+  const loadTickets = async (bid) => {
+    try { const r = await client.get(`/experience-bookings/${bid}/tickets`); setTicketsByBooking(m => ({ ...m, [bid]: r.data.tickets || [] })); }
+    catch { /* 忽略 */ }
+  };
+  const searchAssign = async (tid, q) => {
+    setAssignQ(m => ({ ...m, [tid]: q }));
+    if (!q || q.trim().length < 2) { setAssignRes(m => ({ ...m, [tid]: [] })); return; }
+    try { const r = await client.get('/members', { params: { q: q.trim() } }); setAssignRes(m => ({ ...m, [tid]: (r.data.members || []).slice(0, 8) })); }
+    catch { setAssignRes(m => ({ ...m, [tid]: [] })); }
+  };
+  const doAssign = async (bid, tid, member) => {
+    setAssigningTid(tid);
+    try {
+      const r = await client.post(`/experience-bookings/${bid}/assign-ticket`, { ticketId: tid, memberId: member.id });
+      showMsg('✅ ' + (r.data.message || '已指定發送'));
+      setAssignQ(m => ({ ...m, [tid]: '' })); setAssignRes(m => ({ ...m, [tid]: [] }));
+      loadTickets(bid);
+    } catch (e) { showMsg(e.response?.data?.message || '指定失敗', 'red'); }
+    finally { setAssigningTid(null); }
+  };
+  useEffect(() => { if (expanded) loadTickets(expanded); }, [expanded]);
 
   const openEditParticipants = (b) => {
     setEditBooking(b);
@@ -390,24 +417,73 @@ export default function ExperienceBookingsPage() {
                       <div style={{ background:'#fff', borderRadius:10, overflow:'hidden', border:'0.5px solid #E8D5D5' }}>
                         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                           <thead><tr style={{ background:'#FBF5F5' }}>
-                            {['序','姓名','身分證字號','生日（民國）','國籍'].map(h=>(
+                            {['序','姓名','身分證字號','生日（民國）','國籍','領券'].map(h=>(
                               <th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5' }}>{h}</th>
                             ))}
                           </tr></thead>
                           <tbody>
-                            {(b.participants||[]).map((p,i)=>(
+                            {(() => {
+                              const tks = ticketsByBooking[b.id] || [];
+                              const tkByName = {}; tks.forEach(t => { const n = String(t.participantName||'').trim(); if (n) tkByName[n] = t; });
+                              const tkStatus = (t) => !t ? { label:'—', color:'#bbb' }
+                                : t.status === 'used' ? { label:'✅ 已入場', color:'#2D7D46' }
+                                : t.pendingAssign ? { label:'待指派', color:'#A32D2D' }
+                                : t.memberId ? { label:`✅ 已領券${t.memberName?`（${t.memberName}）`:''}`, color:'#2D7D46' }
+                                : { label:'—', color:'#bbb' };
+                              return (b.participants||[]).map((p,i)=>{
+                                const st = tkStatus(tkByName[String(p.name||'').trim()]);
+                                return (
                               <tr key={i} style={{ borderBottom:'0.5px solid #F5EFEF' }}>
                                 <td style={{ padding:'8px 10px', color:'#999' }}>{i+1}</td>
                                 <td style={{ padding:'8px 10px', fontWeight:500 }}>{p.name}</td>
                                 <td style={{ padding:'8px 10px', fontFamily:'monospace' }}>{p.idNumber}</td>
                                 <td style={{ padding:'8px 10px' }}>{p.birthday}</td>
                                 <td style={{ padding:'8px 10px' }}>{p.nationality||'台灣'}</td>
+                                <td style={{ padding:'8px 10px', color:st.color, fontWeight:600 }}>{st.label}</td>
                               </tr>
-                            ))}
+                              );});
+                            })()}
                           </tbody>
                         </table>
                       </div>
                       {b.notes && <div style={{ fontSize:12, color:'#666', marginTop:8 }}>備註：{b.notes}</div>}
+                      {/* 單日券指派狀況（姓名+生日自動比對；待指派可體驗當天指定發送） */}
+                      {(ticketsByBooking[b.id] || []).length > 0 && (
+                        <div style={{ marginTop:14 }}>
+                          <div style={{ fontSize:12, fontWeight:600, marginBottom:8, color:'#666' }}>單日券指派（依姓名＋生日自動比對；比對不到者「待指派」，體驗當天可指定發送、或該參加者日後註冊自動認領）</div>
+                          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                            {(ticketsByBooking[b.id] || []).map(t => (
+                              <div key={t.id} style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:8, padding:'8px 10px', fontSize:12 }}>
+                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                                  <span style={{ fontWeight:500 }}>{t.participantName || '(未命名)'}{t.participantBirthday ? <span style={{ color:'#999', fontWeight:400 }}> · {t.participantBirthday}</span> : ''}</span>
+                                  {t.pendingAssign
+                                    ? <span style={{ color:'#A32D2D', fontWeight:600 }}>待指派</span>
+                                    : <span style={{ color:'#2D7D46' }}>✅ {t.memberName}</span>}
+                                </div>
+                                {t.pendingAssign && (b.bookingDate === dayjs().format('YYYY-MM-DD') ? (
+                                  <div style={{ marginTop:6, position:'relative' }}>
+                                    <input value={assignQ[t.id] || ''} onChange={e => searchAssign(t.id, e.target.value)}
+                                      placeholder="搜尋會員（姓名／電話）指定發送…" disabled={assigningTid === t.id}
+                                      style={{ width:'100%', height:32, borderRadius:6, border:'0.5px solid #E0D2B4', padding:'0 8px', fontSize:12, boxSizing:'border-box', background:'#fff', color:'#1a1a1a', outline:'none' }} />
+                                    {(assignRes[t.id] || []).length > 0 && (
+                                      <div style={{ position:'absolute', top:34, left:0, right:0, zIndex:5, background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:8, overflow:'hidden', boxShadow:'0 4px 12px rgba(0,0,0,0.12)' }}>
+                                        {(assignRes[t.id] || []).map(m => (
+                                          <div key={m.id} onClick={() => doAssign(b.id, t.id, m)}
+                                            style={{ padding:'8px 10px', cursor:'pointer', borderBottom:'0.5px solid #F5EFEF' }}>
+                                            {m.name} <span style={{ color:'#999' }}>{m.phone}{m.birthday ? ` · ${m.birthday}` : ''}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <div style={{ marginTop:4, fontSize:11, color:'#999' }}>體驗當天（{b.bookingDate}）可於此指定發送</div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
