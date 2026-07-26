@@ -23,7 +23,7 @@ const Modal = ({ title, onClose, children }) => (
   </div>
 );
 
-const ITEM_ICONS = { crashPad:'🪨', helmet:'⛑️', harness:'🔗' };
+const ITEM_ICONS = { crashPad:'🪨', helmet:'⛑️', harness:'🔗', locker:'🔐' };
 const PayTag = ({ method }) => method === 'cash'
   ? <Tag type="warn">💵 現金</Tag>
   : method === 'transfer' ? <Tag type="blue">🏦 轉帳</Tag>
@@ -438,7 +438,18 @@ export default function RentalsPage({ embedded = false }) {
           {Object.entries(rentalSettings).filter(([k]) => k !== 'updatedAt').map(([type, cfg]) => (
             cfg && typeof cfg === 'object' && cfg.name ? (
               <div key={type} style={{ background:'#FBF5F5', borderRadius:10, padding:14, marginBottom:12 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>{ITEM_ICONS[type]} {cfg.name}</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>{ITEM_ICONS[type]} {cfg.name}{cfg.mode==='monthly' && <span style={{ fontSize:11, color:'#8A5A00', marginLeft:6 }}>月租{Array.isArray(cfg.gyms)&&cfg.gyms.length?`・限${cfg.gyms.map(g=>g==='gym-shilin'?'士林':g==='gym-hsinchu'?'新竹':g).join('、')}`:''}</span>}</div>
+                {cfg.mode === 'monthly' ? (
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                    {[1,3,6].map(m => (
+                      <div key={m}>
+                        <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{m} 個月 (NT$)</label>
+                        <input type="number" style={inp} value={cfg.monthlyTiers?.[m]||0}
+                          onChange={e => setRentalSettings(s => ({ ...s, [type]: { ...s[type], monthlyTiers: { ...(s[type].monthlyTiers||{}), [m]: Number(e.target.value) } } }))}/>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                   {[
                     { label:'週末租金/件', key:'weekendFee' },
@@ -452,6 +463,7 @@ export default function RentalsPage({ embedded = false }) {
                     </div>
                   ))}
                 </div>
+                )}
                 <div style={{ marginTop:8 }}>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>說明</label>
                   <input style={inp} value={cfg.description||''} onChange={e => setRentalSettings(s => ({ ...s, [type]: { ...s[type], description: e.target.value } }))}/>

@@ -40,6 +40,8 @@ export default function MemberRentalPage() {
 
   // 申請表單狀態
   const [gymId, setGymId] = useState('gym-hsinchu');
+  const [rentalMode, setRentalMode] = useState('equipment'); // equipment | locker（置物櫃月租）
+  const [lockerMonths, setLockerMonths] = useState(1);       // 置物櫃租期（月）
   const [rentalType, setRentalType] = useState('weekend');
   const [pickupDate, setPickupDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
@@ -91,19 +93,35 @@ export default function MemberRentalPage() {
     }).finally(() => setLoading(false));
   }, [member?.id]);
 
-  // 自動算歸還日期
+  const lockerCfg = settings?.locker && settings.locker.active !== false ? settings.locker : null;
+  const lockerGyms = lockerCfg?.gyms || [];
+  const lockerAllowedHere = !lockerGyms.length || lockerGyms.includes(gymId);
+
+  // 置物櫃只在其允許的館別提供：切到置物櫃模式時，若當前館別不支援 → 自動切到第一個支援館別
+  useEffect(() => {
+    if (rentalMode === 'locker' && lockerCfg && lockerGyms.length && !lockerGyms.includes(gymId)) {
+      setGymId(lockerGyms[0]);
+    }
+  }, [rentalMode, lockerCfg]);
+
+  // 自動算歸還/到期日期
   useEffect(() => {
     if (!pickupDate) return;
-    if (rentalType === 'weekend') {
-      // 週五借出 → 週一歸還
+    if (rentalMode === 'locker') {
+      setReturnDate(dayjs(pickupDate).add(Number(lockerMonths) || 1, 'month').format('YYYY-MM-DD'));
+    } else if (rentalType === 'weekend') {
       setReturnDate(dayjs(pickupDate).add(3, 'day').format('YYYY-MM-DD'));
     } else {
       setReturnDate(dayjs(pickupDate).add(7, 'day').format('YYYY-MM-DD'));
     }
-  }, [pickupDate, rentalType]);
+  }, [pickupDate, rentalType, rentalMode, lockerMonths]);
 
   const calcTotal = () => {
     if (!settings) return { rentalFee: 0, deposit: 0 };
+    if (rentalMode === 'locker') {
+      const tier = lockerCfg?.monthlyTiers?.[lockerMonths] || 0;
+      return { rentalFee: tier, deposit: 0 };
+    }
     let rentalFee = 0, deposit = 0;
     Object.entries(quantities).forEach(([type, qty]) => {
       if (qty > 0 && settings[type]) {
@@ -115,7 +133,7 @@ export default function MemberRentalPage() {
     return { rentalFee, deposit };
   };
 
-  const hasItems = Object.values(quantities).some(q => q > 0);
+  const hasItems = rentalMode === 'locker' ? !!lockerCfg : Object.values(quantities).some(q => q > 0);
   const { rentalFee, deposit } = calcTotal();
 
   const handleApply = async () => {
@@ -123,14 +141,14 @@ export default function MemberRentalPage() {
     if (payMethod === 'transfer' && (!bankLastFive.trim() || !payDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
     setSubmitting(true);
     try {
-      const items = Object.entries(quantities)
-        .filter(([, qty]) => qty > 0)
-        .map(([type, quantity]) => ({ type, quantity }));
+      const items = rentalMode === 'locker'
+        ? [{ type: 'locker', quantity: 1, months: Number(lockerMonths) || 1 }]
+        : Object.entries(quantities).filter(([, qty]) => qty > 0).map(([type, quantity]) => ({ type, quantity }));
       const res = await applyRental({
         memberId: member.id,
         memberName: member.name,
         memberPhone: member.phone,
-        gymId, pickupDate, returnDate, rentalType, items,
+        gymId, pickupDate, returnDate, rentalType: rentalMode === 'locker' ? 'monthly' : rentalType, items,
         paymentMethod: payMethod,
         paymentDate: payMethod === 'transfer' ? payDate : null,
         bankLastFive: payMethod === 'transfer' ? bankLastFive : null,
@@ -145,7 +163,7 @@ export default function MemberRentalPage() {
           const { submitTransferRecord } = await import('../../api/transfers');
           await submitTransferRecord({
             memberId: member.id, memberName: member.name, gymId,
-            orderType: 'rental', refId: rentalId, orderName: '器材租借',
+            orderType: 'rental', refId: rentalId, orderName: rentalMode === 'locker' ? '置物櫃月租' : '器材租借',
             amount: total, bankLastFive, bankName, paymentDate: payDate,
           });
         } catch (e) { /* 不阻斷申請 */ }
@@ -238,53 +256,93 @@ export default function MemberRentalPage() {
               </div>
             </div>
 
+            {/* 租借項目：器材 / 置物櫃月租 */}
+            {lockerCfg && (
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:12 }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>租借項目</div>
+                <div style={{ display:'flex', gap:8 }}>
+                  {[{k:'equipment',l:'🧗 器材租借'},{k:'locker',l:'🔐 置物櫃（月租）'}].map(m => (
+                    <button key={m.k} onClick={()=>setRentalMode(m.k)}
+                      style={{ flex:1, height:40, borderRadius:8, border:`1.5px solid ${rentalMode===m.k?'#8B1A1A':'#E8D5D5'}`, background:rentalMode===m.k?'#FBF5F5':'#fff', color:rentalMode===m.k?'#8B1A1A':'#666', fontSize:13, fontWeight:rentalMode===m.k?600:400, cursor:'pointer' }}>
+                      {m.l}
+                    </button>
+                  ))}
+                </div>
+                {rentalMode==='locker' && lockerGyms.length>0 && (
+                  <div style={{ fontSize:11, color:'#8A5A00', marginTop:8 }}>置物櫃僅 {lockerGyms.map(g=>g==='gym-shilin'?'士林館':g==='gym-hsinchu'?'新竹館':g).join('、')} 提供</div>
+                )}
+              </div>
+            )}
+
             {/* 取貨場館 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:12 }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>取貨場館</div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{rentalMode==='locker'?'置物櫃館別':'取貨場館'}</div>
               <div style={{ display:'flex', gap:8 }}>
-                {[{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g => (
-                  <button key={g.id} onClick={() => setGymId(g.id)}
-                    style={{ flex:1, height:40, borderRadius:8, border:`1.5px solid ${gymId===g.id?'#8B1A1A':'#E8D5D5'}`, background:gymId===g.id?'#FBF5F5':'#fff', color:gymId===g.id?'#8B1A1A':'#666', fontSize:13, fontWeight:gymId===g.id?600:400, cursor:'pointer' }}>
+                {[{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g => {
+                  const disabled = rentalMode==='locker' && lockerGyms.length>0 && !lockerGyms.includes(g.id);
+                  return (
+                  <button key={g.id} onClick={() => !disabled && setGymId(g.id)} disabled={disabled}
+                    style={{ flex:1, height:40, borderRadius:8, border:`1.5px solid ${gymId===g.id?'#8B1A1A':'#E8D5D5'}`, background:disabled?'#F5F5F5':(gymId===g.id?'#FBF5F5':'#fff'), color:disabled?'#ccc':(gymId===g.id?'#8B1A1A':'#666'), fontSize:13, fontWeight:gymId===g.id?600:400, cursor:disabled?'not-allowed':'pointer' }}>
                     {g.label}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
-            {/* 租借方案 + 日期 */}
+            {/* 租借方案 / 置物櫃租期 + 日期 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:12 }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>租借方案</div>
-              <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-                {[{k:'weekend',l:'週末方案（3天）'},{k:'sevenDay',l:'七天方案'}].map(rt => (
-                  <button key={rt.k} onClick={() => setRentalType(rt.k)}
-                    style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${rentalType===rt.k?'#8B1A1A':'#E8D5D5'}`, background:rentalType===rt.k?'#FBF5F5':'#fff', color:rentalType===rt.k?'#8B1A1A':'#666', fontSize:12, fontWeight:rentalType===rt.k?600:400, cursor:'pointer' }}>
-                    {rt.l}
-                  </button>
-                ))}
-              </div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{rentalMode==='locker'?'租期':'租借方案'}</div>
+              {rentalMode==='locker' ? (
+                <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+                  {[1,3,6].filter(m => lockerCfg?.monthlyTiers?.[m] != null).map(m => (
+                    <button key={m} onClick={() => setLockerMonths(m)}
+                      style={{ flex:1, padding:'8px 4px', borderRadius:8, border:`1.5px solid ${lockerMonths===m?'#8B1A1A':'#E8D5D5'}`, background:lockerMonths===m?'#FBF5F5':'#fff', color:lockerMonths===m?'#8B1A1A':'#666', fontWeight:lockerMonths===m?600:400, cursor:'pointer' }}>
+                      <div style={{ fontSize:13 }}>{m} 個月</div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>NT${lockerCfg.monthlyTiers[m]}</div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+                  {[{k:'weekend',l:'週末方案（3天）'},{k:'sevenDay',l:'七天方案'}].map(rt => (
+                    <button key={rt.k} onClick={() => setRentalType(rt.k)}
+                      style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${rentalType===rt.k?'#8B1A1A':'#E8D5D5'}`, background:rentalType===rt.k?'#FBF5F5':'#fff', color:rentalType===rt.k?'#8B1A1A':'#666', fontSize:12, fontWeight:rentalType===rt.k?600:400, cursor:'pointer' }}>
+                      {rt.l}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <div>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>
-                    借出日期{rentalType==='weekend'?' （建議週五）':''}
+                    {rentalMode==='locker'?'起租日期':`借出日期${rentalType==='weekend'?' （建議週五）':''}`}
                   </label>
                   <input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)}
                     min={dayjs().add(1,'day').format('YYYY-MM-DD')}
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>歸還日期</label>
-                  <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)}
-                    min={pickupDate || dayjs().format('YYYY-MM-DD')}
-                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{rentalMode==='locker'?'到期日（自動）':'歸還日期'}</label>
+                  {rentalMode==='locker' ? (
+                    <div style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', background:'#F5F5F5', color:'#8B1A1A', fontWeight:600, display:'flex', alignItems:'center' }}>
+                      {returnDate || '—'}
+                    </div>
+                  ) : (
+                    <input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)}
+                      min={pickupDate || dayjs().format('YYYY-MM-DD')}
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* 器材選擇 */}
+            {/* 器材選擇（置物櫃模式不顯示）*/}
+            {rentalMode!=='locker' && (
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:12 }}>
               <div style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>器材選擇</div>
               {settings && Object.entries(settings)
-                .filter(([, cfg]) => cfg.active !== false && cfg.name)
+                .filter(([, cfg]) => cfg.active !== false && cfg.name && cfg.mode !== 'monthly')
                 .map(([type, cfg]) => {
                 const unitFee = rentalType === 'weekend' ? cfg.weekendFee : cfg.sevenDayFee;
                 const qty = quantities[type] || 0;
@@ -308,15 +366,22 @@ export default function MemberRentalPage() {
                 );
               })}
             </div>
+            )}
 
             {/* 費用小計 */}
             {hasItems && (
               <div style={{ background:'#FBF5F5', borderRadius:10, border:'0.5px solid #E8D5D5', padding:14, marginBottom:16 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>租金</span>
+                  <span style={{ color:'#666' }}>{rentalMode==='locker'?`月租費（${lockerMonths} 個月）`:'租金'}</span>
                   <span style={{ fontWeight:600 }}>NT${rentalFee}</span>
                 </div>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:8 }}>
+                {rentalMode==='locker' && returnDate && (
+                  <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:8 }}>
+                    <span style={{ color:'#666' }}>到期日</span>
+                    <span style={{ fontWeight:600, color:'#8B1A1A' }}>{returnDate}</span>
+                  </div>
+                )}
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:8, display: rentalMode==='locker' ? 'none' : 'flex' }}>
                   <span style={{ color:'#666' }}>押金（歸還後退回）</span>
                   <span style={{ fontWeight:600 }}>NT${deposit}</span>
                 </div>
@@ -342,15 +407,28 @@ export default function MemberRentalPage() {
                 return (
                   <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                      {(() => {
+                        const isLocker = r.rentalType==='monthly' || (r.items||[]).some(i=>i.type==='locker');
+                        const lk = (r.items||[]).find(i=>i.type==='locker');
+                        return (
                       <div>
                         <div style={{ fontWeight:600, fontSize:14 }}>
                           {r.gymId==='gym-hsinchu'?'新竹館':'士林館'} ·
-                          {r.rentalType==='weekend'?' 週末方案':' 七天方案'}
+                          {isLocker ? ` 🔐 置物櫃月租${lk?.months?`（${lk.months} 個月）`:''}` : (r.rentalType==='weekend'?' 週末方案':' 七天方案')}
                         </div>
-                        <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
-                          {r.pickupDate} ～ {r.returnDate}
-                        </div>
+                        {isLocker ? (
+                          <div style={{ fontSize:12, marginTop:2 }}>
+                            <span style={{ color:'#999' }}>起租 {r.pickupDate}　</span>
+                            <span style={{ color:'#8B1A1A', fontWeight:600 }}>到期日 {r.returnDate}</span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
+                            {r.pickupDate} ～ {r.returnDate}
+                          </div>
+                        )}
                       </div>
+                        );
+                      })()}
                       <span style={{ display:'flex', gap:6, alignItems:'center' }}>
                         {r.paymentMethod==='cash' && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:'#FFF8E6', color:'#8A5A00' }}>💵 現金</span>}
                         {r.paymentMethod==='transfer' && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:'#E6F1FB', color:'#185FA5' }}>🏦 轉帳</span>}
