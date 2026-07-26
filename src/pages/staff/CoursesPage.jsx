@@ -123,7 +123,7 @@ export default function CoursesPage({ embedded = false }) {
     cohortName: '', name: '', price: '', maxStudents: 6, maxWaitlist: 2, reservedSlots: '', categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
-    gymAccessDays: 1, midpointSurcharge: 1.05,
+    gymAccessDays: 60, midpointSurcharge: 1.05,
     // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
     leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
     allowTrial: '', trialPrice: '', trialTarget: 'auto', makeupTarget: 'auto', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
@@ -395,8 +395,7 @@ export default function CoursesPage({ embedded = false }) {
         price: parseInt(courseForm.price),
         maxStudents: parseInt(courseForm.maxStudents),
         totalSessions: parseInt(courseForm.totalSessions) || 0,
-        gymAccessDays: parseInt(courseForm.gymAccessDays),
-        gymAccessDaysAfter: parseInt(courseForm.gymAccessDays),
+        gymAccessDays: parseInt(courseForm.gymAccessDays), // 自開課日起算的入館有效天數（決定 unlimitedPracticeEnd）
         midpointSurcharge: parseFloat(courseForm.midpointSurcharge) || 1.05,
         weekdays: courseForm.weekdays.map(Number),
       });
@@ -1677,7 +1676,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       gymId: src.gymId || prev.gymId || '',
                       instructor: src.instructor || '',
                       totalSessions: src.totalSessions || '',
-                      gymAccessDays: src.gymAccessDaysAfter || 1,
+                      gymAccessDays: src.gymAccessDays || 60,
                       midpointSurcharge: src.midpointSurcharge || 1.05,
                       weekdays: src.weekdays || [],
                       installment: src.installment || prev.installment,
@@ -1758,7 +1757,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
               { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number' },
               { label:'佔用說明（為何被佔用／來源）', key:'reservedSlotsNote', type:'text' },
-              { label:'入館有效天數', key:'gymAccessDays', type:'number' },
+              { label:'入館有效天數（自開課日起算）', key:'gymAccessDays', type:'number' },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
               { label:'上課開始時間', key:'startTime', type:'time' },
