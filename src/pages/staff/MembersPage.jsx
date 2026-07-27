@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { entryLabelOf } from '../../utils/entryLabel';
 import PasswordInput from '../../components/PasswordInput';
-import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount } from '../../api/members';
+import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount, getCourseStudentsHistoryList, getCourseStudentsHistoryDetail } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -232,13 +232,15 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
 
 // 課程學員頁「實收金額」欄位：一律顯示（member.receivedAmount，後端已算好優先序：
 // 管理員直接編修 > 店員核對收款 > 會員自報匯款 > 報名應繳費用）；僅管理員可就地編修。
-const ReceivedAmountEditor = ({ member, editable, onSaved }) => {
+// editable＝管理員（不限裝置，永遠可見可編修）；非管理員只有場館電腦（站台／值班）才看得到唯讀顯示，個人裝置登入看不到
+const ReceivedAmountEditor = ({ member, editable, stationVisible, onSaved }) => {
   const [val, setVal] = useState(member.receivedAmount ?? 0);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   useEffect(() => { setVal(member.receivedAmount ?? 0); }, [member.receivedAmount, member.enrollmentId]);
 
   if (!editable) {
+    if (!stationVisible) return null;
     return <span style={{ fontSize:12, color:'#666', whiteSpace:'nowrap' }}>實收 NT${member.receivedAmount ?? 0}</span>;
   }
   const commit = async () => {
@@ -437,6 +439,7 @@ export default function MembersPage() {
   const reportGymId = staff?.role === 'super_admin' ? (viewGym || undefined) : targetGymId;
   const isAdmin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!station || !!operator;
   const isManagerRole = ['super_admin', 'gym_manager'].includes(staff?.role); // 課程學員：下載/開發票僅限管理員（比照後端 requireManager）
+  const isStationContext = !!station || !!operator; // 課程學員「實收金額」唯讀顯示限場館電腦（站台／值班），個人裝置登入看不到
   const [memberRecords, setMemberRecords] = useState(null);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -460,6 +463,13 @@ export default function MembersPage() {
   const [listLoading, setListLoading] = useState(false);
   const [invoiceTarget, setInvoiceTarget] = useState(null); // 課程學員「開立發票」modal 目標
   const [csDownloading, setCsDownloading] = useState(false);
+  // 歷史開課資料（已過期梯次）：預設收合，展開才拉輕量清單；下拉選一梯才拉完整名單
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyList, setHistoryList] = useState(null);
+  const [historyListLoading, setHistoryListLoading] = useState(false);
+  const [historyCourseId, setHistoryCourseId] = useState('');
+  const [historyDetail, setHistoryDetail] = useState(null);
+  const [historyDetailLoading, setHistoryDetailLoading] = useState(false);
 
   const handleDownloadCourseStudents = async (courseId) => {
     setCsDownloading(true);
@@ -482,6 +492,26 @@ export default function MembersPage() {
       ...c,
       members: c.members.map(m => m.enrollmentId === enrollmentId ? { ...m, receivedAmount: amount, receivedAmountOverride: amount } : m),
     })));
+    setHistoryDetail(d => d ? { ...d, members: d.members.map(m => m.enrollmentId === enrollmentId ? { ...m, receivedAmount: amount, receivedAmountOverride: amount } : m) } : d);
+  };
+
+  const toggleHistory = () => {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next && historyList === null) {
+      setHistoryListLoading(true);
+      getCourseStudentsHistoryList(reportGymId)
+        .then(r => setHistoryList(r.data.courses || [])).catch(() => setHistoryList([])).finally(() => setHistoryListLoading(false));
+    }
+  };
+
+  const selectHistoryCourse = (courseId) => {
+    setHistoryCourseId(courseId);
+    setHistoryDetail(null);
+    if (!courseId) return;
+    setHistoryDetailLoading(true);
+    getCourseStudentsHistoryDetail(reportGymId, courseId)
+      .then(r => setHistoryDetail(r.data.course)).catch(() => setHistoryDetail(null)).finally(() => setHistoryDetailLoading(false));
   };
 
   const switchView = (v) => {
@@ -855,7 +885,7 @@ export default function MembersPage() {
             ) : null}
             renderRowExtra={(m, g) => (
               <>
-                <ReceivedAmountEditor member={m} editable={isManagerRole} onSaved={applyReceivedAmountEdit} />
+                <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                 {isManagerRole && (
                   <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
                     style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
@@ -866,6 +896,64 @@ export default function MembersPage() {
             )}
           />
           {invoiceTarget && <CourseInvoiceModal target={invoiceTarget} onClose={() => setInvoiceTarget(null)} />}
+
+          {/* 歷史開課資料（已過期梯次）：排在最後、預設收合，展開後下拉選擇單一梯次查看 */}
+          <div style={{ marginTop:20, borderTop:'1px solid #E8D5D5', paddingTop:14 }}>
+            <button onClick={toggleHistory}
+              style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', fontSize:13, fontWeight:600, color:'#8B1A1A', padding:0 }}>
+              <span style={{ display:'inline-block', transition:'transform .15s', transform: historyOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
+              📜 歷史開課資料（已過期梯次）
+            </button>
+            {historyOpen && (
+              <div style={{ marginTop:12 }}>
+                {historyListLoading ? (
+                  <div style={{ fontSize:13, color:'#999' }}>載入中...</div>
+                ) : (
+                  <>
+                    <select value={historyCourseId} onChange={e => selectHistoryCourse(e.target.value)}
+                      style={{ height:38, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', maxWidth:420, width:'100%' }}>
+                      <option value="">請選擇已過期梯次（共 {(historyList || []).length} 筆）</option>
+                      {(historyList || []).map(c => (
+                        <option key={c.courseId} value={c.courseId}>
+                          {c.courseName}（{c.practiceStart ? dayjs(c.practiceStart).format('YYYY/MM/DD') : ''}–{c.practiceEnd ? dayjs(c.practiceEnd).format('YYYY/MM/DD') : ''}，{c.count} 人）
+                        </option>
+                      ))}
+                    </select>
+                    {(historyList || []).length === 0 && <div style={{ fontSize:12, color:'#999', marginTop:8 }}>目前沒有已過期的歷史開課資料</div>}
+                    {historyDetailLoading && <div style={{ fontSize:13, color:'#999', marginTop:12 }}>載入中...</div>}
+                    {!historyDetailLoading && historyDetail && (
+                      <div style={{ marginTop:12 }}>
+                        <RowMemberList loading={false} searchPlaceholder="搜尋會員姓名"
+                          groups={[{
+                            key: historyDetail.courseId, title: historyDetail.courseName, members: historyDetail.members,
+                            gymId: historyDetail.gymId, courseId: historyDetail.courseId, courseName: historyDetail.courseName,
+                            range: historyDetail.practiceStart && historyDetail.practiceEnd ? `${dayjs(historyDetail.practiceStart).format('MM/DD')}–${dayjs(historyDetail.practiceEnd).format('MM/DD')}` : '',
+                          }]}
+                          headerExtra={isManagerRole ? () => (
+                            <button onClick={() => handleDownloadCourseStudents(historyDetail.courseId)} disabled={csDownloading}
+                              style={{ height:34, padding:'0 12px', borderRadius:8, border:'1px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                              {csDownloading ? '下載中...' : '⬇ 下載此班別名單'}
+                            </button>
+                          ) : null}
+                          renderRowExtra={(m, g) => (
+                            <>
+                              <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
+                              {isManagerRole && (
+                                <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
+                                  style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                                  🧾 開立發票
+                                </button>
+                              )}
+                            </>
+                          )}
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </>
       )}
 

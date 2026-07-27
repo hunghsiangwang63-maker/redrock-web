@@ -24,6 +24,11 @@ export const getActiveCourseStudents = (gymId) => client.get('/members/reports/a
 export const downloadActiveCourseStudents = (gymId, courseId) =>
   client.get('/members/reports/active-course-students/download', { params: { ...(gymId ? { gymId } : {}), ...(courseId ? { courseId } : {}) }, responseType: 'blob' });
 
+// 歷史開課資料（已過期梯次）：輕量清單（供下拉選單）＋單一梯次完整名單
+export const getCourseStudentsHistoryList = (gymId) => client.get('/members/reports/course-students-history', { params: gymId ? { gymId } : {} });
+export const getCourseStudentsHistoryDetail = (gymId, courseId) =>
+  client.get(`/members/reports/course-students-history/${courseId}`, { params: gymId ? { gymId } : {} });
+
 // 課程學員：開立發票（預先建立，待日後發票機串接）
 export const getCourseInvoices = (params) => client.get('/members/course-invoices', { params });
 export const createCourseInvoice = (data) => client.post('/members/course-invoices', data);
