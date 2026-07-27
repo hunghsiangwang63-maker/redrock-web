@@ -27,3 +27,8 @@ export const downloadActiveCourseStudents = (gymId, courseId) =>
 // 課程學員：開立發票（預先建立，待日後發票機串接）
 export const getCourseInvoices = (params) => client.get('/members/course-invoices', { params });
 export const createCourseInvoice = (data) => client.post('/members/course-invoices', data);
+export const voidCourseInvoice = (id, voidReason) => client.post(`/members/course-invoices/${id}/void`, { voidReason });
+
+// 課程學員：直接編修實收金額（管理員；amount=null 清除覆蓋、回自動判斷）
+export const updateReceivedAmount = (enrollmentId, amount) =>
+  client.put(`/members/course-enrollments/${enrollmentId}/received-amount`, { amount });

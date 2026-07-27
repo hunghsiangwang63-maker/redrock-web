@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { entryLabelOf } from '../../utils/entryLabel';
 import PasswordInput from '../../components/PasswordInput';
-import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice } from '../../api/members';
+import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -230,25 +230,71 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
   );
 };
 
+// 課程學員頁「實收金額」欄位：一律顯示（member.receivedAmount，後端已算好優先序：
+// 管理員直接編修 > 店員核對收款 > 會員自報匯款 > 報名應繳費用）；僅管理員可就地編修。
+const ReceivedAmountEditor = ({ member, editable, onSaved }) => {
+  const [val, setVal] = useState(member.receivedAmount ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => { setVal(member.receivedAmount ?? 0); }, [member.receivedAmount, member.enrollmentId]);
+
+  if (!editable) {
+    return <span style={{ fontSize:12, color:'#666', whiteSpace:'nowrap' }}>實收 NT${member.receivedAmount ?? 0}</span>;
+  }
+  const commit = async () => {
+    const num = Number(val);
+    if (isNaN(num) || num < 0) { setVal(member.receivedAmount ?? 0); return; }
+    if (num === (member.receivedAmount ?? 0)) return;
+    if (!member.enrollmentId) return;
+    setSaving(true);
+    try {
+      await updateReceivedAmount(member.enrollmentId, num);
+      onSaved?.(member.enrollmentId, num);
+      setJustSaved(true); setTimeout(() => setJustSaved(false), 1500);
+    } catch (err) {
+      alert(err.response?.data?.message || '更新實收金額失敗');
+      setVal(member.receivedAmount ?? 0);
+    } finally { setSaving(false); }
+  };
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}>
+      <span style={{ fontSize:11, color:'#999' }}>實收</span>
+      <input type="number" value={val} disabled={!member.enrollmentId || saving}
+        onChange={e => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+        style={{ width:72, height:24, fontSize:11, borderRadius:6, border:'1px solid #E8D5D5', padding:'0 6px', boxSizing:'border-box' }} />
+      {justSaved && <span style={{ color:'#2D7D46', fontSize:11 }}>✓</span>}
+    </span>
+  );
+};
+
 // 課程學員「開立發票」modal（預先建立，待日後發票機串接）
-// props: target {memberId, memberName, memberPhone, courseId, courseName, gymId, enrollmentId, fee, memberPaidAmount}
+// props: target {memberId, memberName, memberPhone, courseId, courseName, gymId, enrollmentId, fee, memberPaidAmount, confirmedAmount, receivedAmount}
+// 金額預填＝target.receivedAmount（後端已算好優先序：管理員編修 > 店員核對 > 會員自報 > 報名應繳費用）
 const inpS = { width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const labS = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 const CourseInvoiceModal = ({ target, onClose }) => {
+  const receivedAmount = target.receivedAmount ?? target.confirmedAmount ?? target.memberPaidAmount ?? target.fee ?? 0;
   const [form, setForm] = useState({
     issuedAt: dayjs().format('YYYY-MM-DDTHH:mm'),
     itemName: target.courseName || '課程費用',
-    amount: target.memberPaidAmount ?? target.fee ?? 0,
+    amount: receivedAmount,
     taxId: '', note: '',
   });
   const [history, setHistory] = useState(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [confirmVoidId, setConfirmVoidId] = useState(null); // 二次確認：待作廢的發票 id
+  const [voiding, setVoiding] = useState(false);
 
-  useEffect(() => {
-    getCourseInvoices(target.enrollmentId ? { enrollmentId: target.enrollmentId } : { memberId: target.memberId, courseId: target.courseId })
-      .then(r => setHistory(r.data.invoices || [])).catch(() => setHistory([]));
-  }, [target.enrollmentId, target.memberId, target.courseId]);
+  const loadHistory = () => getCourseInvoices(target.enrollmentId ? { enrollmentId: target.enrollmentId } : { memberId: target.memberId, courseId: target.courseId })
+    .then(r => setHistory(r.data.invoices || [])).catch(() => setHistory([]));
+
+  useEffect(() => { loadHistory(); }, [target.enrollmentId, target.memberId, target.courseId]);
+
+  // 同一報名同時最多一張「已開立」（未作廢）發票——有的話只顯示摘要＋作廢鍵，不顯示開立表單
+  const activeInvoice = (history || []).find(i => i.status !== 'voided') || null;
 
   const submit = async () => {
     if (!(Number(form.amount) > 0)) { setMsg('請輸入大於 0 的發票金額'); return; }
@@ -268,51 +314,112 @@ const CourseInvoiceModal = ({ target, onClose }) => {
     } finally { setSaving(false); }
   };
 
+  const doVoid = async (id) => {
+    setVoiding(true); setMsg('');
+    try {
+      await voidCourseInvoice(id);
+      setConfirmVoidId(null);
+      setMsg('✅ 已作廢，可重新開立發票');
+      await loadHistory();
+    } catch (err) {
+      setMsg(err.response?.data?.message || '作廢失敗');
+    } finally { setVoiding(false); }
+  };
+
   return (
     <Modal title={`開立發票 · ${target.memberName || ''}`} onClose={onClose}>
       <div style={{ background:'#FBF5F5', borderRadius:8, padding:10, marginBottom:14, fontSize:12, color:'#666' }}>
         {target.courseName}{target.memberPhone ? ` · ${target.memberPhone}` : ''}
-        {target.fee != null && <div style={{ marginTop:4 }}>報名費用 NT${target.fee}　實收金額 NT${target.memberPaidAmount ?? target.fee ?? 0}</div>}
+        {target.fee != null && (
+          <div style={{ marginTop:4 }}>
+            報名費用 NT${target.fee}
+            {target.memberPaidAmount != null && <>　會員自報 NT${target.memberPaidAmount}</>}
+            {target.confirmedAmount != null && <>　<strong style={{ color:'#2D7D46' }}>店員核對 NT${target.confirmedAmount}</strong></>}
+          </div>
+        )}
         <div style={{ marginTop:6, color:'#A66A00' }}>⚠️ 預先建立，尚未串接實體發票機；開立後金額將寫入當日結帳「加減項」，不影響原報名已認列之課程營收。</div>
       </div>
-      <div style={{ marginBottom:12 }}>
-        <label style={labS}>日期時間</label>
-        <input type="datetime-local" style={inpS} value={form.issuedAt} onChange={e => setForm(f => ({ ...f, issuedAt: e.target.value }))} />
-      </div>
-      <div style={{ marginBottom:12 }}>
-        <label style={labS}>品項</label>
-        <input style={inpS} value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))} placeholder="如：課程費用" />
-      </div>
-      <div style={{ marginBottom:12 }}>
-        <label style={labS}>金額（預填實收金額，可調整）</label>
-        <input type="number" style={inpS} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
-      </div>
-      <div style={{ marginBottom:12 }}>
-        <label style={labS}>統一編號（選填）</label>
-        <input style={inpS} value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} placeholder="8 碼統編（三聯式）" />
-      </div>
-      <div style={{ marginBottom:14 }}>
-        <label style={labS}>備註（管理員統一備註）</label>
-        <textarea rows={2} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-          style={{ ...inpS, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit' }} />
-      </div>
+
+      {history === null ? (
+        <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>載入中...</div>
+      ) : activeInvoice ? (
+        <div style={{ background:'#FBF5F5', border:'1px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:16 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>✅ 已開立發票</div>
+          <div style={{ fontSize:13 }}>
+            {activeInvoice.issuedAt?._seconds ? dayjs(activeInvoice.issuedAt._seconds*1000).format('YYYY/MM/DD HH:mm') : ''}　{activeInvoice.itemName}　<strong>NT${activeInvoice.amount}</strong>
+          </div>
+          {activeInvoice.taxId && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>統編 {activeInvoice.taxId}</div>}
+          {activeInvoice.note && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{activeInvoice.note}</div>}
+          <div style={{ fontSize:11, color:'#999', marginTop:4 }}>開立人：{activeInvoice.staffName || '—'}</div>
+
+          {confirmVoidId === activeInvoice.id ? (
+            <div style={{ marginTop:10, background:'#FCEBEB', border:'1px solid #F0C0C0', borderRadius:8, padding:10 }}>
+              <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8 }}>確定要作廢此發票？作廢後金額會從當日結帳加減項沖銷，且可重新開立新的一張。</div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={() => setConfirmVoidId(null)} disabled={voiding}
+                  style={{ flex:1, height:34, borderRadius:8, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:12, cursor:'pointer' }}>取消</button>
+                <button onClick={() => doVoid(activeInvoice.id)} disabled={voiding}
+                  style={{ flex:1, height:34, borderRadius:8, background:'#A32D2D', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                  {voiding ? '處理中...' : '確定作廢'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => setConfirmVoidId(activeInvoice.id)}
+              style={{ marginTop:10, height:34, padding:'0 14px', borderRadius:8, border:'1px solid #F0C0C0', background:'#fff', color:'#A32D2D', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+              🗑 作廢發票
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <div style={{ marginBottom:12 }}>
+            <label style={labS}>日期時間</label>
+            <input type="datetime-local" style={inpS} value={form.issuedAt} onChange={e => setForm(f => ({ ...f, issuedAt: e.target.value }))} />
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <label style={labS}>品項</label>
+            <input style={inpS} value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))} placeholder="如：課程費用" />
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <label style={labS}>金額（預填實收金額 NT${receivedAmount}，可調整）</label>
+            <input type="number" style={inpS} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <label style={labS}>統一編號（選填）</label>
+            <input style={inpS} value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} placeholder="8 碼統編（三聯式）" />
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={labS}>備註（管理員統一備註）</label>
+            <textarea rows={2} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+              style={{ ...inpS, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit' }} />
+          </div>
+          <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+            <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>關閉</button>
+            <button onClick={submit} disabled={saving} style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              {saving ? '處理中...' : '開立發票'}
+            </button>
+          </div>
+        </>
+      )}
+
       {msg && <div style={{ fontSize:12, marginBottom:10, color: msg.startsWith('✅') ? '#2D7D46' : '#A32D2D' }}>{msg}</div>}
-      <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-        <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>關閉</button>
-        <button onClick={submit} disabled={saving} style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-          {saving ? '處理中...' : '開立發票'}
-        </button>
-      </div>
+      {activeInvoice && (
+        <button onClick={onClose} style={{ width:'100%', height:38, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer', marginBottom:16 }}>關閉</button>
+      )}
+
       <div>
-        <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:6 }}>已開立紀錄</div>
+        <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:6 }}>開立紀錄</div>
         {history === null ? (
           <div style={{ fontSize:12, color:'#999' }}>載入中...</div>
         ) : history.length === 0 ? (
           <div style={{ fontSize:12, color:'#999' }}>尚無開立紀錄</div>
         ) : history.map(inv => (
-          <div key={inv.id} style={{ fontSize:12, color:'#444', padding:'6px 0', borderTop:'0.5px solid #F5EFEF' }}>
+          <div key={inv.id} style={{ fontSize:12, color: inv.status==='voided' ? '#bbb' : '#444', padding:'6px 0', borderTop:'0.5px solid #F5EFEF', textDecoration: inv.status==='voided' ? 'line-through' : 'none' }}>
             {inv.issuedAt?._seconds ? dayjs(inv.issuedAt._seconds*1000).format('YYYY/MM/DD HH:mm') : ''}　{inv.itemName}　NT${inv.amount}
-            {inv.taxId ? `　統編 ${inv.taxId}` : ''}{inv.note ? <div style={{ color:'#999', marginTop:2 }}>{inv.note}</div> : null}
+            {inv.taxId ? `　統編 ${inv.taxId}` : ''}
+            {inv.status === 'voided' && <span style={{ marginLeft:6, color:'#A32D2D', fontWeight:600 }}>已作廢</span>}
+            {inv.note ? <div style={{ color:'#999', marginTop:2, textDecoration:'none' }}>{inv.note}</div> : null}
           </div>
         ))}
       </div>
@@ -367,6 +474,14 @@ export default function MembersPage() {
     } catch (err) {
       alert(err.response?.data?.message || '下載失敗');
     } finally { setCsDownloading(false); }
+  };
+
+  // 課程學員頁「實收金額」就地編修存檔後，同步更新畫面上的 courseList（供開發票 modal 沿用最新值）
+  const applyReceivedAmountEdit = (enrollmentId, amount) => {
+    setCourseList(list => (list || []).map(c => ({
+      ...c,
+      members: c.members.map(m => m.enrollmentId === enrollmentId ? { ...m, receivedAmount: amount, receivedAmountOverride: amount } : m),
+    })));
   };
 
   const switchView = (v) => {
@@ -738,12 +853,17 @@ export default function MembersPage() {
                 </button>
               </>
             ) : null}
-            renderRowExtra={isManagerRole ? (m, g) => (
-              <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
-                style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                🧾 開立發票
-              </button>
-            ) : null}
+            renderRowExtra={(m, g) => (
+              <>
+                <ReceivedAmountEditor member={m} editable={isManagerRole} onSaved={applyReceivedAmountEdit} />
+                {isManagerRole && (
+                  <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
+                    style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                    🧾 開立發票
+                  </button>
+                )}
+              </>
+            )}
           />
           {invoiceTarget && <CourseInvoiceModal target={invoiceTarget} onClose={() => setInvoiceTarget(null)} />}
         </>
