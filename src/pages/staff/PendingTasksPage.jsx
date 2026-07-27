@@ -145,7 +145,9 @@ export default function PendingTasksPage() {
 
   // ── 內嵌審核動作 ──────────────────────────────────────────────
   const [modal, setModal] = useState(null);   // { kind, record?, action?, props? }
-  const [busyId, setBusyId] = useState(null);
+  const [teamNote, setTeamNote] = useState('');
+  const [teamBusy, setTeamBusy] = useState(false);
+  const [teamError, setTeamError] = useState('');
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
   const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'notif') loadNotifs(); };
@@ -174,21 +176,12 @@ export default function PendingTasksPage() {
     if (next === 'notif' && notifs === null) loadNotifs();
   };
 
-  // 一鍵動作（確認收款 / 核准）
-  const oneClick = async (id, fn, okMsg) => {
-    setBusyId(id);
-    try { await fn(); showToast(okMsg); await load(); }
-    catch (e) { showToast(e.response?.data?.message || '操作失敗'); }
-    finally { setBusyId(null); }
-  };
-
   const primaryBtn = (bg) => ({ height:34, padding:'0 14px', borderRadius:8, background:bg, color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 });
   const ghostBtn = { height:34, padding:'0 10px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#888', fontSize:12, cursor:'pointer', flexShrink:0 };
   const dangerBtn = { height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer', flexShrink:0 };
   const goLink = (task) => <button onClick={() => navigate(task.link)} style={ghostBtn}>前往</button>;
 
   const renderActions = (task) => {
-    const busy = busyId === task.targetId;
     // 收款確認權限：現金→值班 operator 或管理員；轉帳→僅管理員（對齊後端）
     if (task.type === 'transfer_confirm' || task.type === 'competition_payment') {
       const isCash = task.type === 'competition_payment' ? task.record?.paymentMethod === 'cash' : task.method === 'cash';
@@ -216,7 +209,7 @@ export default function PendingTasksPage() {
           <button onClick={() => setModal({ kind:'reason', props:{ title:'退回轉帳', label:'退回原因', placeholder:'請填寫退回原因', confirmText:'確認退回', required:true, onSubmit: async (reason) => { await client.put(`/transfers/${task.targetId}/reject`, { reason }); afterDone('已退回'); } } })} style={dangerBtn}>退回</button>
         </>;
       case 'team_member':
-        return <><button disabled={busy} onClick={() => oneClick(task.targetId, () => confirmTeamPayment(task.targetId), '已確認收款')} style={primaryBtn('#2D7D46')}>{busy ? '處理中…' : '確認收款'}</button>{goLink(task)}</>;
+        return <><button onClick={() => { setTeamNote(''); setTeamError(''); setModal({ kind:'team', props:{ task } }); }} style={primaryBtn('#2D7D46')}>確認收款</button>{goLink(task)}</>;
       case 'experience':
         // 已確認＝僅提醒（不再顯示確認/取消）；待確認＝可確認/取消
         if (task.confirmed) return <><span style={{ fontSize:11, color:'#2D7D46', whiteSpace:'nowrap' }}>已確認{task.ticketsIssued > 0 ? '·已發放入場券' : ''}</span>{goLink(task)}</>;
@@ -549,6 +542,31 @@ export default function PendingTasksPage() {
       {modal?.kind === 'experience' && <ExperienceDetailModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'ticket' && <TicketApprovalModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'falltest' && <FallTestBookingModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'team' && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:220, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:420, border:'0.5px solid #E8D5D5' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:16, fontWeight:600 }}>💰 確認收款 — 攀岩隊入隊申請</div>
+              <span onClick={() => setModal(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
+            </div>
+            <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:14, fontSize:13, color:'#444' }}>{modal.props.task.desc}</div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>員工備註（選填，會員看不到）</label>
+            <textarea value={teamNote} onChange={e => setTeamNote(e.target.value)} rows={2} placeholder="核對備註、特殊狀況…"
+              style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, boxSizing:'border-box', resize:'vertical', fontFamily:'inherit', marginBottom:14 }} />
+            {teamError && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#A32D2D', marginBottom:12 }}>{teamError}</div>}
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setModal(null)} disabled={teamBusy} style={{ flex:1, height:42, borderRadius:8, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button disabled={teamBusy} onClick={async () => {
+                setTeamBusy(true); setTeamError('');
+                try { await confirmTeamPayment(modal.props.task.targetId, { staffNote: teamNote }); afterDone('已確認收款'); }
+                catch (e) { setTeamError(e.response?.data?.message || '確認失敗，請重試'); setTeamBusy(false); }
+              }} style={{ flex:2, height:42, borderRadius:8, background: teamBusy ? '#9CB9A6' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: teamBusy ? 'not-allowed' : 'pointer' }}>
+                {teamBusy ? '處理中…' : '確認收款'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 操作結果提示 */}
       {toast && (

@@ -20,6 +20,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmedAmt, setConfirmedAmt] = useState(record?.paidAmount != null ? String(record.paidAmount) : String(record?.amount ?? ''));
+  const [staffNote, setStaffNote] = useState(record?.staffNote || '');
   if (!record) return null;
 
   const isCash = record.paymentMethod === 'cash';
@@ -27,7 +28,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
   const confirm = async () => {
     setBusy(true); setError('');
     try {
-      await client.put(`/transfers/${record.id}/confirm`, { confirmedAmount: confirmedAmt !== '' ? Number(confirmedAmt) : null });
+      await client.put(`/transfers/${record.id}/confirm`, { confirmedAmount: confirmedAmt !== '' ? Number(confirmedAmt) : null, staffNote });
       onDone?.('已確認收款');
     } catch (e) {
       setError(e.response?.data?.message || '確認失敗，請重試');
@@ -72,6 +73,11 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
               📝 {record.notes}
             </div>
           )}
+          <div style={{ marginTop: 10 }}>
+            <label style={{ fontSize: 12, color: '#666', display: 'block', marginBottom: 5 }}>員工備註（選填，會員看不到）</label>
+            <textarea value={staffNote} onChange={e => setStaffNote(e.target.value)} rows={2} placeholder="核對備註、特殊狀況…"
+              style={{ width: '100%', borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '8px 10px', fontSize: 13, boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }} />
+          </div>
           {!isCash && record.screenshotUrl && (
             <div style={{ paddingTop: 10 }}>
               <a href={record.screenshotUrl} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: '#185FA5' }}>🖼️ 開啟匯款截圖</a>

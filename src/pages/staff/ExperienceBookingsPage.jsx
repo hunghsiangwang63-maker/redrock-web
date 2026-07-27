@@ -82,16 +82,18 @@ export default function ExperienceBookingsPage() {
     finally { setCancelling(false); }
   };
 
+  const [coachStaffNote, setCoachStaffNote] = useState('');
   const openCoach = (b) => {
     setCoachBooking(b);
     setCoachVal({ coachId: b.coachId || null, coachName: b.coachName || '' });
+    setCoachStaffNote(b.staffNote || '');
   };
   const saveCoach = async () => {
     if (!coachVal.coachName?.trim()) { showMsg('請選擇或輸入教練', 'red'); return; }
     setSavingCoach(true);
     try {
       const r = await client.post(`/experience-bookings/${coachBooking.id}/confirm`,
-        { coachId: coachVal.coachId || undefined, coachName: coachVal.coachName.trim() });
+        { coachId: coachVal.coachId || undefined, coachName: coachVal.coachName.trim(), staffNote: coachStaffNote });
       showMsg('✅ ' + (r.data.message || '已更新教練與排班'));
       setCoachBooking(null); load();
     } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'red'); }
@@ -727,9 +729,12 @@ export default function ExperienceBookingsPage() {
             </div>
             <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{coachBooking.contactName} · {coachBooking.bookingDate} {coachBooking.bookingTime} · {coachBooking.numParticipants} 人</div>
             <CoachSelect gymId={coachBooking.gymId} value={coachVal} onChange={setCoachVal} style={tinp} />
-            <div style={{ fontSize:11, color:'#999', margin:'8px 0 16px' }}>
+            <div style={{ fontSize:11, color:'#999', margin:'8px 0 12px' }}>
               指定後會建立體驗課程與該教練當日排班；改教練會同步更新課程並將排班換成新教練。
             </div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>員工備註（選填，會員看不到）</label>
+            <textarea value={coachStaffNote} onChange={e=>setCoachStaffNote(e.target.value)} rows={2} placeholder="核對備註、特殊狀況…"
+              style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, boxSizing:'border-box', resize:'vertical', fontFamily:'inherit', marginBottom:14 }}/>
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>setCoachBooking(null)} disabled={savingCoach} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={saveCoach} disabled={savingCoach} style={{ flex:2, height:44, borderRadius:10, background:savingCoach?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{savingCoach?'儲存中…':'儲存（排課／排班）'}</button>

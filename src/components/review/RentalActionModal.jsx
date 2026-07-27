@@ -10,6 +10,7 @@ const inp = { width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5
 export default function RentalActionModal({ action, rental, onClose, onDone }) {
   const [depositReturned, setDepositReturned] = useState(true);
   const [deductNote, setDeductNote] = useState('');
+  const [staffNote, setStaffNote] = useState(rental.staffNote || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -17,7 +18,7 @@ export default function RentalActionModal({ action, rental, onClose, onDone }) {
     setSaving(true); setError('');
     try {
       if (action === 'confirm') {
-        await confirmRental(rental.id);
+        await confirmRental(rental.id, { staffNote });
         onDone('已確認取件收款');
       } else {
         await returnRental(rental.id, { depositReturned, deductNote });
@@ -51,10 +52,17 @@ export default function RentalActionModal({ action, rental, onClose, onDone }) {
         {rental.paymentMethod === 'cash' && (
           <div style={{ fontSize:12, color:'#8A5A00', marginTop:6 }}>臨櫃現金：請收妥租金＋押金後再按確認。</div>
         )}
-        {rental.staffNote && (
+        {action === 'return' && rental.staffNote && (
           <div style={{ fontSize:12, color:'#854F0B', marginTop:6 }}>📝 {rental.staffNote}（員工備註）</div>
         )}
       </div>
+      {action === 'confirm' && (
+        <div style={{ marginBottom:14 }}>
+          <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>員工備註（選填，會員看不到）</label>
+          <textarea value={staffNote} onChange={e => setStaffNote(e.target.value)} rows={2} placeholder="核對備註、特殊狀況…"
+            style={{ ...inp, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit' }} />
+        </div>
+      )}
       {action === 'return' && (
         <>
           <div style={{ marginBottom:14 }}>
