@@ -17,6 +17,7 @@ import { rejectTicket } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
 import { getMyUpcomingShifts } from '../../api/schedule';
+import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 
 // 通知 type → 類別（待辦頁通知面板過濾用）
 const NOTIF_CAT = {
@@ -129,6 +130,8 @@ export default function PendingTasksPage() {
   }, [gymFilter, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
+  // 待辦頁常整天開著不關：切回分頁/視窗取得焦點時重抓一次，不必靠人工整頁重整
+  useRefetchOnFocus(load);
 
   // ── 我的近七日排班（僅員工本人登入顯示；站台/值班電腦帳號不顯示）──
   const isRealStaff = !!staff?.id && !operator && !station;

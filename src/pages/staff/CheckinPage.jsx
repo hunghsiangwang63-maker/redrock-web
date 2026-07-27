@@ -8,6 +8,7 @@ import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 import jsQR from 'jsqr';
 import { entryLabelOf } from '../../utils/entryLabel';
+import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 
 const ENTRY_TYPE_LABEL = {
@@ -155,6 +156,15 @@ export default function CheckinPage() {
   }, [tab]);
   useEffect(() => { if (tab === 'history') loadHistory(); /* eslint-disable-next-line */ }, [historyFrom, historyTo, targetGymId]);
   useEffect(() => { if (tab === 'scan' && confirmedCheckIn) setTimeout(() => inputRef.current?.focus(), 300); }, [confirmedCheckIn]);
+
+  // 站台電腦常整天開著不關：切回分頁/視窗取得焦點時重抓今日統計/課程學員/當前分頁清單，
+  // 不必靠人工整頁重整才能看到最新資料。
+  useRefetchOnFocus(() => {
+    loadStats();
+    loadCourseStudents();
+    if (tab === 'today') loadTodayCheckIns();
+    if (tab === 'history') loadHistory();
+  });
 
   const loadStats = async () => {
     try {

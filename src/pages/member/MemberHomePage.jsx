@@ -6,6 +6,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { getMemberGyms, getMemberAnnouncements } from '../../api/gyms';
 import { memberClient } from '../../api/client';
 import MemberOnboardingGate from '../../components/MemberOnboardingGate';
+import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import dayjs from 'dayjs';
 
 export default function MemberHomePage() {
@@ -24,39 +25,43 @@ export default function MemberHomePage() {
   const touchStartX = useRef(null);
   const bannerLen = banners.length || 1;
 
-  useEffect(() => {
-    if (member?.id) {
-      const today = new Date().toISOString().split('T')[0];
-      const nextWeek = new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0];
-      memberClient.get(`/courses/member/${member.id}/enrollments`)
-        .then(r => {
-          const upcoming = (r.data.enrollments || [])
-            .filter(e => (e.status === 'confirmed' || e.status === 'leave' || e.status === 'course_cancelled') && e.date >= today && e.date <= nextWeek)
-            .sort((a,b) => a.date.localeCompare(b.date))
-            .slice(0, 5);
-          setMyEnrollments(upcoming);
-        }).catch(() => {});
-      memberClient.get('/experience-bookings/my')
-        .then(r => {
-          const upcoming = (r.data.bookings || [])
-            .filter(b => b.status !== 'cancelled' && b.bookingDate >= today && b.bookingDate <= nextWeek)
-            .sort((a,b) => a.bookingDate.localeCompare(b.bookingDate));
-          setMyExperiences(upcoming);
-        }).catch(() => {});
-      // 今日入場橫幅（資料源自後端 checkIns，全天顯示、隔日午夜後自然消失、取消後消失）
-      memberClient.get('/checkin/my-today')
-        .then(r => setTodayCheckin(r.data || null))
-        .catch(() => setTodayCheckin(null));
-      // 身份別與效期（效期內攀岩隊員 / 課程學員入館權益）
-      memberClient.get('/members/my/identity')
-        .then(r => setIdentity(r.data || null))
-        .catch(() => setIdentity(null));
-      // 轉帳被退回通知（含子女訂單；重新上傳後端點即不再回傳、自動消失）
-      memberClient.get('/members/my/alerts')
-        .then(r => setRejectAlerts(r.data?.alerts || []))
-        .catch(() => setRejectAlerts([]));
-    }
-  }, [member?.id]);
+  const loadHomeData = () => {
+    if (!member?.id) return;
+    const today = new Date().toISOString().split('T')[0];
+    const nextWeek = new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0];
+    memberClient.get(`/courses/member/${member.id}/enrollments`)
+      .then(r => {
+        const upcoming = (r.data.enrollments || [])
+          .filter(e => (e.status === 'confirmed' || e.status === 'leave' || e.status === 'course_cancelled') && e.date >= today && e.date <= nextWeek)
+          .sort((a,b) => a.date.localeCompare(b.date))
+          .slice(0, 5);
+        setMyEnrollments(upcoming);
+      }).catch(() => {});
+    memberClient.get('/experience-bookings/my')
+      .then(r => {
+        const upcoming = (r.data.bookings || [])
+          .filter(b => b.status !== 'cancelled' && b.bookingDate >= today && b.bookingDate <= nextWeek)
+          .sort((a,b) => a.bookingDate.localeCompare(b.bookingDate));
+        setMyExperiences(upcoming);
+      }).catch(() => {});
+    // 今日入場橫幅（資料源自後端 checkIns，全天顯示、隔日午夜後自然消失、取消後消失）
+    memberClient.get('/checkin/my-today')
+      .then(r => setTodayCheckin(r.data || null))
+      .catch(() => setTodayCheckin(null));
+    // 身份別與效期（效期內攀岩隊員 / 課程學員入館權益）
+    memberClient.get('/members/my/identity')
+      .then(r => setIdentity(r.data || null))
+      .catch(() => setIdentity(null));
+    // 轉帳被退回通知（含子女訂單；重新上傳後端點即不再回傳、自動消失）
+    memberClient.get('/members/my/alerts')
+      .then(r => setRejectAlerts(r.data?.alerts || []))
+      .catch(() => setRejectAlerts([]));
+  };
+
+  useEffect(() => { loadHomeData(); }, [member?.id]);
+  // 會員可能把 App 留在背景很久（切別的 App、鎖螢幕）：回到前景時重抓一次，
+  // 今日入場/身份效期/退回通知才不會停在剛登入當下的舊資料。
+  useRefetchOnFocus(loadHomeData);
 
   useEffect(() => {
     getMemberGyms().then(r => setGyms(r.data.gyms || []));
