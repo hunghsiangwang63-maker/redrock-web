@@ -5,8 +5,9 @@ import SimulateRegistrationButton from '../../components/SimulateRegistrationBut
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
-import { verifyCompetitionPartnerGym } from '../../api/competitions';
+import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import InvoiceModal from '../../components/InvoiceModal';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -74,6 +75,7 @@ export default function CompetitionsPage() {
   const [statusFilter, setStatusFilter] = useState('all'); // 依報名狀態下拉篩選
   const [regDetail, setRegDetail] = useState(null); // 點列開詳細資料
   const [actionModal, setActionModal] = useState(null); // { type:'pay'|'refund', reg }
+  const [invoiceTarget, setInvoiceTarget] = useState(null); // 開立發票 modal 目標（registration 物件）
   const [formAction, setFormAction] = useState(null); // { type:'return'|'reject', reg }
   const [formReason, setFormReason] = useState('');
   const [formSaving, setFormSaving] = useState(false);
@@ -511,6 +513,7 @@ export default function CompetitionsPage() {
             btns.push(B('核准友館折扣','#2D7D46',async()=>{ try { await verifyCompetitionPartnerGym(r.id, true); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'vpg'));
             btns.push(B('取消友館折扣','#854F0B',async()=>{ if(!window.confirm('確定取消此友館折扣、費用改回原價？')) return; try { await verifyCompetitionPartnerGym(r.id, false); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'rpg'));
           }
+          if (canManage) btns.push(B('🧾 開立發票','#8B1A1A',()=>{ setRegDetail(null); setInvoiceTarget(r); },'inv'));
           return <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:14 }}>{btns}</div>;
         };
         return (
@@ -560,6 +563,27 @@ export default function CompetitionsPage() {
           onDone={(m)=>{ setActionModal(null); showMsg(m); openRegistrations(showRegistrations); }}
         />
       )}
+
+      {/* 開立發票 Modal（共用元件，與員工端報到頁/課程學員頁同一套） */}
+      {invoiceTarget && (() => {
+        const r = invoiceTarget;
+        const receivedAmount = r.paidAmount ?? r.memberPaidAmount ?? r.registrationFee ?? 0;
+        return (
+          <InvoiceModal
+            title={r.memberName || ''}
+            subtitle={`${r.competitionName || ''}・${r.divisionName || ''}`}
+            feeInfo={`報名費用 NT$${r.registrationFee ?? 0}`
+              + (r.memberPaidAmount != null ? `　會員自報 NT$${r.memberPaidAmount}` : '')
+              + (r.paidAmount != null ? `　店員核對 NT$${r.paidAmount}` : '')}
+            defaultItemName={`${r.competitionName || '比賽'}報名費`}
+            defaultAmount={receivedAmount}
+            onClose={() => setInvoiceTarget(null)}
+            listInvoices={() => getRegistrationInvoices(r.id).then(res => res.data.invoices || [])}
+            createInvoice={(payload) => createRegistrationInvoice(r.id, payload).then(res => res.data.invoice)}
+            voidInvoiceFn={(id) => voidCompetitionInvoice(id)}
+          />
+        );
+      })()}
 
       {/* 退回修改 / 駁回取消 / 要求重填轉帳 原因 Modal */}
       {formAction && (() => {

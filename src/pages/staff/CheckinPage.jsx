@@ -10,6 +10,8 @@ import jsQR from 'jsqr';
 import { entryLabelOf } from '../../utils/entryLabel';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
+import InvoiceModal from '../../components/InvoiceModal';
+import { getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
 
 const ENTRY_TYPE_LABEL = {
   pass: '定期票', vip: 'VIP', course_access: '課程學員',
@@ -17,6 +19,7 @@ const ENTRY_TYPE_LABEL = {
   discount_card: '優惠折扣券', black_card: '黑卡',
   single_entry_ticket: '單次入場券', single_ticket: '單次購票',
   buy_discount_card: '購買優惠折扣券', buy_pass: '購買定期票', already_paid: '已付費（舊系統）',
+  competition: '比賽報到',
 };
 
 const PAYMENT_LABEL = { cash:'現金', linepay:'Line Pay', jkopay:'街口支付', taiwanpay:'台灣 Pay' };
@@ -117,6 +120,7 @@ export default function CheckinPage() {
   const scanningRef = useRef(false);
   const [scanResult, setScanResult] = useState(null);
   const [compScan, setCompScan] = useState(null); // 比賽報到掃描結果（compchk: QR）
+  const [compInvoiceTarget, setCompInvoiceTarget] = useState(null); // 比賽報到「開立發票」modal 目標
   const [staffScan, setStaffScan] = useState(null); // 員工入館掃描結果（staffentry: QR）
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [phoneInput, setPhoneInput] = useState('');
@@ -600,9 +604,30 @@ export default function CheckinPage() {
                         ✓ 確認報到（不卡墜落測驗）
                       </button>
                     )}
+                    {isManagerOnly && (
+                      <button onClick={() => setCompInvoiceTarget(compScan)}
+                        style={{ marginTop:8, width:'100%', height:38, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                        🧾 開立發票
+                      </button>
+                    )}
                   </>
                 )}
               </div>
+            )}
+
+            {/* 比賽報到「開立發票」Modal（共用元件，與賽事管理報名名單頁/課程學員頁同一套） */}
+            {compInvoiceTarget && (
+              <InvoiceModal
+                title={compInvoiceTarget.memberName || ''}
+                subtitle={`${compInvoiceTarget.competitionName || ''}・${compInvoiceTarget.divisionName || ''}`}
+                feeInfo={`報名費用 NT$${compInvoiceTarget.registrationFee ?? 0}`}
+                defaultItemName={`${compInvoiceTarget.competitionName || '比賽'}報名費`}
+                defaultAmount={compInvoiceTarget.receivedAmount ?? compInvoiceTarget.registrationFee ?? 0}
+                onClose={() => setCompInvoiceTarget(null)}
+                listInvoices={() => getRegistrationInvoices(compInvoiceTarget.registrationId).then(r => r.data.invoices || [])}
+                createInvoice={(payload) => createRegistrationInvoice(compInvoiceTarget.registrationId, payload).then(r => r.data.invoice)}
+                voidInvoiceFn={(id) => voidCompetitionInvoice(id)}
+              />
             )}
 
             {/* 員工入館掃描結果 */}
