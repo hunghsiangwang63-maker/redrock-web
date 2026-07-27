@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { entryLabelOf } from '../../utils/entryLabel';
 import PasswordInput from '../../components/PasswordInput';
-import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents } from '../../api/members';
+import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -172,7 +172,7 @@ function MemberRecords({ records }) {
 
 // 名單（分組、條列式、可搜尋、顯示有效起訖）：定期票 / 課程學員 共用
 const fmtDate = (d) => d ? dayjs(d).format('YYYY/MM/DD') : '';
-const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', groupFilterLabel = null }) => {
+const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', groupFilterLabel = null, headerExtra = null, renderRowExtra = null }) => {
   const [q, setQ] = useState('');
   const [gSel, setGSel] = useState('');
   if (loading) return <div style={{ textAlign:'center', color:'#999', padding:40, fontSize:13 }}>載入中...</div>;
@@ -195,6 +195,7 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
           </select>
         )}
         <span style={{ fontSize:12, color:'#999' }}>共 {total} 人</span>
+        {headerExtra && <div style={{ marginLeft:'auto', display:'flex', gap:8 }}>{typeof headerExtra === 'function' ? headerExtra(gSel, shown) : headerExtra}</div>}
       </div>
       {(!groups || shown.length === 0) ? (
         <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
@@ -211,11 +212,14 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
               {g.members.map((m, i) => (
                 <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
                   <span style={{ fontSize:13, fontWeight:500 }}>{m.memberName || m.memberId}</span>
-                  {(m.startDate || m.endDate) && (
-                    <span style={{ fontSize:12, color:'#666', fontFamily:'monospace', flexShrink:0 }}>
-                      {fmtDate(m.startDate)} ~ {fmtDate(m.endDate)}
-                    </span>
-                  )}
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                    {(m.startDate || m.endDate) && (
+                      <span style={{ fontSize:12, color:'#666', fontFamily:'monospace' }}>
+                        {fmtDate(m.startDate)} ~ {fmtDate(m.endDate)}
+                      </span>
+                    )}
+                    {renderRowExtra && renderRowExtra(m, g)}
+                  </div>
                 </div>
               ))}
             </div>
@@ -223,6 +227,96 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
         </div>
       )}
     </div>
+  );
+};
+
+// 課程學員「開立發票」modal（預先建立，待日後發票機串接）
+// props: target {memberId, memberName, memberPhone, courseId, courseName, gymId, enrollmentId, fee, memberPaidAmount}
+const inpS = { width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
+const labS = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
+const CourseInvoiceModal = ({ target, onClose }) => {
+  const [form, setForm] = useState({
+    issuedAt: dayjs().format('YYYY-MM-DDTHH:mm'),
+    itemName: target.courseName || '課程費用',
+    amount: target.memberPaidAmount ?? target.fee ?? 0,
+    taxId: '', note: '',
+  });
+  const [history, setHistory] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  useEffect(() => {
+    getCourseInvoices(target.enrollmentId ? { enrollmentId: target.enrollmentId } : { memberId: target.memberId, courseId: target.courseId })
+      .then(r => setHistory(r.data.invoices || [])).catch(() => setHistory([]));
+  }, [target.enrollmentId, target.memberId, target.courseId]);
+
+  const submit = async () => {
+    if (!(Number(form.amount) > 0)) { setMsg('請輸入大於 0 的發票金額'); return; }
+    setSaving(true); setMsg('');
+    try {
+      const res = await createCourseInvoice({
+        enrollmentId: target.enrollmentId, memberId: target.memberId, memberName: target.memberName,
+        courseId: target.courseId, courseName: target.courseName, gymId: target.gymId,
+        itemName: form.itemName, amount: Number(form.amount), taxId: form.taxId, note: form.note,
+        issuedAt: form.issuedAt ? new Date(form.issuedAt).toISOString() : undefined,
+      });
+      setHistory(h => [res.data.invoice, ...(h || [])]);
+      setMsg('✅ 已開立發票（已計入當日營收加減項）');
+      setForm(f => ({ ...f, note: '' }));
+    } catch (err) {
+      setMsg(err.response?.data?.message || '開立發票失敗');
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Modal title={`開立發票 · ${target.memberName || ''}`} onClose={onClose}>
+      <div style={{ background:'#FBF5F5', borderRadius:8, padding:10, marginBottom:14, fontSize:12, color:'#666' }}>
+        {target.courseName}{target.memberPhone ? ` · ${target.memberPhone}` : ''}
+        {target.fee != null && <div style={{ marginTop:4 }}>報名費用 NT${target.fee}　實收金額 NT${target.memberPaidAmount ?? target.fee ?? 0}</div>}
+        <div style={{ marginTop:6, color:'#A66A00' }}>⚠️ 預先建立，尚未串接實體發票機；開立後金額將寫入當日結帳「加減項」，不影響原報名已認列之課程營收。</div>
+      </div>
+      <div style={{ marginBottom:12 }}>
+        <label style={labS}>日期時間</label>
+        <input type="datetime-local" style={inpS} value={form.issuedAt} onChange={e => setForm(f => ({ ...f, issuedAt: e.target.value }))} />
+      </div>
+      <div style={{ marginBottom:12 }}>
+        <label style={labS}>品項</label>
+        <input style={inpS} value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))} placeholder="如：課程費用" />
+      </div>
+      <div style={{ marginBottom:12 }}>
+        <label style={labS}>金額（預填實收金額，可調整）</label>
+        <input type="number" style={inpS} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+      </div>
+      <div style={{ marginBottom:12 }}>
+        <label style={labS}>統一編號（選填）</label>
+        <input style={inpS} value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} placeholder="8 碼統編（三聯式）" />
+      </div>
+      <div style={{ marginBottom:14 }}>
+        <label style={labS}>備註（管理員統一備註）</label>
+        <textarea rows={2} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+          style={{ ...inpS, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit' }} />
+      </div>
+      {msg && <div style={{ fontSize:12, marginBottom:10, color: msg.startsWith('✅') ? '#2D7D46' : '#A32D2D' }}>{msg}</div>}
+      <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+        <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>關閉</button>
+        <button onClick={submit} disabled={saving} style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+          {saving ? '處理中...' : '開立發票'}
+        </button>
+      </div>
+      <div>
+        <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:6 }}>已開立紀錄</div>
+        {history === null ? (
+          <div style={{ fontSize:12, color:'#999' }}>載入中...</div>
+        ) : history.length === 0 ? (
+          <div style={{ fontSize:12, color:'#999' }}>尚無開立紀錄</div>
+        ) : history.map(inv => (
+          <div key={inv.id} style={{ fontSize:12, color:'#444', padding:'6px 0', borderTop:'0.5px solid #F5EFEF' }}>
+            {inv.issuedAt?._seconds ? dayjs(inv.issuedAt._seconds*1000).format('YYYY/MM/DD HH:mm') : ''}　{inv.itemName}　NT${inv.amount}
+            {inv.taxId ? `　統編 ${inv.taxId}` : ''}{inv.note ? <div style={{ color:'#999', marginTop:2 }}>{inv.note}</div> : null}
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 };
 
@@ -235,6 +329,7 @@ export default function MembersPage() {
   // 報表類：super_admin 依頂部場館選擇（'全館'→undefined=全部）
   const reportGymId = staff?.role === 'super_admin' ? (viewGym || undefined) : targetGymId;
   const isAdmin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!station || !!operator;
+  const isManagerRole = ['super_admin', 'gym_manager'].includes(staff?.role); // 課程學員：下載/開發票僅限管理員（比照後端 requireManager）
   const [memberRecords, setMemberRecords] = useState(null);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -256,6 +351,23 @@ export default function MembersPage() {
   const [passList, setPassList] = useState(null);
   const [courseList, setCourseList] = useState(null);
   const [listLoading, setListLoading] = useState(false);
+  const [invoiceTarget, setInvoiceTarget] = useState(null); // 課程學員「開立發票」modal 目標
+  const [csDownloading, setCsDownloading] = useState(false);
+
+  const handleDownloadCourseStudents = async (courseId) => {
+    setCsDownloading(true);
+    try {
+      const res = await downloadActiveCourseStudents(reportGymId, courseId);
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = courseId ? `課程學員名單_${courseId}.xlsx` : `課程學員總表_${dayjs().format('YYYYMMDD')}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.response?.data?.message || '下載失敗');
+    } finally { setCsDownloading(false); }
+  };
 
   const switchView = (v) => {
     setView(v);
@@ -612,11 +724,29 @@ export default function MembersPage() {
           groups={(passList || []).map(g => ({ key: g.passTypeId || g.passTypeName, title: g.passTypeName, members: g.members }))} />
       )}
       {view === 'courses' && (
-        <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名" groupFilterLabel="全部班別"
-          groups={(courseList || []).map(g => ({
-            key: g.courseId, title: g.courseName, members: g.members,
-            range: g.practiceStart && g.practiceEnd ? `${dayjs(g.practiceStart).format('MM/DD')}–${dayjs(g.practiceEnd).format('MM/DD')}` : (g.practiceEnd ? `至 ${dayjs(g.practiceEnd).format('MM/DD')}` : ''),
-          }))} />
+        <>
+          <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名" groupFilterLabel="全部班別"
+            groups={(courseList || []).map(g => ({
+              key: g.courseId, title: g.courseName, members: g.members, gymId: g.gymId, courseId: g.courseId, courseName: g.courseName,
+              range: g.practiceStart && g.practiceEnd ? `${dayjs(g.practiceStart).format('MM/DD')}–${dayjs(g.practiceEnd).format('MM/DD')}` : (g.practiceEnd ? `至 ${dayjs(g.practiceEnd).format('MM/DD')}` : ''),
+            }))}
+            headerExtra={isManagerRole ? (gSel) => (
+              <>
+                <button onClick={() => handleDownloadCourseStudents(gSel || null)} disabled={csDownloading}
+                  style={{ height:34, padding:'0 12px', borderRadius:8, border:'1px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  {csDownloading ? '下載中...' : gSel ? '⬇ 下載此班別名單' : '⬇ 下載總表'}
+                </button>
+              </>
+            ) : null}
+            renderRowExtra={isManagerRole ? (m, g) => (
+              <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
+                style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                🧾 開立發票
+              </button>
+            ) : null}
+          />
+          {invoiceTarget && <CourseInvoiceModal target={invoiceTarget} onClose={() => setInvoiceTarget(null)} />}
+        </>
       )}
 
       {view === 'search' && (

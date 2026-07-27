@@ -21,3 +21,9 @@ export const resetMemberWaiver = (memberId, reason) => client.post(`/members/${m
 // 名單報表（會員頁分頁用）
 export const getActivePasses = (gymId) => client.get('/members/reports/active-passes', { params: gymId ? { gymId } : {} });
 export const getActiveCourseStudents = (gymId) => client.get('/members/reports/active-course-students', { params: gymId ? { gymId } : {} });
+export const downloadActiveCourseStudents = (gymId, courseId) =>
+  client.get('/members/reports/active-course-students/download', { params: { ...(gymId ? { gymId } : {}), ...(courseId ? { courseId } : {}) }, responseType: 'blob' });
+
+// 課程學員：開立發票（預先建立，待日後發票機串接）
+export const getCourseInvoices = (params) => client.get('/members/course-invoices', { params });
+export const createCourseInvoice = (data) => client.post('/members/course-invoices', data);
