@@ -661,7 +661,7 @@ export default function CoursesPage({ embedded = false }) {
       if (sel === 'all') {
         const params = effectiveGymId ? { gymId: effectiveGymId } : {};
         const r = await client.get('/courses/leave-makeup-summary/all', { params });
-        setLmSummary({ loading: false, mode: 'all', sel: 'all', groups: r.data.groups || [], crossMakeups: r.data.crossMakeups || [], overdueMakeups: r.data.overdueMakeups || [] });
+        setLmSummary({ loading: false, mode: 'all', sel: 'all', groups: r.data.groups || [], crossMakeups: r.data.crossMakeups || [], overdueMakeups: r.data.overdueMakeups || [], historicalLeaves: r.data.historicalLeaves || [] });
       } else {
         const r = await client.get(`/courses/${sel}/leave-makeup-summary`);
         setLmSummary({ loading: false, mode: 'all', sel, groups: [r.data] });
@@ -699,6 +699,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
     });
     (lmSummary?.crossMakeups||[]).forEach(cm => lines.push([esc('跨期補課（'+(cm.sourceCourse||'')+'）'), esc(cm.name),'',esc((cm.leaveDates||[]).join('、')),(cm.leaveDates||[]).length,'','',esc(cm.deadline||''),esc(cm.targetDate?`${cm.targetCourse||''} ${cm.targetDate}`:'待安排')].join(',')));
     (lmSummary?.overdueMakeups||[]).forEach(o => lines.push([esc('近三個月逾期未補課'), esc(o.memberName),'','','','','',esc(o.expiredDate||''),esc(o.courseName||'')].join(',')));
+    (lmSummary?.historicalLeaves||[]).forEach(p => lines.push([esc('歷史請假紀錄（匯入）'), esc(p.name+(p.registered?'':'（尚未註冊）')), esc(p.phone||''), esc(p.records.map(r=>`${r.date} ${r.courseType}${r.reason?'('+r.reason+')':''}`).join('、')), p.records.length,'','','',''].join(',')));
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
@@ -2251,7 +2252,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               </div>
             </div>
             {lmSummary.loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : lmSummary.mode === 'all' ? (<>
-      {(lmSummary.groups||[]).length === 0 && !(lmSummary.crossMakeups||[]).length && !(lmSummary.overdueMakeups||[]).length && <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有任何請假/補課/待認領資料</div>}
+      {(lmSummary.groups||[]).length === 0 && !(lmSummary.crossMakeups||[]).length && !(lmSummary.overdueMakeups||[]).length && !(lmSummary.historicalLeaves||[]).length && <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有任何請假/補課/待認領資料</div>}
       {(lmSummary.groups||[]).map(g => (
         <div key={g.course.id} style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'6px 0' }}>{g.course.name}
@@ -2313,6 +2314,23 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#A32D2D' }}>{o.memberName}</td>
                 <td style={{ padding:'6px 10px', color:'#A32D2D' }}>{o.courseName||'—'}</td>
                 <td style={{ padding:'6px 10px', color:'#A32D2D', whiteSpace:'nowrap' }}>{o.expiredDate}</td>
+              </tr>))}</tbody>
+          </table></div>
+        </div>
+      )}
+      {(lmSummary.historicalLeaves||[]).length > 0 && (
+        <div style={{ marginBottom:18 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#666', margin:'6px 0' }}>歷史請假紀錄（匯入）<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>對不到系統現有場次、不發補課券，純記錄；以姓名排序</span></div>
+          <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:640 }}>
+            <thead><tr style={{ background:'#F5F5F5' }}>{['姓名','會員狀態','請假紀錄（日期・課程・原因）'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #ddd', whiteSpace:'nowrap' }}>{h}</th>)}</tr></thead>
+            <tbody>{lmSummary.historicalLeaves.map((p,i)=>(
+              <tr key={'hl'+i} style={{ borderBottom:'0.5px solid #eee' }}>
+                <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#333' }}>{p.name}{p.phone ? <div style={{ fontSize:10, color:'#999', fontWeight:400 }}>{p.phone}</div> : null}</td>
+                <td style={{ padding:'6px 10px', whiteSpace:'nowrap' }}>{p.registered ? <span style={{ color:'#2D7D46' }}>已註冊</span> : <span style={{ color:'#B5762B' }}>尚未註冊</span>}</td>
+                <td style={{ padding:'6px 10px', color:'#444' }}>{p.records.map((r,j)=>(
+                  <div key={j}>{r.date}・{r.courseType}{r.weekday ? `(${r.weekday})` : ''}{r.reason ? `・${r.reason}` : ''}</div>
+                ))}</td>
               </tr>))}</tbody>
           </table></div>
         </div>
