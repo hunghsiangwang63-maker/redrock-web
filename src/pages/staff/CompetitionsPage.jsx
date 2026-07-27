@@ -482,6 +482,12 @@ export default function CompetitionsPage() {
                         {remark.map((rm,i)=><span key={i} style={{ fontSize:10, background:'#FFF8E6', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>{rm}</span>)}
                       </div>
                     </div>
+                    {canManage && (
+                      <button onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }}
+                        style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+                        🧾 開立發票
+                      </button>
+                    )}
                     <span style={{ fontSize:11, color:'#185FA5', flexShrink:0, whiteSpace:'nowrap' }}>詳細 ›</span>
                   </div>
                 );
@@ -513,7 +519,6 @@ export default function CompetitionsPage() {
             btns.push(B('核准友館折扣','#2D7D46',async()=>{ try { await verifyCompetitionPartnerGym(r.id, true); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'vpg'));
             btns.push(B('取消友館折扣','#854F0B',async()=>{ if(!window.confirm('確定取消此友館折扣、費用改回原價？')) return; try { await verifyCompetitionPartnerGym(r.id, false); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'rpg'));
           }
-          if (canManage) btns.push(B('🧾 開立發票','#8B1A1A',()=>{ setRegDetail(null); setInvoiceTarget(r); },'inv'));
           return <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:14 }}>{btns}</div>;
         };
         return (
