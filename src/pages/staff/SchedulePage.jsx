@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule } from '../../api/schedule';
+import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule, getScheduleEvents, createScheduleEvent, updateScheduleEvent, deleteScheduleEvent } from '../../api/schedule';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -18,6 +18,14 @@ const Modal = ({ title, onClose, children, width=420 }) => (
 
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
 const STAFF_COLORS = ['#8B1A1A','#185FA5','#2D7D46','#854F0B','#533AB7','#0F6E56','#A32D2D','#B5762B'];
+
+// 重要事項標籤（休館/比賽/維修等，獨立於員工排班）
+const EVENT_CATEGORY_META = {
+  closure:     { label: '休館',      emoji: '⛔', color: '#A32D2D' },
+  competition: { label: '比賽',      emoji: '🏆', color: '#6B3FA0' },
+  maintenance: { label: '維修/保養', emoji: '🔧', color: '#B5762B' },
+  other:       { label: '其他',      emoji: '📌', color: '#185FA5' },
+};
 
 export default function SchedulePage() {
   const { staff, activeGymId, viewGym } = useAuth();
@@ -46,6 +54,13 @@ export default function SchedulePage() {
   const [saving, setSaving] = useState(false);
   const [schedBusy, setSchedBusy] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+
+  // 重要事項標籤（休館/比賽/維修等）
+  const [events, setEvents] = useState([]);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const [eventForm, setEventForm] = useState({ gymId:'', date:'', allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'' });
+  const [eventSaving, setEventSaving] = useState(false);
 
   const monthLabel = () => dayjs(`${month}-01`).format('YYYY年MM月');
   const handleCopyPrevious = async () => {
@@ -114,12 +129,14 @@ export default function SchedulePage() {
     if (!targetGymId) return;
     setLoading(true);
     try {
-      const [shiftsRes, staffRes] = await Promise.all([
+      const [shiftsRes, staffRes, eventsRes] = await Promise.all([
         getMonthlyShifts(targetGymId, month),
         canManage ? getScheduleStaffList(targetGymId) : Promise.resolve({ data: { staffList: [] } }),
+        getScheduleEvents(targetGymId, month).catch(() => ({ data: { events: [] } })),
       ]);
       setShifts(shiftsRes.data.shifts || []);
       setStaffList(staffRes.data.staffList || []);
+      setEvents(eventsRes.data.events || []);
     } catch (e) { setShifts([]); }
     finally { setLoading(false); }
   };
@@ -155,6 +172,65 @@ export default function SchedulePage() {
   for (let d = 1; d <= daysInMonth; d++) calendarCells.push(startOfMonth.date(d).format('YYYY-MM-DD'));
 
   const shiftsForDate = (date) => shifts.filter(s => s.date === date);
+  const eventsForDate = (date) => events.filter(e => e.date === date);
+
+  const openAddEvent = (date) => {
+    if (!canManage) return;
+    setEditingEvent(null);
+    setEventForm({ gymId: targetGymId, date, allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'' });
+    setShowEventModal(true);
+  };
+
+  const openEditEvent = (ev) => {
+    if (!canManage) return;
+    setEditingEvent(ev);
+    setEventForm({
+      gymId: ev.gymId || '', date: ev.date, allDay: ev.allDay,
+      startTime: ev.startTime || '10:00', endTime: ev.endTime || '18:00',
+      category: ev.category, title: ev.title || '', note: ev.note || '',
+    });
+    setShowEventModal(true);
+  };
+
+  const handleSaveEvent = async () => {
+    if (!eventForm.date) { showMsg('請選擇日期', 'red'); return; }
+    setEventSaving(true);
+    try {
+      const payload = {
+        gymId: eventForm.gymId || null,
+        date: eventForm.date,
+        allDay: eventForm.allDay,
+        category: eventForm.category,
+        title: eventForm.title,
+        note: eventForm.note,
+        ...(eventForm.allDay ? {} : { startTime: eventForm.startTime, endTime: eventForm.endTime }),
+      };
+      if (editingEvent) {
+        await updateScheduleEvent(editingEvent.id, payload);
+        showMsg('重要事項已更新');
+      } else {
+        await createScheduleEvent(payload);
+        showMsg('重要事項已新增');
+      }
+      setShowEventModal(false);
+      await loadData();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '儲存失敗', 'red');
+    } finally { setEventSaving(false); }
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!editingEvent) return;
+    if (!window.confirm('確定要刪除這筆重要事項？')) return;
+    try {
+      await deleteScheduleEvent(editingEvent.id);
+      showMsg('重要事項已刪除');
+      setShowEventModal(false);
+      await loadData();
+    } catch (err) {
+      showMsg('刪除失敗', 'red');
+    }
+  };
 
   const openAddShift = (date) => {
     if (!canManage) return;
@@ -269,10 +345,14 @@ export default function SchedulePage() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
         <div>
           <div style={{ fontSize:20, fontWeight:600 }}>排班表</div>
-          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{canManage ? '點擊日期新增排班，點擊既有排班可編輯' : '僅供查詢，如需異動請聯絡館別管理員'}</div>
+          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{canManage ? '點擊日期新增排班；點擊日期右上角 🏷️+ 新增重要事項（休館/比賽等）' : '僅供查詢，如需異動請聯絡館別管理員'}</div>
         </div>
         {canManage && (
           <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => openAddEvent(dayjs().format('YYYY-MM-DD'))}
+              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #6B3FA0', color:'#6B3FA0', fontSize:13, cursor:'pointer' }}>
+              🏷️ 新增重要事項
+            </button>
             <button onClick={openRecurringModal}
               style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>
               🔁 設定固定週班
@@ -319,7 +399,7 @@ export default function SchedulePage() {
       </div>
 
       {canManage && staffList.length > 0 && (
-        <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:14 }}>
+        <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:10 }}>
           {staffList.map((s) => (
             <div key={s.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#666' }}>
               <span style={{ width:10, height:10, borderRadius:5, background: staffColor(s.id) }} />
@@ -328,6 +408,15 @@ export default function SchedulePage() {
           ))}
         </div>
       )}
+
+      <div style={{ display:'flex', gap:12, flexWrap:'wrap', marginBottom:14 }}>
+        {Object.entries(EVENT_CATEGORY_META).map(([key, meta]) => (
+          <div key={key} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'#666' }}>
+            <span style={{ width:10, height:10, borderRadius:3, background: meta.color }} />
+            {meta.emoji} {meta.label}
+          </div>
+        ))}
+      </div>
 
       {confirmClear && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
@@ -361,6 +450,11 @@ export default function SchedulePage() {
                 if (af === 0) return (a.staffName || '').localeCompare(b.staffName || '');
                 return (a.startTime || '').localeCompare(b.startTime || '');
               }) : [];
+              // 重要事項：全天優先排上面，其餘依開始時間排序
+              const dayEvents = date ? [...eventsForDate(date)].sort((a, b) => {
+                if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+                return (a.startTime || '').localeCompare(b.startTime || '');
+              }) : [];
               const isToday = date === dayjs().format('YYYY-MM-DD');
               return (
                 <div key={idx} onClick={() => date && openAddShift(date)}
@@ -371,9 +465,32 @@ export default function SchedulePage() {
                   }}>
                   {date && (
                     <>
-                      <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400, marginBottom:4 }}>
-                        {dayjs(date).date()}
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                        <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400 }}>
+                          {dayjs(date).date()}
+                        </div>
+                        {canManage && (
+                          <button onClick={e => { e.stopPropagation(); openAddEvent(date); }}
+                            title="新增重要事項"
+                            style={{ fontSize:10, border:'none', background:'none', color:'#bbb', cursor:'pointer', padding:'0 1px', lineHeight:1 }}>
+                            🏷️+
+                          </button>
+                        )}
                       </div>
+                      {dayEvents.map(ev => {
+                        const meta = EVENT_CATEGORY_META[ev.category] || EVENT_CATEGORY_META.other;
+                        return (
+                          <div key={ev.id} onClick={e => { e.stopPropagation(); openEditEvent(ev); }}
+                            style={{
+                              fontSize:10, fontWeight:700, padding:'2px 5px', borderRadius:4, marginBottom:2,
+                              background: meta.color, color:'#fff',
+                              cursor: canManage ? 'pointer' : 'default',
+                              whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
+                            }}>
+                            {meta.emoji} {ev.title || meta.label}{!ev.allDay && ev.startTime ? ` ${ev.startTime}-${ev.endTime}` : ''}
+                          </div>
+                        );
+                      })}
                       {dayShifts.map(s => {
                         const isCourse = s.source === 'course' || String(s.note || '').startsWith('體驗課程');
                         const cname = s.courseName || String(s.note || '').replace(/^體驗課程・/, '').split('・')[0];
@@ -491,6 +608,88 @@ export default function SchedulePage() {
             <button onClick={handleSaveShift} disabled={saving}
               style={{ flex:2, height:42, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
               {saving ? '儲存中...' : editingShift ? '儲存變更' : '確認新增'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 新增/編輯重要事項 Modal（休館/比賽/維修等；不綁員工） */}
+      {showEventModal && (
+        <Modal title={editingEvent ? '編輯重要事項' : `新增重要事項 — ${eventForm.date}`} onClose={() => setShowEventModal(false)}>
+          {isSuperAdmin && (
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>適用場館</label>
+              <select value={eventForm.gymId} onChange={e => setEventForm({...eventForm, gymId:e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
+                <option value="">全部場館（雙館皆顯示）</option>
+                {gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </div>
+          )}
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>日期</label>
+            <input type="date" value={eventForm.date} onChange={e => setEventForm({...eventForm, date:e.target.value})}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>類別</label>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {Object.entries(EVENT_CATEGORY_META).map(([key, meta]) => (
+                <button key={key} onClick={() => setEventForm({...eventForm, category:key})}
+                  style={{ flex:'1 1 auto', minWidth:76, height:36, borderRadius:8, border: eventForm.category===key?'none':'0.5px solid #E8D5D5', background: eventForm.category===key?meta.color:'#fff', color: eventForm.category===key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
+                  {meta.emoji} {meta.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>標題（選填，留空則顯示類別名稱）</label>
+            <input value={eventForm.title} onChange={e => setEventForm({...eventForm, title:e.target.value})}
+              placeholder="例：士林館全日休館 / 新竹分隊邀請賽"
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>時間範圍</label>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setEventForm({...eventForm, allDay:true})}
+                style={{ flex:1, height:38, borderRadius:8, border: eventForm.allDay?'none':'0.5px solid #E8D5D5', background: eventForm.allDay?'#8B1A1A':'#fff', color: eventForm.allDay?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                全天
+              </button>
+              <button onClick={() => setEventForm({...eventForm, allDay:false})}
+                style={{ flex:1, height:38, borderRadius:8, border: !eventForm.allDay?'none':'0.5px solid #E8D5D5', background: !eventForm.allDay?'#8B1A1A':'#fff', color: !eventForm.allDay?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                特定時段
+              </button>
+            </div>
+          </div>
+          {!eventForm.allDay && (
+            <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+              <div style={{ flex:1 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>開始時間</label>
+                <input type="time" value={eventForm.startTime} onChange={e => setEventForm({...eventForm, startTime:e.target.value})}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>結束時間</label>
+                <input type="time" value={eventForm.endTime} onChange={e => setEventForm({...eventForm, endTime:e.target.value})}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              </div>
+            </div>
+          )}
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
+            <input value={eventForm.note} onChange={e => setEventForm({...eventForm, note:e.target.value})}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ display:'flex', gap:8 }}>
+            {editingEvent && (
+              <button onClick={handleDeleteEvent}
+                style={{ height:42, padding:'0 16px', borderRadius:9, border:'0.5px solid #A32D2D', background:'none', color:'#A32D2D', fontSize:13, cursor:'pointer' }}>刪除</button>
+            )}
+            <button onClick={() => setShowEventModal(false)}
+              style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <button onClick={handleSaveEvent} disabled={eventSaving}
+              style={{ flex:2, height:42, borderRadius:9, background:'#6B3FA0', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              {eventSaving ? '儲存中...' : editingEvent ? '儲存變更' : '確認新增'}
             </button>
           </div>
         </Modal>

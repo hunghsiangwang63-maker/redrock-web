@@ -10,3 +10,9 @@ export const updateShift = (shiftId, data) => client.put(`/schedule/${shiftId}`,
 export const deleteShift = (shiftId) => client.delete(`/schedule/${shiftId}`);
 export const clearMonthSchedule = (gymId, month) => client.post('/schedule/clear-month', { gymId, month });
 export const copyPreviousMonthSchedule = (gymId, month) => client.post('/schedule/copy-previous', { gymId, month });
+
+// 重要事項標籤（休館/比賽/維修等）
+export const getScheduleEvents = (gymId, month) => client.get('/schedule/events', { params: { gymId, month } });
+export const createScheduleEvent = (data) => client.post('/schedule/events', data);
+export const updateScheduleEvent = (eventId, data) => client.put(`/schedule/events/${eventId}`, data);
+export const deleteScheduleEvent = (eventId) => client.delete(`/schedule/events/${eventId}`);
