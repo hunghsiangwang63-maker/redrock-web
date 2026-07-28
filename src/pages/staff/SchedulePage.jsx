@@ -28,9 +28,11 @@ const EVENT_CATEGORY_META = {
 };
 
 export default function SchedulePage() {
-  const { staff, activeGymId, viewGym } = useAuth();
+  const { staff, operator, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
-  const canManage = ['super_admin', 'gym_manager'].includes(staff?.role);
+  const canManage = ['super_admin', 'gym_manager'].includes(staff?.role); // 排班（新增/改/刪班表）維持僅管理員
+  // 重要事項（休館/比賽/維修等標籤）：管理員 + 場館電腦值班(operator) + 正職個人帳號
+  const canManageEvents = canManage || !!operator || staff?.role === 'full_time';
 
   const [gyms, setGyms] = useState([]);
   // 場館由頂部全域選擇器控制；排班為單館檢視，「全館」退回第一個館
@@ -175,14 +177,14 @@ export default function SchedulePage() {
   const eventsForDate = (date) => events.filter(e => e.date === date);
 
   const openAddEvent = (date) => {
-    if (!canManage) return;
+    if (!canManageEvents) return;
     setEditingEvent(null);
     setEventForm({ gymId: targetGymId, date, allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'' });
     setShowEventModal(true);
   };
 
   const openEditEvent = (ev) => {
-    if (!canManage) return;
+    if (!canManageEvents) return;
     setEditingEvent(ev);
     setEventForm({
       gymId: ev.gymId || '', date: ev.date, allDay: ev.allDay,
@@ -345,14 +347,22 @@ export default function SchedulePage() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
         <div>
           <div style={{ fontSize:20, fontWeight:600 }}>排班表</div>
-          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{canManage ? '點擊日期新增排班；點擊日期右上角 🏷️+ 新增重要事項（休館/比賽等）' : '僅供查詢，如需異動請聯絡館別管理員'}</div>
+          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
+            {canManage
+              ? '點擊日期新增排班；點擊日期右上角 🏷️+ 新增重要事項（休館/比賽等）'
+              : canManageEvents
+                ? '可新增/編修「重要事項」標籤（休館/比賽/維修等）；排班異動請聯絡館別管理員'
+                : '僅供查詢，如需異動請聯絡館別管理員'}
+          </div>
         </div>
-        {canManage && (
-          <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:8 }}>
+          {canManageEvents && (
             <button onClick={() => openAddEvent(dayjs().format('YYYY-MM-DD'))}
               style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #6B3FA0', color:'#6B3FA0', fontSize:13, cursor:'pointer' }}>
               🏷️ 新增重要事項
             </button>
+          )}
+          {canManage && (<>
             <button onClick={openRecurringModal}
               style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>
               🔁 設定固定週班
@@ -365,8 +375,8 @@ export default function SchedulePage() {
               style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #854F0B', color:'#854F0B', fontSize:13, cursor:'pointer' }}>
               ⚙️ 標準工時設定
             </button>
-          </div>
-        )}
+          </>)}
+        </div>
       </div>
 
       {msg && (
@@ -469,7 +479,7 @@ export default function SchedulePage() {
                         <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400 }}>
                           {dayjs(date).date()}
                         </div>
-                        {canManage && (
+                        {canManageEvents && (
                           <button onClick={e => { e.stopPropagation(); openAddEvent(date); }}
                             title="新增重要事項"
                             style={{ fontSize:10, border:'none', background:'none', color:'#bbb', cursor:'pointer', padding:'0 1px', lineHeight:1 }}>
@@ -484,7 +494,7 @@ export default function SchedulePage() {
                             style={{
                               fontSize:10, fontWeight:700, padding:'2px 5px', borderRadius:4, marginBottom:2,
                               background: meta.color, color:'#fff',
-                              cursor: canManage ? 'pointer' : 'default',
+                              cursor: canManageEvents ? 'pointer' : 'default',
                               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                             }}>
                             {meta.emoji} {ev.title || meta.label}{!ev.allDay && ev.startTime ? ` ${ev.startTime}-${ev.endTime}` : ''}
