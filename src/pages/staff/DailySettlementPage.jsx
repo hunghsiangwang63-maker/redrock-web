@@ -609,7 +609,7 @@ export default function DailySettlementPage() {
               <input type="number" value={voidInvoiceAmount} onChange={e => setVoidInvoiceAmount(e.target.value)}
                 placeholder="打錯發票金額（僅備註、不扣總計）" style={{ ...s.input, width:220 }} />
             </div>
-            <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>作廢多張可逐一加入（也可一次貼多組、以逗號分隔）；起訖／作廢號碼／作廢票號碼總金額會帶入月銷售紀錄（作廢金額僅備註、不影響總計）</div>
+            <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>作廢多張可逐一加入（也可一次貼多組、以逗號分隔）；起訖／作廢號碼／作廢票號碼總金額會帶入月銷售紀錄，並從發票總金額（今日收入總額）扣除</div>
           </div>
 
           {/* 票卡資訊 + check-in（月銷售紀錄用） */}
@@ -709,8 +709,12 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
   const denomTotal = DENOMINATIONS.reduce((s, dd) => s + (Number(denom[dd.key]) || 0) * dd.value, 0);
   const actualCashShown = denomList.length ? denomTotal : (Number(actualCash) || 0);
   const bigDiff = Math.abs(difference) > 200;
-  const sysTotal = income?.total ?? invoiceTotal ?? 0;
+  const voidN = Number(voidAmount) || 0;
+  // 發票總金額扣除作廢票號碼金額（打錯發票金額作廢，不算實收）；手計/系統兩者比較基準相同，皆扣除
+  const netInvoiceTotal = (Number(invoiceTotal) || 0) - voidN;
+  const sysTotal = (income?.total ?? invoiceTotal ?? 0) - voidN;
   const hasManual = manualTotal !== null && manualTotal !== undefined;
+  const netManualTotal = hasManual ? (Number(manualTotal) || 0) - voidN : null;
   const showManualCol = !!incomeManual; // 分項是否並列手動輸入
   const manVal = (k, sysV) => (incomeManual && incomeManual[k] !== '' && incomeManual[k] != null) ? (Number(incomeManual[k]) || 0) : sysV; // 缺項回退系統
   // 總金額分項：入場（含細項）/ 課程 / 裝備銷售 / 出租 / 定期票
@@ -727,13 +731,18 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
       {/* 發票總金額：手計 + 系統紀錄並列 */}
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
         <div style={{ display:'flex', justifyContent:'space-between' }}>
-          <span style={{ color:'#666' }}>發票總金額</span>
-          <span style={{ fontWeight:700, color:'#8B1A1A' }}>{money(invoiceTotal)}</span>
+          <span style={{ color:'#666' }}>發票總金額{voidN > 0 ? '（已扣除作廢）' : ''}</span>
+          <span style={{ fontWeight:700, color:'#8B1A1A' }}>{money(netInvoiceTotal)}</span>
         </div>
+        {voidN > 0 && (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4, color:'#888' }}>
+            <span>合計 {money(invoiceTotal)}　－　作廢 {money(voidN)}</span>
+          </div>
+        )}
         {hasManual && (
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4, color:'#888' }}>
-            <span>手計 {money(manualTotal)}　·　系統 {money(sysTotal)}</span>
-            {Number(manualTotal) !== Number(sysTotal) && <span style={{ color:'#A32D2D' }}>差 {money(Number(manualTotal) - Number(sysTotal))}</span>}
+            <span>手計 {money(netManualTotal)}　·　系統 {money(sysTotal)}</span>
+            {Number(netManualTotal) !== Number(sysTotal) && <span style={{ color:'#A32D2D' }}>差 {money(Number(netManualTotal) - Number(sysTotal))}</span>}
           </div>
         )}
       </div>
@@ -834,7 +843,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
             <span key={i} style={{ fontFamily:'monospace', fontSize:12.5 }}>{segments.length > 1 ? `第${i+1}段：` : ''}{sg.start || '—'} ～ {sg.last || '—'}</span>
           ))}
           {voids && voids.length > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢：{voids.join('、')}</span>}
-          {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}（僅備註）</span>}
+          {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}（已從發票總金額扣除）</span>}
         </div>
       </div>
     </div>
