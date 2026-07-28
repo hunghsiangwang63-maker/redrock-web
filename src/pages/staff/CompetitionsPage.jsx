@@ -506,6 +506,15 @@ export default function CompetitionsPage() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
                         <span style={{ fontSize:14, fontWeight:600 }}>{r.memberName}</span>
+                        {canManage && (
+                          <span onClick={e => e.stopPropagation()} style={{ display:'inline-flex', alignItems:'center', gap:3 }}>
+                            <span style={{ fontSize:10, color:'#999' }}>實收</span>
+                            <RegReceivedAmountEditor reg={r} onSaved={(id, amt) => {
+                              setRegDetail(d => d && d.id === id ? { ...d, receivedAmount: amt, receivedAmountOverride: amt } : d);
+                              setRegistrations(list => list.map(x => x.id === id ? { ...x, receivedAmount: amt, receivedAmountOverride: amt } : x));
+                            }} />
+                          </span>
+                        )}
                         <span style={{ fontSize:11, color:'#888' }}>{r.divisionName}</span>
                         <span style={{ fontSize:11, color:'#888' }}>{r.gender==='male'?'男':r.gender==='female'?'女':'—'}</span>
                         <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>NT${r.registrationFee}</span>
