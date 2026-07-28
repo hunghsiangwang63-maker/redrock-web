@@ -236,6 +236,19 @@ export default function CompetitionsPage() {
     } catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
 
+  const handleDownloadInsuranceRoster = async (c, format) => {
+    try {
+      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
+      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
+      const r = await fetch(`${API}/competitions/${c.id}/insurance-roster/download?format=${format}`, { headers: { Authorization: `Bearer ${tok}` } });
+      if (!r.ok) { const t = await r.text().catch(()=>''); throw new Error(r.status === 403 ? '權限不足' : `${r.status} ${t.slice(0,120)}`); }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `${c.name}_簽到表暨保險名冊_${new Date().toISOString().slice(0,10)}.${format}`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+    } catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
+  };
 
   const updateDivision = (idx, patch) => setForm(f=>({ ...f, divisions: f.divisions.map((d,i)=>i===idx?{...d,...patch}:d) }));
   const addDivision = () => setForm(f=>({ ...f, divisions:[...f.divisions,{ id:`d${Date.now()}`, name:'', maxParticipants:40, waitlistMax:5 }] }));
@@ -340,6 +353,8 @@ export default function CompetitionsPage() {
                       </button>
                     )}
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
+                    <button onClick={()=>handleDownloadInsuranceRoster(c,'xlsx')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#2D7D46', border:'0.5px solid #B5E4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(xlsx)</button>
+                    <button onClick={()=>handleDownloadInsuranceRoster(c,'pdf')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#A32D2D', border:'0.5px solid #F0C4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(PDF)</button>
                     <button onClick={()=>handleDelete(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C4C4', fontSize:12, cursor:'pointer' }}>🗑 刪除</button>
                   </>}
                 </div>
