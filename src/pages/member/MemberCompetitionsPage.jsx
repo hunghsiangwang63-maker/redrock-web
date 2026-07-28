@@ -214,9 +214,11 @@ export default function MemberCompetitionsPage() {
   // 報名對象（本人或選定的家庭成員）——年齡/監護人/費用一律以此人計算
   const registrant = registerForId ? (familyMembers.find(c => c.id === registerForId) || member) : member;
 
+  // 年齡判定顯示（後端權威重算，這裡僅供 UI 即時顯示對齊）：一律以「比賽當天」為基準，不是今天
   const isMinor = (() => {
     if (!registrant?.birthday) return false;
-    return dayjs().diff(dayjs(registrant.birthday), 'year') < 18;
+    const refDate = selectedComp?.eventDate ? dayjs(selectedComp.eventDate) : dayjs();
+    return refDate.diff(dayjs(registrant.birthday), 'year') < 18;
   })();
 
   const calcFee = (comp) => {
@@ -225,7 +227,8 @@ export default function MemberCompetitionsPage() {
     const today = dayjs().format('YYYY-MM-DD');
     const isEarlyBird = comp.earlyBirdDeadline && today <= comp.earlyBirdDeadline;
     const childLimit = fees.childAgeLimit || 15;
-    const age = registrant?.birthday ? dayjs().diff(dayjs(registrant.birthday), 'year') : 99;
+    const refDate = comp?.eventDate ? dayjs(comp.eventDate) : dayjs();
+    const age = registrant?.birthday ? refDate.diff(dayjs(registrant.birthday), 'year') : 99;
     const isChild = age < childLimit;
     let fee = isChild
       ? (isEarlyBird ? fees.childEarlyBird : fees.childRegular) ?? 950
