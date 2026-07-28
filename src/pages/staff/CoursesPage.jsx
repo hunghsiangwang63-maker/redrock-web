@@ -697,7 +697,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       ].join(',')));
       (g.pendingClaims||[]).forEach(pc => lines.push([esc(g.course?.name), esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
     });
-    (lmSummary?.crossMakeups||[]).forEach(cm => lines.push([esc('跨期補課（'+(cm.sourceCourse||'')+'）'), esc(cm.name),'',esc((cm.leaveDates||[]).join('、')),(cm.leaveDates||[]).length,'','',esc(cm.deadline||''),esc(cm.targetDate?`${cm.targetCourse||''} ${cm.targetDate}`:'待安排')].join(',')));
+    (lmSummary?.crossMakeups||[]).forEach(cm => lines.push([esc('跨期補課（'+(cm.sourceCourse||'')+'）'), esc(cm.name),'',esc((cm.leaveDates||[]).join('、')),(cm.leaveDates||[]).length,'','',esc(cm.deadline||''),esc(cm.status==='done'?`已完成${cm.doneAt?'（'+cm.doneAt+'）':''}`:(cm.targetDate?`${cm.targetCourse||''} ${cm.targetDate}`:'待安排'))].join(',')));
     (lmSummary?.overdueMakeups||[]).forEach(o => lines.push([esc('近三個月逾期未補課'), esc(o.memberName),'','','','','',esc(o.expiredDate||''),esc(o.courseName||'')].join(',')));
     (lmSummary?.historicalLeaves||[]).forEach(p => lines.push([esc('歷史請假紀錄（匯入）'), esc(p.name+(p.registered?'':'（尚未註冊）')), esc(p.phone||''), esc(p.records.map(r=>`${r.date} ${r.courseType}${r.reason?'('+r.reason+')':''}`).join('、')), p.records.length,'','','',''].join(',')));
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
@@ -2287,19 +2287,24 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       ))}
       {(lmSummary.crossMakeups||[]).length > 0 && (
         <div style={{ marginBottom:18 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:'#5B2D8B', margin:'6px 0' }}>跨期補課（前期・未過期）<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>以原班級(前一梯)為主，後接補課班級與日期</span></div>
+          <div style={{ fontSize:13, fontWeight:700, color:'#5B2D8B', margin:'6px 0' }}>跨期補課（前期）<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>以原班級(前一梯)為主，後接補課班級與日期；已完成者列在最後供查核</span></div>
           <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 }}>
-            <thead><tr style={{ background:'#F7F2FB' }}>{['原班級(前一梯)','姓名','前期請假日','補課班級','補課日期','補課期限'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#5B2D8B', borderBottom:'0.5px solid #E0D3EE', whiteSpace:'nowrap' }}>{h}</th>)}</tr></thead>
-            <tbody>{lmSummary.crossMakeups.map((cm,i)=>(
-              <tr key={'cm'+i} style={{ borderBottom:'0.5px solid #EFE8F5' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:780 }}>
+            <thead><tr style={{ background:'#F7F2FB' }}>{['原班級(前一梯)','姓名','前期請假日','狀態','補課班級','補課日期','補課期限'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#5B2D8B', borderBottom:'0.5px solid #E0D3EE', whiteSpace:'nowrap' }}>{h}</th>)}</tr></thead>
+            <tbody>{lmSummary.crossMakeups.map((cm,i)=>{
+              const done = cm.status === 'done';
+              return (
+              <tr key={'cm'+i} style={{ borderBottom:'0.5px solid #EFE8F5', opacity: done ? 0.6 : 1 }}>
                 <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#5B2D8B' }}>{cm.sourceCourse||'—'}</td>
                 <td style={{ padding:'6px 10px', color:'#5B2D8B', whiteSpace:'nowrap' }}>{cm.name}</td>
                 <td style={{ padding:'6px 10px', color:'#5B2D8B' }}>{(cm.leaveDates||[]).length ? (cm.leaveDates||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
-                <td style={{ padding:'6px 10px', color:'#5B2D8B' }}>{cm.targetDate ? (cm.targetCourse||'—') : <span style={{ color:'#B5762B' }}>待安排</span>}</td>
+                <td style={{ padding:'6px 10px', whiteSpace:'nowrap' }}>{done
+                  ? <span style={{ color:'#2D7D46', fontWeight:600 }}>✓ 已完成{cm.doneAt?`（${cm.doneAt}）`:''}</span>
+                  : cm.targetDate ? <span style={{ color:'#185FA5' }}>已排定</span> : <span style={{ color:'#B5762B' }}>待安排</span>}</td>
+                <td style={{ padding:'6px 10px', color:'#5B2D8B' }}>{cm.targetDate ? (cm.targetCourse||'—') : <span style={{ color:'#ccc' }}>—</span>}</td>
                 <td style={{ padding:'6px 10px', color:'#5B2D8B', whiteSpace:'nowrap' }}>{cm.targetDate || <span style={{ color:'#ccc' }}>—</span>}</td>
                 <td style={{ padding:'6px 10px', color:'#5B2D8B', whiteSpace:'nowrap' }}>{cm.deadline || <span style={{ color:'#ccc' }}>—</span>}</td>
-              </tr>))}</tbody>
+              </tr>);})}</tbody>
           </table></div>
         </div>
       )}
