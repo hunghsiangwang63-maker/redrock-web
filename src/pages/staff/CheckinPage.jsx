@@ -620,7 +620,7 @@ export default function CheckinPage() {
               <InvoiceModal
                 title={compInvoiceTarget.memberName || ''}
                 subtitle={`${compInvoiceTarget.competitionName || ''}・${compInvoiceTarget.divisionName || ''}`}
-                feeInfo={`報名費用 NT$${compInvoiceTarget.registrationFee ?? 0}`}
+                feeInfo={`報名費用 NT$${compInvoiceTarget.registrationFee ?? 0}` + (compInvoiceTarget.insuranceFee != null ? `　保費 NT$${compInvoiceTarget.insuranceFee}` : '')}
                 defaultItemName={`${compInvoiceTarget.competitionName || '比賽'}報名費`}
                 defaultAmount={compInvoiceTarget.receivedAmount ?? compInvoiceTarget.registrationFee ?? 0}
                 onClose={() => setCompInvoiceTarget(null)}

@@ -15,6 +15,8 @@ export const verifyCompetitionPartnerGym = (regId, approved) => client.post(`/co
 export const getRegistrationInvoices = (regId) => client.get(`/competitions/registrations/${regId}/invoices`);
 export const createRegistrationInvoice = (regId, data) => client.post(`/competitions/registrations/${regId}/invoices`, data);
 export const voidCompetitionInvoice = (id, voidReason) => client.post(`/competitions/invoices/${id}/void`, { voidReason });
+// 實收金額（管理員直接編修，扣除保費；amount=null 清除覆蓋、回自動判斷）
+export const updateCompetitionReceivedAmount = (regId, amount) => client.put(`/competitions/registrations/${regId}/received-amount`, { amount });
 // 管理員退回報名表（會員修改重送）/ 駁回取消
 export const returnCompetitionForm = (regId, data) => client.post(`/competitions/registrations/${regId}/return-form`, data);
 export const rejectCompetitionForm = (regId, data) => client.post(`/competitions/registrations/${regId}/reject-form`, data);

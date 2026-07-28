@@ -5,9 +5,41 @@ import SimulateRegistrationButton from '../../components/SimulateRegistrationBut
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
-import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
+import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice, updateCompetitionReceivedAmount } from '../../api/competitions';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceModal from '../../components/InvoiceModal';
+
+// 「實收金額」就地編修（管理員；扣除保費，供開發票/結帳共用）——比照課程學員頁的實收金額編輯器
+const RegReceivedAmountEditor = ({ reg, onSaved }) => {
+  const [val, setVal] = useState(reg.receivedAmount ?? 0);
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => { setVal(reg.receivedAmount ?? 0); }, [reg.receivedAmount, reg.id]);
+  const commit = async () => {
+    const num = Number(val);
+    if (isNaN(num) || num < 0) { setVal(reg.receivedAmount ?? 0); return; }
+    if (num === (reg.receivedAmount ?? 0)) return;
+    setSaving(true);
+    try {
+      await updateCompetitionReceivedAmount(reg.id, num);
+      onSaved?.(reg.id, num);
+      setJustSaved(true); setTimeout(() => setJustSaved(false), 1500);
+    } catch (err) {
+      alert(err.response?.data?.message || '更新實收金額失敗');
+      setVal(reg.receivedAmount ?? 0);
+    } finally { setSaving(false); }
+  };
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+      <input type="number" value={val} disabled={saving}
+        onChange={e => setVal(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+        style={{ width:80, height:26, fontSize:12, borderRadius:6, border:'1px solid #E8D5D5', padding:'0 6px', boxSizing:'border-box' }} />
+      {justSaved && <span style={{ color:'#2D7D46', fontSize:11 }}>✓</span>}
+    </span>
+  );
+};
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -46,7 +78,7 @@ const emptyForm = () => ({
     { id:`d${Date.now()}1`, name:'V2-V3組', maxParticipants:40, waitlistMax:5 },
     { id:`d${Date.now()}2`, name:'V4-V5組', maxParticipants:40, waitlistMax:5 },
   ],
-  fees: { adultEarlyBird:990, adultRegular:1100, childEarlyBird:840, childRegular:950, teamMemberDiscount:0.9, childAgeLimit:15 },
+  fees: { adultEarlyBird:990, adultRegular:1100, childEarlyBird:840, childRegular:950, teamMemberDiscount:0.9, childAgeLimit:15, insuranceAdult:261, insuranceChild:118 },
   refundPolicies: [
     { deadline: dayjs().add(5,'day').format('YYYY-MM-DD'), rule:'full_minus_admin', adminFee:100 },
     { deadline: dayjs().add(12,'day').format('YYYY-MM-DD'), rule:'half_minus_admin', adminFee:100 },
@@ -117,7 +149,7 @@ export default function CompetitionsPage() {
       registrationStart:c.registrationStart, registrationEnd:c.registrationEnd,
       earlyBirdDeadline:c.earlyBirdDeadline||'', eventDate:c.eventDate,
       divisions: c.divisions?.length ? c.divisions.map(d=>({ id:d.id, name:d.name, maxParticipants:d.maxParticipants||40, waitlistMax:d.waitlistMax||5 })) : emptyForm().divisions,
-      fees: c.fees || emptyForm().fees,
+      fees: { ...emptyForm().fees, ...(c.fees || {}) }, // 舊賽事若缺新欄位（如保險費）→ 補上預設值，避免輸入框空白
       refundPolicies: c.refundPolicies || emptyForm().refundPolicies,
       waiverContent: c.waiverContent||{zh:'',en:''},
       scoringSystem:c.scoringSystem, webhookUrl:c.webhookUrl||'', status:c.status,
@@ -363,6 +395,8 @@ export default function CompetitionsPage() {
                 { k:'childRegular', label:'兒童一般' },
                 { k:'childAgeLimit', label:'兒童年齡上限（歲）' },
                 { k:'partnerGymDiscount', label:'友館折扣（如0.95，空=不開放）' },
+                { k:'insuranceAdult', label:'成人保險費' },
+                { k:'insuranceChild', label:'兒童保險費' },
               ].map(({k,label})=>(
                 <div key={k}>
                   <label style={lbl}>{label}</label>
@@ -540,6 +574,13 @@ export default function CompetitionsPage() {
                 {(r.paymentMethod==='transfer' || r.bankName) && Row('匯款銀行', r.bankName)}
                 {r.paymentDate && Row('繳款日期', r.paymentDate)}
                 {r.paymentStatus==='confirmed' && Row('確認收款', `NT$${r.paidAmount||r.registrationFee}｜${r.paidConfirmedByName||'—'}`)}
+                {r.insuranceFee != null && Row('保險費', `NT$${r.insuranceFee}${r.isChild?'（兒童）':'（成人）'}`)}
+                {Row('實收金額', canManage
+                  ? <RegReceivedAmountEditor reg={r} onSaved={(id, amt) => {
+                      setRegDetail(d => d && d.id === id ? { ...d, receivedAmount: amt, receivedAmountOverride: amt } : d);
+                      setRegistrations(list => list.map(x => x.id === id ? { ...x, receivedAmount: amt, receivedAmountOverride: amt } : x));
+                    }} />
+                  : <span style={{ fontWeight:600, color:'#8B1A1A' }}>NT${r.receivedAmount ?? 0}</span>)}
                 {Row('身高／臂展', `${r.height||'—'} ／ ${r.armSpan||'—'}`)}
                 {Row('身分證', r.idNumber)}
                 {Row('緊急聯絡', `${r.emergencyContact||'—'}${r.emergencyRelation?`（${r.emergencyRelation}）`:''} ${r.emergencyPhone||''}`)}
@@ -572,16 +613,16 @@ export default function CompetitionsPage() {
       {/* 開立發票 Modal（共用元件，與員工端報到頁/課程學員頁同一套） */}
       {invoiceTarget && (() => {
         const r = invoiceTarget;
-        const receivedAmount = r.paidAmount ?? r.memberPaidAmount ?? r.registrationFee ?? 0;
         return (
           <InvoiceModal
             title={r.memberName || ''}
             subtitle={`${r.competitionName || ''}・${r.divisionName || ''}`}
             feeInfo={`報名費用 NT$${r.registrationFee ?? 0}`
+              + (r.insuranceFee != null ? `　保費 NT$${r.insuranceFee}` : '')
               + (r.memberPaidAmount != null ? `　會員自報 NT$${r.memberPaidAmount}` : '')
               + (r.paidAmount != null ? `　店員核對 NT$${r.paidAmount}` : '')}
             defaultItemName={`${r.competitionName || '比賽'}報名費`}
-            defaultAmount={receivedAmount}
+            defaultAmount={r.receivedAmount ?? Math.max(0, (r.paidAmount ?? r.memberPaidAmount ?? r.registrationFee ?? 0) - (r.insuranceFee || 0))}
             onClose={() => setInvoiceTarget(null)}
             listInvoices={() => getRegistrationInvoices(r.id).then(res => res.data.invoices || [])}
             createInvoice={(payload) => createRegistrationInvoice(r.id, payload).then(res => res.data.invoice)}
