@@ -24,6 +24,7 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
     issuedAt: dayjs().format('YYYY-MM-DDTHH:mm'),
     itemName: defaultItemName || '費用',
     amount: defaultAmount ?? 0,
+    track: '', number: '',
     taxId: '', note: '',
   });
   const [history, setHistory] = useState(null);
@@ -40,15 +41,18 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
 
   const submit = async () => {
     if (!(Number(form.amount) > 0)) { setMsg('請輸入大於 0 的發票金額'); return; }
+    if (!/^[A-Za-z]{2}$/.test(form.track.trim())) { setMsg('發票字軌須為 2 碼英文字母'); return; }
+    if (!/^\d{8}$/.test(form.number.trim())) { setMsg('發票號碼須為 8 碼數字'); return; }
     setSaving(true); setMsg('');
     try {
       const invoice = await createInvoice({
         itemName: form.itemName, amount: Number(form.amount), taxId: form.taxId, note: form.note,
+        track: form.track.trim().toUpperCase(), number: form.number.trim(),
         issuedAt: form.issuedAt ? new Date(form.issuedAt).toISOString() : undefined,
       });
       setHistory(h => [invoice, ...(h || [])]);
       setMsg('✅ 已開立發票（已計入當日營收加減項）');
-      setForm(f => ({ ...f, note: '' }));
+      setForm(f => ({ ...f, note: '', track: '', number: '' }));
     } catch (err) {
       setMsg(err.response?.data?.message || '開立發票失敗');
     } finally { setSaving(false); }
@@ -79,6 +83,7 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
       ) : activeInvoice ? (
         <div style={{ background:'#FBF5F5', border:'1px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:16 }}>
           <div style={{ fontSize:12, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>✅ 已開立發票</div>
+          {activeInvoice.invoiceNo && <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:4 }}>{activeInvoice.invoiceNo}</div>}
           <div style={{ fontSize:13 }}>
             {activeInvoice.issuedAt?._seconds ? dayjs(activeInvoice.issuedAt._seconds*1000).format('YYYY/MM/DD HH:mm') : ''}　{activeInvoice.itemName}　<strong>NT${activeInvoice.amount}</strong>
           </div>
@@ -88,7 +93,7 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
 
           {confirmVoidId === activeInvoice.id ? (
             <div style={{ marginTop:10, background:'#FCEBEB', border:'1px solid #F0C0C0', borderRadius:8, padding:10 }}>
-              <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8 }}>確定要作廢此發票？作廢後金額會從當日結帳加減項沖銷，且可重新開立新的一張。</div>
+              <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8 }}>確定要作廢發票 <strong style={{ fontFamily:'monospace' }}>{activeInvoice.invoiceNo}</strong>？作廢後金額會從當日結帳加減項沖銷，且可重新開立新的一張。</div>
               <div style={{ display:'flex', gap:8 }}>
                 <button onClick={() => setConfirmVoidId(null)} disabled={voiding}
                   style={{ flex:1, height:34, borderRadius:8, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:12, cursor:'pointer' }}>取消</button>
@@ -110,6 +115,18 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
           <div style={{ marginBottom:12 }}>
             <label style={labS}>日期時間</label>
             <input type="datetime-local" style={inpS} value={form.issuedAt} onChange={e => setForm(f => ({ ...f, issuedAt: e.target.value }))} />
+          </div>
+          <div style={{ display:'flex', gap:10, marginBottom:12 }}>
+            <div style={{ flex:1 }}>
+              <label style={labS}>發票字軌（2 碼英文）</label>
+              <input style={{ ...inpS, textTransform:'uppercase' }} value={form.track} maxLength={2}
+                onChange={e => setForm(f => ({ ...f, track: e.target.value.replace(/[^A-Za-z]/g, '') }))} placeholder="如：AB" />
+            </div>
+            <div style={{ flex:2 }}>
+              <label style={labS}>發票號碼（8 碼數字）</label>
+              <input style={inpS} value={form.number} maxLength={8}
+                onChange={e => setForm(f => ({ ...f, number: e.target.value.replace(/\D/g, '') }))} placeholder="如：12345678" />
+            </div>
           </div>
           <div style={{ marginBottom:12 }}>
             <label style={labS}>品項</label>
@@ -150,6 +167,7 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
           <div style={{ fontSize:12, color:'#999' }}>尚無開立紀錄</div>
         ) : history.map(inv => (
           <div key={inv.id} style={{ fontSize:12, color: inv.status==='voided' ? '#bbb' : '#444', padding:'6px 0', borderTop:'0.5px solid #F5EFEF', textDecoration: inv.status==='voided' ? 'line-through' : 'none' }}>
+            {inv.invoiceNo ? <span style={{ fontFamily:'monospace', fontWeight:600 }}>{inv.invoiceNo}　</span> : null}
             {inv.issuedAt?._seconds ? dayjs(inv.issuedAt._seconds*1000).format('YYYY/MM/DD HH:mm') : ''}　{inv.itemName}　NT${inv.amount}
             {inv.taxId ? `　統編 ${inv.taxId}` : ''}
             {inv.status === 'voided' && <span style={{ marginLeft:6, color:'#A32D2D', fontWeight:600 }}>已作廢</span>}
