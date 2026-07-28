@@ -136,10 +136,23 @@ export default function DailySettlementPage() {
         if (draft.incomeManual) setIncomeManual(draft.incomeManual);
         if (draft.paymentManual) setPaymentManual(draft.paymentManual);
         showMsg('已載入暫存檔');
-      } else if (!res.data.alreadySettled) {
-        // 無暫存 → 首段起始號帶入前一天最後+1（可改）
-        const sug = res.data.settlement?.suggestedInvoiceStart;
-        if (sug) setInvoiceSegments(prev => (prev.length === 1 && !prev[0].start && !prev[0].last) ? [{ start: sug, last: '' }] : prev);
+      } else {
+        // 這個館別今天沒有暫存檔 → 重置本地表單狀態，避免殘留「上一個檢視館別」的填寫內容
+        // （切換館別時 useEffect 會重打 loadToday，若沒重置，state 會繼續顯示前一館的點鈔/加減項/發票等資料）
+        setDenominations({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
+        setDeductions([]);
+        setInvoiceSegments([{ start:'', last:'' }]);
+        setVoidList([]);
+        setVoidInvoiceAmount('');
+        setCardOrangeFirst(''); setCardFullFirst('');
+        setNotes('');
+        setIncomeManual({});
+        setPaymentManual({});
+        if (!res.data.alreadySettled) {
+          // 首段起始號帶入前一天最後+1（可改）
+          const sug = res.data.settlement?.suggestedInvoiceStart;
+          if (sug) setInvoiceSegments([{ start: sug, last: '' }]);
+        }
       }
     } catch (e) { showMsg('載入失敗', 'err'); }
     finally { setLoading(false); }
