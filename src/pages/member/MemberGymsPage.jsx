@@ -4,6 +4,7 @@ import { t } from '../../utils/memberI18n';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getGyms, getAnnouncements } from '../../api/gyms';
 import dayjs from 'dayjs';
+import { gymOpenLabel } from '../../utils/gymOpenStatus';
 
 const DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
 const DAY_LABELS = { mon:'週一', tue:'週二', wed:'週三', thu:'週四', fri:'週五', sat:'週六', sun:'週日' };
@@ -114,9 +115,15 @@ export default function MemberGymsPage() {
         <>
           {/* 今日狀態卡 */}
           <div style={{ margin:'14px 14px 0' }}>
-            <div style={{ background: selectedGym.todayStatus?.isOpen ? 'linear-gradient(135deg,#1E5C30,#2D7D46)' : 'linear-gradient(135deg,#7A1A1A,#A32D2D)', borderRadius:14, padding:18, color:'#fff' }}>
+            {(() => {
+              const st = gymOpenLabel(selectedGym.todayStatus);
+              const gradient = selectedGym.todayStatus?.isOpenNow === true ? 'linear-gradient(135deg,#1E5C30,#2D7D46)'
+                : selectedGym.todayStatus?.isOpenNow === false ? 'linear-gradient(135deg,#8A5A00,#B5762B)'
+                : 'linear-gradient(135deg,#7A1A1A,#A32D2D)';
+              return (
+            <div style={{ background: gradient, borderRadius:14, padding:18, color:'#fff' }}>
               <div style={{ fontSize:10, opacity:.75, letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>今日狀態</div>
-              <div style={{ fontSize:22, fontWeight:700, marginBottom:4 }}>{selectedGym.todayStatus?.isOpen ? '營業中' : '今日休館'}</div>
+              <div style={{ fontSize:22, fontWeight:700, marginBottom:4 }}>{st.label}</div>
               {selectedGym.todayStatus?.todayHours && <div style={{ fontSize:15, opacity:.9 }}>🕙 {selectedGym.todayStatus.todayHours}</div>}
               {selectedGym.todayStatus?.specialNote && (
                 <div style={{ background:'rgba(255,255,255,.2)', borderRadius:8, padding:'6px 10px', fontSize:12, marginTop:8 }}>
@@ -124,6 +131,7 @@ export default function MemberGymsPage() {
                 </div>
               )}
             </div>
+              ); })()}
           </div>
 
           {/* Tab */}

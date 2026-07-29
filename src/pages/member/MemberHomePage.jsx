@@ -8,6 +8,7 @@ import { memberClient } from '../../api/client';
 import MemberOnboardingGate from '../../components/MemberOnboardingGate';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import dayjs from 'dayjs';
+import { gymOpenLabel } from '../../utils/gymOpenStatus';
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
@@ -278,9 +279,11 @@ export default function MemberHomePage() {
               onMouseLeave={e => e.currentTarget.style.borderColor='#E8D5D5'}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
                 <div style={{ fontWeight:500, fontSize:13 }}>{g.shortName}</div>
-                <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:8, background: g.todayStatus?.isOpen ? '#E6F4EB' : '#FCEBEB', color: g.todayStatus?.isOpen ? '#2D7D46' : '#A32D2D' }}>
-                  {g.todayStatus?.isOpen ? '營業中' : '休館'}
-                </span>
+                {(() => { const st = gymOpenLabel(g.todayStatus); return (
+                  <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:8, background: st.bg, color: st.color }}>
+                    {st.label}
+                  </span>
+                ); })()}
               </div>
               <div style={{ fontSize:12, color:'#999' }}>
                 {g.todayStatus?.todayHours || '—'}
