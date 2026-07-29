@@ -6,7 +6,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
-import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, cancelRegistration, updateCompetitionForm, reregisterCompetition } from '../../api/competitions';
+import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, getCompetitionQuote, cancelRegistration, updateCompetitionForm, reregisterCompetition } from '../../api/competitions';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
@@ -221,6 +221,8 @@ export default function MemberCompetitionsPage() {
     return refDate.diff(dayjs(registrant.birthday), 'year') < 18;
   })();
 
+  // 瀏覽清單用的粗略預覽（未選定確切報名對象前）：以登入者本人的隊員身份為準（後端 /quote 才是權威、
+  // 送出報名/實際付款一律以後端為準）；折扣不疊加，隊員9折/友館折擇優取較低價，呼應後端邏輯。
   const calcFee = (comp) => {
     if (!comp) return null;
     const fees = comp.fees || {};
@@ -230,16 +232,33 @@ export default function MemberCompetitionsPage() {
     const refDate = comp?.eventDate ? dayjs(comp.eventDate) : dayjs();
     const age = registrant?.birthday ? refDate.diff(dayjs(registrant.birthday), 'year') : 99;
     const isChild = age < childLimit;
-    let fee = isChild
+    const baseFee = isChild
       ? (isEarlyBird ? fees.childEarlyBird : fees.childRegular) ?? 950
       : (isEarlyBird ? fees.adultEarlyBird : fees.adultRegular) ?? 1100;
-    let partnerApplied = false;
+    const cands = [{ fee: baseFee, kind: 'none' }];
+    if (member?.isTeamMember) cands.push({ fee: Math.round(baseFee * 0.9), kind: 'team' });
     const pRate = Number(fees.partnerGymDiscount);
-    if (partnerGymId && pRate > 0 && pRate < 1) { fee = Math.round(fee * pRate); partnerApplied = true; }
-    return { fee, isEarlyBird, isChild, partnerApplied };
+    if (partnerGymId && pRate > 0 && pRate < 1) cands.push({ fee: Math.round(baseFee * pRate), kind: 'partner' });
+    const win = cands.reduce((a, b) => (b.fee < a.fee ? b : a));
+    return { fee: win.fee, isEarlyBird, isChild, partnerApplied: win.kind === 'partner', teamApplied: win.kind === 'team' };
   };
 
-  const feeInfo = calcFee(selectedComp);
+  // 報名 modal 內的實際應繳（後端權威 /quote，含隊員9折/友館折擇優）——避免前端土法計算漏算折扣、
+  // 顯示原價讓會員誤以為沒打折（曾發生：隊員填完報名表看到 990、實際送出後端算出來是 891）
+  const [quote, setQuote] = useState(null);
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  useEffect(() => {
+    const targetId = registerForId || member?.id;
+    if (!showModal || !selectedComp || !targetId) { setQuote(null); return; }
+    let cancelled = false;
+    setQuoteLoading(true);
+    getCompetitionQuote(selectedComp.id, { memberId: targetId, partnerGymId: partnerGymId || undefined })
+      .then(res => { if (!cancelled) setQuote(res.data.quote); })
+      .catch(() => { if (!cancelled) setQuote(null); })
+      .finally(() => { if (!cancelled) setQuoteLoading(false); });
+    return () => { cancelled = true; };
+  }, [showModal, selectedComp?.id, registerForId, member?.id, partnerGymId]);
+  const feeInfo = quote ? { fee: quote.registrationFee, isEarlyBird: quote.isEarlyBird, isChild: quote.isChild, partnerApplied: quote.partnerGymApplied, teamApplied: quote.teamDiscountApplied } : null;
 
   const load = async () => {
     setLoading(true);
@@ -325,6 +344,7 @@ export default function MemberCompetitionsPage() {
 
   const nextStep = () => {
     if (step === 1) {
+      if (quoteLoading || !feeInfo) { showMsg('費用計算中，請稍候再試', 'red'); return; }
       if (!divisionId) { showMsg('請選擇報名組別', 'red'); return; }
       if (personRegistered(selectedComp.id, registerForId || member?.id)) { showMsg('此報名對象已報名此賽事', 'red'); return; }
       if (regGender !== 'male' && regGender !== 'female') { showMsg('請選擇性別', 'red'); return; }
@@ -676,9 +696,10 @@ export default function MemberCompetitionsPage() {
               {step===1 && (<>
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:14 }}>
                   <div style={{ fontSize:12, color:'#666' }}>姓名：{member?.name}　生日：{member?.birthday}</div>
-                  {feeInfo && <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:600, marginTop:4 }}>
-                    {feeInfo.isEarlyBird ? '🐦 早鳥優惠　' : ''}{feeInfo.partnerApplied ? '🧗 友館折扣　' : ''}報名費：NT${feeInfo.fee}
-                  </div>}
+                  {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginTop:4 }}>費用計算中…</div> : feeInfo && (
+                  <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:600, marginTop:4 }}>
+                    {feeInfo.isEarlyBird ? '🐦 早鳥優惠　' : ''}{feeInfo.teamApplied ? '🧗 隊員優惠　' : ''}{feeInfo.partnerApplied ? '🧗 友館折扣　' : ''}報名費：NT${feeInfo.fee}
+                  </div>)}
                 </div>
                 {/* 為誰報名 */}
                 {familyMembers.length > 0 && (
@@ -808,7 +829,9 @@ export default function MemberCompetitionsPage() {
               {/* Step 2: 付款資訊 */}
               {step===2 && (<>
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
-                  <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>報名費：<strong style={{ color:'#8B1A1A', fontSize:15 }}>NT${feeInfo?.fee}</strong> {feeInfo?.isEarlyBird?'（早鳥）':''}</div>
+                  {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginBottom:4 }}>費用計算中…</div> : (
+                  <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>報名費：<strong style={{ color:'#8B1A1A', fontSize:15 }}>NT${feeInfo?.fee}</strong> {feeInfo?.isEarlyBird?'（早鳥）':''}{feeInfo?.teamApplied?'（隊員優惠）':''}{feeInfo?.partnerApplied?'（友館折扣）':''}</div>
+                  )}
                   {(() => { const N = selectedComp?.paymentDeadlineDays ?? 3; const dl = dayjs().add(N,'day').format('YYYY-MM-DD'); return (
                     <div style={{ fontSize:11, color:'#A32D2D', lineHeight:1.6 }}>
                       ⏰ 繳款期限：請於報名後 {N} 日內（<strong>{dl}</strong> 前）完成繳費。<br/>
