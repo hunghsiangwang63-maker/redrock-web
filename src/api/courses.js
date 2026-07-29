@@ -77,6 +77,9 @@ export const updateSession = (sessionId, data) =>
 export const deleteCourse = (courseId) =>
   client.delete(`/courses/${courseId}`);
 
+export const reopenCourse = (courseId) =>
+  client.post(`/courses/${courseId}/reopen`);
+
 // 永久刪除（含場次/報名，僅限無在籍學員）
 export const permanentDeleteCourse = (courseId) =>
   client.delete(`/courses/${courseId}/permanent`);

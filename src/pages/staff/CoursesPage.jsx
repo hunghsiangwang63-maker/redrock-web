@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/courseCategories';
 import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
-         generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, permanentDeleteCourse } from '../../api/courses';
+         generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, reopenCourse, permanentDeleteCourse } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import client from '../../api/client';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
@@ -522,6 +522,17 @@ export default function CoursesPage({ embedded = false }) {
     }
   };
 
+  const handleReopenCourse = async (course) => {
+    if (!window.confirm(`重新開啟「${course.name}」？將還原這次取消時一併取消的場次與報名（休館停課等其他原因取消的場次不受影響）。`)) return;
+    try {
+      const res = await reopenCourse(course.id);
+      showMsg(`課程已重新開啟（還原場次 ${res.data.sessionsReopened}、報名 ${res.data.enrollmentsRestored}）`);
+      await loadCourses();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '重新開啟失敗', 'red');
+    }
+  };
+
   // 停用/啟用課程（會員課程總覽隱藏/顯示，可逆；不通知學員、不動報名，與「取消課程」不同）
   const handleToggleCourseActive = async (course, isActive) => {
     if (!isActive && !window.confirm(`停用「${course.name}」？停用後會員在課程總覽將看不到（不會通知學員、不影響已報名者），日後可再啟用。`)) return;
@@ -936,9 +947,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         <button onClick={() => handleToggleCourseActive(c, false)}
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #B5762B', color:'#B5762B', fontSize:11, cursor:'pointer' }}>停用</button>
                       ))}
-                      {c.status !== 'cancelled' && (
+                      {c.status !== 'cancelled' ? (
                         <button onClick={() => handleDeleteCourse(c)}
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>取消</button>
+                      ) : (
+                        <button onClick={() => handleReopenCourse(c)}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>重新開啟</button>
                       )}
                       {isSuperAdmin && (
                         <button onClick={() => handlePermanentDelete(c)}
