@@ -1051,7 +1051,7 @@ export default function MemberCoursesPage() {
                             <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(c.gymId)}{c.name}</div>
                             {isFull
                               ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E0E0', color:'#8B1A1A' }}>額滿</span>
-                              : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>{isWorkshop ? '尚有名額' : `剩 ${remaining} 位`}</span>}
+                              : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>尚有名額</span>}
                           </div>
                           <div style={{ fontSize:12, color:'#777', lineHeight:1.7 }}>
                             {c.type !== 'workshop' && <div>🗓 每週{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>}

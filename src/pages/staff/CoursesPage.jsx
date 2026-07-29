@@ -874,12 +874,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
         }
 
         // ── 第二層：某類別的各梯次 ──
-        // 排序：週一→週日（週日排最後）、同日再依開始時間（與會員端一致）
-        const _wkKey = (c) => { const d = (c.weekdays && c.weekdays.length) ? c.weekdays[0] : 99; return d === 0 ? 7 : d; };
-        // 已結束（含取消）排最底，進行中/招生中排上面；同組內再依星期→開始時間
-        const _endedRank = (c) => (c.statusLabel === 'ended' || c.statusLabel === 'cancelled') ? 1 : 0;
+        // 排序：進行中最前 → 報名中/即將開始/已滿 → 已結束 → 取消最後；同組內依開課日期→名稱
+        const _statusRank = (c) => ({ ongoing:0, starting_soon:1, full:1, enrolling:1, ended:2, cancelled:3 })[c.statusLabel] ?? 1;
         const list = [...(groups[selectedCategory] || [])].sort((a, b) =>
-          _endedRank(a) - _endedRank(b) || _wkKey(a) - _wkKey(b) || (a.startTime || '').localeCompare(b.startTime || ''));
+          _statusRank(a) - _statusRank(b) || (a.startDate || '').localeCompare(b.startDate || '') || (a.name || '').localeCompare(b.name || '', 'zh-Hant'));
         return (
           <>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
