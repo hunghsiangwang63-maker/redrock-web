@@ -8,6 +8,7 @@ import StaffEntryQrPage from './pages/staff/StaffEntryQrPage';
 import PublicExperienceBookingPage from './pages/public/PublicExperienceBookingPage';
 import PublicTrialBookingPage from './pages/public/PublicTrialBookingPage';
 import PublicCourseEnrollPage from './pages/public/PublicCourseEnrollPage';
+import PublicCourseCategoryPage from './pages/public/PublicCourseCategoryPage';
 import PublicWorkshopEnrollPage from './pages/public/PublicWorkshopEnrollPage';
 import PublicCompetitionRegisterPage from './pages/public/PublicCompetitionRegisterPage';
 import CheckinPage from './pages/staff/CheckinPage';
@@ -110,6 +111,7 @@ function MemberRoutes() {
       <Route path="/book/experience" element={<PublicExperienceBookingPage />} />
       <Route path="/book/trial" element={<PublicTrialBookingPage />} />
       <Route path="/book/course" element={<PublicCourseEnrollPage />} />
+      <Route path="/book/category" element={<PublicCourseCategoryPage />} />
       <Route path="/book/workshop" element={<PublicWorkshopEnrollPage />} />
       <Route path="/book/competition" element={<PublicCompetitionRegisterPage />} />
       <Route path="/member/verify"   element={<MemberVerifyResultPage />} />

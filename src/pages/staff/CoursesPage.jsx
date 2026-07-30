@@ -752,6 +752,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
     } else { window.prompt('複製此公開報名連結：', url); }
   };
   const copyPublicEnrollLink = (c) => copyPublicLink(`https://app.redrocktaiwan.com/book/course?course=${c.id}`);
+  const copyPublicCategoryLink = (cat) => copyPublicLink(`https://app.redrocktaiwan.com/book/category?id=${cat.id}`);
   const copyPublicWorkshopLink = (courseId, sessionId) => copyPublicLink(`https://app.redrocktaiwan.com/book/workshop?course=${courseId}&session=${sessionId}`);
   const copyPublicTrialLink = (sessionId) => copyPublicLink(`https://app.redrocktaiwan.com/book/trial?session=${sessionId}`);
   const loadCourseRoster = async (course) => {
@@ -1553,6 +1554,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         </div>
                       </div>
                       <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                        <button onClick={() => copyPublicCategoryLink(c)} title="免登入，非會員可看此班別底下所有梯次並直接報名"
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>
+                          🔗 公開連結
+                        </button>
                         <button onClick={() => openEditCategory(c)}
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#444', fontSize:11, cursor:'pointer' }}>
                           編輯
