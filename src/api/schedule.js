@@ -14,5 +14,6 @@ export const copyPreviousMonthSchedule = (gymId, month) => client.post('/schedul
 // 重要事項標籤（休館/比賽/維修等）
 export const getScheduleEvents = (gymId, month) => client.get('/schedule/events', { params: { gymId, month } });
 export const createScheduleEvent = (data) => client.post('/schedule/events', data);
+export const createRecurringScheduleEvent = (data) => client.post('/schedule/events/recurring', data);
 export const updateScheduleEvent = (eventId, data) => client.put(`/schedule/events/${eventId}`, data);
 export const deleteScheduleEvent = (eventId) => client.delete(`/schedule/events/${eventId}`);

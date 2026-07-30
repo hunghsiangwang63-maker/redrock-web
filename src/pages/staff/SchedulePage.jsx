@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule, getScheduleEvents, createScheduleEvent, updateScheduleEvent, deleteScheduleEvent } from '../../api/schedule';
+import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule, getScheduleEvents, createScheduleEvent, createRecurringScheduleEvent, updateScheduleEvent, deleteScheduleEvent } from '../../api/schedule';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -61,7 +61,7 @@ export default function SchedulePage() {
   const [events, setEvents] = useState([]);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
-  const [eventForm, setEventForm] = useState({ gymId:'', date:'', allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'' });
+  const [eventForm, setEventForm] = useState({ gymId:'', date:'', allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'', recurType:'none' });
   const [eventSaving, setEventSaving] = useState(false);
 
   const monthLabel = () => dayjs(`${month}-01`).format('YYYY年MM月');
@@ -179,7 +179,7 @@ export default function SchedulePage() {
   const openAddEvent = (date) => {
     if (!canManageEvents) return;
     setEditingEvent(null);
-    setEventForm({ gymId: targetGymId, date, allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'' });
+    setEventForm({ gymId: targetGymId, date, allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'', recurType:'none' });
     setShowEventModal(true);
   };
 
@@ -189,7 +189,7 @@ export default function SchedulePage() {
     setEventForm({
       gymId: ev.gymId || '', date: ev.date, allDay: ev.allDay,
       startTime: ev.startTime || '10:00', endTime: ev.endTime || '18:00',
-      category: ev.category, title: ev.title || '', note: ev.note || '',
+      category: ev.category, title: ev.title || '', note: ev.note || '', recurType: 'none',
     });
     setShowEventModal(true);
   };
@@ -210,6 +210,9 @@ export default function SchedulePage() {
       if (editingEvent) {
         await updateScheduleEvent(editingEvent.id, payload);
         showMsg('重要事項已更新');
+      } else if (eventForm.recurType && eventForm.recurType !== 'none') {
+        const res = await createRecurringScheduleEvent({ ...payload, startDate: eventForm.date, recurType: eventForm.recurType });
+        showMsg(`已建立 ${res.data.count} 筆循環重要事項`);
       } else {
         await createScheduleEvent(payload);
         showMsg('重要事項已新增');
@@ -637,10 +640,28 @@ export default function SchedulePage() {
             </div>
           )}
           <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>日期</label>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{!editingEvent && eventForm.recurType !== 'none' ? '起始日期' : '日期'}</label>
             <input type="date" value={eventForm.date} onChange={e => setEventForm({...eventForm, date:e.target.value})}
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
           </div>
+          {!editingEvent && (
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>循環安排</label>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {[{key:'none',label:'不循環'},{key:'weekly',label:'每週'},{key:'biweekly',label:'每兩週'},{key:'monthly',label:'每月固定日期'}].map(o => (
+                  <button key={o.key} onClick={() => setEventForm({...eventForm, recurType:o.key})}
+                    style={{ flex:'1 1 auto', minWidth:76, height:36, borderRadius:8, border: eventForm.recurType===o.key?'none':'0.5px solid #E8D5D5', background: eventForm.recurType===o.key?'#8B1A1A':'#fff', color: eventForm.recurType===o.key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+              {eventForm.recurType !== 'none' && (
+                <div style={{ fontSize:11, color:'#999', marginTop:6 }}>
+                  將從起始日期起，依「{{weekly:'每週',biweekly:'每兩週',monthly:'每月固定日期'}[eventForm.recurType]}」重複建立，最長 1 年（12 個月）內的所有日期。
+                </div>
+              )}
+            </div>
+          )}
           <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>類別</label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
