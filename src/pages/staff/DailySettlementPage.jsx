@@ -140,16 +140,17 @@ export default function DailySettlementPage() {
         // （切換館別時 useEffect 會重打 loadToday，若沒重置，state 會繼續顯示前一館的點鈔/加減項/發票等資料）
         setDenominations({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
         setDeductions([]);
-        setInvoiceSegments([{ start:'', last:'' }]);
+        setInvoiceSegments([{ track:'', start:'', last:'' }]);
         setVoidList([]);
         setVoidInvoiceAmount('');
         setNotes('');
         setIncomeManual({});
         setPaymentManual({});
         if (!res.data.alreadySettled) {
-          // 首段起始號帶入前一天最後+1（可改）
+          // 首段起始號帶入前一天最後+1、字軌沿用前一天最後一段（換發票本才需要手動改）
           const sug = res.data.settlement?.suggestedInvoiceStart;
-          if (sug) setInvoiceSegments([{ start: sug, last: '' }]);
+          const sugTrack = res.data.settlement?.suggestedInvoiceTrack;
+          if (sug || sugTrack) setInvoiceSegments([{ track: sugTrack || '', start: sug || '', last: '' }]);
         }
       }
     } catch (e) { showMsg('載入失敗', 'err'); }
