@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { approveTicket } from '../../api/passes';
 
 // 單次入場券「核准」彈窗：顯示票券詳情，按「核准」才正式審核通過
+// 單次入場券為館方招待/贈券性質，無金額與付款方式
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
-const PAY_LABEL = { cash: '現金', transfer: '轉帳', linepay: 'LinePay', jkopay: '街口', taiwanpay: '台灣Pay' };
 
 const Row = ({ label, children }) => (
   <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '0.5px solid #F5EFEF', fontSize: 13 }}>
@@ -45,8 +45,6 @@ export default function TicketApprovalModal({ record, onClose, onDone }) {
 
         <div style={{ marginBottom: 16 }}>
           <Row label="會員">{record.memberName || '—'}</Row>
-          <Row label="金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
-          <Row label="付款方式">{PAY_LABEL[record.paymentMethod] || record.paymentMethod || '—'}</Row>
           <Row label="開立日">{record.issuedAt || '—'}</Row>
           <Row label="有效期限">{record.expiresAt || '—'}</Row>
           <Row label="館別">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
@@ -58,7 +56,7 @@ export default function TicketApprovalModal({ record, onClose, onDone }) {
         {error && <div style={{ background: '#FCEBEB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#A32D2D', marginBottom: 12 }}>{error}</div>}
 
         <div style={{ background: '#FBF5F5', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#854F0B', marginBottom: 14 }}>
-          請確認已收款且資料無誤後再核准；核准後票券即可使用入場。
+          請確認發放對象與備註說明無誤後再核准；核准後票券即可使用入場。
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
