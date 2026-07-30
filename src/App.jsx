@@ -6,6 +6,10 @@ import { MemberProvider, useMember } from './store/memberStore.jsx';
 import LoginPage from './pages/staff/LoginPage';
 import StaffEntryQrPage from './pages/staff/StaffEntryQrPage';
 import PublicExperienceBookingPage from './pages/public/PublicExperienceBookingPage';
+import PublicTrialBookingPage from './pages/public/PublicTrialBookingPage';
+import PublicCourseEnrollPage from './pages/public/PublicCourseEnrollPage';
+import PublicWorkshopEnrollPage from './pages/public/PublicWorkshopEnrollPage';
+import PublicCompetitionRegisterPage from './pages/public/PublicCompetitionRegisterPage';
 import CheckinPage from './pages/staff/CheckinPage';
 import MembersPage from './pages/staff/MembersPage';
 import PassesPage from './pages/staff/PassesPage';
@@ -104,6 +108,10 @@ function MemberRoutes() {
       <Route path="/member/reset-password"   element={<MemberResetPasswordPage />} />
       <Route path="/member/register" element={<MemberRegisterPage />} />
       <Route path="/book/experience" element={<PublicExperienceBookingPage />} />
+      <Route path="/book/trial" element={<PublicTrialBookingPage />} />
+      <Route path="/book/course" element={<PublicCourseEnrollPage />} />
+      <Route path="/book/workshop" element={<PublicWorkshopEnrollPage />} />
+      <Route path="/book/competition" element={<PublicCompetitionRegisterPage />} />
       <Route path="/member/verify"   element={<MemberVerifyResultPage />} />
       <Route path="/member/home"    element={<MemberRoute><MemberHomePage /></MemberRoute>} />
       <Route path="/member/qr"      element={<MemberRoute><MemberQRPage /></MemberRoute>} />

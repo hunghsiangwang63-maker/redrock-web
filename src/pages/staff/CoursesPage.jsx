@@ -742,6 +742,18 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       );
     } else { window.prompt('複製此報名連結：', url); }
   };
+  // 公開報名連結（免登入、訪客可用，不需要先註冊帳號）
+  const copyPublicLink = (url) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).then(
+        () => showMsg('公開報名連結已複製，可分享給非會員：\n' + url),
+        () => window.prompt('複製此公開報名連結：', url)
+      );
+    } else { window.prompt('複製此公開報名連結：', url); }
+  };
+  const copyPublicEnrollLink = (c) => copyPublicLink(`https://app.redrocktaiwan.com/book/course?course=${c.id}`);
+  const copyPublicWorkshopLink = (courseId, sessionId) => copyPublicLink(`https://app.redrocktaiwan.com/book/workshop?course=${courseId}&session=${sessionId}`);
+  const copyPublicTrialLink = (sessionId) => copyPublicLink(`https://app.redrocktaiwan.com/book/trial?session=${sessionId}`);
   const loadCourseRoster = async (course) => {
     setRosterModal({ course, enrollments: null });
     setRosterLoading(true);
@@ -935,6 +947,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>名單</button>
                       <button onClick={() => copyEnrollLink(c)}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>🔗 連結</button>
+                      {c.type !== 'workshop' && (
+                        <button onClick={() => copyPublicEnrollLink(c)} title="免登入，非會員也能用此連結報名"
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>🔗 公開報名連結</button>
+                      )}
                       <SimulateRegistrationButton type="course" targetId={c.id} />
                       {c.type !== 'workshop' && c.categoryGroup !== 'workshop' && (
                       <button onClick={() => loadLeaveMakeup(c)}
@@ -1339,6 +1355,19 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #C0392B', color:'#C0392B', fontSize:12, cursor:'pointer' }}>
                           ⛔ 休館停課
                         </button>
+                      )}
+                      {selectedSession.status !== 'cancelled' && (
+                        selectedCourse?.type === 'workshop' ? (
+                          <button onClick={() => copyPublicWorkshopLink(selectedCourse.id, selectedSession.id)} title="免登入，非會員也能用此連結報名此堂工作坊"
+                            style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:12, cursor:'pointer' }}>
+                            🔗 公開報名連結
+                          </button>
+                        ) : (
+                          <button onClick={() => copyPublicTrialLink(selectedSession.id)} title="免登入，非會員也能用此連結報名此堂試上"
+                            style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:12, cursor:'pointer' }}>
+                            🔗 公開試上連結
+                          </button>
+                        )
                       )}
                       <button onClick={() => setShowEnroll(true)}
                         style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>

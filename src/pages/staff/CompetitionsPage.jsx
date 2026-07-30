@@ -118,6 +118,12 @@ export default function CompetitionsPage() {
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(() => showMsg('報名連結已複製，可貼到 LINE 分享：\n' + url), () => window.prompt('複製此報名連結：', url));
     else window.prompt('複製此報名連結：', url);
   };
+  // 公開報名連結（免登入、訪客可用，不需要先註冊帳號）
+  const copyPublicCompLink = (c) => {
+    const url = `https://app.redrocktaiwan.com/book/competition?id=${c.id}`;
+    if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(() => showMsg('公開報名連結已複製，可分享給非會員：\n' + url), () => window.prompt('複製此公開報名連結：', url));
+    else window.prompt('複製此公開報名連結：', url);
+  };
 
   const submitFormAction = async () => {
     if (!formReason.trim()) { showMsg('請填寫原因（報名者會看到）', 'red'); return; }
@@ -341,6 +347,7 @@ export default function CompetitionsPage() {
                     {c.status==='closed' && <button onClick={()=>handleStatusChange(c,'open')} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46', border:'0.5px solid #B3DEC0', fontSize:12, cursor:'pointer' }}>重新開放</button>}
                     <button onClick={()=>openRegistrations(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#E6F1FB', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>查看名單</button>
                     {c.status==='open' && <button onClick={()=>copyCompLink(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#2D7D46', border:'0.5px solid #2D7D46', fontSize:12, cursor:'pointer' }}>🔗 連結</button>}
+                    {c.status==='open' && <button onClick={()=>copyPublicCompLink(c)} title="免登入，非會員也能用此連結報名" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#185FA5', border:'0.5px solid #185FA5', fontSize:12, cursor:'pointer' }}>🔗 公開報名連結</button>}
                     {c.status==='open' && <SimulateRegistrationButton type="competition" targetId={c.id} btnStyle={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#8B4513', border:'0.5px solid #C99', fontSize:12, cursor:'pointer' }} />}
                     {c.scoringSystem==='competition_management_v2' && (
                       <button onClick={()=>startScoring(c)} disabled={syncingId===c.id}
