@@ -61,8 +61,8 @@ export default function DailySettlementPage() {
   const [liveSettlement, setLiveSettlement] = useState(null); // 已結帳時後端另回的即時重算收入（再次結帳用）
   const [denominations, setDenominations] = useState({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
   const [deductions, setDeductions] = useState([]);
-  // 發票多段：一天內換發票捲可加多段起末號
-  const [invoiceSegments, setInvoiceSegments] = useState([{ start:'', last:'' }]);
+  // 發票多段：一天內換發票捲可加多段起末號（track＝字軌，如 AB，跟著換捲可能改變）
+  const [invoiceSegments, setInvoiceSegments] = useState([{ track:'', start:'', last:'' }]);
   const [showConfirm, setShowConfirm] = useState(false);   // 完成結帳確認 modal
   const [savingDraft, setSavingDraft] = useState(false);
   const [resettleMode, setResettleMode] = useState(false); // 當日再次結帳（由已結帳畫面進入）
@@ -71,7 +71,7 @@ export default function DailySettlementPage() {
   const addSegment = () => setInvoiceSegments(prev => {
     const lastSeg = prev[prev.length - 1];
     const suggest = /^\d+$/.test(String(lastSeg?.last || '')) ? String(Number(lastSeg.last) + 1).padStart(String(lastSeg.last).length, '0') : '';
-    return [...prev, { start: suggest, last: '' }];
+    return [...prev, { track: lastSeg?.track || '', start: suggest, last: '' }];
   });
   const removeSegment = (i) => setInvoiceSegments(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
   const [voidList, setVoidList] = useState([]);   // 作廢發票號碼（逐張標籤）
@@ -126,7 +126,7 @@ export default function DailySettlementPage() {
         if (draft.denominations) setDenominations(draft.denominations);
         if (Array.isArray(draft.deductions)) setDeductions(draft.deductions);
         if (Array.isArray(draft.invoiceSegments) && draft.invoiceSegments.length) setInvoiceSegments(draft.invoiceSegments);
-        else if (draft.invoiceStartNumber || draft.invoiceLastNumber) setInvoiceSegments([{ start: draft.invoiceStartNumber || '', last: draft.invoiceLastNumber || '' }]);
+        else if (draft.invoiceStartNumber || draft.invoiceLastNumber) setInvoiceSegments([{ track: '', start: draft.invoiceStartNumber || '', last: draft.invoiceLastNumber || '' }]);
         if (draft.invoiceVoidNumbers) setVoidList(String(draft.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean));
         if (draft.voidInvoiceAmount) setVoidInvoiceAmount(String(draft.voidInvoiceAmount));
         setNotes(draft.notes || '');
@@ -182,7 +182,7 @@ export default function DailySettlementPage() {
   const addDeduction = () => setDeductions(prev => [...prev, { sign: '-', type: DEDUCTION_TYPES[0], amount: '', note: '' }]);
   const removeDeduction = (i) => setDeductions(prev => prev.filter((_, idx) => idx !== i));
 
-  const cleanSegments = () => invoiceSegments.map(sg => ({ start: String(sg.start || '').trim(), last: String(sg.last || '').trim() })).filter(sg => sg.start || sg.last);
+  const cleanSegments = () => invoiceSegments.map(sg => ({ track: String(sg.track || '').trim().toUpperCase(), start: String(sg.start || '').trim(), last: String(sg.last || '').trim() })).filter(sg => sg.track || sg.start || sg.last);
   const buildBody = () => ({
     gymId, income: settlement?.income, payment: settlement?.payment,
     deductions, denominations, notes,
@@ -223,7 +223,7 @@ export default function DailySettlementPage() {
     if (st?.denominations) setDenominations(st.denominations);
     if (Array.isArray(st?.deductions)) setDeductions(st.deductions);
     if (Array.isArray(st?.invoiceSegments) && st.invoiceSegments.length) setInvoiceSegments(st.invoiceSegments);
-    else setInvoiceSegments([{ start: st?.invoiceStartNumber || '', last: st?.invoiceLastNumber || '' }]);
+    else setInvoiceSegments([{ track: '', start: st?.invoiceStartNumber || '', last: st?.invoiceLastNumber || '' }]);
     setVoidList(st?.invoiceVoidNumbers ? String(st.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []);
     setVoidInvoiceAmount(st?.voidInvoiceAmount ? String(st.voidInvoiceAmount) : '');
     setNotes(st?.notes || ''); setResettleReason('');
@@ -352,7 +352,7 @@ export default function DailySettlementPage() {
                     netAdjust={(h.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
                     actualCash={h.actualCashBalance || 0}
                     difference={h.difference || 0}
-                    segments={(h.invoiceSegments && h.invoiceSegments.length) ? h.invoiceSegments : [{ start: h.invoiceStartNumber || '', last: h.invoiceLastNumber || '' }]}
+                    segments={(h.invoiceSegments && h.invoiceSegments.length) ? h.invoiceSegments : [{ track: '', start: h.invoiceStartNumber || '', last: h.invoiceLastNumber || '' }]}
                     voids={h.invoiceVoidNumbers ? String(h.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
                     voidAmount={h.voidInvoiceAmount || 0}
                     denominations={h.denominations} />
@@ -380,7 +380,7 @@ export default function DailySettlementPage() {
               netAdjust={(settlement?.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
               actualCash={settlement?.actualCashBalance || 0}
               difference={settlement?.difference || 0}
-              segments={(settlement?.invoiceSegments && settlement.invoiceSegments.length) ? settlement.invoiceSegments : [{ start: settlement?.invoiceStartNumber || '', last: settlement?.invoiceLastNumber || '' }]}
+              segments={(settlement?.invoiceSegments && settlement.invoiceSegments.length) ? settlement.invoiceSegments : [{ track: '', start: settlement?.invoiceStartNumber || '', last: settlement?.invoiceLastNumber || '' }]}
               voids={settlement?.invoiceVoidNumbers ? String(settlement.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
               voidAmount={settlement?.voidInvoiceAmount || 0}
               denominations={settlement?.denominations} />
@@ -566,6 +566,7 @@ export default function DailySettlementPage() {
             {invoiceSegments.map((sg, i) => (
               <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                 <span style={{ ...s.label, minWidth:56 }}>{invoiceSegments.length > 1 ? `第 ${i+1} 段` : '發票號'}</span>
+                <input value={sg.track || ''} onChange={e => setSegment(i, 'track', e.target.value.toUpperCase().slice(0, 2))} placeholder="字軌" style={{ ...s.input, width:60, textAlign:'center', textTransform:'uppercase' }} />
                 <input value={sg.start} onChange={e => setSegment(i, 'start', e.target.value)} placeholder="起始號" style={{ ...s.input, width:130 }} />
                 <span style={{ color:'#999' }}>～</span>
                 <input value={sg.last} onChange={e => setSegment(i, 'last', e.target.value)} placeholder="最後一張" style={{ ...s.input, width:130 }} />
@@ -819,8 +820,8 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch', borderBottom:'none' }}>
         <span style={{ color:'#666', marginBottom:4 }}>發票起末號碼</span>
         <div style={{ display:'flex', flexDirection:'column', gap:2, textAlign:'left' }}>
-          {(segments && segments.length ? segments : [{ start:'', last:'' }]).map((sg, i) => (
-            <span key={i} style={{ fontFamily:'monospace', fontSize:12.5 }}>{segments.length > 1 ? `第${i+1}段：` : ''}{sg.start || '—'} ～ {sg.last || '—'}</span>
+          {(segments && segments.length ? segments : [{ track:'', start:'', last:'' }]).map((sg, i) => (
+            <span key={i} style={{ fontFamily:'monospace', fontSize:12.5 }}>{segments.length > 1 ? `第${i+1}段：` : ''}{sg.track ? `${sg.track} ` : ''}{sg.start || '—'} ～ {sg.last || '—'}</span>
           ))}
           {voids && voids.length > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢：{voids.join('、')}</span>}
           {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}（已從發票總金額扣除）</span>}
