@@ -1148,9 +1148,10 @@ export default function MemberCoursesPage() {
                 {(() => {
                 const _t = dayjs().format('YYYY-MM-DD');
                 const eo = selectedCourse.enrollOpenDate, ao = selectedCourse.alumniOpenDate;
-                const cd = selectedCourse.fullTermRenewalDiscount, pd = selectedCourse.alumniDiscount;
+                const cdOn = selectedCourse.fullTermRenewalDiscountEnabled, pdOn = selectedCourse.alumniDiscountEnabled;
+                const cdRate = selectedCourse.fullTermRenewalDiscountRate ?? 0.9, pdRate = selectedCourse.alumniDiscountRate ?? 0.95;
                 const rdl = selectedCourse.renewalDeadline;
-                const renewalActive = (cd > 0 || pd > 0) && (!rdl || _t <= rdl);
+                const renewalActive = (cdOn || pdOn) && (!rdl || _t <= rdl);
                 const openNotice = eo && _t < eo;
                 if (!openNotice && !renewalActive) return null;
                 return (
@@ -1162,9 +1163,9 @@ export default function MemberCoursesPage() {
                     )}
                     {renewalActive && (
                       <div>🎁 續報優惠：
-                        {cd > 0 ? `前一期整期學員（續報）折 NT$${cd}` : ''}
-                        {cd > 0 && pd > 0 ? '、' : ''}
-                        {pd > 0 ? `舊生（曾報名/插班）折 NT$${pd}` : ''}
+                        {cdOn ? `前一期整期學員（續報）${Math.round(cdRate*10)}折` : ''}
+                        {cdOn && pdOn ? '、' : ''}
+                        {pdOn ? `舊生（曾報名/插班）${Math.round(pdRate*100)}折` : ''}
                         {rdl ? `（${rdl} 止，系統自動折抵）` : '（系統自動折抵）'}
                       </div>
                     )}
@@ -1199,8 +1200,6 @@ export default function MemberCoursesPage() {
                 const totalCount = quote?.totalCount ?? sessions.filter(s => s.courseId === selectedCourse.id && s.status !== 'cancelled').length;
                 const isLateJoin = quote?.isLateJoin ?? (completedCount > 0);
                 const remainingCount = quote?.remainingCount ?? (totalCount - completedCount);
-                const isBelowHalf = quote?.isBelowHalf ?? false;
-                const surcharge = selectedCourse.midpointSurcharge || 1.05;
                 const baseFee = quote?.baseFee ?? 0;
                 const fee = quote?.fee ?? 0;
                 const teamDiscount = quote?.teamDiscount ?? 0;
@@ -1229,7 +1228,7 @@ export default function MemberCoursesPage() {
                         </div>
                         {isLateJoin && (
                           <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0' }}>
-                            <span>插班計費（剩 {remainingCount}/{totalCount} 堂{isBelowHalf ? ` ×${surcharge}` : ''}）</span>
+                            <span>插班計費（剩 {remainingCount}/{totalCount} 堂）</span>
                             <span style={{ fontFamily:'monospace' }}>NT${baseFee.toLocaleString()}</span>
                           </div>
                         )}

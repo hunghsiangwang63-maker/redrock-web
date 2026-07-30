@@ -16,6 +16,18 @@ import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import dayjs from 'dayjs';
 
+// 估算週課場次數（純預覽用，如分期試算/建立前參考；權威堂數仍以 generateWeeklySessions 實際產生為準）
+const estimateWeeklySessionCount = (startDate, endDate, weekdays) => {
+  if (!startDate || !endDate || !weekdays?.length) return 0;
+  const wd = new Set(weekdays.map(Number));
+  let cur = dayjs(startDate); const end = dayjs(endDate); let n = 0;
+  while (cur.isBefore(end) || cur.isSame(end, 'day')) {
+    if (wd.has(cur.day())) n++;
+    cur = cur.add(1, 'day');
+  }
+  return n;
+};
+
 // 場次剩餘名額＝maxStudents −（原報名−請假＋補課＋試上）（expectedCount＝實際佔位；候補不佔位）
 const sessionRemain = (s) => {
   const max = s?.maxStudents || 0;
@@ -120,13 +132,16 @@ export default function CoursesPage({ embedded = false }) {
   const [editForm, setEditForm] = useState({});
   const [copyFrom, setCopyFrom] = useState('');
   const EMPTY_COURSE_FORM = {
-    cohortName: '', name: '', price: '', maxStudents: 6, maxWaitlist: 2, reservedSlots: '', categoryId: '',
+    cohortName: '', name: '', price: '', pricePerSession: '', maxStudents: 6, maxWaitlist: 2, reservedSlots: '', categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
     gymAccessDays: 60, midpointSurcharge: 1.05,
     // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
     leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
     allowTrial: '', trialPrice: '', trialTarget: 'auto', makeupTarget: 'auto', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
+    // 續報/舊生優惠（比率＋開關，週課專用；未開啟時 rate 僅為 UI 預設顯示，不會送出）
+    fullTermRenewalDiscountEnabled: false, fullTermRenewalDiscountRate: 90,
+    alumniDiscountEnabled: false, alumniDiscountRate: 95,
     unlimitedPracticeStart: '', unlimitedPracticeEnd: '',
     installment: { enabled: false, periods: [] },
   };
@@ -378,12 +393,11 @@ export default function CoursesPage({ embedded = false }) {
       if (num(courseForm.preStartFeeRate) !== undefined) ov.preStartFeeRate = num(courseForm.preStartFeeRate) / 100;
       if (courseForm.alumniOpenDate) ov.alumniOpenDate = courseForm.alumniOpenDate;
       if (courseForm.enrollOpenDate) ov.enrollOpenDate = courseForm.enrollOpenDate;
-      if (courseForm.fullTermRenewalDiscount !== '' && courseForm.fullTermRenewalDiscount != null) ov.fullTermRenewalDiscount = Number(courseForm.fullTermRenewalDiscount);
-      if (courseForm.alumniDiscount !== '' && courseForm.alumniDiscount != null) ov.alumniDiscount = Number(courseForm.alumniDiscount);
       if (courseForm.renewalDeadline) ov.renewalDeadline = courseForm.renewalDeadline;
       if (courseForm.teamOpenDate) ov.teamOpenDate = courseForm.teamOpenDate;
       if (courseForm.generalOpenDate) ov.generalOpenDate = courseForm.generalOpenDate;
       if (courseForm.teamPrice !== '' && courseForm.teamPrice != null) ov.teamPrice = Number(courseForm.teamPrice);
+      const isWorkshop = courseForm.type === 'workshop';
       const res = await createCourse({
         ...courseForm,
         gymId: courseForm.gymId || effectiveGymId,   // super_admin 未動館別下拉時 courseForm.gymId 為空 → 補當前檢視館別，避免建出 gymId=null 幽靈課
@@ -392,11 +406,17 @@ export default function CoursesPage({ embedded = false }) {
         ...ov,
         cohortName: courseForm.cohortName,
         name: catName ? `${catName} ${courseForm.cohortName}` : courseForm.cohortName,
-        price: parseInt(courseForm.price),
+        // 工作坊：店員手填總價＋插班加成；週課：單堂價（整期總價由後端產生場次時連動算出，不手填）
+        price: isWorkshop ? parseInt(courseForm.price) : undefined,
+        pricePerSession: isWorkshop ? undefined : (parseInt(courseForm.pricePerSession) || 0),
+        midpointSurcharge: isWorkshop ? (parseFloat(courseForm.midpointSurcharge) || 1.05) : undefined,
+        // 續報/舊生優惠（比率＋開關，週課專用）
+        fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!courseForm.fullTermRenewalDiscountEnabled,
+        fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(courseForm.fullTermRenewalDiscountRate) || 90) / 100,
+        alumniDiscountEnabled: isWorkshop ? undefined : !!courseForm.alumniDiscountEnabled,
+        alumniDiscountRate: isWorkshop ? undefined : (Number(courseForm.alumniDiscountRate) || 95) / 100,
         maxStudents: parseInt(courseForm.maxStudents),
-        totalSessions: parseInt(courseForm.totalSessions) || 0,
         gymAccessDays: parseInt(courseForm.gymAccessDays), // 自開課日起算的入館有效天數（決定 unlimitedPracticeEnd）
-        midpointSurcharge: parseFloat(courseForm.midpointSurcharge) || 1.05,
         weekdays: courseForm.weekdays.map(Number),
       });
       const newId = res.data.course?.id;
@@ -407,17 +427,22 @@ export default function CoursesPage({ embedded = false }) {
           await client.post(`/courses/${newId}/image`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         } catch (e) { showMsg('課程已建立，但海報上傳失敗，可到課程編輯重傳', 'red'); }
       }
-      // 週課自動產生場次
-      if (courseForm.type === 'weekly' && courseForm.weekdays.length > 0 &&
+      // 週課自動產生場次（同一步驟連動算出真正的總堂數與整期總價，見下方訊息）
+      if (!isWorkshop && courseForm.weekdays.length > 0 &&
           courseForm.startDate && courseForm.endDate) {
         await generateWeeklySessions(newId, { confirm: true });
-        showMsg('課程建立成功，場次已自動產生');
+        const freshRes = await getCourses(effectiveGymId);
+        setCourses(freshRes.data.courses || []);
+        const fresh = (freshRes.data.courses || []).find(c => c.id === newId);
+        showMsg(fresh
+          ? `課程建立成功，已產生 ${fresh.totalSessions} 堂場次，整期費用 NT$${(fresh.price||0).toLocaleString()}`
+          : '課程建立成功，場次已自動產生');
       } else {
         showMsg('課程建立成功');
+        await loadCourses();
       }
       setShowAddCourse(false);
       setCreateImageFile(null);
-      await loadCourses();
     } catch (err) {
       showMsg(err.response?.data?.message || '建立失敗', 'red');
     } finally { setLoading(false); }
@@ -428,6 +453,7 @@ export default function CoursesPage({ embedded = false }) {
       cohortName: course.cohortName || course.name || '',
       weekdays: course.weekdays || [],
       price: course.price || '',
+      pricePerSession: course.pricePerSession || '',
       maxStudents: course.maxStudents || 10,
       maxWaitlist: course.maxWaitlist ?? '',
       reservedSlots: course.reservedSlots ?? '',
@@ -446,7 +472,11 @@ export default function CoursesPage({ embedded = false }) {
       handlingFeeRate: course.handlingFeeRate != null ? Math.round(course.handlingFeeRate * 100) : '',
       alumniOpenDate: course.alumniOpenDate || '', enrollOpenDate: course.enrollOpenDate || '',
       teamOpenDate: course.teamOpenDate || '', generalOpenDate: course.generalOpenDate || '', teamPrice: course.teamPrice != null ? course.teamPrice : '',
-      fullTermRenewalDiscount: course.fullTermRenewalDiscount ?? '', alumniDiscount: course.alumniDiscount ?? '', renewalDeadline: course.renewalDeadline || '',
+      fullTermRenewalDiscountEnabled: !!course.fullTermRenewalDiscountEnabled,
+      fullTermRenewalDiscountRate: course.fullTermRenewalDiscountRate != null ? Math.round(course.fullTermRenewalDiscountRate * 100) : 90,
+      alumniDiscountEnabled: !!course.alumniDiscountEnabled,
+      alumniDiscountRate: course.alumniDiscountRate != null ? Math.round(course.alumniDiscountRate * 100) : 95,
+      renewalDeadline: course.renewalDeadline || '',
       preStartFeeRate: course.preStartFeeRate != null ? Math.round(course.preStartFeeRate * 100) : '',
       allowMakeup: course.allowMakeup ?? '',
       allowTrial: course.allowTrial ?? '', trialTarget: course.trialTarget || 'auto', makeupTarget: course.makeupTarget || 'auto',
@@ -475,14 +505,20 @@ export default function CoursesPage({ embedded = false }) {
       const { updateCourse } = await import('../../api/courses');
       const ovNum = (v) => (v === '' || v === null || v === undefined) ? null : Number(v);
       const ovBool = (v) => (v === '' || v === null || v === undefined) ? null : (v === true || v === 'true');
+      const isWorkshop = (editForm.type || editingCourse?.type) === 'workshop';
       await updateCourse(editingCourse.id, {
         ...editForm,
         name: undefined,                       // 顯示名由後端依 班別名+梯次名 重組
         cohortName: editForm.cohortName,
-        price: parseInt(editForm.price),
+        // 工作坊：直接改總價＋插班加成；週課：改單堂價（後端讀現有 totalSessions 同步重算整期總價）
+        price: isWorkshop ? parseInt(editForm.price) : undefined,
+        pricePerSession: isWorkshop ? undefined : (parseInt(editForm.pricePerSession) || 0),
+        midpointSurcharge: isWorkshop ? (parseFloat(editForm.midpointSurcharge) || 1.05) : undefined,
+        fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!editForm.fullTermRenewalDiscountEnabled,
+        fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(editForm.fullTermRenewalDiscountRate) || 90) / 100,
+        alumniDiscountEnabled: isWorkshop ? undefined : !!editForm.alumniDiscountEnabled,
+        alumniDiscountRate: isWorkshop ? undefined : (Number(editForm.alumniDiscountRate) || 95) / 100,
         maxStudents: parseInt(editForm.maxStudents),
-        totalSessions: parseInt(editForm.totalSessions) || 0,
-        midpointSurcharge: parseFloat(editForm.midpointSurcharge) || 1.05,
         // 規則：空＝null（清除覆寫、回到班別預設）
         leaveDeadlineHours: ovNum(editForm.leaveDeadlineHours),
         maxLeaves: ovNum(editForm.maxLeaves),
@@ -492,8 +528,6 @@ export default function CoursesPage({ embedded = false }) {
         alumniOpenDate: editForm.alumniOpenDate || null, enrollOpenDate: editForm.enrollOpenDate || null,
         teamOpenDate: editForm.teamOpenDate || null, generalOpenDate: editForm.generalOpenDate || null,
         teamPrice: editForm.teamPrice === '' ? null : Number(editForm.teamPrice),
-        fullTermRenewalDiscount: editForm.fullTermRenewalDiscount === '' ? null : Number(editForm.fullTermRenewalDiscount),
-        alumniDiscount: editForm.alumniDiscount === '' ? null : Number(editForm.alumniDiscount),
         renewalDeadline: editForm.renewalDeadline || null,
         preStartFeeRate: editForm.preStartFeeRate === '' ? null : (parseFloat(editForm.preStartFeeRate) || 0) / 100,
         allowMakeup: ovBool(editForm.allowMakeup),
@@ -1716,6 +1750,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       ...prev,
                       cohortName: (src.cohortName || src.name) + '（複製）',
                       price: src.price || '',
+                      pricePerSession: src.pricePerSession || '',
                       maxStudents: src.maxStudents || 6,
                       maxWaitlist: src.maxWaitlist ?? '',
                       type: src.type || 'weekly',
@@ -1725,6 +1760,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       totalSessions: src.totalSessions || '',
                       gymAccessDays: src.gymAccessDays || 60,
                       midpointSurcharge: src.midpointSurcharge || 1.05,
+                      fullTermRenewalDiscountEnabled: !!src.fullTermRenewalDiscountEnabled,
+                      fullTermRenewalDiscountRate: src.fullTermRenewalDiscountRate != null ? Math.round(src.fullTermRenewalDiscountRate * 100) : 90,
+                      alumniDiscountEnabled: !!src.alumniDiscountEnabled,
+                      alumniDiscountRate: src.alumniDiscountRate != null ? Math.round(src.alumniDiscountRate * 100) : 95,
                       weekdays: src.weekdays || [],
                       installment: src.installment || prev.installment,
                     }));
@@ -1799,7 +1838,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           <div style={{ fontSize:11, color:'#999', marginBottom:10 }}>以下為此梯次專屬資料（費用/名額/上課時段）：</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             {[
-              { label:'費用（NT$）', key:'price', type:'number' },
+              ...(courseForm.type === 'workshop'
+                ? [{ label:'費用（NT$）', key:'price', type:'number' }]
+                : [{ label:'單堂費用（NT$／每堂）', key:'pricePerSession', type:'number' }]),
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
               { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number' },
@@ -1835,18 +1876,31 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     </button>
                   ))}
                 </div>
+                {(() => {
+                  const est = estimateWeeklySessionCount(courseForm.startDate, courseForm.endDate, courseForm.weekdays);
+                  const pps = Number(courseForm.pricePerSession) || 0;
+                  if (!est) return null;
+                  return (
+                    <div style={{ marginTop:8, fontSize:12, color:'#8B1A1A', background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+                      預估共 <b>{est}</b> 堂 × NT${pps} = 整期 <b>NT${(est*pps).toLocaleString()}</b>
+                      （實際堂數以建立後產生的場次為準，可能因假日調整微幅不同）
+                    </div>
+                  );
+                })()}
               </div>
             )}
           </div>
-          <div style={{ marginTop:14 }}>
-            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>插班加成（剩餘堂數低於一半時的加成係數）</label>
-            <input type="number" step="0.01" value={courseForm.midpointSurcharge}
-              onChange={e => setCourseForm({...courseForm, midpointSurcharge: e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-          </div>
+          {courseForm.type === 'workshop' && (
+            <div style={{ marginTop:14 }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>插班加成（剩餘堂數低於一半時的加成係數）</label>
+              <input type="number" step="0.01" value={courseForm.midpointSurcharge}
+                onChange={e => setCourseForm({...courseForm, midpointSurcharge: e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+          )}
           <div style={{ marginTop:14 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>是否分期（分期付款規則）</label>
-            <InstallmentRuleEditor value={courseForm.installment} price={courseForm.price}
+            <InstallmentRuleEditor value={courseForm.installment} price={courseForm.type === 'workshop' ? courseForm.price : (Number(courseForm.pricePerSession)||0) * estimateWeeklySessionCount(courseForm.startDate, courseForm.endDate, courseForm.weekdays)}
               onChange={v => setCourseForm({...courseForm, installment: v})} />
           </div>
           {/* 覆寫班別規則（收合；空＝用班別預設）*/}
@@ -1865,11 +1919,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     { label:'請假截止（小時前）', key:'leaveDeadlineHours', p: ph(cat.leaveDeadlineHours, 2) },
                     { label:'整期可請假次數', key:'maxLeaves', p: ph(cat.maxLeaves, 2) },
                     { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', p: ph(cat.makeupDeadlineDays, 60) },
-                    { label:'試上費（NT$）', key:'trialPrice', p: ph(cat.trialPrice, 0) },
                     { label:'舊生續報開始日（選填）', key:'alumniOpenDate', p: '', dtype:'date' },
                     { label:'公開報名開始日（選填）', key:'enrollOpenDate', p: '', dtype:'date' },
-                    { label:'續報優惠（前一期整期，NT$ 折抵）', key:'fullTermRenewalDiscount', p: '如 440' },
-                    { label:'舊生優惠（曾報名/插班，NT$ 折抵）', key:'alumniDiscount', p: '如 200' },
                     { label:'續報截止日（選填）', key:'renewalDeadline', p: '', dtype:'date' },
                     { label:'退費：開課前手續費率（%）', key:'preStartFeeRate', p: `班別預設 ${Math.round((cat.preStartFeeRate ?? 0.05) * 100)}` },
                     { label:'退費：開課後手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
@@ -1908,6 +1959,36 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         <option value="on">強制開放</option>
                         <option value="off">不開放</option>
                       </select>
+                    </div>
+                  ))}
+                  <div>
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（NT$）</label>
+                    <input type="number" value={courseForm.trialPrice || ''}
+                      placeholder={courseForm.type === 'weekly'
+                        ? `公式 NT$${Math.round((Number(courseForm.pricePerSession)||0) * 1.1)}（單堂價×1.1）`
+                        : ph(cat.trialPrice, 0)}
+                      onChange={e => setCourseForm({...courseForm, trialPrice: e.target.value})}
+                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                  </div>
+                  {courseForm.type === 'weekly' && [
+                    { key:'fullTermRenewalDiscount', label:'續報優惠（前一期整期）', def:90 },
+                    { key:'alumniDiscount', label:'舊生優惠（曾報名/插班）', def:95 },
+                  ].map(({ key, label, def }) => (
+                    <div key={key} style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:10, background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#444', cursor:'pointer', flexShrink:0 }}>
+                        <input type="checkbox" checked={!!courseForm[`${key}Enabled`]}
+                          onChange={e => setCourseForm({...courseForm, [`${key}Enabled`]: e.target.checked})}/>
+                        {label}
+                      </label>
+                      {courseForm[`${key}Enabled`] && (
+                        <>
+                          <input type="number" min={1} max={100}
+                            value={courseForm[`${key}Rate`] ?? def}
+                            onChange={e => setCourseForm({...courseForm, [`${key}Rate`]: e.target.value})}
+                            style={{ width:70, height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}/>
+                          <span style={{ fontSize:12, color:'#999' }}>% （原價的百分比，如 90＝九折）</span>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2098,7 +2179,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             {[
               { label:'梯次名稱（顯示名＝班別名＋梯次名）', key:'cohortName', type:'text', colSpan:2 },
-              { label:'費用（NT$）', key:'price', type:'number' },
+              ...((editForm.type || editingCourse?.type) === 'workshop'
+                ? [{ label:'費用（NT$）', key:'price', type:'number' }]
+                : [{ label:'單堂費用（NT$／每堂）', key:'pricePerSession', type:'number' }]),
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
               { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number', colSpan:2 },
@@ -2107,14 +2190,14 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               { label:'上課開始時間', key:'startTime', type:'time' },
               { label:'上課結束時間', key:'endTime', type:'time' },
               { label:'教練', key:'instructor', type:'text', colSpan:2 },
-              { label:'插班加成', key:'midpointSurcharge', type:'number' },
+              ...((editForm.type || editingCourse?.type) === 'workshop'
+                ? [{ label:'插班加成', key:'midpointSurcharge', type:'number' }]
+                : []),
               { label:'請假截止（小時前）', key:'leaveDeadlineHours', type:'number', ph:'留空＝班別預設' },
               { label:'整期可請假次數', key:'maxLeaves', type:'number', ph:'留空＝班別預設', hint:'留空＝用班別預設；插班學員可於「查看名單」個別設定' },
               { label:'補課期限（課程結束後 N 天）', key:'makeupDeadlineDays', type:'number', ph:'留空＝班別預設' },
               { label:'舊生續報開始日（選填）', key:'alumniOpenDate', type:'date', hint:'此日起同班別舊生（當期在籍/上一期）可先報名' },
               { label:'公開報名開始日（選填）', key:'enrollOpenDate', type:'date', hint:'此日起所有人可報；兩欄皆空＝隨時開放' },
-              { label:'續報優惠（NT$ 折抵）', key:'fullTermRenewalDiscount', hint:'前一期「整期」報名學員（插班不算）；留空＝無' },
-              { label:'舊生優惠（NT$ 折抵）', key:'alumniDiscount', hint:'曾報名過或插班生；符合續報資格者優先套續報優惠、不疊加' },
               { label:'續報截止日', key:'renewalDeadline', type:'date', hint:'兩種續報優惠皆只折到此日（含當日）；留空＝不限' },
               { label:'退費-開課前手續費率（%）', key:'preStartFeeRate', type:'number', ph:'留空＝班別預設' },
               { label:'退費-開課後手續費率（%）', key:'handlingFeeRate', type:'number', ph:'留空＝班別預設' },
@@ -2154,9 +2237,10 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             )}
             {(editForm.type || editingCourse?.type) === 'weekly' && (
               <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（留空＝班別預設）</label>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（NT$，留空＝依公式）</label>
                 <input type="number" min={0} value={editForm.trialPrice ?? ''}
-                  onChange={e => setEditForm({...editForm, trialPrice:e.target.value})} placeholder="班別預設"
+                  onChange={e => setEditForm({...editForm, trialPrice:e.target.value})}
+                  placeholder={`公式 NT$${Math.round((Number(editForm.pricePerSession)||0) * 1.1)}（單堂價×1.1）`}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
               </div>
             )}
@@ -2171,6 +2255,27 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 </select>
               </div>
             )))}
+            {(editForm.type || editingCourse?.type) === 'weekly' && [
+              { key:'fullTermRenewalDiscount', label:'續報優惠（前一期整期）', def:90 },
+              { key:'alumniDiscount', label:'舊生優惠（曾報名/插班）', def:95 },
+            ].map(({ key, label, def }) => (
+              <div key={key} style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:10, background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#444', cursor:'pointer', flexShrink:0 }}>
+                  <input type="checkbox" checked={!!editForm[`${key}Enabled`]}
+                    onChange={e => setEditForm({...editForm, [`${key}Enabled`]: e.target.checked})}/>
+                  {label}
+                </label>
+                {editForm[`${key}Enabled`] && (
+                  <>
+                    <input type="number" min={1} max={100}
+                      value={editForm[`${key}Rate`] ?? def}
+                      onChange={e => setEditForm({...editForm, [`${key}Rate`]: e.target.value})}
+                      style={{ width:70, height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}/>
+                    <span style={{ fontSize:12, color:'#999' }}>% （原價的百分比，如 90＝九折）</span>
+                  </>
+                )}
+              </div>
+            ))}
             <div style={{ gridColumn:'1/-1' }}>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期（可複選）</label>
               <div style={{ display:'flex', gap:8 }}>
