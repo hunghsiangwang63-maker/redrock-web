@@ -1204,7 +1204,7 @@ export default function MemberCoursesPage() {
                 const fee = quote?.fee ?? 0;
                 const teamDiscount = quote?.teamDiscount ?? 0;
                 const renewalDiscount = quote?.renewalDiscount ?? 0;
-                // 名額是否已滿（正取）→ 報名將進候補。enrolledCount 已含 reservedSlots
+                // 名額是否已滿（正取）→ 報名將進候補
                 const capRemaining = (selectedCourse.maxStudents || 0) - (selectedCourse.enrolledCount || 0);
                 const isCourseFull = selectedCourse.statusLabel === 'full' || capRemaining <= 0;
 

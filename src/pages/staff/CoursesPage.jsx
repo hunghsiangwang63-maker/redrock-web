@@ -132,7 +132,7 @@ export default function CoursesPage({ embedded = false }) {
   const [editForm, setEditForm] = useState({});
   const [copyFrom, setCopyFrom] = useState('');
   const EMPTY_COURSE_FORM = {
-    cohortName: '', name: '', price: '', pricePerSession: '', maxStudents: 6, maxWaitlist: 2, reservedSlots: '', categoryId: '',
+    cohortName: '', name: '', price: '', pricePerSession: '', maxStudents: 6, maxWaitlist: 2, categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
     gymAccessDays: 60, midpointSurcharge: 1.05,
@@ -456,8 +456,6 @@ export default function CoursesPage({ embedded = false }) {
       pricePerSession: course.pricePerSession || '',
       maxStudents: course.maxStudents || 10,
       maxWaitlist: course.maxWaitlist ?? '',
-      reservedSlots: course.reservedSlots ?? '',
-      reservedSlotsNote: course.reservedSlotsNote || '',
       startDate: course.startDate || '',
       endDate: course.endDate || '',
       startTime: course.startTime || '',
@@ -969,11 +967,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       </div>
                     </div>
                     <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', width:90, textAlign:'right' }}>NT${(c.price||0).toLocaleString()}</div>
-                    <div style={{ fontSize:12, color:'#666', width:150, textAlign:'right' }} title={c.reservedSlotsNote || ''}>
+                    <div style={{ fontSize:12, color:'#666', width:150, textAlign:'right' }}>
                       <span style={{ fontWeight:600 }}>{c.enrolledCount || 0}/{c.maxStudents} 人</span>
-                      {(c.reservedSlots || 0) > 0 && (
-                        <div style={{ fontSize:10, color:'#B5762B' }}>系統 {c.realEnrolled ?? ((c.enrolledCount||0)-(c.reservedSlots||0))}＋佔用 {c.reservedSlots} ⓘ</div>
-                      )}
                     </div>
                     <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setSelectedCourse(c); setSelectedSession(null); setRoster(null); setTab('sessions'); }}
@@ -1843,8 +1838,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 : [{ label:'單堂費用（NT$／每堂）', key:'pricePerSession', type:'number' }]),
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
-              { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number' },
-              { label:'佔用說明（為何被佔用／來源）', key:'reservedSlotsNote', type:'text' },
               { label:'入館有效天數（自開課日起算）', key:'gymAccessDays', type:'number' },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
@@ -2184,7 +2177,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 : [{ label:'單堂費用（NT$／每堂）', key:'pricePerSession', type:'number' }]),
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
               { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
-              { label:'已佔用名額（外部帶入，剩餘＝上限−已報名−此值）', key:'reservedSlots', type:'number', colSpan:2 },
               { label:'課程開始日期', key:'startDate', type:'date' },
               { label:'課程結束日期', key:'endDate', type:'date' },
               { label:'上課開始時間', key:'startTime', type:'time' },
