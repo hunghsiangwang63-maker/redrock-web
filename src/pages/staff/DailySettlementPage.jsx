@@ -76,11 +76,13 @@ export default function DailySettlementPage() {
   const removeSegment = (i) => setInvoiceSegments(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
   const [voidList, setVoidList] = useState([]);   // 作廢發票號碼（逐張標籤）
   const [voidInput, setVoidInput] = useState('');
+  const [voidTrack, setVoidTrack] = useState('');   // 作廢號碼的字軌（跟發票段一樣可能換捲而不同）
   const [voidInvoiceAmount, setVoidInvoiceAmount] = useState('');   // 作廢票號碼總金額（打錯發票金額，僅備註）
   const addVoid = () => {
     const parts = voidInput.split(/[,、\s]+/).map(x => x.trim()).filter(Boolean);
     if (!parts.length) return;
-    setVoidList(prev => [...prev, ...parts.filter(p => !prev.includes(p))]);
+    const tagged = parts.map(p => (voidTrack ? `${voidTrack}-${p}` : p));
+    setVoidList(prev => [...prev, ...tagged.filter(p => !prev.includes(p))]);
     setVoidInput('');
   };
   const removeVoid = (n) => setVoidList(prev => prev.filter(x => x !== n));
@@ -580,6 +582,8 @@ export default function DailySettlementPage() {
               <span style={{ ...s.label, marginTop:8 }}>作廢發票號碼</span>
               <div style={{ display:'flex', flexDirection:'column', gap:6, flex:1, maxWidth:340 }}>
                 <div style={{ display:'flex', gap:6 }}>
+                  <input value={voidTrack} onChange={e => setVoidTrack(e.target.value.toUpperCase().slice(0, 2))}
+                    placeholder="字軌" style={{ ...s.input, width:60, textAlign:'center', textTransform:'uppercase', flex:'0 0 auto' }} />
                   <input value={voidInput} onChange={e => setVoidInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addVoid(); } }}
                     placeholder="輸入一張號碼後按 Enter / 加入（無則留空）" style={{ ...s.input, flex:1 }} />

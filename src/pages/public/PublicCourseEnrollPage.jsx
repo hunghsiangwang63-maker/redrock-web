@@ -41,6 +41,9 @@ export default function PublicCourseEnrollPage() {
 
   const isMinor = under18(guestBirthday);
   const bank = course ? bankAccounts[course.gymId] : null;
+  // 週課插班：實收＝單堂價×剩餘場次（sessions 已是後端過濾過的「未來場次」，全期報名時剛好等於課程總價，無需另外分支）
+  const estimatedFee = course?.pricePerSession ? course.pricePerSession * sessions.length : (course?.price || 0);
+  const isLateJoinEstimate = course?.pricePerSession && course?.price && estimatedFee < course.price;
 
   const submit = async () => {
     setErr('');
@@ -108,8 +111,11 @@ export default function PublicCourseEnrollPage() {
             <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{course.categoryDescription || course.description}</div>
           )}
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
-            費用：<b style={{ color: RED, fontSize: 17 }}>NT${course.price}</b>
-            <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>（共 {sessions.length} 堂）</span>
+            費用：<b style={{ color: RED, fontSize: 17 }}>NT${estimatedFee.toLocaleString()}</b>
+            <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>（剩餘 {sessions.length} 堂）</span>
+            {isLateJoinEstimate && (
+              <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>此課程已開課，插班費用依剩餘場次計算（原整期 NT${course.price.toLocaleString()}）</div>
+            )}
           </div>
           <div style={{ marginTop: 10, fontSize: 12, color: '#999' }}>
             {sessions.slice(0, 3).map(s => `${s.date} ${s.startTime}–${s.endTime}`).join('、')}{sessions.length > 3 ? ' …' : ''}
