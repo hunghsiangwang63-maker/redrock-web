@@ -326,7 +326,7 @@ export default function SettingsPage() {
   };
 
   // ─── 系統轉換期設定 ─────────────────────────────────────────────
-  const [transition, setTransition] = useState({ settlementManualInput: false, settlementShowCardNumbers: true, checkinAlreadyPaid: false, checkinLegacyDiscountCard: false });
+  const [transition, setTransition] = useState({ settlementManualInput: false, checkinAlreadyPaid: false, checkinLegacyDiscountCard: false });
   const loadTransition = async () => {
     try { const res = await client.get('/settings/transition'); setTransition(res.data); } catch (e) {}
   };
@@ -719,15 +719,6 @@ export default function SettingsPage() {
               <span>
                 <div style={{ fontWeight:600 }}>結帳：手動輸入與系統值並列</div>
                 <div style={{ fontSize:12, color:'#888', marginTop:2 }}>結帳頁每個收入項與付款方式都多一欄手動輸入；系統值與手動值都會存檔。</div>
-              </span>
-            </label>
-            <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
-              <input type="checkbox" checked={!!transition.settlementShowCardNumbers}
-                onChange={e => setTransition(p => ({...p, settlementShowCardNumbers: e.target.checked}))}
-                style={{ width:16, height:16, marginTop:2 }} />
-              <span>
-                <div style={{ fontWeight:600 }}>結帳：顯示優惠卡／全票最前號碼</div>
-                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>關閉後結帳頁隱藏這兩個欄位（轉換完成後預計拿掉）。</div>
               </span>
             </label>
             <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>

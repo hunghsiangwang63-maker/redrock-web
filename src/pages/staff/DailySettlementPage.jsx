@@ -84,10 +84,8 @@ export default function DailySettlementPage() {
     setVoidInput('');
   };
   const removeVoid = (n) => setVoidList(prev => prev.filter(x => x !== n));
-  const [cardOrangeFirst, setCardOrangeFirst] = useState('');
-  const [cardFullFirst, setCardFullFirst] = useState('');
-  // 系統轉換期：手動輸入並列 + 卡號顯示開關
-  const [transition, setTransition] = useState({ settlementManualInput: false, settlementShowCardNumbers: true });
+  // 系統轉換期：手動輸入並列
+  const [transition, setTransition] = useState({ settlementManualInput: false });
   const [incomeManual, setIncomeManual] = useState({});
   const [paymentManual, setPaymentManual] = useState({});
   const [exportMonth, setExportMonth] = useState(dayjs().format('YYYY-MM'));
@@ -131,7 +129,6 @@ export default function DailySettlementPage() {
         else if (draft.invoiceStartNumber || draft.invoiceLastNumber) setInvoiceSegments([{ start: draft.invoiceStartNumber || '', last: draft.invoiceLastNumber || '' }]);
         if (draft.invoiceVoidNumbers) setVoidList(String(draft.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean));
         if (draft.voidInvoiceAmount) setVoidInvoiceAmount(String(draft.voidInvoiceAmount));
-        setCardOrangeFirst(draft.cardOrangeFirst || ''); setCardFullFirst(draft.cardFullFirst || '');
         setNotes(draft.notes || '');
         if (draft.incomeManual) setIncomeManual(draft.incomeManual);
         if (draft.paymentManual) setPaymentManual(draft.paymentManual);
@@ -144,7 +141,6 @@ export default function DailySettlementPage() {
         setInvoiceSegments([{ start:'', last:'' }]);
         setVoidList([]);
         setVoidInvoiceAmount('');
-        setCardOrangeFirst(''); setCardFullFirst('');
         setNotes('');
         setIncomeManual({});
         setPaymentManual({});
@@ -193,7 +189,6 @@ export default function DailySettlementPage() {
     invoiceSegments: cleanSegments(),
     invoiceVoidNumbers: [...voidList, voidInput.trim()].filter(Boolean).join(', '),
     voidInvoiceAmount: Number(voidInvoiceAmount) || 0,
-    cardOrangeFirst, cardFullFirst,
     checkinCount: settlement?.checkinCount ?? null,
     ...(transition.settlementManualInput ? { incomeManual, paymentManual } : {}),
   });
@@ -231,7 +226,6 @@ export default function DailySettlementPage() {
     else setInvoiceSegments([{ start: st?.invoiceStartNumber || '', last: st?.invoiceLastNumber || '' }]);
     setVoidList(st?.invoiceVoidNumbers ? String(st.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []);
     setVoidInvoiceAmount(st?.voidInvoiceAmount ? String(st.voidInvoiceAmount) : '');
-    setCardOrangeFirst(st?.cardOrangeFirst || ''); setCardFullFirst(st?.cardFullFirst || '');
     setNotes(st?.notes || ''); setResettleReason('');
     if (st?.incomeManual) setIncomeManual(st.incomeManual);
     if (st?.paymentManual) setPaymentManual(st.paymentManual);
@@ -612,27 +606,13 @@ export default function DailySettlementPage() {
             <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>作廢多張可逐一加入（也可一次貼多組、以逗號分隔）；起訖／作廢號碼／作廢票號碼總金額會帶入月銷售紀錄，並從發票總金額（今日收入總額）扣除</div>
           </div>
 
-          {/* 票卡資訊 + check-in（月銷售紀錄用） */}
+          {/* 今日人數（月銷售紀錄用） */}
           <div style={s.card}>
-            <div style={s.cardHead}>票卡資訊 / 人數</div>
+            <div style={s.cardHead}>今日人數</div>
             <div style={s.row}>
               <span style={s.label}>今日 check-in 人數</span>
               <span style={s.value}>{settlement?.checkinCount ?? '—'} 人（自動）</span>
             </div>
-            {transition.settlementShowCardNumbers && (
-              <>
-                <div style={s.row}>
-                  <span style={s.label}>優惠卡最前號碼</span>
-                  <input value={cardOrangeFirst} onChange={e => setCardOrangeFirst(e.target.value)}
-                    placeholder="例：1726" style={{ ...s.input, width:160 }} />
-                </div>
-                <div style={s.row}>
-                  <span style={s.label}>全票最前號碼</span>
-                  <input value={cardFullFirst} onChange={e => setCardFullFirst(e.target.value)}
-                    placeholder="例：9582" style={{ ...s.input, width:160 }} />
-                </div>
-              </>
-            )}
           </div>
 
           {/* 備註 */}
