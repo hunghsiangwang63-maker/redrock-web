@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
-import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory } from '../../api/checkin';
+import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -123,6 +123,7 @@ export default function CheckinPage() {
   const [compInvoiceTarget, setCompInvoiceTarget] = useState(null); // 比賽報到「開立發票」modal 目標
   const [staffScan, setStaffScan] = useState(null); // 員工入館掃描結果（staffentry: QR）
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
+  const [checkinInvoiceTarget, setCheckinInvoiceTarget] = useState(null); // 入場「開立發票」modal 目標（checkIn 物件）
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneMember, setPhoneMember] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
@@ -774,12 +775,33 @@ export default function CheckinPage() {
                   {confirmedCheckIn.amountPaid > 0 && ` — NT$${confirmedCheckIn.amountPaid}`}
                 </div>
                 {confirmedCheckIn.id && (
-                  <button onClick={() => handleCancel(confirmedCheckIn.id)}
-                    style={{ fontSize:12, color:'#A32D2D', background:'none', border:'0.5px solid #A32D2D', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
-                    取消入場（10分鐘內）
-                  </button>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    <button onClick={() => handleCancel(confirmedCheckIn.id)}
+                      style={{ fontSize:12, color:'#A32D2D', background:'none', border:'0.5px solid #A32D2D', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
+                      取消入場（10分鐘內）
+                    </button>
+                    <button onClick={() => setCheckinInvoiceTarget(confirmedCheckIn)}
+                      style={{ fontSize:12, color:'#8B1A1A', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
+                      🧾 開立發票
+                    </button>
+                  </div>
                 )}
               </div>
+            )}
+
+            {/* 開立發票 Modal（共用元件，與比賽報到頁/課程學員頁同一套；手動記帳版，尚未接實體印表機） */}
+            {checkinInvoiceTarget && (
+              <InvoiceModal
+                title={checkinInvoiceTarget.memberName || ''}
+                subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
+                feeInfo={checkinInvoiceTarget.amountPaid > 0 ? `實收金額 NT$${checkinInvoiceTarget.amountPaid}` : ''}
+                defaultItemName={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || '入場費'}
+                defaultAmount={checkinInvoiceTarget.amountPaid ?? 0}
+                onClose={() => setCheckinInvoiceTarget(null)}
+                listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
+                createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
+                voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+              />
             )}
             </div>
 

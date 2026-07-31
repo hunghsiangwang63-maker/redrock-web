@@ -22,6 +22,16 @@ export const getTodayCourseStudents = (gymId) =>
 export const getCheckInHistory = (params) =>
   client.get('/checkin/history', { params });
 
+// 入場開立發票（手動記帳版，比照課程/比賽同一套 InvoiceModal）
+export const getCheckinInvoices = (checkInId) =>
+  client.get(`/checkin/${checkInId}/invoices`);
+
+export const createCheckinInvoice = (checkInId, data) =>
+  client.post(`/checkin/${checkInId}/invoices`, data);
+
+export const voidCheckinInvoice = (id, voidReason) =>
+  client.post(`/checkin/invoices/${id}/void`, { voidReason });
+
 // 會員端
 export const memberVerifyEntry = (gymId) =>
   memberClient.post('/checkin/verify-member', { gymId });

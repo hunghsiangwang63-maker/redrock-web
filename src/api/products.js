@@ -33,3 +33,13 @@ export const getProductSales = (params) =>
 
 export const returnSale = (saleId, reason) =>
   client.post(`/products/sales/${saleId}/return`, { reason });
+
+// 銷售開立發票（手動記帳版，比照課程/比賽/入場同一套 InvoiceModal）
+export const getSaleInvoices = (saleId) =>
+  client.get(`/products/sales/${saleId}/invoices`);
+
+export const createSaleInvoice = (saleId, data) =>
+  client.post(`/products/sales/${saleId}/invoices`, data);
+
+export const voidSaleInvoice = (id, voidReason) =>
+  client.post(`/products/invoices/${id}/void`, { voidReason });
