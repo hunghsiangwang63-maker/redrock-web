@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import Modal from './Modal';
+import { isValidTaiwanTaxId } from '../utils/taiwanTaxId';
 
 const inpS = { width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const labS = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
@@ -43,6 +44,7 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
     if (!(Number(form.amount) > 0)) { setMsg('請輸入大於 0 的發票金額'); return; }
     if (!/^[A-Za-z]{2}$/.test(form.track.trim())) { setMsg('發票字軌須為 2 碼英文字母'); return; }
     if (!/^\d{8}$/.test(form.number.trim())) { setMsg('發票號碼須為 8 碼數字'); return; }
+    if (form.taxId.trim() && !isValidTaiwanTaxId(form.taxId)) { setMsg('統一編號檢查碼錯誤，請確認號碼是否正確'); return; }
     setSaving(true); setMsg('');
     try {
       const invoice = await createInvoice({
@@ -138,7 +140,11 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
           </div>
           <div style={{ marginBottom:12 }}>
             <label style={labS}>統一編號（選填）</label>
-            <input style={inpS} value={form.taxId} onChange={e => setForm(f => ({ ...f, taxId: e.target.value }))} placeholder="8 碼統編（三聯式）" />
+            <input style={inpS} value={form.taxId} maxLength={8}
+              onChange={e => setForm(f => ({ ...f, taxId: e.target.value.replace(/\D/g, '') }))} placeholder="8 碼統編（三聯式）" />
+            {form.taxId.length === 8 && !isValidTaiwanTaxId(form.taxId) && (
+              <div style={{ fontSize:11, color:'#A32D2D', marginTop:4 }}>⚠️ 檢查碼不符，請確認統一編號是否正確</div>
+            )}
           </div>
           <div style={{ marginBottom:14 }}>
             <label style={labS}>備註（管理員統一備註）</label>
