@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
-import { t, isEn } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -465,7 +465,7 @@ export default function MemberQRPage() {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a', textAlign:'left' }}>{t(m.label)}</div>
                 {m.note && <div style={{ fontSize:11, color:'#999', marginTop:3 }}>{m.note}</div>}
-                {(m.cards?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>{isEn() ? `${m.cards.length} available` : `共 ${m.cards.length} 張可用`}</div>}
+                {(m.cards?.length > 0) && <div style={{ fontSize:11, color:'#185FA5', marginTop:3 }}>{tt(`共 ${m.cards.length} 張可用`, `${m.cards.length} available`, `${m.cards.length}枚利用可能`)}</div>}
               </div>
               <div style={{ textAlign:'right' }}>
                 {m.freeEntry ? (
@@ -489,7 +489,7 @@ export default function MemberQRPage() {
                 style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', color:'#1a1a1a', appearance:'auto' }}>
                 <option value="" disabled>{t('請選擇定期票方案…')}</option>
                 {buyPassTypes.map(pt => {
-                  const dur = pt.durationMonths ? `${pt.durationMonths}${isEn() ? ' mo' : '個月'}` : pt.durationDays ? `${pt.durationDays}${isEn() ? ' days' : '天'}` : '';
+                  const dur = pt.durationMonths ? `${pt.durationMonths}${tt('個月', ' mo', 'ヶ月')}` : pt.durationDays ? `${pt.durationDays}${tt('天', ' days', '日')}` : '';
                   const scopeLabel = pt.scope === 'shared' ? t('雙館') : t('單館');
                   const canInst = pt.installment?.enabled ? ` · ${t('可分期')}` : '';
                   return <option key={pt.id} value={pt.id}>{pt.name}（{[dur, scopeLabel].filter(Boolean).join('・')}）NT${pt.price}{canInst}</option>;
@@ -524,7 +524,7 @@ export default function MemberQRPage() {
           )}
           {(rentShoes || rentChalk) && (
             <div style={{ fontSize:12, color:'#666', marginTop:6 }}>
-              {isEn() ? '+ Rental gear NT$' : '＋租借器材 NT$'}{(rentShoes?100:0)+(rentChalk?50:0)}（{[rentShoes&&(isEn()?'shoes':'岩鞋'),rentChalk&&(isEn()?'chalk bag':'粉袋')].filter(Boolean).join('、')}）
+              {tt('＋租借器材 NT$', '+ Rental gear NT$', '＋レンタル器材 NT$')}{(rentShoes?100:0)+(rentChalk?50:0)}（{[rentShoes&&tt('岩鞋','shoes','シューズ'),rentChalk&&tt('粉袋','chalk bag','チョークバッグ')].filter(Boolean).join(tt('、', ' and ', '・'))}）
             </div>
           )}
         </div>
@@ -536,8 +536,8 @@ export default function MemberQRPage() {
               {partnerGymMember && <span style={{ color:'#fff', fontSize:14, fontWeight:700 }}>✓</span>}
             </div>
             <div style={{ flex:1, textAlign:'left' }}>
-              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{isEn() ? `Partner-gym athlete (${Math.round(pgmRate*100)}% off)` : `友館隊員優惠（${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`}</div>
-              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{isEn() ? 'Show partner-gym athlete proof at counter; otherwise full price.' : '需於櫃檯出示友館隊員證明核對，未出示或不符將以原價計。'}</div>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{tt(`友館隊員優惠（${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Partner-gym athlete (${Math.round(pgmRate*100)}% off)`, `提携ジームチーム会員優惠（${Math.round(pgmRate*100)}%）`)}</div>
+              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{tt('需於櫃檯出示友館隊員證明核對，未出示或不符將以原價計。', 'Show partner-gym athlete proof at counter; otherwise full price.', 'フロントで提携ジームの会員証をご提示ください。提示がない場合は通常料金となります。')}</div>
             </div>
           </div>
         )}
@@ -549,7 +549,7 @@ export default function MemberQRPage() {
               {partnerVendor && <span style={{ color:'#fff', fontSize:14, fontWeight:700 }}>✓</span>}
             </div>
             <div style={{ flex:1, textAlign:'left' }}>
-              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{isEn() ? `Partner discount (−NT$${pvDiscount})` : `特約廠商優惠（−NT$${pvDiscount}）`}</div>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{tt(`特約廠商優惠（−NT$${pvDiscount}）`, `Partner discount (−NT$${pvDiscount})`, `提携業者割引（−NT$${pvDiscount}）`)}</div>
               <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{t('需於櫃檯出示特約廠商證件核對，未出示或不符將以原價計。')}</div>
             </div>
           </div>
@@ -587,12 +587,12 @@ export default function MemberQRPage() {
           <div style={{ background:'#fff', borderRadius:16, border:`1.5px solid ${renewOptIn?'#8B1A1A':'#E8D5D5'}`, padding:20, marginBottom:16 }}>
             <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{t('🎫 定期票即將到期')}</div>
             <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>
-              {renewal.passTypeName}{isEn() ? ` · ${renewal.daysLeft} days left (expires ${renewal.currentEndDate})` : `・剩 ${renewal.daysLeft} 天（${renewal.currentEndDate} 到期）`}
+              {renewal.passTypeName}{tt(`・剩 ${renewal.daysLeft} 天（${renewal.currentEndDate} 到期）`, ` · ${renewal.daysLeft} days left (expires ${renewal.currentEndDate})`, `・残り${renewal.daysLeft}日（${renewal.currentEndDate} 期限）`)}
             </div>
             <div onClick={() => setRenewOptIn(v => !v)}
               style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, border:`1.5px solid ${renewOptIn?'#8B1A1A':'#E8D5D5'}`, background: renewOptIn?'#FBF5F5':'#fff', cursor:'pointer' }}>
               <div style={{ flex:1 }}>
-                <div style={{ fontWeight:600, fontSize:14 }}>{isEn() ? `Renew now (extend to ${renewal.newEndDate})` : `順便續約（延長至 ${renewal.newEndDate}）`}</div>
+                <div style={{ fontWeight:600, fontSize:14 }}>{tt(`順便續約（延長至 ${renewal.newEndDate}）`, `Renew now (extend to ${renewal.newEndDate})`, `更新する（${renewal.newEndDate}まで延長）`)}</div>
                 <div style={{ fontSize:13, marginTop:2 }}>
                   {renewal.renewalPrice < renewal.fullPrice && (
                     <span style={{ color:'#bbb', textDecoration:'line-through', marginRight:6 }}>NT${renewal.fullPrice.toLocaleString()}</span>
@@ -608,7 +608,7 @@ export default function MemberQRPage() {
             {renewOptIn && renewInstEnabled && (
               <div style={{ display:'flex', gap:10, marginTop:12 }}>
                 {[{ k:'full', t:t('一次付清'), s:`NT$${renewal.renewalPrice.toLocaleString()}` },
-                  { k:'installment', t:isEn() ? `${renewal.installment.periods.length} installments` : `分期 ${renewal.installment.periods.length} 期`, s:isEn() ? `1st NT$${(renewPeriods[0]||0).toLocaleString()}` : `首期 NT$${(renewPeriods[0]||0).toLocaleString()}` }].map(o => (
+                  { k:'installment', t:tt(`分期 ${renewal.installment.periods.length} 期`, `${renewal.installment.periods.length} installments`, `${renewal.installment.periods.length}回分割`), s:tt(`首期 NT$${(renewPeriods[0]||0).toLocaleString()}`, `1st NT$${(renewPeriods[0]||0).toLocaleString()}`, `第1回 NT$${(renewPeriods[0]||0).toLocaleString()}`) }].map(o => (
                   <div key={o.k} onClick={() => setRenewPlan(o.k)}
                     style={{ flex:1, padding:'10px 12px', borderRadius:10, border:`1.5px solid ${renewPlan===o.k?'#8B1A1A':'#E8D5D5'}`, background: renewPlan===o.k?'#FBF5F5':'#fff', cursor:'pointer', textAlign:'center' }}>
                     <div style={{ fontWeight:600, fontSize:13 }}>{o.t}</div>
@@ -705,7 +705,7 @@ export default function MemberQRPage() {
             return (<>
               {needPay && (
                 <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', textAlign:'center' }}>
-                  {isEn() ? `Please select ${renewOptIn ? 'renewal' : 'rental'} payment method first` : `請先選擇${renewOptIn ? '續約' : '租借'}付款方式`}
+                  {tt(`請先選擇${renewOptIn ? '續約' : '租借'}付款方式`, `Please select ${renewOptIn ? 'renewal' : 'rental'} payment method first`, `先に${renewOptIn ? '更新' : 'レンタル'}のお支払い方法を選択してください`)}
                 </div>
               )}
               <button onClick={() => handleGenerateQR(rentShoes, rentChalk)} disabled={loading || needPay}
@@ -749,13 +749,13 @@ export default function MemberQRPage() {
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? t('折扣優惠券') : selectedEntry?.type === 'buy_pass' ? (bpInst ? t('定期票（頭款・第1期）') : t('定期票')) : (pgmActive ? (isEn() ? `Entry Fee (partner-gym ${Math.round(pgmRate*100)}%)` : `入場費（友館隊員 ${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`) : (pvActive ? (isEn() ? `Entry Fee (partner −${pvCut})` : `入場費（特約 −${pvCut}）`) : t('入場費')))}</span>
+                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? t('折扣優惠券') : selectedEntry?.type === 'buy_pass' ? (bpInst ? t('定期票（頭款・第1期）') : t('定期票')) : (pgmActive ? tt(`入場費（友館隊員 ${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Entry Fee (partner-gym ${Math.round(pgmRate*100)}%)`, `入場料（提携ジーム ${Math.round(pgmRate*100)}%）`) : (pvActive ? tt(`入場費（特約 −${pvCut}）`, `Entry Fee (partner −${pvCut})`, `入場料（提携 −${pvCut}）`) : t('入場費')))}</span>
                   <span>NT${entryPrice}</span>
                 </div>
               )}
               {bpInst && (
                 <div style={{ fontSize:11, color:'#999', textAlign:'right', marginBottom:6, marginTop:-2 }}>
-                  {isEn() ? `${selectedEntry.installment.periods.length} installments · Full NT$${(selectedEntry.price || 0).toLocaleString()}` : `分期 ${selectedEntry.installment.periods.length} 期 · 全額 NT$${(selectedEntry.price || 0).toLocaleString()}`}
+                  {tt(`分期 ${selectedEntry.installment.periods.length} 期 · 全額 NT$${(selectedEntry.price || 0).toLocaleString()}`, `${selectedEntry.installment.periods.length} installments · Full NT$${(selectedEntry.price || 0).toLocaleString()}`, `${selectedEntry.installment.periods.length}回分割・全額 NT$${(selectedEntry.price || 0).toLocaleString()}`)}
                 </div>
               )}
               {renewOptIn && renewal && (
@@ -766,7 +766,7 @@ export default function MemberQRPage() {
                   </div>
                   {renewPlan === 'installment' && renewPeriods.length >= 2 && (
                     <div style={{ fontSize:11, color:'#999', textAlign:'right', marginBottom:6, marginTop:-2 }}>
-                      {isEn() ? `${renewPeriods.length} installments · Discounted total NT$${renewal.renewalPrice.toLocaleString()} (last NT$${renewPeriods[renewPeriods.length-1].toLocaleString()})` : `分期 ${renewPeriods.length} 期 · 折後全額 NT$${renewal.renewalPrice.toLocaleString()}（末期 NT$${renewPeriods[renewPeriods.length-1].toLocaleString()}）`}
+                      {tt(`分期 ${renewPeriods.length} 期 · 折後全額 NT$${renewal.renewalPrice.toLocaleString()}（末期 NT$${renewPeriods[renewPeriods.length-1].toLocaleString()}）`, `${renewPeriods.length} installments · Discounted total NT$${renewal.renewalPrice.toLocaleString()} (last NT$${renewPeriods[renewPeriods.length-1].toLocaleString()})`, `${renewPeriods.length}回分割・割引後全額 NT$${renewal.renewalPrice.toLocaleString()}（最終回 NT$${renewPeriods[renewPeriods.length-1].toLocaleString()}）`)}
                     </div>
                   )}
                 </>
@@ -793,13 +793,17 @@ export default function MemberQRPage() {
                 </div>
               )}
             </div>
-            <div style={{ marginTop:8, fontSize:11, color:'#999' }}>{isEn() ? `⏱ Valid for about ${minutesLeft} more minutes` : `⏱ 有效時間剩餘約 ${minutesLeft} 分鐘`}</div>
+            <div style={{ marginTop:8, fontSize:11, color:'#999' }}>{tt(`⏱ 有效時間剩餘約 ${minutesLeft} 分鐘`, `⏱ Valid for about ${minutesLeft} more minutes`, `⏱ 有効期限まで残り約${minutesLeft}分`)}</div>
           </div>
           {/* 特約廠商 / 學生入場：提醒會員入場時於櫃檯出示證件（櫃檯員工端亦有查驗提醒）*/}
           {(pvActive || pgmActive || selectedEntry?.type === 'student_free') && (
             <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:10, padding:'12px 14px', marginTop:14, fontSize:13, color:'#8A5A00', fontWeight:600, display:'flex', gap:8, textAlign:'left', alignItems:'flex-start' }}>
               <span style={{ flexShrink:0 }}>🪪</span>
-              <span>{isEn() ? `Please show your ${[selectedEntry?.type === 'student_free' && 'student ID', pvActive && 'partner-company ID', pgmActive && 'partner-gym athlete proof'].filter(Boolean).join(' and ')} at the front desk; full price applies if not presented.` : `入場時請於櫃檯出示${[selectedEntry?.type === 'student_free' && '學生證', pvActive && '特約廠商證件', pgmActive && '友館隊員證明'].filter(Boolean).join('、')}供核對，未出示或不符將以原價計。`}</span>
+              <span>{tt(
+                `入場時請於櫃檯出示${[selectedEntry?.type === 'student_free' && '學生證', pvActive && '特約廠商證件', pgmActive && '友館隊員證明'].filter(Boolean).join('、')}供核對，未出示或不符將以原價計。`,
+                `Please show your ${[selectedEntry?.type === 'student_free' && 'student ID', pvActive && 'partner-company ID', pgmActive && 'partner-gym athlete proof'].filter(Boolean).join(' and ')} at the front desk; full price applies if not presented.`,
+                `入場時にフロントで${[selectedEntry?.type === 'student_free' && '学生証', pvActive && '提携業者証明', pgmActive && '提携ジーム会員証明'].filter(Boolean).join('・')}をご提示ください。提示がない場合は通常料金となります。`
+              )}</span>
             </div>
           )}
           {qrClosedReason === 'expired' ? (

@@ -3,7 +3,7 @@ import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
 import { memberSelfRegister } from '../../api/memberAuth';
 import { isUnder5, isMinor } from '../../utils/age';
-import { t, toggleMemberLang, getMemberLang } from '../../utils/memberI18n';
+import { t, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const inputStyle = { width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:15, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const labelStyle = { fontSize:12, color:'#6b6b6b', display:'block', marginBottom:5 };
@@ -49,7 +49,7 @@ export default function MemberRegisterPage() {
         <div style={{ textAlign:'center', marginBottom:32, position:'relative' }}>
           <div onClick={toggleMemberLang}
             style={{ position:'absolute', right:0, top:0, height:26, padding:'0 10px', borderRadius:13, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:4, cursor:'pointer' }}>
-            🌐 {getMemberLang() === 'en' ? '中文' : 'EN'}
+            🌐 {nextLangLabel()}
           </div>
           <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:36, color:'#8B1A1A' }}>RedRock</div>
           <div style={{ fontSize:12, color:'#999', marginTop:4, letterSpacing:1 }}>{t('紅石攀岩館 會員註冊')}</div>

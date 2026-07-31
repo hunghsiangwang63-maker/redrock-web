@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
-import { t, toggleMemberLang, getMemberLang } from '../../utils/memberI18n';
+import { t, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMemberGyms, getMemberAnnouncements } from '../../api/gyms';
@@ -109,7 +109,7 @@ export default function MemberHomePage() {
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
             <div onClick={toggleMemberLang}
               style={{ height:26, padding:'0 10px', borderRadius:13, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:11, fontWeight:600, display:'flex', alignItems:'center', gap:4, cursor:'pointer' }}>
-              🌐 {getMemberLang() === 'en' ? '中文' : 'EN'}
+              🌐 {nextLangLabel()}
             </div>
             <div style={{ width:38, height:38, borderRadius:'50%', background:'#F5E8E8', color:'#8B1A1A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:600, cursor:'pointer' }}
               onClick={() => navigate('/member/profile')}>

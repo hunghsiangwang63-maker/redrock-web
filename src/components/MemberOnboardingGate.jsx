@@ -4,7 +4,7 @@ import { useMember } from '../store/memberStore.jsx';
 import { memberClient } from '../api/client';
 import { getMemberGyms } from '../api/gyms';
 import { getFallTestSignature, getMyFallTestStatus } from '../api/fallTests';
-import { isEn, t } from '../utils/memberI18n';
+import { tt, t } from '../utils/memberI18n';
 import { getMyFallTestBookings, createFallTestBooking, skipFallTestSchedule } from '../api/fallTestBookings';
 
 /**
@@ -95,7 +95,7 @@ export default function MemberOnboardingGate({ children }) {
     <div style={{ position:'fixed', inset:0, zIndex:300, background:'#F7F3F3', overflowY:'auto', padding:'0 0 40px' }}>
       <div style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', padding:'40px 22px 26px', color:'#fff' }}>
         <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:22 }}>RedRock</div>
-        <div style={{ fontSize:13, opacity:.9, marginTop:6 }}>{isEn() ? `Hi ${member?.name || ''}, please complete the steps below before entering` : `嗨，${member?.name}，入場前請先完成以下步驟`}</div>
+        <div style={{ fontSize:13, opacity:.9, marginTop:6 }}>{tt(`嗨，${member?.name}，入場前請先完成以下步驟`, `Hi ${member?.name || ''}, please complete the steps below before entering`, `${member?.name || ''}様、入場前に以下の手続きを完了してください`)}</div>
       </div>
       <div style={{ padding:'20px 16px', maxWidth:520, margin:'0 auto' }}>{inner}</div>
     </div>
@@ -129,9 +129,11 @@ export default function MemberOnboardingGate({ children }) {
     );
     return overlay(<>
       <div style={{ fontSize:15, color:'#666', lineHeight:1.7, marginBottom:18 }}>
-        {isEn()
-          ? <>Before entering, please sign the <strong>Liability Waiver</strong> and the <strong>Fall Test Consent Form</strong>. Once both are done you can schedule your fall test.</>
-          : <>入場前請先簽署 <strong>風險安全聲明（Waiver）</strong> 與 <strong>安全墜落測驗同意書</strong>，兩者皆完成後即可安排墜落測驗。</>}
+        {tt(
+          <>入場前請先簽署 <strong>風險安全聲明（Waiver）</strong> 與 <strong>安全墜落測驗同意書</strong>，兩者皆完成後即可安排墜落測驗。</>,
+          <>Before entering, please sign the <strong>Liability Waiver</strong> and the <strong>Fall Test Consent Form</strong>. Once both are done you can schedule your fall test.</>,
+          <>入場前に<strong>免責同意書</strong>と<strong>安全確認テスト同意書</strong>への署名が必要です。両方完了後、テストの予約が可能になります。</>
+        )}
       </div>
       {/* 未成年：本人 waiver + 墜測同意書「兩份都簽完」才寄家長 email → 兩份都簽完才顯示「待家長簽署」 */}
       <Box icon="📝" title={t('風險安全聲明')} sub={t('RedRock 攀岩館入場免責與安全聲明書')}
@@ -151,41 +153,49 @@ export default function MemberOnboardingGate({ children }) {
             style={{ background:'#fff', borderRadius:18, padding:'26px 22px', maxWidth:360, width:'100%', textAlign:'center', boxShadow:'0 6px 24px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:34, marginBottom:10 }}>⚠️</div>
             <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', marginBottom:12 }}>
-              {isEn() ? 'Before watching the safety video' : '觀看安全影片注意事項'}
+              {tt('觀看安全影片注意事項', 'Before watching the safety video', '安全動画視聴時の注意事項')}
             </div>
             <div style={{ fontSize:14.5, color:'#333', lineHeight:1.9, textAlign:'left', marginBottom:20 }}>
-              {isEn() ? (<>
-                Please watch the safety video <strong>from the beginning at normal speed</strong>. You must watch at least <strong style={{ color:'#8B1A1A' }}>90%</strong> before the fall-test consent form can be signed.<br/><br/>
-                <span style={{ color:'#8B1A1A' }}>Do <strong>not fast-forward, skip, or play in fullscreen</strong>, or the video progress will freeze and you won't be able to sign.</span><br/><br/>
-                <span style={{ color:'#666' }}>If you have any problems, please reopen or refresh your browser and try again.</span>
-              </>) : (<>
-                請<strong>從頭以正常速度</strong>觀看安全影片，看完 <strong style={{ color:'#8B1A1A' }}>90% 以上</strong>，系統才會開放簽署墜落測驗同意書。<br/><br/>
+              {tt(
+                <>請<strong>從頭以正常速度</strong>觀看安全影片，看完 <strong style={{ color:'#8B1A1A' }}>90% 以上</strong>，系統才會開放簽署墜落測驗同意書。<br/><br/>
                 <span style={{ color:'#8B1A1A' }}>請勿<strong>快轉、跳看或全螢幕播放</strong>，否則影片進度會停住、無法簽署。</span><br/><br/>
-                <span style={{ color:'#666' }}>如遇問題，請重新開啟或重整瀏覽器再試。</span>
-              </>)}
+                <span style={{ color:'#666' }}>如遇問題，請重新開啟或重整瀏覽器再試。</span></>,
+                <>Please watch the safety video <strong>from the beginning at normal speed</strong>. You must watch at least <strong style={{ color:'#8B1A1A' }}>90%</strong> before the fall-test consent form can be signed.<br/><br/>
+                <span style={{ color:'#8B1A1A' }}>Do <strong>not fast-forward, skip, or play in fullscreen</strong>, or the video progress will freeze and you won't be able to sign.</span><br/><br/>
+                <span style={{ color:'#666' }}>If you have any problems, please reopen or refresh your browser and try again.</span></>,
+                <>安全動画は<strong>最初から通常の速度</strong>でご視聴ください。<strong style={{ color:'#8B1A1A' }}>90%以上</strong>視聴完了後、同意書への署名が可能になります。<br/><br/>
+                <span style={{ color:'#8B1A1A' }}><strong>早送り・スキップ・全画面再生</strong>はしないでください。進捗が止まり署名できなくなります。</span><br/><br/>
+                <span style={{ color:'#666' }}>問題が発生した場合は、ブラウザを再度開くか更新してお試しください。</span></>
+              )}
             </div>
             <button onClick={() => { setShowFallTestWarn(false); navigate('/member/fall-test?onboarding=1'); }}
               style={{ width:'100%', height:46, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-              {isEn() ? 'Got it, start watching' : '我知道了，開始觀看'}
+              {tt('我知道了，開始觀看', 'Got it, start watching', '了解しました。視聴を開始する')}
             </button>
             <button onClick={() => setShowFallTestWarn(false)}
               style={{ width:'100%', height:40, borderRadius:12, background:'none', color:'#999', border:'none', fontSize:13, cursor:'pointer', marginTop:6 }}>
-              {isEn() ? 'Cancel' : '取消'}
+              {t('取消')}
             </button>
           </div>
         </div>
       )}
       {awaitingParent && (
         <div style={{ background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', fontSize:13, color:'#B5762B', marginTop:4, lineHeight:1.6 }}>
-          {isEn() ? '📧 Both forms have been signed by you and an email has been sent to your legal guardian (parent). Ask them to open the link and sign both on the same page to complete entry.' : '📧 兩份文件已完成本人簽署，並已寄送 email 給法定代理人（家長／監護人）。請其點開連結於同一頁面一次簽署完成即可入場。'}
+          {tt(
+            '📧 兩份文件已完成本人簽署，並已寄送 email 給法定代理人（家長／監護人）。請其點開連結於同一頁面一次簽署完成即可入場。',
+            '📧 Both forms have been signed by you and an email has been sent to your legal guardian (parent). Ask them to open the link and sign both on the same page to complete entry.',
+            '📧 本人による両書類への署名が完了し、法定代理人（保護者）宛にメールを送信しました。同じページでリンクを開き、両方に署名すると入場できます。'
+          )}
         </div>
       )}
       {/* 家長不入場：只幫家庭成員（兒童/青少年）建立資料 */}
       <div style={{ marginTop:22, paddingTop:18, borderTop:'0.5px solid #EAD9D9' }}>
         <div style={{ fontSize:13, color:'#888', textAlign:'center', marginBottom:10, lineHeight:1.6 }}>
-          {isEn()
-            ? <>Not climbing yourself and just want to set up <strong>family members (children / teens)</strong>?</>
-            : <>本人不入場攀爬，只想幫<strong>家庭成員（兒童／青少年）</strong>建立資料？</>}
+          {tt(
+            <>本人不入場攀爬，只想幫<strong>家庭成員（兒童／青少年）</strong>建立資料？</>,
+            <>Not climbing yourself and just want to set up <strong>family members (children / teens)</strong>?</>,
+            <>ご本人はクライミングをせず、<strong>家族（お子様・ティーンエイジャー）</strong>のアカウントのみ作成しますか？</>
+          )}
         </div>
         <button onClick={() => setShowSkipConfirm(true)} disabled={busy}
           style={{ width:'100%', height:48, borderRadius:12, background:'#fff', border:'1.5px solid #8B1A1A', color:'#8B1A1A', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>
@@ -200,9 +210,11 @@ export default function MemberOnboardingGate({ children }) {
           <div style={{ background:'#fff', borderRadius:14, padding:22, width:'100%', maxWidth:360 }} onClick={e => e.stopPropagation()}>
             <div style={{ fontWeight:700, fontSize:16, marginBottom:8 }}>{t('確認本人不入場？')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:18 }}>
-              {isEn()
-                ? <>Your <strong>own entry documents will be skipped</strong> — this is only for creating and managing family members (children / teens).<br/>You won't be able to climb yourself; to climb later, re-enable signing on the "Me" page.</>
-                : <>將<strong>略過本人的入場文件簽署</strong>，僅用於建立與管理家庭成員（兒童／青少年）。<br/>本人將無法入場攀爬；日後想自己入場，可到「個人」頁重新啟用簽署。</>}
+              {tt(
+                <>將<strong>略過本人的入場文件簽署</strong>，僅用於建立與管理家庭成員（兒童／青少年）。<br/>本人將無法入場攀爬；日後想自己入場，可到「個人」頁重新啟用簽署。</>,
+                <>Your <strong>own entry documents will be skipped</strong> — this is only for creating and managing family members (children / teens).<br/>You won't be able to climb yourself; to climb later, re-enable signing on the "Me" page.</>,
+                <><strong>ご本人の入場書類の署名は省略されます</strong>——家族（お子様・ティーンエイジャー）の作成・管理専用となります。<br/>ご本人はクライミングできません。後で入場したい場合は「マイページ」で署名を再度有効にできます。</>
+              )}
             </div>
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={() => setShowSkipConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
@@ -223,8 +235,11 @@ export default function MemberOnboardingGate({ children }) {
         <div style={{ fontSize:44, marginBottom:12 }}>✅</div>
         <div style={{ fontSize:19, fontWeight:700, marginBottom:8 }}>{t('已送出墜落測驗申請')}</div>
         <div style={{ fontSize:14, color:'#666', lineHeight:1.7, textAlign:'left' }}>
-          {isEn() ? <><strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong> has been notified — please go to the gym and staff will conduct your fall test.<br/><span style={{ color:'#B5762B' }}>You cannot enter until you pass</span> (holders of a same-day trial-class ticket are exempt).</>
-          : <>已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/><span style={{ color:'#B5762B' }}>測驗通過前暫不可入場</span>（持當日體驗課程券者不受此限）。</>}
+          {tt(
+            <>已通知 <strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong>，請至現場由工作人員為您進行墜落測驗。<br/><span style={{ color:'#B5762B' }}>測驗通過前暫不可入場</span>（持當日體驗課程券者不受此限）。</>,
+            <><strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong> has been notified — please go to the gym and staff will conduct your fall test.<br/><span style={{ color:'#B5762B' }}>You cannot enter until you pass</span> (holders of a same-day trial-class ticket are exempt).</>,
+            <><strong style={{ color:'#8B1A1A' }}>{gymName(booking?.gymId || bookedGymId)}</strong> に通知しました。現地スタッフが安全確認テストを実施します。<br/><span style={{ color:'#B5762B' }}>合格するまで入場できません</span>（当日体験レッスン券をお持ちの方を除く）。</>
+          )}
         </div>
       </div>
       <button onClick={() => setJustBooked(false)}
