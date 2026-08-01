@@ -9,6 +9,16 @@ import MemberOnboardingGate from '../../components/MemberOnboardingGate';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import dayjs from 'dayjs';
 import { gymOpenLabel } from '../../utils/gymOpenStatus';
+import QRCode from 'qrcode';
+import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
+
+const RENTAL_ADDON_PAYMENTS = [
+  { key: 'cash',      label: '現金' },
+  { key: 'linepay',   label: 'Line Pay' },
+  { key: 'jkopay',    label: '街口支付' },
+  { key: 'taiwanpay', label: '台灣 Pay' },
+];
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
@@ -23,7 +33,56 @@ export default function MemberHomePage() {
   const [todayCheckin, setTodayCheckin] = useState(null); // { checkedIn, gymId, checkedInAt }
   const [identity, setIdentity] = useState(null);        // { teamMember, courseAccess }（隊員/課程學員身份與效期）
   const [rejectAlerts, setRejectAlerts] = useState([]);   // 轉帳被退回的訂單（首頁通知；補正後自動消失）
+  // 補租器材（已入場後補租岩鞋/粉袋）：'idle'(未開啟) | 'select'(選項目+付款) | 'qr'(等店員掃碼確認) | 'confirmed'
+  const [raStep, setRaStep] = useState('idle');
+  const [raSel, setRaSel] = useState({ shoes: false, chalk: false });
+  const [raPayment, setRaPayment] = useState('');
+  const [raToken, setRaToken] = useState(null);
+  const [raQrDataUrl, setRaQrDataUrl] = useState('');
+  const [raCost, setRaCost] = useState(0);
+  const [raBusy, setRaBusy] = useState(false);
+  const [raError, setRaError] = useState('');
+  const enabledPay = useEnabledPayments();
+  const raShownPayments = filterPayments(RENTAL_ADDON_PAYMENTS, enabledPay);
   const touchStartX = useRef(null);
+
+  const openRentalAddon = () => { setRaStep('select'); setRaSel({ shoes:false, chalk:false }); setRaPayment(''); setRaError(''); };
+  const closeRentalAddon = () => { setRaStep('idle'); setRaToken(null); setRaQrDataUrl(''); };
+
+  const submitRentalAddon = async () => {
+    if ((!raSel.shoes && !raSel.chalk) || !raPayment) return;
+    setRaBusy(true); setRaError('');
+    try {
+      const res = await requestRentalAddon(todayCheckin.checkInId, { addShoes: raSel.shoes, addChalk: raSel.chalk, paymentMethod: raPayment });
+      const { token, cost } = res.data;
+      setRaToken(token); setRaCost(cost);
+      const dataUrl = await QRCode.toDataURL(token, { width: 220, margin: 2 });
+      setRaQrDataUrl(dataUrl);
+      setRaStep('qr');
+    } catch (err) {
+      setRaError(err.response?.data?.message || '補租失敗，請重試');
+    } finally { setRaBusy(false); }
+  };
+
+  // 產生 QR 後輪詢店員是否已掃碼確認（比照入場 QR），確認後自動跳回並重新整理今日入場狀態
+  useEffect(() => {
+    if (raStep !== 'qr' || !raToken) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await getRentalAddonStatus(raToken);
+        if (res.data.status === 'confirmed') {
+          clearInterval(timer);
+          setRaStep('confirmed');
+          memberClient.get('/checkin/my-today').then(r => setTodayCheckin(r.data || null)).catch(() => {});
+        } else if (res.data.status === 'expired' || res.data.status === 'cancelled') {
+          clearInterval(timer);
+          setRaError('此補租請求已逾時，請重新產生');
+          setRaStep('select');
+        }
+      } catch (_) {}
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [raStep, raToken]);
   const bannerLen = banners.length || 1;
 
   const loadHomeData = () => {
@@ -122,11 +181,83 @@ export default function MemberHomePage() {
 
       {/* 今日已入場橫幅（全天顯示；資料源自後端 my-today，隔日消失、取消後消失）*/}
       {todayCheckin?.checkedIn && (
-        <div style={{ margin:'14px 16px 0', background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ fontSize:20 }}>✅</div>
-          <div>
-            <div style={{ fontSize:13, fontWeight:700, color:'#2D7D46' }}>已於 {annGymLabel(todayCheckin.gymId)} 完成入場</div>
-            <div style={{ fontSize:11, color:'#5C8A6B', marginTop:2 }}>今日入場紀錄</div>
+        <div style={{ margin:'14px 16px 0', background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ fontSize:20 }}>✅</div>
+            <div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#2D7D46' }}>已於 {annGymLabel(todayCheckin.gymId)} 完成入場</div>
+              <div style={{ fontSize:11, color:'#5C8A6B', marginTop:2 }}>今日入場紀錄</div>
+            </div>
+          </div>
+          {(!todayCheckin.rentShoes || !todayCheckin.rentChalk) && (
+            <div style={{ display:'flex', gap:8, marginTop:10 }}>
+              <button onClick={openRentalAddon}
+                style={{ flex:1, height:34, borderRadius:8, background:'#fff', border:'0.5px solid #B3DEC0', color:'#2D7D46', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                🎒 補租器材
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 補租器材 modal（select → qr → confirmed） */}
+      {raStep !== 'idle' && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={raStep === 'select' ? closeRentalAddon : undefined}>
+          <div style={{ background:'#fff', borderRadius:16, padding:22, width:'100%', maxWidth:360, maxHeight:'85vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
+            {raStep === 'select' && (<>
+              <div style={{ fontWeight:700, fontSize:16, marginBottom:14 }}>🎒 補租器材</div>
+              {!todayCheckin.rentShoes && (
+                <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', border:`1.5px solid ${raSel.shoes?'#8B1A1A':'#E8D5D5'}`, borderRadius:10, marginBottom:10, cursor:'pointer' }}>
+                  <input type="checkbox" checked={raSel.shoes} onChange={e => setRaSel(s => ({ ...s, shoes: e.target.checked }))} />
+                  <span style={{ flex:1, fontSize:14 }}>岩鞋租借</span><span style={{ fontSize:13, color:'#8B1A1A', fontWeight:600 }}>NT$100</span>
+                </label>
+              )}
+              {!todayCheckin.rentChalk && (
+                <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', border:`1.5px solid ${raSel.chalk?'#8B1A1A':'#E8D5D5'}`, borderRadius:10, marginBottom:16, cursor:'pointer' }}>
+                  <input type="checkbox" checked={raSel.chalk} onChange={e => setRaSel(s => ({ ...s, chalk: e.target.checked }))} />
+                  <span style={{ flex:1, fontSize:14 }}>粉袋租借</span><span style={{ fontSize:13, color:'#8B1A1A', fontWeight:600 }}>NT$50</span>
+                </label>
+              )}
+              {(raSel.shoes || raSel.chalk) && (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>選擇付款方式</div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                    {raShownPayments.map(pm => (
+                      <div key={pm.key} onClick={() => setRaPayment(pm.key)}
+                        style={{ padding:'8px 14px', borderRadius:20, border:`1.5px solid ${raPayment===pm.key?'#8B1A1A':'#E8D5D5'}`, background: raPayment===pm.key?'#8B1A1A':'#fff', color: raPayment===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                        {pm.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {raError && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:12 }}>{raError}</div>}
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={closeRentalAddon} style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+                <button onClick={submitRentalAddon} disabled={raBusy || (!raSel.shoes && !raSel.chalk) || !raPayment}
+                  style={{ flex:2, height:42, borderRadius:10, background: (raBusy||(!raSel.shoes && !raSel.chalk)||!raPayment) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+                  {raBusy ? '產生中...' : '產生 QR Code'}
+                </button>
+              </div>
+            </>)}
+            {raStep === 'qr' && (<>
+              <div style={{ fontWeight:700, fontSize:16, marginBottom:14, textAlign:'center' }}>請出示 QR 給店員掃描</div>
+              <div style={{ textAlign:'center' }}>
+                {raQrDataUrl && <img src={raQrDataUrl} alt="QR" style={{ width:200, height:200, borderRadius:10 }} />}
+                <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', marginTop:12 }}>NT${raCost}</div>
+                <div style={{ fontSize:12, color:'#999', marginTop:6 }}>店員掃碼確認後會自動完成</div>
+              </div>
+              <button onClick={closeRentalAddon} style={{ width:'100%', height:40, marginTop:16, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
+            </>)}
+            {raStep === 'confirmed' && (<>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:40, marginBottom:10 }}>✅</div>
+                <div style={{ fontWeight:700, fontSize:16, marginBottom:6 }}>補租完成</div>
+                <div style={{ fontSize:13, color:'#666' }}>已為您加租，祝攀岩愉快！</div>
+              </div>
+              <button onClick={closeRentalAddon} style={{ width:'100%', height:42, marginTop:18, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>完成</button>
+            </>)}
           </div>
         </div>
       )}

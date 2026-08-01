@@ -32,9 +32,12 @@ export const createCheckinInvoice = (checkInId, data) =>
 export const voidCheckinInvoice = (id, voidReason) =>
   client.post(`/checkin/invoices/${id}/void`, { voidReason });
 
-// 事後補加租借（已入場後才決定要租岩鞋/粉袋）
-export const addRentalToCheckin = (checkInId, data) =>
-  client.post(`/checkin/${checkInId}/add-rental`, data);
+// 事後補加租借：店員掃碼確認（會員自助 QR 流程）
+export const scanRentalAddon = (token) =>
+  client.post('/checkin/add-rental/scan', { token });
+
+export const confirmRentalAddon = (token) =>
+  client.post('/checkin/add-rental/confirm', { token });
 
 // 會員端
 export const memberVerifyEntry = (gymId) =>
@@ -50,3 +53,10 @@ export const getQrStatus = (qrToken) =>
 // 會員首頁橫幅：今日是否已入場
 export const getMyToday = () =>
   memberClient.get('/checkin/my-today');
+
+// 會員自助「補租器材」：已入場後補租岩鞋/粉袋，選付款方式後產生 QR，店員掃碼確認才扣費
+export const requestRentalAddon = (checkInId, data) =>
+  memberClient.post(`/checkin/${checkInId}/add-rental/request`, data);
+
+export const getRentalAddonStatus = (token) =>
+  memberClient.get(`/checkin/add-rental/status/${token}`);
