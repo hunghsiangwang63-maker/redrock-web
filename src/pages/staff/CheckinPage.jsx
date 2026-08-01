@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
-import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice } from '../../api/checkin';
+import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, addRentalToCheckin } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -111,6 +111,9 @@ export default function CheckinPage() {
   const [todayCheckIns, setTodayCheckIns] = useState([]);
   const [todayLoading, setTodayLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+  const [addRentalId, setAddRentalId] = useState(null); // 展開「事後補加租借」面板的 checkInId
+  const [addRentalSel, setAddRentalSel] = useState({ shoes: false, chalk: false });
+  const [addingRental, setAddingRental] = useState(false);
   const [qrInput, setQrInput] = useState('');
   const [showCamera, setShowCamera] = useState(false);   // 相機掃碼視窗
   const [cameraError, setCameraError] = useState('');
@@ -251,6 +254,18 @@ export default function CheckinPage() {
     } catch(err) {
       alert(err.response?.data?.message || '取消失敗');
     } finally { setCancellingId(null); }
+  };
+
+  const handleAddRental = async (checkInId) => {
+    if (!addRentalSel.shoes && !addRentalSel.chalk) return;
+    setAddingRental(true);
+    try {
+      await addRentalToCheckin(checkInId, { addShoes: addRentalSel.shoes, addChalk: addRentalSel.chalk });
+      setAddRentalId(null); setAddRentalSel({ shoes: false, chalk: false });
+      await loadTodayCheckIns();
+    } catch (err) {
+      alert(err.response?.data?.message || '加租失敗');
+    } finally { setAddingRental(false); }
   };
 
   // 共用掃描邏輯（掃描槍輸入框 / 相機掃碼皆走此）
@@ -1124,31 +1139,68 @@ export default function CheckinPage() {
               const checkedInAt = c.checkedInAt?._seconds ? new Date(c.checkedInAt._seconds * 1000) : new Date(c.checkedInAt);
               const minutesAgo = Math.floor((Date.now() - checkedInAt.getTime()) / 60000);
               const canCancel = minutesAgo <= 10;
+              const canAddRental = !c.rentShoes || !c.rentChalk;
               return (
-                <div key={c.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div>
-                    <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                      {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {entryLabelOf(c)}
-                      {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
+                <div key={c.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                        {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {entryLabelOf(c)}
+                        {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
+                      </div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                        {checkedInAt.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' })}
+                        {' · NT$'}{c.amountPaid}
+                        {canCancel ? <span style={{ color:'#2D7D46', marginLeft:6 }}>({minutesAgo}分鐘前)</span> : <span style={{ color:'#ccc', marginLeft:6 }}>(已超過10分鐘)</span>}
+                      </div>
                     </div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                      {checkedInAt.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' })}
-                      {' · NT$'}{c.amountPaid}
-                      {canCancel ? <span style={{ color:'#2D7D46', marginLeft:6 }}>({minutesAgo}分鐘前)</span> : <span style={{ color:'#ccc', marginLeft:6 }}>(已超過10分鐘)</span>}
+                    <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                      {canAddRental && (
+                        <button onClick={() => { setAddRentalId(addRentalId === c.id ? null : c.id); setAddRentalSel({ shoes:false, chalk:false }); }}
+                          style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
+                          🎒 加租器材
+                        </button>
+                      )}
+                      {canCancel && (
+                        <button onClick={() => handleCancelCheckin(c.id)} disabled={cancellingId === c.id}
+                          style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer' }}>
+                          {cancellingId === c.id ? '取消中...' : '取消入場'}
+                        </button>
+                      )}
+                      {!canCancel && isSuperAdmin && (
+                        <button onClick={() => handleCancelCheckin(c.id, true)} disabled={cancellingId === c.id}
+                          style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
+                          {cancellingId === c.id ? '取消中...' : '強制取消'}
+                        </button>
+                      )}
                     </div>
                   </div>
-                  {canCancel && (
-                    <button onClick={() => handleCancelCheckin(c.id)} disabled={cancellingId === c.id}
-                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
-                      {cancellingId === c.id ? '取消中...' : '取消入場'}
-                    </button>
-                  )}
-                  {!canCancel && isSuperAdmin && (
-                    <button onClick={() => handleCancelCheckin(c.id, true)} disabled={cancellingId === c.id}
-                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
-                      {cancellingId === c.id ? '取消中...' : '強制取消'}
-                    </button>
+                  {addRentalId === c.id && (
+                    <div style={{ marginTop:10, paddingTop:10, borderTop:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+                      {!c.rentShoes && (
+                        <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, cursor:'pointer' }}>
+                          <input type="checkbox" checked={addRentalSel.shoes}
+                            onChange={e => setAddRentalSel(s => ({ ...s, shoes: e.target.checked }))} />
+                          岩鞋 NT$100
+                        </label>
+                      )}
+                      {!c.rentChalk && (
+                        <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:13, cursor:'pointer' }}>
+                          <input type="checkbox" checked={addRentalSel.chalk}
+                            onChange={e => setAddRentalSel(s => ({ ...s, chalk: e.target.checked }))} />
+                          粉袋 NT$50
+                        </label>
+                      )}
+                      <button onClick={() => handleAddRental(c.id)} disabled={addingRental || (!addRentalSel.shoes && !addRentalSel.chalk)}
+                        style={{ height:30, padding:'0 14px', borderRadius:8, background: (!addRentalSel.shoes && !addRentalSel.chalk) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor: (!addRentalSel.shoes && !addRentalSel.chalk) ? 'not-allowed' : 'pointer' }}>
+                        {addingRental ? '處理中...' : '確認加租'}
+                      </button>
+                      <button onClick={() => setAddRentalId(null)}
+                        style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', color:'#666', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
+                        取消
+                      </button>
+                    </div>
                   )}
                 </div>
               );

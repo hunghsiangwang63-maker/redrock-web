@@ -32,6 +32,10 @@ export const createCheckinInvoice = (checkInId, data) =>
 export const voidCheckinInvoice = (id, voidReason) =>
   client.post(`/checkin/invoices/${id}/void`, { voidReason });
 
+// 事後補加租借（已入場後才決定要租岩鞋/粉袋）
+export const addRentalToCheckin = (checkInId, data) =>
+  client.post(`/checkin/${checkInId}/add-rental`, data);
+
 // 會員端
 export const memberVerifyEntry = (gymId) =>
   memberClient.post('/checkin/verify-member', { gymId });
