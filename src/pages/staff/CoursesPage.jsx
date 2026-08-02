@@ -14,6 +14,7 @@ import { courseColor } from '../../utils/courseColor';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
+import CourseRegDetailModal from '../../components/CourseRegDetailModal';
 import dayjs from 'dayjs';
 
 // 估算週課場次數（純預覽用，如分期試算/建立前參考；權威堂數仍以 generateWeeklySessions 實際產生為準）
@@ -80,6 +81,7 @@ export default function CoursesPage({ embedded = false }) {
   ];
   const [tab, setTab] = useState('courses');
   const [rosterModal, setRosterModal] = useState(null);
+  const [regDetailTarget, setRegDetailTarget] = useState(null); // 報名名單「詳細資料」modal 目標
   const [calCourseFilter, setCalCourseFilter] = useState('');   // 課程月曆篩選（''＝全部課程）
   const [lmSummary, setLmSummary] = useState(null); // 請假補課總表 {loading, course, rows, pendingClaims} // { course, enrollments }
   const [editLeave, setEditLeave] = useState(null); // { memberId, value }
@@ -2577,7 +2579,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
                 const byMember = {};
                 rosterModal.enrollments.forEach(e => {
-                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null, enrollNote:null, healthNote:null, referralSource:null });
+                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null, enrollNote:null, healthNote:null, referralSource:null, enrolledAt:null, fee:null, paymentStatus:null, confirmedAmount:null, receivedAmount:null, receivedAmountOverride:null, paymentDate:null, staffNote:null });
                   m.count++;
                   if (e.memberPaidAmount != null && m.paidAmount == null) m.paidAmount = e.memberPaidAmount;
                   if (e.status==='leave') m.leaveUsed++;
@@ -2585,6 +2587,14 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   if (!m.enrollNote && e.enrollNote) m.enrollNote = e.enrollNote;
                   if (!m.healthNote && e.healthNote) m.healthNote = e.healthNote;
                   if (!m.referralSource && e.referralSource) m.referralSource = e.referralSource;
+                  if (!m.enrolledAt && e.enrolledAt) m.enrolledAt = e.enrolledAt;
+                  if (m.fee == null && e.fee != null) m.fee = e.fee;
+                  if (!m.paymentStatus && e.paymentStatus) m.paymentStatus = e.paymentStatus;
+                  if (m.confirmedAmount == null && e.confirmedAmount != null) m.confirmedAmount = e.confirmedAmount;
+                  if (m.receivedAmount == null && e.receivedAmount != null) m.receivedAmount = e.receivedAmount;
+                  if (m.receivedAmountOverride == null && e.receivedAmountOverride != null) m.receivedAmountOverride = e.receivedAmountOverride;
+                  if (!m.paymentDate && e.paymentDate) m.paymentDate = e.paymentDate;
+                  if (!m.staffNote && e.staffNote) m.staffNote = e.staffNote;
                 });
                 const members = Object.values(byMember);
                 return (
@@ -2606,7 +2616,25 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       const isEditing = editLeave?.memberId === m.memberId;
                       return (
                       <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
-                        <td style={{ padding:'10px 12px', fontWeight:500 }}>{m.memberName}</td>
+                        <td style={{ padding:'10px 12px', fontWeight:500 }}>
+                          {m.memberName}
+                          <div>
+                            <button onClick={() => setRegDetailTarget({
+                              memberName: m.memberName, memberPhone: m.memberPhone,
+                              courseName: rosterModal.course?.name,
+                              range: (rosterModal.course?.startDate && rosterModal.course?.endDate)
+                                ? `${dayjs(rosterModal.course.startDate).format('MM/DD')}–${dayjs(rosterModal.course.endDate).format('MM/DD')}` : '',
+                              enrolledAt: m.enrolledAt, fee: m.fee, paymentMethod: m.paymentMethod, paymentStatus: m.paymentStatus,
+                              memberPaidAmount: m.paidAmount, confirmedAmount: m.confirmedAmount,
+                              receivedAmount: m.receivedAmount, receivedAmountOverride: m.receivedAmountOverride,
+                              bankLastFive: m.bankLastFive, paymentDate: m.paymentDate,
+                              staffNote: m.staffNote, healthNote: m.healthNote, referralSource: m.referralSource, enrollNote: m.enrollNote,
+                            })}
+                              style={{ marginTop:4, height:22, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:10, fontWeight:600, cursor:'pointer' }}>
+                              詳細
+                            </button>
+                          </div>
+                        </td>
                         <td style={{ padding:'10px 12px', color:'#666', fontFamily:'monospace', fontSize:12 }}>{m.memberPhone}</td>
                         <td style={{ padding:'10px 12px', color:'#666' }}>{m.count} 堂</td>
                         <td style={{ padding:'10px 12px', color:'#666', fontSize:12 }}>
@@ -2656,6 +2684,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           </div>
         </div>
       )}
+      {regDetailTarget && <CourseRegDetailModal r={regDetailTarget} onClose={() => setRegDetailTarget(null)} />}
     </div>
   );
 }
