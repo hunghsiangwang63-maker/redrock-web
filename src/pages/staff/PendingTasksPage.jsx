@@ -29,12 +29,11 @@ const NOTIF_CAT = {
   // 轉帳／收款確認
   transfer_payment:'transfer', experience_transfer:'transfer', transfer:'transfer', transfer_confirm:'transfer',
   experience_refund:'transfer',
-  // 票券（單次入場券審核/轉贈 + 定期票舊系統認領）
+  // 票券／卡片（單次入場券審核/轉贈 + 定期票舊系統認領 + 優惠卡/黑卡/舊優惠卡綁定揭露）
   single_entry_ticket_approval:'ticket', single_entry_ticket_approved:'ticket', single_entry_ticket_rejected:'ticket',
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
   legacy_pass_claimed:'ticket',
-  // 卡片（優惠卡/黑卡/舊優惠卡綁定揭露）
-  discount_bind_disclosure:'card', black_bind_disclosure:'card', legacy_discount_bind_disclosure:'card',
+  discount_bind_disclosure:'ticket', black_bind_disclosure:'ticket', legacy_discount_bind_disclosure:'ticket',
   // 比賽
   competition_payment:'competition', competition_refund:'competition', competition_refund_request:'competition',
   competition_reg_claimed:'competition',
@@ -50,8 +49,8 @@ const NOTIF_CAT = {
   stocktake_discrepancy:'system',
 };
 const NOTIF_CATS = [
-  { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
-  { key:'card', label:'卡片' }, { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'course', label:'課程' },
+  { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券／卡片' },
+  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'course', label:'課程' },
   { key:'cancel', label:'取消入場' }, { key:'member', label:'會員' }, { key:'settlement', label:'結帳' }, { key:'system', label:'系統' },
 ];
 // 通知未帶 link 時依 type 補預設導向（舊通知/未帶連結的服務端通知「查看」鈕才有得按）
