@@ -691,6 +691,19 @@ export default function CoursesPage({ embedded = false }) {
     }
   };
 
+  // 下載整門課的完整報名名單 CSV（主要供工作坊用；每筆報名一列，含場次/狀態/出席/付款/金額/各類備註）
+  const downloadRosterCSV = async (courseId, courseName) => {
+    try {
+      const r = await client.get(`/courses/${courseId}/roster/download`, { responseType: 'blob' });
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `${courseName || '課程'}_名單_${dayjs().format('YYYY-MM-DD')}.csv`;
+      a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
+    } catch (e) {
+      showMsg(e.response?.status === 403 ? '權限不足：僅管理員可下載' : '下載失敗，請重新登入後再試', 'red');
+    }
+  };
+
   const searchEnrollMember = async (q) => {
     setEnrollQuery(q);
     if (q.length < 2) { setEnrollResults([]); return; }
@@ -1423,10 +1436,18 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             <span style={{ fontSize:12, color:'#999' }}>
                               正取 {enrolled.length} / {selectedCourse?.maxStudents} · 候補 {waitlist.length} · 請假 {onLeave.length}{makeupCount > 0 ? ` · 補課 ${makeupCount}` : ''}
                             </span>
-                            <button onClick={() => downloadAttendanceCSV(selectedCourse?.id, selectedCourse?.name)}
-                              style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer', whiteSpace:'nowrap' }}>
-                              ⬇ 下載出缺席
-                            </button>
+                            {selectedCourse?.type === 'workshop' ? (
+                              <button onClick={() => downloadRosterCSV(selectedCourse?.id, selectedCourse?.name)}
+                                title="每筆報名一列，含場次日期時段/狀態/出席/付款方式/金額/各類備註"
+                                style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer', whiteSpace:'nowrap' }}>
+                                ⬇ 下載名單
+                              </button>
+                            ) : (
+                              <button onClick={() => downloadAttendanceCSV(selectedCourse?.id, selectedCourse?.name)}
+                                style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer', whiteSpace:'nowrap' }}>
+                                ⬇ 下載出缺席
+                              </button>
+                            )}
                           </div>
                         </div>
 
