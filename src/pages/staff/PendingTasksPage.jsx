@@ -13,7 +13,7 @@ import ExperienceDetailModal from '../../components/review/ExperienceDetailModal
 import TicketApprovalModal from '../../components/review/TicketApprovalModal';
 import FallTestBookingModal from '../../components/review/FallTestBookingModal';
 import { confirmTeamPayment } from '../../api/team';
-import { rejectTicket } from '../../api/passes';
+import { rejectTicket, rejectTicketBatch } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
 import { getMyUpcomingShifts } from '../../api/schedule';
@@ -217,11 +217,17 @@ export default function PendingTasksPage() {
           <button onClick={() => setModal({ kind:'experience', record: task.record })} style={primaryBtn('#2D7D46')}>確認</button>
           <button onClick={() => setModal({ kind:'reason', props:{ title:'取消體驗預約', label:'取消原因', placeholder:'預設「館方取消」', confirmText:'確認取消', required:false, onSubmit: async (reason) => { await client.post(`/experience-bookings/${task.targetId}/cancel`, { reason: reason || '館方取消' }); afterDone('已取消預約'); } } })} style={dangerBtn}>取消</button>
         </>;
-      case 'ticket_approval':
+      case 'ticket_approval': {
+        const isBatch = !!task.record?.isBatch;
         return <>
-          <button onClick={() => setModal({ kind:'ticket', record: task.record })} style={primaryBtn('#2D7D46')}>核准</button>
-          <button onClick={() => setModal({ kind:'reason', props:{ title:'拒絕單次入場券', label:'拒絕原因', placeholder:'請填寫拒絕原因', confirmText:'確認拒絕', required:true, onSubmit: async (reason) => { await rejectTicket(task.targetId, reason); afterDone('已拒絕'); } } })} style={dangerBtn}>拒絕</button>
+          <button onClick={() => setModal({ kind:'ticket', record: task.record })} style={primaryBtn('#2D7D46')}>核准{isBatch ? `（×${task.record.quantity}）` : ''}</button>
+          <button onClick={() => setModal({ kind:'reason', props:{ title: isBatch ? `拒絕單次入場券（×${task.record.quantity}）` : '拒絕單次入場券', label:'拒絕原因', placeholder:'請填寫拒絕原因', confirmText:'確認拒絕', required:true, onSubmit: async (reason) => {
+            if (isBatch) await rejectTicketBatch(task.record.batchId, reason);
+            else await rejectTicket(task.targetId, reason);
+            afterDone('已拒絕');
+          } } })} style={dangerBtn}>拒絕</button>
         </>;
+      }
       case 'fall_test_pending':
         return <><button onClick={() => setModal({ kind:'falltest', record: task.record })} style={primaryBtn('#8B1A1A')}>檢視／登記</button></>;
       default:

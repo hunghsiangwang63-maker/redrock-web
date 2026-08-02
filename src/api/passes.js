@@ -27,5 +27,9 @@ export const approveTicket = (id) =>
   client.post(`/passes/single-entry/${id}/approve`);
 export const rejectTicket = (id, reason) =>
   client.post(`/passes/single-entry/${id}/reject`, { reason });
+export const approveTicketBatch = (batchId) =>
+  client.post(`/passes/single-entry/batch/${batchId}/approve`);
+export const rejectTicketBatch = (batchId, reason) =>
+  client.post(`/passes/single-entry/batch/${batchId}/reject`, { reason });
 export const transferTicket = (id, toMemberId) =>
   client.post(`/passes/single-entry/${id}/transfer`, { toMemberId });

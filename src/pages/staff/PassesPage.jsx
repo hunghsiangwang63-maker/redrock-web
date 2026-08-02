@@ -137,6 +137,7 @@ export default function PassesPage() {
   const [memberTickets, setMemberTickets] = useState([]);
   const [showIssueTicket, setShowIssueTicket] = useState(false);
   const [ticketNotes, setTicketNotes] = useState('');
+  const [ticketQty, setTicketQty] = useState(1);
 
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
@@ -387,12 +388,14 @@ export default function PassesPage() {
   const handleIssueTicket = async () => {
     if (!ticketMember) return;
     if (!ticketNotes.trim()) { showMsg('請填寫備註說明（發放原因）', 'red'); return; }
+    const qty = Math.max(1, Math.min(12, Number(ticketQty) || 1));
     setLoading(true);
     try {
-      await issueSingleEntryTicket({ memberId: ticketMember.id, notes: ticketNotes });
-      showMsg('單次入場券已發放，等待審核');
+      const res0 = await issueSingleEntryTicket({ memberId: ticketMember.id, notes: ticketNotes, quantity: qty });
+      showMsg(res0.data?.message || (qty > 1 ? `已發放 ${qty} 張單次入場券，等待審核` : '單次入場券已發放，等待審核'));
       setShowIssueTicket(false);
       setTicketNotes('');
+      setTicketQty(1);
       const res = await getMemberSingleEntryTickets(ticketMember.id);
       setMemberTickets(res.data.tickets || []);
     } catch (err) {
@@ -850,7 +853,7 @@ export default function PassesPage() {
                 <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <span style={{ fontWeight:600, fontSize:13 }}>{ticketMember.name} 的單次入場券</span>
                   {canManagePass && (
-                  <button onClick={() => setShowIssueTicket(true)}
+                  <button onClick={() => { setTicketQty(1); setShowIssueTicket(true); }}
                     style={{ height:30, padding:'0 12px', borderRadius:7, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 發放</button>
                   )}
                 </div>
@@ -964,6 +967,13 @@ export default function PassesPage() {
             <div style={{ fontSize:13, color:'#666', marginBottom:8 }}>會員：<strong>{ticketMember.name}</strong>（{ticketMember.phone}）</div>
             <div style={{ fontSize:13, color:'#666' }}>有效期：發放日起 1 年</div>
           </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontSize:11, color:'#8B1A1A', display:'block', marginBottom:5 }}>發放數量（最多一次 12 張，皆發給同一位會員）</label>
+            <input type="number" min={1} max={12} value={ticketQty}
+              onChange={e => setTicketQty(e.target.value === '' ? '' : Math.max(1, Math.min(12, Number(e.target.value) || 1)))}
+              onBlur={() => setTicketQty(q => Math.max(1, Math.min(12, Number(q) || 1)))}
+              style={{ width:100, height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }}/>
+          </div>
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:11, color:'#8B1A1A', display:'block', marginBottom:5 }}>備註說明（必填，發放原因；管理員審核時會看到）</label>
             <input value={ticketNotes} onChange={e => setTicketNotes(e.target.value)} placeholder="如：活動贈送、比賽獎勵、補償票券..."
@@ -974,7 +984,7 @@ export default function PassesPage() {
               style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
             <button onClick={handleIssueTicket} disabled={loading}
               style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {loading ? '發放中...' : '確認發放'}
+              {loading ? '發放中...' : (Number(ticketQty) > 1 ? `確認發放（${ticketQty} 張）` : '確認發放')}
             </button>
           </div>
         </Modal>
