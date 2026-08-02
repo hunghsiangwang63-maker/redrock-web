@@ -241,6 +241,8 @@ export default function MemberCoursesPage() {
   useEffect(() => {
     if (selectedCourse) loadSessions(selectedCourse);
   }, [selectedCourse]);
+  // 切換課程時「為誰報名」重置回本人，避免沿用上一堂課選的家庭成員、價格與資格判斷對錯人
+  useEffect(() => { setEnrollForMemberId(null); }, [selectedCourse?.id]);
   // 後端權威報價（插班×續報/舊生×隊員折）＝實收：週課依「報名對象」取，切課/切對象重取
   useEffect(() => {
     setQuote(null);
@@ -1192,7 +1194,9 @@ export default function MemberCoursesPage() {
 
               {/* 週課：整個課程報名 */}
               {selectedCourse.type === 'weekly' && (() => {
-                const alreadyEnrolled = myEnrollments.some(e => e.courseId === selectedCourse.id && e.status !== 'cancelled');
+                // 只看「目前選定的報名對象」是否已報名——避免選到還沒報名的子女，卻因為本人或另一位子女已報名而誤判成已報名
+                const _curTargetId = enrollForMemberId || member?.id;
+                const alreadyEnrolled = myEnrollments.some(e => e.courseId === selectedCourse.id && e.memberId === _curTargetId && e.status !== 'cancelled');
                 const today = dayjs().format('YYYY-MM-DD');
                 // 金額一律以後端權威報價（插班×續報/舊生×隊員折）為準＝實收；未回前鎖住顯示與報名鈕避免溢繳
                 const feeReady = !!quote && !quoteLoading && !sessionsLoading;
@@ -1207,9 +1211,40 @@ export default function MemberCoursesPage() {
                 // 名額是否已滿（正取）→ 報名將進候補
                 const capRemaining = (selectedCourse.maxStudents || 0) - (selectedCourse.enrolledCount || 0);
                 const isCourseFull = selectedCourse.statusLabel === 'full' || capRemaining <= 0;
+                // 舊生限制報名：依「目前選定的報名對象」判斷此刻能不能報（與後端 enroll-all 同一套邏輯）
+                const eo = selectedCourse.enrollOpenDate, ao = selectedCourse.alumniOpenDate;
+                const alumniWindowOk = !!(ao && today >= ao && quote?.alumni?.isAlumni);
+                const enrollOpenNow = !eo || today >= eo || alumniWindowOk;
+                const openBlockMsg = !enrollOpenNow
+                  ? (ao && today < ao ? `此課程 ${ao} 起開放「舊生續報」、${eo} 全面開放報名——${enrollTarget?.name || '此對象'}非本班別舊生`
+                     : ao ? `目前為舊生續報期間（${eo} 全面開放）；${enrollTarget?.name || '此對象'}非本班別舊生，請於開放日後報名`
+                     : `此課程 ${eo} 開放報名`)
+                  : '';
 
                 return (
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
+                    {familyMembers.length > 0 && (
+                      <div style={{ marginBottom:14 }}>
+                        <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>為誰報名</div>
+                        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                          <button onClick={()=>setEnrollForMemberId(null)}
+                            style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${!enrollForMemberId?'#8B1A1A':'#E8D5D5'}`, background:!enrollForMemberId?'#FBF5F5':'#fff', color:!enrollForMemberId?'#8B1A1A':'#666', fontSize:12, cursor:'pointer', fontWeight:!enrollForMemberId?600:400 }}>
+                            👤 {member?.name}（本人）
+                          </button>
+                          {familyMembers.map(c=>(
+                            <button key={c.id} onClick={()=>setEnrollForMemberId(c.id)}
+                              style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${enrollForMemberId===c.id?'#8B1A1A':'#E8D5D5'}`, background:enrollForMemberId===c.id?'#FBF5F5':'#fff', color:enrollForMemberId===c.id?'#8B1A1A':'#666', fontSize:12, cursor:'pointer', fontWeight:enrollForMemberId===c.id?600:400 }}>
+                              {c.gender==='male'?'👦':c.gender==='female'?'👧':'🧒'} {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {feeReady && !enrollOpenNow && !alreadyEnrolled && (
+                      <div style={{ background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#8A5A00', lineHeight:1.7, textAlign:'left' }}>
+                        ⏰ {openBlockMsg}
+                      </div>
+                    )}
                     <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
                       共 {totalCount} 堂 · 已開始 {completedCount} 堂 · 剩餘 {remainingCount} 堂
                     </div>
@@ -1271,13 +1306,13 @@ export default function MemberCoursesPage() {
                         ✓ 已報名此課程
                       </div>
                     ) : (
-                      <button disabled={!feeReady} onClick={() => {
-                        if (!feeReady) return;
+                      <button disabled={!feeReady || !enrollOpenNow} onClick={() => {
+                        if (!feeReady || !enrollOpenNow) return;
                         setEnrollSession({ id: sessions.find(s => s.courseId === selectedCourse.id && s.date >= today)?.id, courseId: selectedCourse.id, isCourse: true, fee, isWaitlist: isCourseFull });
                         setShowEnrollModal(true);
                       }}
-                        style={{ width:'100%', height:44, borderRadius:10, background: !feeReady?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: !feeReady?'not-allowed':'pointer' }}>
-                        {!feeReady ? '費用計算中…' : (isCourseFull ? '加入候補名單' : '報名課程')}
+                        style={{ width:'100%', height:44, borderRadius:10, background: (!feeReady || !enrollOpenNow)?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: (!feeReady || !enrollOpenNow)?'not-allowed':'pointer' }}>
+                        {!feeReady ? '費用計算中…' : !enrollOpenNow ? '尚未開放報名' : (isCourseFull ? '加入候補名單' : '報名課程')}
                       </button>
                     )}
                   </div>
