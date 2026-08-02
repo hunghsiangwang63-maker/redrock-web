@@ -50,6 +50,14 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
             {record.orderName || '—'}
             {record.orderType && <span style={{ marginLeft: 6, fontSize: 11, color: '#185FA5', background: '#E6F1FB', padding: '1px 7px', borderRadius: 6 }}>{ORDER_TYPE_LABEL[record.orderType] || record.orderType}</span>}
           </Row>
+          {record.partnerGym && (
+            <Row label="友館優惠">
+              <strong style={{ color: '#533AB7' }}>{record.partnerGym}</strong>
+              <span style={{ marginLeft: 6, fontSize: 11, color: record.partnerGymPending ? '#B45309' : '#2D7D46' }}>
+                {record.partnerGymPending ? '（尚未核對，請確認會員確實為友館會員）' : '（已核對）'}
+              </span>
+            </Row>
+          )}
           <Row label="應收金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
           <Row label="會員填實際匯款">{record.paidAmount != null
             ? <strong style={{ color: Number(record.paidAmount) !== Number(record.amount||0) ? '#B45309' : '#2D7D46' }}>NT${Number(record.paidAmount).toLocaleString()}{Number(record.paidAmount) !== Number(record.amount||0) && '（與應收不符）'}</strong>
