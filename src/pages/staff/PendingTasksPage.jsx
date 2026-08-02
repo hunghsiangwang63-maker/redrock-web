@@ -23,20 +23,21 @@ import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 // 對照現行實際會產生的通知 type（2026-08 依 Firestore notifications 集合實際資料 + 全站 createNotification/
 // notifyRoleInGym 呼叫點盤點過），未列出的新型別預設落在「系統」（notifCatOf 的 fallback），非遺漏。
 const NOTIF_CAT = {
-  // 課程（請假/銷假/補課/退費/代班/名單認領）
+  // 課程（純請假/銷假/補課/退費/代班；名單認領已併入「報名／認領」）
   course_leave:'course', course_leave_cancel:'course', course_makeup_booked:'course', course_makeup_cancel:'course',
-  course_refund:'course', course_substitute:'course', course_substitute_cancel:'course', course_roster_claimed:'course',
-  // 轉帳／收款確認
-  transfer_payment:'transfer', experience_transfer:'transfer', transfer:'transfer', transfer_confirm:'transfer',
-  experience_refund:'transfer',
+  course_refund:'course', course_substitute:'course', course_substitute_cancel:'course',
+  // 報名／認領：合併原「轉帳」「比賽」兩顆分類——轉帳原本的付款確認/退費型別實際從未產生過通知
+  // （那些事件走待辦清單的即時任務，不會寫進 notifications），比賽也只有認領有真實資料；
+  // 加上課程名單認領，通通歸在此類（regItems 本就 cat:'report'，此處補齊 notifItems 的對應型別）。
+  transfer_payment:'report', experience_transfer:'report', transfer:'report', transfer_confirm:'report',
+  experience_refund:'report',
+  competition_payment:'report', competition_refund:'report', competition_refund_request:'report',
+  competition_reg_claimed:'report', course_roster_claimed:'report',
   // 票券／卡片（單次入場券審核/轉贈 + 定期票舊系統認領 + 優惠卡/黑卡/舊優惠卡綁定揭露）
   single_entry_ticket_approval:'ticket', single_entry_ticket_approved:'ticket', single_entry_ticket_rejected:'ticket',
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
   legacy_pass_claimed:'ticket',
   discount_bind_disclosure:'ticket', black_bind_disclosure:'ticket', legacy_discount_bind_disclosure:'ticket',
-  // 比賽
-  competition_payment:'competition', competition_refund:'competition', competition_refund_request:'competition',
-  competition_reg_claimed:'competition',
   // 取消入場
   cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
   // 排班
@@ -49,9 +50,8 @@ const NOTIF_CAT = {
   stocktake_discrepancy:'system',
 };
 const NOTIF_CATS = [
-  { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券／卡片' },
-  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'course', label:'課程' },
-  { key:'cancel', label:'取消入場' }, { key:'member', label:'會員' }, { key:'settlement', label:'結帳' }, { key:'system', label:'系統' },
+  { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'ticket', label:'票券／卡片' }, { key:'report', label:'報名／認領' },
+  { key:'course', label:'課程' }, { key:'cancel', label:'取消入場' }, { key:'member', label:'會員' }, { key:'settlement', label:'結帳' }, { key:'system', label:'系統' },
 ];
 // 通知未帶 link 時依 type 補預設導向（舊通知/未帶連結的服務端通知「查看」鈕才有得按）
 const NOTIF_LINK = {
