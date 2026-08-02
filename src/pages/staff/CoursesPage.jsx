@@ -1968,6 +1968,21 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     </div>
                   ))}
                   </>)}
+                  {/* 週課預設一律開放試上/補課；僅特殊情況（如密集班）才需勾選排除 */}
+                  {courseForm.type === 'weekly' && (
+                    <div style={{ gridColumn:'1/-1', display:'flex', gap:16 }}>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#666', cursor:'pointer' }}>
+                        <input type="checkbox" checked={courseForm.trialTarget === 'off'}
+                          onChange={e => setCourseForm({...courseForm, trialTarget: e.target.checked ? 'off' : 'auto'})}/>
+                        特殊情況：不開放此梯次作為試上場次
+                      </label>
+                      <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#666', cursor:'pointer' }}>
+                        <input type="checkbox" checked={courseForm.makeupTarget === 'off'}
+                          onChange={e => setCourseForm({...courseForm, makeupTarget: e.target.checked ? 'off' : 'auto'})}/>
+                        特殊情況：不開放此梯次作為補課場次（如密集班）
+                      </label>
+                    </div>
+                  )}
                   <div>
                     <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（NT$）</label>
                     <input type="number" value={courseForm.trialPrice || ''}
@@ -2240,6 +2255,21 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   onChange={e => setEditForm({...editForm, trialPrice:e.target.value})}
                   placeholder={`公式 NT$${Math.round((Number(editForm.pricePerSession)||0) * 1.1)}（單堂價×1.1）`}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              </div>
+            )}
+            {/* 週課預設一律開放試上/補課；僅特殊情況（如密集班）才需勾選排除 */}
+            {(editForm.type || editingCourse?.type) === 'weekly' && (
+              <div style={{ gridColumn:'1/-1', display:'flex', gap:16 }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#666', cursor:'pointer' }}>
+                  <input type="checkbox" checked={editForm.trialTarget === 'off'}
+                    onChange={e => setEditForm({...editForm, trialTarget: e.target.checked ? 'off' : 'auto'})}/>
+                  特殊情況：不開放此梯次作為試上場次
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#666', cursor:'pointer' }}>
+                  <input type="checkbox" checked={editForm.makeupTarget === 'off'}
+                    onChange={e => setEditForm({...editForm, makeupTarget: e.target.checked ? 'off' : 'auto'})}/>
+                  特殊情況：不開放此梯次作為補課場次（如密集班）
+                </label>
               </div>
             )}
             {(editForm.type || editingCourse?.type) === 'weekly' && [
