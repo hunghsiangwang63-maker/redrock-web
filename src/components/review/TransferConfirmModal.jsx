@@ -45,7 +45,12 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
         </div>
 
         <div style={{ marginBottom: 16 }}>
-          <Row label="會員">{record.memberName || '—'}</Row>
+          <Row label="會員">
+            {record.memberName || '—'}
+            {record.payerName && record.payerName !== record.memberName && (
+              <span style={{ marginLeft: 6, fontSize: 11, color: '#999' }}>（家長／付款人：{record.payerName}）</span>
+            )}
+          </Row>
           <Row label="訂單">
             {record.orderName || '—'}
             {record.orderType && <span style={{ marginLeft: 6, fontSize: 11, color: '#185FA5', background: '#E6F1FB', padding: '1px 7px', borderRadius: 6 }}>{ORDER_TYPE_LABEL[record.orderType] || record.orderType}</span>}
