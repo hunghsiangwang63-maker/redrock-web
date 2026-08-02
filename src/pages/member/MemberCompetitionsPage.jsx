@@ -5,7 +5,6 @@ import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
-import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, getCompetitionQuote, cancelRegistration, updateCompetitionForm, reregisterCompetition } from '../../api/competitions';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
 import SignaturePad from '../../components/SignaturePad.jsx';
@@ -17,7 +16,6 @@ import TransferReuploadModal from '../../components/TransferReuploadModal';
 const STEPS = ['基本資料', '付款資訊', '同意書', '簽名'];
 
 export default function MemberCompetitionsPage() {
-  const enabledPay = useEnabledPayments();
   const { member } = useMember();
   const [competitions, setCompetitions] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
@@ -89,13 +87,8 @@ export default function MemberCompetitionsPage() {
   const [regBirthday, setRegBirthday] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  // Step 2 fields
-  const [paymentMethod, setPaymentMethod] = useState('transfer');
-  const [paymentDate, setPaymentDate] = useState('');
-  const [bankLastFive, setBankLastFive] = useState('');
-  const [regPaidAmount, setRegPaidAmount] = useState(''); // 實際匯款金額（會員自填）
-  const [repayPaidAmount, setRepayPaidAmount] = useState('');
-  const [bankName, setBankName] = useState('');
+  // Step 2 fields（付款方式，統一走 PaymentSection：{ method, paymentDate, bankLastFive, bankName, paidAmount }）
+  const [paymentData, setPaymentData] = useState({ method: 'transfer' });
   // Step 3 — agreement
   const [agreedWaiver, setAgreedWaiver] = useState(false);
   const [agreedPhoto, setAgreedPhoto] = useState(false);
@@ -158,15 +151,13 @@ export default function MemberCompetitionsPage() {
 
   // 繳費資訊被退回 → 重新填寫（現金/轉帳＋日期，日期限 3 日內）
   const [repayTarget, setRepayTarget] = useState(null);
-  const [repayMethod, setRepayMethod] = useState('transfer');
-  const [repayDate, setRepayDate] = useState('');
-  const [repayBank, setRepayBank] = useState('');
-  const [repayLast5, setRepayLast5] = useState('');
+  const [repayData, setRepayData] = useState({ method: 'transfer' });
   const [repaySaving, setRepaySaving] = useState(false);
   const [repayErr, setRepayErr] = useState('');
   const submitRepay = async () => {
+    const { method: repayMethod, paymentDate: repayDate, bankLastFive: repayLast5, bankName: repayBank, paidAmount: repayPaidAmount } = repayData;
     if (!repayDate) { setRepayErr('請填寫繳費日期'); return; }
-    if (repayMethod === 'transfer' && !repayLast5.trim()) { setRepayErr('請填寫匯款帳號末五碼'); return; }
+    if (repayMethod === 'transfer' && !repayLast5?.trim()) { setRepayErr('請填寫匯款帳號末五碼'); return; }
     setRepaySaving(true); setRepayErr('');
     try {
       const { memberClient } = await import('../../api/client');
@@ -301,7 +292,7 @@ export default function MemberCompetitionsPage() {
     setIsHonorary(false);
     setIdNumber(''); setEmergencyContact(''); setEmergencyRelation(''); setEmergencyPhone('');
     setHeight(''); setArmSpan('');
-    setPaymentMethod('transfer'); setPaymentDate(''); setBankLastFive('');
+    setPaymentData({ method: 'transfer' });
     setAgreedWaiver(false); setAgreedPhoto(false);
     setMemberSig(null); setGuardianSig(null);
     setShowModal(true);
@@ -367,6 +358,7 @@ export default function MemberCompetitionsPage() {
   const handleSubmit = async () => {
     if (!memberSig) { showMsg('請完成本人簽名', 'red'); return; }
     if (isMinor && !guardianSig) { showMsg('未滿18歲需法定代理人簽名', 'red'); return; }
+    const { method: paymentMethod, paymentDate, bankLastFive, bankName, paidAmount: regPaidAmount } = paymentData;
     setSubmitting(true);
     try {
       const targetId = registerForId || member.id;
@@ -567,13 +559,13 @@ export default function MemberCompetitionsPage() {
                           {r.bankLastFive ? (
                             <div style={{ fontSize:12, color:'#8B6914', textAlign:'left' }}>
                               轉帳資訊已填寫（末五碼 {r.bankLastFive}{r.paymentDate?`・${r.paymentDate}`:''}），請等待館方確認
-                              <button onClick={()=>{ setRepayTarget(r); setRepayMethod('transfer'); setRepayDate(r.paymentDate||''); setRepayBank(r.bankName||''); setRepayLast5(r.bankLastFive||''); setRepayErr(''); }}
+                              <button onClick={()=>{ setRepayTarget(r); setRepayData({ method:'transfer', paymentDate:r.paymentDate||'', bankName:r.bankName||'', bankLastFive:r.bankLastFive||'' }); setRepayErr(''); }}
                                 style={{ marginLeft:8, height:26, padding:'0 10px', borderRadius:6, background:'#fff', color:'#8B6914', border:'0.5px solid #E4D3A0', fontSize:11, cursor:'pointer' }}>修改</button>
                             </div>
                           ) : (
                             <div style={{ textAlign:'left' }}>
                               <div style={{ fontSize:12, color:'#8B6914', marginBottom:6 }}>匯款後請填寫轉帳資訊（末五碼＋日期）供館方核對</div>
-                              <button onClick={()=>{ setRepayTarget(r); setRepayMethod('transfer'); setRepayDate(''); setRepayBank(''); setRepayLast5(''); setRepayErr(''); }}
+                              <button onClick={()=>{ setRepayTarget(r); setRepayData({ method:'transfer' }); setRepayErr(''); }}
                                 style={{ height:32, padding:'0 16px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>填寫轉帳資訊</button>
                             </div>
                           )}
@@ -582,7 +574,7 @@ export default function MemberCompetitionsPage() {
                       {r.paymentStatus==='transfer_rejected' && r.status !== 'cancelled' && (
                         <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
                           <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>繳費資訊被退回{r.paymentRejectReason?`：${r.paymentRejectReason}`:''}</div>
-                          <button onClick={()=>{ setRepayTarget(r); setRepayMethod(r.paymentMethod === 'cash' ? 'cash' : 'transfer'); setRepayDate(''); setRepayBank(''); setRepayLast5(''); setRepayErr(''); }}
+                          <button onClick={()=>{ setRepayTarget(r); setRepayData({ method: r.paymentMethod === 'cash' ? 'cash' : 'transfer' }); setRepayErr(''); }}
                             style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
                             重新填寫繳費資訊
                           </button>
@@ -840,57 +832,14 @@ export default function MemberCompetitionsPage() {
                     </div>
                   ); })()}
                 </div>
-                <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8, fontWeight:500 }}>付款方式</label>
-                  <div style={{ display:'flex', gap:8 }}>
-                    {filterPayments([{k:'transfer',l:'銀行轉帳'},{k:'cash',l:'臨櫃現金'},{k:'linepay',l:'Line Pay'},{k:'jkopay',l:'街口'},{k:'taiwanpay',l:'台灣Pay'}], enabledPay).map(pm=>(
-                      <button key={pm.k} onClick={()=>setPaymentMethod(pm.k)}
-                        style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${paymentMethod===pm.k?'#8B1A1A':'#E8D5D5'}`, background:paymentMethod===pm.k?'#FBF5F5':'#fff', color:paymentMethod===pm.k?'#8B1A1A':'#666', fontSize:12, fontWeight:paymentMethod===pm.k?600:400, cursor:'pointer' }}>
-                        {pm.l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {paymentMethod==='cash' && (
-                  <div style={{ marginBottom:10 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>臨櫃繳款日期 *（報名日起 3 日內）</label>
-                    <input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}
-                      min={dayjs().format('YYYY-MM-DD')} max={dayjs().add(3,'day').format('YYYY-MM-DD')}
-                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                    <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'left' }}>請填寫預計（或已）至櫃檯繳費的日期</div>
-                  </div>
-                )}
-                {paymentMethod==='transfer' && (<>
-                  <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
-                    <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>轉帳帳號</div>
-                    <div style={{ fontSize:13, fontWeight:600 }}>台新銀行(812) 關東橋分行</div>
-                    <div style={{ fontSize:16, fontFamily:'monospace', letterSpacing:2, color:'#8B1A1A', margin:'6px 0' }}>21000100211430</div>
-                    <div style={{ fontSize:13 }}>戶名：紅石攀岩有限公司</div>
-                  </div>
-                  <div style={{ marginBottom:10 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>匯款銀行名稱</label>
-                    <input type="text" value={bankName} onChange={e=>setBankName(e.target.value)} placeholder="例：國泰世華、台新…"
-                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                    <div>
-                      <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>匯款日期（報名日起 3 日內）</label>
-                      <input type="date" value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}
-                        min={dayjs().format('YYYY-MM-DD')} max={dayjs().add(3,'day').format('YYYY-MM-DD')}
-                        style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                    </div>
-                    <div>
-                      <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>匯款末五碼</label>
-                      <input type="text" maxLength={5} value={bankLastFive} onChange={e=>setBankLastFive(e.target.value)} placeholder="例：12345"
-                        style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                    </div>
-                    <div>
-                      <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>實際匯款金額</label>
-                      <input type="text" inputMode="numeric" value={regPaidAmount} onChange={e=>setRegPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
-                        style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                    </div>
-                  </div>
-                </>)}
+                <PaymentSection
+                  value={paymentData}
+                  methods={['cash','transfer','linepay','jkopay','taiwanpay']}
+                  onChange={setPaymentData}
+                  dateMin={dayjs().format('YYYY-MM-DD')}
+                  dateMax={dayjs().add(3,'day').format('YYYY-MM-DD')}
+                  bankInfo={{ bankName:'台新銀行(812)', branch:'關東橋分行', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+                />
               </>)}
 
               {/* Step 3: 同意書 */}
@@ -1227,42 +1176,14 @@ export default function MemberCompetitionsPage() {
                 退回原因:{repayTarget.paymentRejectReason}
               </div>
             )}
-            <div style={{ marginBottom:12 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>付款方式</label>
-              <div style={{ display:'flex', gap:8 }}>
-                {[{k:'transfer',l:'銀行轉帳'},{k:'cash',l:'臨櫃現金'}].map(pm=>(
-                  <button key={pm.k} onClick={()=>setRepayMethod(pm.k)}
-                    style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${repayMethod===pm.k?'#8B1A1A':'#E8D5D5'}`, background:repayMethod===pm.k?'#FBF5F5':'#fff', color:repayMethod===pm.k?'#8B1A1A':'#666', fontSize:13, fontWeight:repayMethod===pm.k?600:400, cursor:'pointer' }}>
-                    {pm.l}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div style={{ marginBottom:12 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{repayMethod==='cash'?'臨櫃繳款日期':'匯款日期'} *（3 日內）</label>
-              <input type="date" value={repayDate} onChange={e=>setRepayDate(e.target.value)}
-                min={dayjs().format('YYYY-MM-DD')} max={dayjs().add(3,'day').format('YYYY-MM-DD')}
-                style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-            </div>
-            {repayMethod==='transfer' && (
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
-                <div>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>匯款銀行</label>
-                  <input value={repayBank} onChange={e=>setRepayBank(e.target.value)} placeholder="例:台新"
-                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                </div>
-                <div>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>匯款末五碼</label>
-                  <input maxLength={5} value={repayLast5} onChange={e=>setRepayLast5(e.target.value)} placeholder="12345"
-                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                </div>
-                <div>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>實際匯款金額</label>
-                  <input inputMode="numeric" value={repayPaidAmount} onChange={e=>setRepayPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
-                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                </div>
-              </div>
-            )}
+            <PaymentSection
+              value={repayData}
+              methods={['cash','transfer']}
+              onChange={setRepayData}
+              dateMin={dayjs().format('YYYY-MM-DD')}
+              dateMax={dayjs().add(3,'day').format('YYYY-MM-DD')}
+              bankInfo={{ bankName:'台新銀行(812)', branch:'關東橋分行', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+            />
             {repayErr && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:10 }}>{repayErr}</div>}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>setRepayTarget(null)} style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>

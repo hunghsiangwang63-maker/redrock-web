@@ -7,7 +7,6 @@ import { useMember } from '../../store/memberStore.jsx';
 import { getRentalSettings, applyRental, getMyRentals, cancelRentalMember, updateRentalMember } from '../../api/rentals';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 import { memberClient } from '../../api/client';
-import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
@@ -22,7 +21,6 @@ const STATUS_LABEL = {
 };
 
 export default function MemberRentalPage() {
-  const enabledPay = useEnabledPayments();
   const { member } = useMember();
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,11 +45,7 @@ export default function MemberRentalPage() {
   const [returnDate, setReturnDate] = useState('');
   const [quantities, setQuantities] = useState({ crashPad: 0, helmet: 0, harness: 0 });
   const [showPayModal, setShowPayModal] = useState(false);
-  const [payMethod, setPayMethod] = useState('transfer');
-  const [payDate, setPayDate] = useState('');
-  const [bankLastFive, setBankLastFive] = useState('');
-  const [rentPaidAmount, setRentPaidAmount] = useState(''); // 實際匯款金額（會員自填）
-  const [bankName, setBankName] = useState('');
+  const [paymentData, setPaymentData] = useState({ method: 'cash' }); // { method, paymentDate, bankLastFive, bankName, paidAmount }
   const [submitting, setSubmitting] = useState(false);
 
   const [alertModal, setAlertModal] = useState(null);
@@ -138,7 +132,8 @@ export default function MemberRentalPage() {
 
   const handleApply = async () => {
     if (!pickupDate) { showMsg('請選擇借出日期', 'red'); return; }
-    if (payMethod === 'transfer' && (!bankLastFive.trim() || !payDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
+    const { method: payMethod, paymentDate: payDate, bankLastFive, bankName, paidAmount: rentPaidAmount } = paymentData;
+    if (payMethod === 'transfer' && (!bankLastFive?.trim() || !payDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
     setSubmitting(true);
     try {
       const items = rentalMode === 'locker'
@@ -500,50 +495,14 @@ export default function MemberRentalPage() {
               </div>
             </div>
 
-            {/* 付款方式 */}
-            <div style={{ marginBottom:14 }}>
-              <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>付款方式</div>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {filterPayments([{k:'transfer',l:'現金/轉帳'},{k:'linepay',l:'Line Pay'},{k:'jkopay',l:'街口'},{k:'taiwanpay',l:'台灣Pay'}], enabledPay).map(pm => (
-                  <button key={pm.k} onClick={() => setPayMethod(pm.k)}
-                    style={{ height:36, padding:'0 14px', borderRadius:8, border:`1.5px solid ${payMethod===pm.k?'#8B1A1A':'#E8D5D5'}`, background:payMethod===pm.k?'#FBF5F5':'#fff', color:payMethod===pm.k?'#8B1A1A':'#666', fontSize:12, fontWeight:payMethod===pm.k?600:400, cursor:'pointer' }}>
-                    {pm.l}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <PaymentSection
+              value={paymentData}
+              methods={['cash','transfer','linepay','jkopay','taiwanpay']}
+              onChange={setPaymentData}
+              bankInfo={{ bankName:'台新銀行(812)', branch:'關東橋分行', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+            />
 
-            {payMethod === 'transfer' && (
-              <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
-                <div style={{ fontSize:11, color:'#999', marginBottom:4 }}>轉帳帳號</div>
-                <div style={{ fontSize:13, fontWeight:600 }}>台新銀行(812) 關東橋分行</div>
-                <div style={{ fontSize:16, fontFamily:'monospace', letterSpacing:2, color:'#8B1A1A', margin:'6px 0' }}>21000100211430</div>
-                <div style={{ marginTop:10 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款銀行名稱</label>
-                  <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} placeholder="例：國泰世華、台新…"
-                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
-                </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:8 }}>
-                  <div>
-                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款日期</label>
-                    <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
-                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
-                  </div>
-                  <div>
-                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>末五碼</label>
-                    <input type="text" maxLength={5} value={bankLastFive} onChange={e => setBankLastFive(e.target.value)} placeholder="12345"
-                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
-                  </div>
-                  <div>
-                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>實際匯款金額</label>
-                    <input type="text" inputMode="numeric" value={rentPaidAmount} onChange={e => setRentPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
-                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div style={{ display:'flex', gap:8 }}>
+            <div style={{ display:'flex', gap:8, marginTop:14 }}>
               <button onClick={() => setShowPayModal(false)}
                 style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={handleApply} disabled={submitting}

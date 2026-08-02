@@ -11,14 +11,7 @@ import dayjs from 'dayjs';
 import { gymOpenLabel } from '../../utils/gymOpenStatus';
 import QRCode from 'qrcode';
 import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
-import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
-
-const RENTAL_ADDON_PAYMENTS = [
-  { key: 'cash',      label: '現金' },
-  { key: 'linepay',   label: 'Line Pay' },
-  { key: 'jkopay',    label: '街口支付' },
-  { key: 'taiwanpay', label: '台灣 Pay' },
-];
+import PaymentSection from '../../components/PaymentSection';
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
@@ -42,8 +35,6 @@ export default function MemberHomePage() {
   const [raCost, setRaCost] = useState(0);
   const [raBusy, setRaBusy] = useState(false);
   const [raError, setRaError] = useState('');
-  const enabledPay = useEnabledPayments();
-  const raShownPayments = filterPayments(RENTAL_ADDON_PAYMENTS, enabledPay);
   const touchStartX = useRef(null);
 
   const openRentalAddon = () => { setRaStep('select'); setRaSel({ shoes:false, chalk:false }); setRaPayment(''); setRaError(''); };
@@ -221,15 +212,12 @@ export default function MemberHomePage() {
               )}
               {(raSel.shoes || raSel.chalk) && (
                 <div style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>選擇付款方式</div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                    {raShownPayments.map(pm => (
-                      <div key={pm.key} onClick={() => setRaPayment(pm.key)}
-                        style={{ padding:'8px 14px', borderRadius:20, border:`1.5px solid ${raPayment===pm.key?'#8B1A1A':'#E8D5D5'}`, background: raPayment===pm.key?'#8B1A1A':'#fff', color: raPayment===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
-                        {pm.label}
-                      </div>
-                    ))}
-                  </div>
+                  <PaymentSection
+                    value={{ method: raPayment }}
+                    methods={['cash','linepay','jkopay','taiwanpay']}
+                    variant="pill"
+                    onChange={v => setRaPayment(v.method)}
+                  />
                 </div>
               )}
               {raError && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:12 }}>{raError}</div>}

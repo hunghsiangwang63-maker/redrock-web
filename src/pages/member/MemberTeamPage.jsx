@@ -61,11 +61,8 @@ export default function MemberTeamPage() {
   const [weeklyFrequency, setWeeklyFrequency] = useState('');
   const [noJersey, setNoJersey] = useState(false);
   const [jerseySize, setJerseySize] = useState('');
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState('');
-  const [bankLastFive, setBankLastFive] = useState('');
-  const [teamPaidAmount, setTeamPaidAmount] = useState(''); // 實際匯款金額（會員自填）
-  const [bankName, setBankName] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState(''); // 應繳隊費（非「實際匯款金額」，隊費一律轉帳）
+  const [paymentData, setPaymentData] = useState({ method: 'transfer' }); // { paymentDate, bankLastFive, bankName, paidAmount }
   const [otherSuggestions, setOtherSuggestions] = useState('');
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
@@ -96,11 +93,12 @@ export default function MemberTeamPage() {
   );
 
   const handleSubmit = async () => {
+    const { paymentDate, bankLastFive, bankName } = paymentData;
     if (!idNumber.trim()) { showMsg('請填寫身分證字號（山協保險用）', 'red'); return; }
     if (!address.trim()) { showMsg('請填寫地址', 'red'); return; }
     if (!lineId.trim()) { showMsg('請填寫 Line ID（加入隊群組用）', 'red'); return; }
-    if (!bankLastFive.trim()) { showMsg('請填寫匯款帳號末五碼', 'red'); return; }
-    if (!paymentDate.trim()) { showMsg('請填寫轉帳日期', 'red'); return; }
+    if (!bankLastFive?.trim()) { showMsg('請填寫匯款帳號末五碼', 'red'); return; }
+    if (!paymentDate?.trim()) { showMsg('請填寫轉帳日期', 'red'); return; }
     if (!joinReasons.length) { showMsg('請選擇至少一項加入原因', 'red'); return; }
     if (!currentGrade) { showMsg('請選擇目前抱石最高級數', 'red'); return; }
     if (!weeklyFrequency) { showMsg('請選擇每週頻率', 'red'); return; }
@@ -434,34 +432,15 @@ export default function MemberTeamPage() {
                 {noJersey ? `（不拿隊服，已減 NT$${fees?.jerseyDiscount}）` : ''}
               </div>
               <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A' }}>NT${noJersey ? expectedFee : paymentAmount}</div>
-              <div style={{ fontSize:12, color:'#666', marginTop:6 }}>
-                匯款至：台新銀行(812) 21000100211430<br/>戶名：紅石攀岩有限公司<br/>
-                <span style={{ color:'#A32D2D' }}>※ 恕不接受電子支付</span>
-              </div>
+              <div style={{ fontSize:12, color:'#A32D2D', marginTop:6 }}>※ 恕不接受電子支付</div>
             </div>
-            <div style={{ marginBottom:10 }}>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款銀行名稱</label>
-              <input type="text" value={bankName} onChange={e => setBankName(e.target.value)} placeholder="例：國泰世華、台新…"
-                style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-            </div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
-              <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款日期</label>
-                <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)}
-                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-              </div>
-              <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>匯款末五碼</label>
-                <input type="text" maxLength={5} value={bankLastFive} onChange={e => setBankLastFive(e.target.value)} placeholder="12345"
-                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-              </div>
-              <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>實際匯款金額</label>
-                <input type="text" inputMode="numeric" value={teamPaidAmount} onChange={e => setTeamPaidAmount(e.target.value.replace(/[^\d]/g,''))} placeholder="實際匯出的金額"
-                  style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:8 }}>
+            <PaymentSection
+              value={paymentData}
+              methods={['transfer']}
+              onChange={setPaymentData}
+              bankInfo={{ bankName:'台新銀行(812)', branch:'', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+            />
+            <div style={{ display:'flex', gap:8, marginTop:14 }}>
               <button onClick={() => setShowPayModal(false)}
                 style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'none', fontSize:14, cursor:'pointer' }}>返回</button>
               <button onClick={handleSubmit} disabled={submitting}
