@@ -1591,7 +1591,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           : <div style={{ width:12, height:12, borderRadius:6, background: c.color || '#8B1A1A', flexShrink:0 }}/>}
                         <div style={{ minWidth:0 }}>
                           <div style={{ fontWeight:600, fontSize:14 }}>{c.name}
-                            {c.allowTrial === true && <span style={{ fontSize:10, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>試上 ${c.trialPrice ?? 0}</span>}
+                            {(g === 'workshop' ? c.allowTrial === true : true) && <span style={{ fontSize:10, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>試上 ${c.trialPrice ?? 0}</span>}
                             {((c.makeupTypeIds || []).length > 0 || c.makeupSelfType) && (
                               <span style={{ fontSize:10, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'1px 6px', marginLeft:6 }}>
                                 本班類型：{makeupTypes.find(t => t.id === c.makeupSelfType)?.name || '未設'}｜可補課去：{(c.makeupTypeIds || []).map(id => makeupTypes.find(t => t.id === id)?.name).filter(Boolean).join('、') || '（僅本班別）'}
@@ -1599,7 +1599,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             )}
                           </div>
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費 開課前{Math.round((c.preStartFeeRate ?? 0.05) * 100)}%/開課後{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
+                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {g === 'workshop' ? (c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`) : `一律開放・結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費 開課前{Math.round((c.preStartFeeRate ?? 0.05) * 100)}%/開課後{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
                           </div>
                         </div>
                       </div>
@@ -1670,11 +1670,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   <input type="number" value={categoryForm.maxLeaves} onChange={e => setCategoryForm({...categoryForm, maxLeaves:e.target.value})}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <input type="checkbox" id="catAllowMakeup" checked={categoryForm.allowMakeup}
-                    onChange={e => setCategoryForm({...categoryForm, allowMakeup:e.target.checked})}/>
-                  <label htmlFor="catAllowMakeup" style={{ fontSize:13, cursor:'pointer' }}>開放補課</label>
-                </div>
                 <div>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>補課期限（課程結束後 N 天）</label>
                   <input type="number" value={categoryForm.makeupDeadlineDays} onChange={e => setCategoryForm({...categoryForm, makeupDeadlineDays:e.target.value})}
@@ -1690,18 +1685,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   <input type="number" value={categoryForm.handlingFeeRate} onChange={e => setCategoryForm({...categoryForm, handlingFeeRate:e.target.value})}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <input type="checkbox" id="catAllowTrial" checked={categoryForm.allowTrial}
-                    onChange={e => setCategoryForm({...categoryForm, allowTrial:e.target.checked})}/>
-                  <label htmlFor="catAllowTrial" style={{ fontSize:13, cursor:'pointer' }}>開放試上（發單日體驗券、不卡墜測）</label>
+                {/* 週課一律開放補課/試上（2026-08 起簡化），開放補課/開放試上兩個開關已移除；試上費仍可設定 */}
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（NT$）</label>
+                  <input type="number" value={categoryForm.trialPrice} onChange={e => setCategoryForm({...categoryForm, trialPrice:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
-                {categoryForm.allowTrial && (
-                  <div>
-                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（NT$）</label>
-                    <input type="number" value={categoryForm.trialPrice} onChange={e => setCategoryForm({...categoryForm, trialPrice:e.target.value})}
-                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-                  </div>
-                )}
                 <div style={{ gridColumn:'1/-1' }}>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>本班別類型（別人補課過來時，這班算哪一類；單向判定用）</label>
                   <select value={categoryForm.makeupSelfType || ''} onChange={e => setCategoryForm(f => ({ ...f, makeupSelfType: e.target.value }))}
@@ -1946,6 +1935,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                     </div>
                   ))}
+                  {/* 週課一律開放補課/試上（2026-08 起簡化，只要課程開放、班別可互相補課即可選），
+                      以下四項只在工作坊顯示；週課不再需要個別設定 */}
+                  {courseForm.type !== 'weekly' && (<>
                   <div>
                     <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放補課</label>
                     <select value={courseForm.allowMakeup} onChange={e => setCourseForm({...courseForm, allowMakeup: e.target.value})}
@@ -1975,6 +1967,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       </select>
                     </div>
                   ))}
+                  </>)}
                   <div>
                     <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>試上費（NT$）</label>
                     <input type="number" value={courseForm.trialPrice || ''}
@@ -2226,21 +2219,13 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             <div style={{ gridColumn:'1/-1', fontSize:11, color:'#999', background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
               課程介紹與廣告照片改由「班別管理」設定（同班別所有梯次共用）。
             </div>
-            <div>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放補課</label>
-              <select value={editForm.allowMakeup == null || editForm.allowMakeup === '' ? '' : String(editForm.allowMakeup)}
-                onChange={e => setEditForm({...editForm, allowMakeup: e.target.value})}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                <option value="">班別預設</option>
-                <option value="true">開放</option>
-                <option value="false">關閉</option>
-              </select>
-            </div>
-            {(editForm.type || editingCourse?.type) === 'weekly' && (
+            {/* 週課一律開放補課/試上（2026-08 起簡化，只要課程開放、班別可互相補課即可選），
+                開放補課/開放試上/可作為試上場次/可作為補課場次 只在工作坊顯示；試上費仍可調（與是否開放試上無關） */}
+            {(editForm.type || editingCourse?.type) !== 'weekly' && (
               <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放試上</label>
-                <select value={editForm.allowTrial == null || editForm.allowTrial === '' ? '' : String(editForm.allowTrial)}
-                  onChange={e => setEditForm({...editForm, allowTrial: e.target.value})}
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>開放補課</label>
+                <select value={editForm.allowMakeup == null || editForm.allowMakeup === '' ? '' : String(editForm.allowMakeup)}
+                  onChange={e => setEditForm({...editForm, allowMakeup: e.target.value})}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
                   <option value="">班別預設</option>
                   <option value="true">開放</option>
@@ -2257,17 +2242,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
               </div>
             )}
-            {(editForm.type || editingCourse?.type) === 'weekly' && (['trialTarget','makeupTarget'].map(k => (
-              <div key={k}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{k==='trialTarget'?'可作為試上場次':'可作為補課場次'}</label>
-                <select value={editForm[k] || 'auto'} onChange={e => setEditForm({...editForm, [k]: e.target.value})}
-                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                  <option value="auto">自動（常態報名達 2 人開放）</option>
-                  <option value="on">強制開放</option>
-                  <option value="off">不開放</option>
-                </select>
-              </div>
-            )))}
             {(editForm.type || editingCourse?.type) === 'weekly' && [
               { key:'fullTermRenewalDiscount', label:'續報優惠（前一期整期）', def:90 },
               { key:'alumniDiscount', label:'舊生優惠（曾報名/插班）', def:95 },
