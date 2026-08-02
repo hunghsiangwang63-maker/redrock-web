@@ -20,28 +20,53 @@ import { getMyUpcomingShifts } from '../../api/schedule';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 
 // 通知 type → 類別（待辦頁通知面板過濾用）
+// 對照現行實際會產生的通知 type（2026-08 依 Firestore notifications 集合實際資料 + 全站 createNotification/
+// notifyRoleInGym 呼叫點盤點過），未列出的新型別預設落在「系統」（notifCatOf 的 fallback），非遺漏。
 const NOTIF_CAT = {
+  // 課程（請假/銷假/補課/退費/代班/名單認領）
   course_leave:'course', course_leave_cancel:'course', course_makeup_booked:'course', course_makeup_cancel:'course',
+  course_refund:'course', course_substitute:'course', course_substitute_cancel:'course', course_roster_claimed:'course',
+  // 轉帳／收款確認
   transfer_payment:'transfer', experience_transfer:'transfer', transfer:'transfer', transfer_confirm:'transfer',
-  single_entry_ticket_approved:'ticket', single_entry_ticket_rejected:'ticket',
+  experience_refund:'transfer',
+  // 票券（單次入場券審核/轉贈 + 定期票舊系統認領）
+  single_entry_ticket_approval:'ticket', single_entry_ticket_approved:'ticket', single_entry_ticket_rejected:'ticket',
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
-  competition_payment:'competition', competition_refund:'competition',
+  legacy_pass_claimed:'ticket',
+  // 卡片（優惠卡/黑卡/舊優惠卡綁定揭露）
+  discount_bind_disclosure:'card', black_bind_disclosure:'card', legacy_discount_bind_disclosure:'card',
+  // 比賽
+  competition_payment:'competition', competition_refund:'competition', competition_refund_request:'competition',
+  competition_reg_claimed:'competition',
+  // 取消入場
   cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
+  // 排班
   shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
+  // 會員（VIP 等舊系統資料認領）
+  legacy_vip_claimed:'member',
+  // 結帳（現金差異提醒）
+  settlement_difference:'settlement',
+  // 系統（明確列出、非僅靠 fallback，供之後對照）
+  stocktake_discrepancy:'system',
 };
 const NOTIF_CATS = [
   { key:'', label:'全部' }, { key:'shift', label:'排班' }, { key:'transfer', label:'轉帳' }, { key:'ticket', label:'票券' },
-  { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'course', label:'課程' }, { key:'cancel', label:'取消入場' }, { key:'system', label:'系統' },
+  { key:'card', label:'卡片' }, { key:'competition', label:'比賽' }, { key:'report', label:'報名' }, { key:'course', label:'課程' },
+  { key:'cancel', label:'取消入場' }, { key:'member', label:'會員' }, { key:'settlement', label:'結帳' }, { key:'system', label:'系統' },
 ];
 // 通知未帶 link 時依 type 補預設導向（舊通知/未帶連結的服務端通知「查看」鈕才有得按）
 const NOTIF_LINK = {
   shift_assigned: '/staff/schedule', shift_updated: '/staff/schedule', shift_reminder: '/staff/schedule',
   course_roster_claimed: '/staff/courses', course_substitute: '/staff/courses', course_substitute_cancel: '/staff/courses',
   course_leave: '/staff/courses', course_leave_cancel: '/staff/courses', course_makeup_booked: '/staff/courses', course_makeup_cancel: '/staff/courses',
-  legacy_vip_claimed: '/staff/members', legacy_pass_claimed: '/staff/members', legacy_team_claimed: '/staff/members',
+  course_refund: '/staff/courses',
+  legacy_vip_claimed: '/staff/members', legacy_pass_claimed: '/staff/members',
   experience_refund: '/staff/experience-bookings',
-  single_entry_ticket_approval: '/staff/pending-tasks', card_bind_disclosure: '/staff/cards',
-  pass_adjustment: '/staff/pending-tasks', installment_due: '/staff/installments',
+  single_entry_ticket_approval: '/staff/pending-tasks',
+  discount_bind_disclosure: '/staff/cards', black_bind_disclosure: '/staff/cards', legacy_discount_bind_disclosure: '/staff/cards',
+  pass_adjustment: '/staff/pending-tasks',
+  competition_refund_request: '/staff/pending-tasks', competition_reg_claimed: '/staff/competitions',
+  settlement_difference: '/staff/settlement', stocktake_discrepancy: '/staff/sales',
 };
 const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名' };
 const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
