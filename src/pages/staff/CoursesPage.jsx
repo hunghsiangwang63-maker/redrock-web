@@ -2604,10 +2604,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>學員</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>電話</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>報名堂數</th>
-                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>實際匯款</th>
-                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>付款方式</th>
                       {!isWorkshop && <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>可請假（已用/上限）</th>}
-                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>備註</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2637,12 +2634,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         </td>
                         <td style={{ padding:'10px 12px', color:'#666', fontFamily:'monospace', fontSize:12 }}>{m.memberPhone}</td>
                         <td style={{ padding:'10px 12px', color:'#666' }}>{m.count} 堂</td>
-                        <td style={{ padding:'10px 12px', color:'#666', fontSize:12 }}>
-                          {m.paidAmount != null ? `NT$${Number(m.paidAmount).toLocaleString()}` : '—'}
-                        </td>
-                        <td style={{ padding:'10px 12px', color:'#666', fontSize:12 }}>
-                          {m.paymentMethod === 'transfer' ? `轉帳${m.bankLastFive ? ` (末五碼 ${m.bankLastFive})` : ''}` : m.paymentMethod || '—'}
-                        </td>
                         {!isWorkshop && (
                         <td style={{ padding:'10px 12px' }}>
                           {isEditing ? (
@@ -2667,12 +2658,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           )}
                         </td>
                         )}
-                        <td style={{ padding:'10px 12px', fontSize:11.5, color:'#666', maxWidth:200 }}>
-                          {m.enrollNote && <div style={{ color:'#8B1A1A' }}>🩹 {m.enrollNote}</div>}
-                          {m.healthNote && <div style={{ color:'#B5651D' }}>💊 {m.healthNote}</div>}
-                          {m.referralSource && <div>📣 {m.referralSource}</div>}
-                          {!m.enrollNote && !m.healthNote && !m.referralSource && '—'}
-                        </td>
                       </tr>
                       );
                     })}
