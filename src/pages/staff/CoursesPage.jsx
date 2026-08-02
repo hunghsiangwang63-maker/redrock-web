@@ -2552,7 +2552,16 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   {rosterModal.enrollments ? `共 ${new Set(rosterModal.enrollments.map(e => e.memberId)).size} 人` : '載入中...'}
                 </div>
               </div>
-              <button onClick={() => setRosterModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                {rosterModal.course?.type === 'workshop' && (
+                  <button onClick={() => downloadRosterCSV(rosterModal.course?.id, rosterModal.course?.name)}
+                    title="每筆報名一列，含場次日期時段/狀態/出席/付款方式/金額/各類備註"
+                    style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer', whiteSpace:'nowrap' }}>
+                    ⬇ 下載名單
+                  </button>
+                )}
+                <button onClick={() => setRosterModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
+              </div>
             </div>
             <div style={{ overflowY:'auto', flex:1 }}>
               {rosterLoading && <div style={{ textAlign:'center', padding:40, color:'#999' }}>載入中...</div>}
@@ -2560,6 +2569,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>目前沒有報名學員</div>
               )}
               {!rosterLoading && rosterModal.enrollments?.length > 0 && (() => {
+                const isWorkshop = rosterModal.course?.type === 'workshop'; // 工作坊不提供請假功能，名單不顯示可請假欄位
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
                 const byMember = {};
                 rosterModal.enrollments.forEach(e => {
@@ -2582,7 +2592,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>報名堂數</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>實際匯款</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>付款方式</th>
-                      <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>可請假（已用/上限）</th>
+                      {!isWorkshop && <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>可請假（已用/上限）</th>}
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>備註</th>
                     </tr>
                   </thead>
@@ -2601,6 +2611,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         <td style={{ padding:'10px 12px', color:'#666', fontSize:12 }}>
                           {m.paymentMethod === 'transfer' ? `轉帳${m.bankLastFive ? ` (末五碼 ${m.bankLastFive})` : ''}` : m.paymentMethod || '—'}
                         </td>
+                        {!isWorkshop && (
                         <td style={{ padding:'10px 12px' }}>
                           {isEditing ? (
                             <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
@@ -2623,6 +2634,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             </span>
                           )}
                         </td>
+                        )}
                         <td style={{ padding:'10px 12px', fontSize:11.5, color:'#666', maxWidth:200 }}>
                           {m.enrollNote && <div style={{ color:'#8B1A1A' }}>🩹 {m.enrollNote}</div>}
                           {m.healthNote && <div style={{ color:'#B5651D' }}>💊 {m.healthNote}</div>}

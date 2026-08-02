@@ -1747,6 +1747,7 @@ export default function MemberCoursesPage() {
               const leaveRemaining = group.sessions.find(s => s.leaveRemaining != null)?.leaveRemaining ?? Math.max(0, leaveLimit - onLeave.length);
               // 課程起迄日：優先課程設定，否則用本人場次最早/最晚日
               const gCourse = courses.find(c => c.id === group.courseId);
+              const isWorkshop = gCourse?.type === 'workshop'; // 工作坊不提供請假功能
               const _dates = group.sessions.map(s => s.date).filter(Boolean).sort();
               const rangeStart = gCourse?.startDate || _dates[0];
               const rangeEnd = gCourse?.endDate || _dates[_dates.length - 1];
@@ -1820,13 +1821,13 @@ export default function MemberCoursesPage() {
                       )}
                       <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
                         onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
-                        共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂{!makeupOnly && <> · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span></>}
+                        共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂{!makeupOnly && !isWorkshop && <> · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span></>}
                         <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
                       </div>
                       {!makeupOnly && (
                         <div style={{ fontSize:12, color:'#185FA5', marginBottom:8, cursor:'pointer', textAlign:'left' }}
                           onClick={(e) => { e.stopPropagation(); openRulesModal(group); }}>
-                          📋 課程規則（請假/補課/退費）
+                          📋 課程規則（{isWorkshop ? '退費' : '請假/補課/退費'}）
                         </div>
                       )}
                     </>
@@ -1925,14 +1926,14 @@ export default function MemberCoursesPage() {
                                         style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>取消補課</button>
                                     )}
                                   </span>
-                                ) : leavingId !== s.id && !refundFrozen && (
+                                ) : leavingId !== s.id && !refundFrozen && !isWorkshop && (
                                   <button onClick={() => setLeavingId(s.id)}
                                     style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
                                     申請請假
                                   </button>
                                 )}
                               </div>
-                              {leavingId === s.id && !refundFrozen && (
+                              {leavingId === s.id && !refundFrozen && !isWorkshop && (
                                 <div style={{ marginTop:6 }}>
                                   <input value={leaveReason} onChange={ev => setLeaveReason(ev.target.value)}
                                     placeholder="請假原因"
@@ -1957,7 +1958,7 @@ export default function MemberCoursesPage() {
                     </div>
                   )}
 
-                  {!isExpanded && next && !refundFrozen && leavingId === next.id ? (
+                  {!isExpanded && next && !refundFrozen && !isWorkshop && leavingId === next.id ? (
                     <div>
                       <input value={leaveReason} onChange={ev => setLeaveReason(ev.target.value)}
                         placeholder="請假原因（下一堂）"
@@ -1977,12 +1978,12 @@ export default function MemberCoursesPage() {
                           取消補課（下一堂）
                         </button>
                       ) : null
-                    ) : (
+                    ) : !isWorkshop ? (
                     <button onClick={() => setLeavingId(next.id)}
                       style={{ width:'100%', height:32, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
                       申請請假（下一堂）
                     </button>
-                    )
+                    ) : null
                   )}
                 </div>
               );
