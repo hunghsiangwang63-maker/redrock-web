@@ -466,7 +466,7 @@ export default function MemberCoursesPage() {
           formData.append('refId', enrInfo.id);
           formData.append('orderName', selectedCourse?.name || '');
           formData.append('courseName', selectedCourse?.name || '');
-          formData.append('amount', enrInfo.fee || selectedCourse?.price || 0);
+          formData.append('amount', enrInfo.fee ?? selectedCourse?.price ?? 0);
           // 轉帳模式下匯款資訊來自 PaymentSection 的 paymentData（含銀行名稱/末五碼/日期）
           if (paymentData.bankLastFive) formData.append('bankLastFive', paymentData.bankLastFive);
           if (paymentData.bankName) formData.append('bankName', paymentData.bankName);
@@ -2084,16 +2084,16 @@ export default function MemberCoursesPage() {
                 <div style={{ background:'#F3E0E0', borderRadius:8, padding:'12px 14px', fontSize:13, color:'#8B1A1A', lineHeight:1.8, textAlign:'left' }}>
                   此班正取已額滿，您將加入<b>候補名單</b>。<br/>
                   候補期間<b>不需付款</b>；待有名額遞補為正取後，我們會另行通知您繳費，屆時再選擇付款方式。
-                  {(enrollSession?.fee || selectedCourse?.price) ? <><br/><span style={{ fontSize:12, color:'#999' }}>遞補後費用約 NT${((enrollSession?.fee || selectedCourse?.price)||0).toLocaleString()}（依實際堂數計算）</span></> : null}
+                  {(enrollSession?.fee ?? selectedCourse?.price) != null ? <><br/><span style={{ fontSize:12, color:'#999' }}>遞補後費用約 NT${((enrollSession?.fee ?? selectedCourse?.price) || 0).toLocaleString()}（依實際堂數計算）</span></> : null}
                 </div>
               ) : (<>
-              <PaymentPlanChoice installment={selectedCourse?.installment} price={enrollSession?.fee || selectedCourse?.price}
+              <PaymentPlanChoice installment={selectedCourse?.installment} price={enrollSession?.fee ?? selectedCourse?.price}
                 plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
               <PaymentSection
                 value={paymentData}
                 methods={selectedCourse?.paymentMethods?.length ? selectedCourse.paymentMethods : ['cash','transfer']} /* 課程端隱藏電子支付；課程可覆寫(如運動按摩只現金) */
                 onChange={d => { setPaymentData(d); setPaymentMethod(d.method); }}
-                amount={(() => { const full = enrollSession?.fee || selectedCourse?.price || 0; const fp = (selectedCourse?.installment?.periods||[])[0]?.percent; return (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full; })()}
+                amount={(() => { const full = enrollSession?.fee ?? selectedCourse?.price ?? 0; const fp = (selectedCourse?.installment?.periods||[])[0]?.percent; return (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full; })()}
                 bankInfo={(() => { const bk = bankAccounts[selectedCourse?.gymId || enrollSession?.gymId || gymId]; return bk ? { bankName: bk.bankName, branch: bk.branch||'', account: bk.accountNumber, accountName: bk.accountName } : null; })()}
               />
               {(paymentData.method==='cash'||paymentData.method==='transfer') && (
