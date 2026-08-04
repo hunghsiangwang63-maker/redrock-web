@@ -15,6 +15,7 @@ import FallTestBookingModal from '../../components/review/FallTestBookingModal';
 import { confirmTeamPayment } from '../../api/team';
 import { rejectTicket, rejectTicketBatch } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
+import { getAllPassRequests } from '../../api/passAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
 import { getMyUpcomingShifts } from '../../api/schedule';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
@@ -127,6 +128,8 @@ export default function PendingTasksPage() {
   const [trackView, setTrackView] = useState(null);
   const [completed, setCompleted] = useState(null);          // 課程：已核准/已拒絕
   const [completedLoading, setCompletedLoading] = useState(false);
+  const [passCompleted, setPassCompleted] = useState(null);  // 定期票：已核准/已拒絕（展延/退費/轉讓）
+  const [passCompletedLoading, setPassCompletedLoading] = useState(false);
   const [notifs, setNotifs] = useState(null);                // 通知（系統未讀）
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifCat, setNotifCat] = useState('');              // 類別過濾
@@ -182,7 +185,7 @@ export default function PendingTasksPage() {
   const [teamError, setTeamError] = useState('');
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
-  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'notif') loadNotifs(); };
+  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassCompleted(); if (trackView === 'notif') loadNotifs(); };
 
   // 課程：已完成（已核准/已拒絕）退費/暫停
   const loadCompleted = async () => {
@@ -191,6 +194,14 @@ export default function PendingTasksPage() {
       const res = await getCourseAdjustmentRequests(); // 後端依角色授權（主管/站台）
       setCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
     } catch (e) { setCompleted([]); } finally { setCompletedLoading(false); }
+  };
+  // 定期票：已完成（已核准/已拒絕）展延/退費/轉讓
+  const loadPassCompleted = async () => {
+    setPassCompletedLoading(true);
+    try {
+      const res = await getAllPassRequests(); // 不帶 status＝全部，前端自行過濾已完成
+      setPassCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
+    } catch (e) { setPassCompleted([]); } finally { setPassCompletedLoading(false); }
   };
   // 通知：載入系統未讀通知
   const loadNotifs = async () => {
@@ -205,6 +216,7 @@ export default function PendingTasksPage() {
     const next = trackView === view ? null : view;
     setTrackView(next);
     if (next === 'course' && completed === null) loadCompleted();
+    if (next === 'pass' && passCompleted === null) loadPassCompleted();
     if (next === 'notif' && notifs === null) loadNotifs();
   };
 
@@ -298,6 +310,12 @@ export default function PendingTasksPage() {
             <button onClick={() => openTrack('course')}
               style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='course' ? '#8B1A1A' : '#fff', color: trackView==='course' ? '#fff' : '#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>
               課程相關
+            </button>
+          )}
+          {perm.pass_adjustment && (
+            <button onClick={() => openTrack('pass')}
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='pass' ? '#5B2D8B' : '#fff', color: trackView==='pass' ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer' }}>
+              🎫 定期票相關
             </button>
           )}
           <button onClick={() => openTrack('notif')}
@@ -397,6 +415,56 @@ export default function PendingTasksPage() {
         </div>
       )}
 
+      {/* 定期票相關查詢（展延/退費/轉讓：已核准 / 已拒絕） */}
+      {trackView === 'pass' && (
+        <div style={{ marginTop:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>🎫 定期票相關 · 展延／退費／轉讓（已核准／已拒絕）</div>
+            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{passCompleted ? `${passCompleted.length} 項` : ''}</div>
+          </div>
+          {passCompletedLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+          {!passCompletedLoading && passCompleted && passCompleted.length === 0 && (
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
+              尚無已完成的定期票展延／退費／轉讓申請
+            </div>
+          )}
+          {!passCompletedLoading && passCompleted && passCompleted.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {passCompleted.map(r => {
+                const typeLabel = { extension:'展延', refund:'退費', transfer:'轉讓' }[r.type] || r.type;
+                const approved = r.status === 'approved';
+                const badge = approved ? { bg:'#E6F4EB', color:'#2D7D46', label:'已核准' } : { bg:'#FCEBEB', color:'#A32D2D', label:'已拒絕' };
+                const dateStr = r.reviewedAt?._seconds ? dayjs(r.reviewedAt._seconds * 1000).format('YYYY-MM-DD') : '';
+                return (
+                  <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{r.memberName} — {r.passTypeName}</div>
+                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{typeLabel} · 原因：{r.reasonLabel || '—'}</div>
+                        {approved && r.type === 'extension' && r.result?.newEndDate && (
+                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:3 }}>新到期日：{r.result.newEndDate}{r.result.suspendStart ? `（停用期間 ${r.result.suspendStart}~${r.result.suspendEnd}）` : ''}</div>
+                        )}
+                        {approved && r.type === 'refund' && r.result?.netRefund != null && (
+                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:3 }}>已退款 NT${r.result.netRefund}（毛額 NT${r.result.grossRefund}－手續費 NT${r.result.fee}）</div>
+                        )}
+                        {approved && r.type === 'transfer' && r.result?.newOwnerName && (
+                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:3 }}>已轉讓給 {r.result.newOwnerName}</div>
+                        )}
+                        {!approved && r.rejectReason && (
+                          <div style={{ fontSize:11, color:'#A32D2D', marginTop:3 }}>拒絕原因：{r.rejectReason}</div>
+                        )}
+                        {dateStr && <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>{dateStr}</div>}
+                      </div>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 通知 = 近 7 天統一動態（系統未讀通知 + 近 7 天報名）+ 類別過濾 */}
       {trackView === 'notif' && (() => {
