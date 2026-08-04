@@ -168,7 +168,7 @@ export default function SalesPage({ embedded = false }) {
   const [stocktakeItems, setStocktakeItems] = useState([]);
   const [stocktakeResult, setStocktakeResult] = useState(null);
   const [stocktakeHistory, setStocktakeHistory] = useState([]);
-  const [stocktakeHistorySel, setStocktakeHistorySel] = useState('');
+  const [historyDetailModal, setHistoryDetailModal] = useState(null); // 點某次歷史盤點日期→跳出該次差異明細
   const [restockVariantId, setRestockVariantId] = useState('');
   const [restockQty, setRestockQty] = useState('');
   const [restockNote, setRestockNote] = useState('');
@@ -342,7 +342,7 @@ export default function SalesPage({ embedded = false }) {
     setStocktakeItems(items);
     setStocktakeResult(null);
     setStocktakeHistory([]);
-    setStocktakeHistorySel('');
+    setHistoryDetailModal(null);
     setShowStocktake(true);
     try {
       const res = await getStocktakeHistory(targetGymId);
@@ -1110,42 +1110,26 @@ export default function SalesPage({ embedded = false }) {
                 const uncheckedCount = stocktakeItems.filter(it => !it.checked).length;
                 const allChecked = stocktakeItems.length > 0 && uncheckedCount === 0;
                 const olderSessions = stocktakeHistory.slice(1);
-                const historySession = stocktakeHistorySel !== '' ? olderSessions[Number(stocktakeHistorySel)] : null;
+                const historyRow = (s, i) => (
+                  <div key={i} onClick={() => setHistoryDetailModal(s)}
+                    style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 8px', borderRadius:6, cursor:'pointer', fontSize:12 }}
+                    onMouseEnter={e => e.currentTarget.style.background='#F5EFEF'} onMouseLeave={e => e.currentTarget.style.background='none'}>
+                    <span style={{ textDecoration:'underline', color:'#8B1A1A' }}>{dayjs(s.at).format('YYYY-MM-DD HH:mm')}</span>
+                    <span style={{ color:'#666' }}>{s.staffName}・共 {s.itemCount} 項{s.discrepancyCount > 0 ? `・${s.discrepancyCount} 項有差異` : '・無差異'}</span>
+                  </div>
+                );
                 return (
                   <>
                     <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
-                      <div style={{ fontSize:12, color:'#666' }}>
-                        上次盤點時間：{stocktakeHistory.length > 0
-                          ? <strong style={{ color:'#1a1a1a' }}>{dayjs(stocktakeHistory[0].at).format('YYYY-MM-DD HH:mm')}（{stocktakeHistory[0].staffName}）</strong>
-                          : <span style={{ color:'#999' }}>尚無盤點紀錄</span>}
-                      </div>
+                      <div style={{ fontSize:12, color:'#666', marginBottom: stocktakeHistory.length > 0 ? 4 : 0 }}>上次盤點時間：</div>
+                      {stocktakeHistory.length > 0 ? historyRow(stocktakeHistory[0], 'latest') : <span style={{ fontSize:12, color:'#999' }}>尚無盤點紀錄</span>}
                       {olderSessions.length > 0 && (
-                        <div style={{ marginTop:8 }}>
-                          <select value={stocktakeHistorySel} onChange={e => setStocktakeHistorySel(e.target.value)}
-                            style={{ width:'100%', height:30, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:12, padding:'0 8px', background:'#fff' }}>
-                            <option value="">查看更早的盤點紀錄...</option>
-                            {olderSessions.map((s, idx) => (
-                              <option key={idx} value={idx}>
-                                {dayjs(s.at).format('YYYY-MM-DD HH:mm')}・{s.staffName}・共 {s.itemCount} 項{s.discrepancyCount > 0 ? `・${s.discrepancyCount} 項有差異` : '・無差異'}
-                              </option>
-                            ))}
-                          </select>
-                          {historySession && (
-                            <div style={{ marginTop:8, maxHeight:160, overflowY:'auto', background:'#fff', borderRadius:6, border:'0.5px solid #E8D5D5', padding:'6px 10px' }}>
-                              {historySession.items.filter(it => (it.diff ?? 0) !== 0).length > 0 ? (
-                                historySession.items.filter(it => (it.diff ?? 0) !== 0).map((it, i) => (
-                                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 50px', gap:6, padding:'4px 0', fontSize:12, borderBottom: '0.5px solid #F5EFEF' }}>
-                                    <span>{it.productName}</span>
-                                    <span style={{ color:'#666' }}>{[it.size, it.color].filter(Boolean).join('/') || '標準'}</span>
-                                    <span style={{ color: it.diff > 0 ? '#2D7D46' : '#A32D2D', fontWeight:600, textAlign:'right' }}>{it.diff > 0 ? '+' : ''}{it.diff}</span>
-                                  </div>
-                                ))
-                              ) : (
-                                <div style={{ fontSize:12, color:'#999', padding:'4px 0' }}>本次盤點無差異</div>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        <details style={{ marginTop:6 }}>
+                          <summary style={{ fontSize:12, color:'#854F0B', cursor:'pointer' }}>查看更早的盤點紀錄（{olderSessions.length}）</summary>
+                          <div style={{ marginTop:6, maxHeight:180, overflowY:'auto' }}>
+                            {olderSessions.map((s, i) => historyRow(s, i))}
+                          </div>
+                        </details>
                       )}
                     </div>
                     <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
@@ -1192,6 +1176,37 @@ export default function SalesPage({ embedded = false }) {
               })()}
             </>
           )}
+        </Modal>
+      )}
+      {historyDetailModal && (
+        <Modal title={`盤點差異明細 · ${dayjs(historyDetailModal.at).format('YYYY-MM-DD HH:mm')}`} onClose={() => setHistoryDetailModal(null)} width={480}>
+          <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
+            經手人：{historyDetailModal.staffName}　共盤點 {historyDetailModal.itemCount} 項
+          </div>
+          {historyDetailModal.items.filter(it => (it.diff ?? 0) !== 0).length > 0 ? (
+            <div style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 80px 80px 80px', gap:8, padding:'8px 14px', fontSize:11, color:'#999', fontWeight:600, background:'#FBF5F5' }}>
+                <span>商品</span><span>規格</span><span>盤點前</span><span>盤點後</span><span>差異</span>
+              </div>
+              {historyDetailModal.items.filter(it => (it.diff ?? 0) !== 0).map((it, i) => (
+                <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 80px 80px 80px', gap:8, padding:'10px 14px', fontSize:13, borderTop:'0.5px solid #F5EFEF' }}>
+                  <span>{it.productName}</span>
+                  <span style={{ color:'#666' }}>{[it.size, it.color].filter(Boolean).join('/') || '標準'}</span>
+                  <span>{it.previousStock}</span>
+                  <span>{it.quantity}</span>
+                  <span style={{ color: it.diff > 0 ? '#2D7D46' : '#A32D2D', fontWeight:600 }}>{it.diff > 0 ? '+' : ''}{it.diff}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ background:'#E6F4EB', borderRadius:8, padding:'12px 14px', fontSize:13, color:'#2D7D46', fontWeight:500 }}>
+              ✓ 本次盤點無差異
+            </div>
+          )}
+          <button onClick={() => setHistoryDetailModal(null)}
+            style={{ width:'100%', height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer', marginTop:16 }}>
+            關閉
+          </button>
         </Modal>
       )}
     </div>
