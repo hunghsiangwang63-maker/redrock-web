@@ -333,7 +333,7 @@ export default function SalesPage({ embedded = false }) {
         items.push({
           productId: p.id, productName: p.name, brand: p.brand || '',
           variantId: v.id, size: v.size || '', color: v.color || '',
-          systemStock: v.stock || 0, actualStock: v.stock || 0,
+          systemStock: v.stock || 0, actualStock: v.stock || 0, checked: false,
         });
       });
     });
@@ -1098,35 +1098,53 @@ export default function SalesPage({ embedded = false }) {
             </>
           ) : (
             <>
-              <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>請輸入實際盤點數量，系統將與帳面庫存比對</div>
-              <div style={{ maxHeight:400, overflowY:'auto' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 80px 80px', gap:8, padding:'6px 10px', fontSize:11, color:'#999', fontWeight:600, background:'#FBF5F5', borderRadius:6, marginBottom:6 }}>
-                  <span>商品</span><span>規格</span><span>帳面</span><span>盤點數量</span>
-                </div>
-                {stocktakeItems.map((item, i) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
-                    background: parseInt(item.actualStock) !== item.systemStock ? '#FFF5E8' : 'none' }}>
-                    <div>
-                      {item.brand && <div style={{ fontSize:10, color:'#999' }}>{item.brand}</div>}
-                      <div>{item.productName}</div>
+              {(() => {
+                const uncheckedCount = stocktakeItems.filter(it => !it.checked).length;
+                const allChecked = stocktakeItems.length > 0 && uncheckedCount === 0;
+                return (
+                  <>
+                    <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
+                      請逐項核對實際盤點數量並勾選「已核對」，全部勾選完才能送出
+                      {uncheckedCount > 0 && <span style={{ color:'#854F0B', fontWeight:600 }}>（尚有 {uncheckedCount} 項未核對）</span>}
                     </div>
-                    <span style={{ color:'#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
-                    <span style={{ color:'#999' }}>{item.systemStock}</span>
-                    <input type="number" value={item.actualStock}
-                      onChange={e => setStocktakeItems(stocktakeItems.map((it, idx) => idx===i ? {...it, actualStock: e.target.value} : it))}
-                      style={{ width:'100%', height:32, borderRadius:6, color:'#1a1a1a', border: parseInt(item.actualStock) !== item.systemStock ? '1px solid #F5A623' : '0.5px solid #E8D5D5',
-                        padding:'0 8px', fontSize:13, outline:'none', textAlign:'center', background: parseInt(item.actualStock) !== item.systemStock ? '#FFF9F0' : '#fff' }}/>
-                  </div>
-                ))}
-              </div>
-              <div style={{ display:'flex', gap:8, marginTop:16 }}>
-                <button onClick={() => setShowStocktake(false)}
-                  style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
-                <button onClick={handleStocktake} disabled={loading}
-                  style={{ flex:2, height:40, borderRadius:9, background:'#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                  {loading ? '盤點中...' : '確認盤點'}
-                </button>
-              </div>
+                    <div style={{ maxHeight:400, overflowY:'auto' }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'6px 10px', fontSize:11, color:'#999', fontWeight:600, background:'#FBF5F5', borderRadius:6, marginBottom:6 }}>
+                        <span></span><span>商品</span><span>規格</span><span>帳面</span><span>盤點數量</span>
+                      </div>
+                      {stocktakeItems.map((item, i) => {
+                        const hasDiff = parseInt(item.actualStock) !== item.systemStock;
+                        return (
+                          <div key={i} style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
+                            background: hasDiff ? '#FFF5E8' : (item.checked ? '#F0F8F2' : 'none') }}>
+                            <input type="checkbox" checked={!!item.checked}
+                              onChange={e => setStocktakeItems(stocktakeItems.map((it, idx) => idx===i ? {...it, checked: e.target.checked} : it))}
+                              style={{ width:18, height:18, cursor:'pointer' }}/>
+                            <div>
+                              {item.brand && <div style={{ fontSize:10, color:'#999' }}>{item.brand}</div>}
+                              <div>{item.productName}</div>
+                            </div>
+                            <span style={{ color:'#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
+                            <span style={{ color:'#999' }}>{item.systemStock}</span>
+                            <input type="number" value={item.actualStock}
+                              onChange={e => setStocktakeItems(stocktakeItems.map((it, idx) => idx===i ? {...it, actualStock: e.target.value} : it))}
+                              style={{ width:'100%', height:32, borderRadius:6, color:'#1a1a1a', border: hasDiff ? '1px solid #F5A623' : '0.5px solid #E8D5D5',
+                                padding:'0 8px', fontSize:13, outline:'none', textAlign:'center', background: hasDiff ? '#FFF9F0' : '#fff' }}/>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display:'flex', gap:8, marginTop:16 }}>
+                      <button onClick={() => setShowStocktake(false)}
+                        style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
+                      <button onClick={handleStocktake} disabled={loading || !allChecked}
+                        style={{ flex:2, height:40, borderRadius:9, background: allChecked ? '#854F0B' : '#ccc', color:'#fff', border:'none', fontSize:13, fontWeight:500,
+                          cursor: allChecked && !loading ? 'pointer' : 'not-allowed' }}>
+                        {loading ? '盤點中...' : allChecked ? '確認盤點' : `請先核對全部項目（尚有 ${uncheckedCount} 項）`}
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
             </>
           )}
         </Modal>
