@@ -8,7 +8,8 @@ import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import { isUnder5 } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
-import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
+import PaymentFlow from '../../components/PaymentFlow';
+import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 
 // 參加者生日為民國格式（如 "920110"＝民國92年）；相容 ISO。未滿 5 歲回 true。
@@ -41,6 +42,7 @@ export default function MemberExperiencePage() {
   const { member } = useMember();
   const navigate = useNavigate();
   const location = useLocation();
+  const onlinePayEnabled = useOnlineFlowEnabled('experience');
   const [myBookings, setMyBookings] = useState([]);
   const [reupTarget, setReupTarget] = useState(null);
   const [bkCancel, setBkCancel] = useState(null);   // 取消預約：{ b, form:{bankCode,account,accountName} }
@@ -146,7 +148,7 @@ export default function MemberExperiencePage() {
       setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
       loadTrialSessions();
       memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
-      if (trialPay.method==='online' && ONLINE_PAYMENT_ENABLED) setPayFor({ bookingId, fee, gymId: trialModal.gymId });
+      if (trialPay.method==='online' && onlinePayEnabled) setPayFor({ bookingId, fee, gymId: trialModal.gymId });
       else if (res.data.isWaitlist) showMsg('此場次已額滿，已為您排入候補；名額釋出將依序轉正', 'orange');
       else {
         const dl = res.data.paymentDeadline ? dayjs(res.data.paymentDeadline).format('MM/DD HH:mm') : '';
@@ -209,7 +211,7 @@ export default function MemberExperiencePage() {
       const r = await memberClient.get('/experience-bookings/my');
       setMyBookings(r.data.bookings||[]);
       setTab('my');
-      if (ONLINE_PAYMENT_ENABLED && fee > 0) setPayFor({ bookingId, fee, gymId });
+      if (onlinePayEnabled && fee > 0) setPayFor({ bookingId, fee, gymId });
       else showMsg(res.data.message || '預約已送出！');
     } catch(err) { showMsg(err.response?.data?.message||'送出失敗','red'); }
     finally { setSubmitting(false); }

@@ -17,10 +17,9 @@
  */
 import { useState, useRef, useEffect, useCallback } from 'react';
 
-// 是否「全域」啟用線上付款入口（控制各頁要不要開付款 Modal）。
-// 實際可用方式仍以後端 /payments/methods 為準（per-gym）。
-// 正式環境預設關閉；要開啟以 VITE_ONLINE_PAYMENT=1 build。dev 預設開（搭配本機後端 mock 測試）。
-export const ONLINE_PAYMENT_ENABLED = !!import.meta.env.DEV || import.meta.env.VITE_ONLINE_PAYMENT === '1';
+// 「是否要開這個付款 Modal」改由各流程各自的開關決定：
+// utils/paymentMethods.js 的 useOnlineFlowEnabled(flowKey)（見 docs/payment-integration-plan.md §11）。
+// 實際可用方式仍以後端 /payments/methods 為準（per-gym + per-gateway 金鑰）。
 
 const POLL_INTERVAL_MS = 2000;
 const TERMINAL_FAIL = ['failed', 'expired', 'cancelled'];

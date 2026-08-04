@@ -6,7 +6,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { getMemberCompetitions, getMemberRegistrations, registerForCompetition, getCompetition, getCompetitionQuote, cancelRegistration, updateCompetitionForm, reregisterCompetition } from '../../api/competitions';
-import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
+import PaymentFlow from '../../components/PaymentFlow';
+import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import QRCode from 'qrcode';
@@ -17,6 +18,7 @@ const STEPS = ['基本資料', '付款資訊', '同意書', '簽名'];
 
 export default function MemberCompetitionsPage() {
   const { member } = useMember();
+  const onlinePayEnabled = useOnlineFlowEnabled('competition');
   const [competitions, setCompetitions] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
@@ -406,7 +408,7 @@ export default function MemberCompetitionsPage() {
       }
       setShowModal(false);
       await load();
-      if (ONLINE_PAYMENT_ENABLED && reg && reg.registrationFee > 0 && reg.paymentStatus !== 'confirmed') {
+      if (onlinePayEnabled && reg && reg.registrationFee > 0 && reg.paymentStatus !== 'confirmed') {
         setPayFor({ registrationId: reg.id, fee: reg.registrationFee, gymId: selectedComp.gymId });
       } else {
         showMsg('報名成功！請完成繳費以確保名額。');

@@ -58,7 +58,8 @@ import { isUnder5 } from '../../utils/age';
 import { gymPrefix } from '../../utils/gymLabel';
 import { courseColor } from '../../utils/courseColor';
 import PaymentSection from '../../components/PaymentSection';
-import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
+import PaymentFlow from '../../components/PaymentFlow';
+import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
@@ -67,6 +68,7 @@ export default function MemberCoursesPage() {
   const { member } = useMember();
   const navigate = useNavigate();
   const location = useLocation();
+  const onlinePayEnabled = useOnlineFlowEnabled('course');
 
   const [tab, setTab] = useState('my'); // browse | my
   const [courses, setCourses] = useState([]);
@@ -414,7 +416,7 @@ export default function MemberCoursesPage() {
     setLoading(true);
     try {
       const extraFields = {
-        deferPayment: ONLINE_PAYMENT_ENABLED, // 線上付款啟用時延後記帳，改由付款 callback 記
+        deferPayment: onlinePayEnabled, // 線上付款啟用時延後記帳，改由付款 callback 記
         paymentPlan: enrollPlan,              // full | installment（課程有開分期時）
         paymentDate: paymentDate || null,
         bankLastFive: (paymentMethod === 'cash' && bankLastFive) ? bankLastFive : null,
@@ -482,7 +484,7 @@ export default function MemberCoursesPage() {
       setScreenshot(null);
       await loadMyEnrollments();
       if (selectedCourse) await loadSessions(selectedCourse);
-      if (ONLINE_PAYMENT_ENABLED && enrInfo.id && enrInfo.fee > 0) {
+      if (onlinePayEnabled && enrInfo.id && enrInfo.fee > 0) {
         setPayFor({ enrollmentId: enrInfo.id, fee: enrInfo.fee, gymId });
       } else {
         setEnrollSuccess(true); // 跳出「已報名成功」確認（非線上付款流程）

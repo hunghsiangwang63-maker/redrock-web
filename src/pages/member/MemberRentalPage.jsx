@@ -9,7 +9,8 @@ import TransferReuploadModal from '../../components/TransferReuploadModal';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import PaymentSection from '../../components/PaymentSection';
-import PaymentFlow, { ONLINE_PAYMENT_ENABLED } from '../../components/PaymentFlow';
+import PaymentFlow from '../../components/PaymentFlow';
+import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 
 const ITEM_ICONS = { crashPad:'🪨', helmet:'⛑️', harness:'🔗' };
 const STATUS_LABEL = {
@@ -24,6 +25,7 @@ export default function MemberRentalPage() {
   const { member } = useMember();
   const navigate = useNavigate();
   const location = useLocation();
+  const onlinePayEnabled = useOnlineFlowEnabled('rental');
 
   const [tab, setTab] = useState('apply'); // apply | history
   const [settings, setSettings] = useState(null);
@@ -169,7 +171,7 @@ export default function MemberRentalPage() {
       const rr = await getMyRentals();
       setMyRentals(rr.data.rentals || []);
       setTab('history');
-      if (ONLINE_PAYMENT_ENABLED && rentalId && total > 0) setPayFor({ rentalId, total, gymId });
+      if (onlinePayEnabled && rentalId && total > 0) setPayFor({ rentalId, total, gymId });
     } catch (err) {
       showMsg(err.response?.data?.message || '申請失敗', 'red');
     } finally { setSubmitting(false); }
