@@ -9,6 +9,12 @@ import QRCode from 'qrcode';
 import dayjs from 'dayjs';
 import { isChild } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
+import PaymentFlow from '../../components/PaymentFlow';
+import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
+
+// 支援線上付款（pay-first）的入館身份——純付費身份，卡/券/免費資格皆有自己的免費入場路徑，
+// 不適用；與後端 orderResolvers.entry（paymentService.js）白名單一致，勿單方修改。
+const ONLINE_PAYABLE_ENTRY_TYPES = ['single_ticket', 'student_free', 'child_free'];
 
 const PAYMENT_METHODS = [
   { key: 'cash',      label: '現金' },
@@ -33,6 +39,7 @@ export default function MemberQRPage() {
   const { member } = useMember();
   const navigate = useNavigate();
   const location = useLocation();
+  const onlineEntryPayEnabled = useOnlineFlowEnabled('entry');
 
   const [step, setStep] = useState('loading');
   const [verifyResult, setVerifyResult] = useState(null);
@@ -53,6 +60,8 @@ export default function MemberQRPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [qrClosedReason, setQrClosedReason] = useState(null); // 'cancelled' | 'expired' → 停止輪詢並提示
+  const [onlinePayFor, setOnlinePayFor] = useState(null); // 線上支付（pay-first）Modal：{ entryType, amount, gymId } | null
+  const [onlinePaySuccess, setOnlinePaySuccess] = useState(false); // 付款完成提示（導回選身分，改選「使用單次入場券」領取）
 
   // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
   const [children, setChildren] = useState([]);
@@ -215,6 +224,14 @@ export default function MemberQRPage() {
     }
   };
 
+  // 線上支付（pay-first）完成：後端已開通一張單次入場券 → 重新驗票，回到選身分（該券會出現在
+  // 「使用單次入場券」選項供領取產生可掃碼 QR；不特別跳過此步，沿用既有、已測試過的票券兌換流程。
+  const handleOnlinePaid = () => {
+    setOnlinePayFor(null);
+    setOnlinePaySuccess(true);
+    doVerify();
+  };
+
   const NavBar = () => (
     <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:"env(safe-area-inset-bottom)", zIndex:50 }}>
       {[
@@ -244,7 +261,32 @@ export default function MemberQRPage() {
 
   const wrap = (kids) => (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+      {onlinePaySuccess && (
+        <div style={{ margin:'12px 20px 0', background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#2D7D46', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
+          <span>{t('✅ 付款成功，入場券已開通！請選擇「使用單次入場券（免費）」領取，即可產生入場 QR。')}</span>
+          <span onClick={() => setOnlinePaySuccess(false)} style={{ cursor:'pointer', flexShrink:0 }}>✕</span>
+        </div>
+      )}
       {kids}
+      {onlinePayFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontWeight:600, fontSize:15 }}>{t('線上支付入場')}</div>
+              <button onClick={() => setOnlinePayFor(null)} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <PaymentFlow
+              client={memberClient}
+              orderType="entry"
+              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType }}
+              amount={onlinePayFor.amount}
+              gymId={onlinePayFor.gymId}
+              onPaid={handleOnlinePaid}
+              onCancel={() => setOnlinePayFor(null)}
+            />
+          </div>
+        </div>
+      )}
       <MemberLogoutButton />
       <NavBar />
     </div>
@@ -509,6 +551,10 @@ export default function MemberQRPage() {
    const _pgmOn = pgmEligible && partnerGymMember;
    const _pvOn = !_pgmOn && pvEligible && partnerVendor;
    const pvShownPrice = _pgmOn ? Math.round(basePayPrice * pgmRate) : (basePayPrice - (_pvOn ? pvDiscount : 0));
+   // 真線上付款（pay-first，LinePay 等）：僅限單純付費身份、且未勾選需現場核對的友館隊員/特約廠商優惠
+   // （那兩項後端 entry orderType 不支援，勾了會跟顯示金額不符，故此時隱藏線上付款改走原有現金/標籤方式）
+   const onlinePayable = onlineEntryPayEnabled && selectedEntry?.kind === 'pay'
+     && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type) && !_pgmOn && !_pvOn;
    return wrap(
     <>
       <Header title={t('選擇付款方式')} onBack={() => setStep('shoes')} />
@@ -569,6 +615,24 @@ export default function MemberQRPage() {
           onChange={v => setSelectedPayment(v.method)}
           onSelect={key => handleGenerateQR(rentShoes, rentChalk, key)}
         />
+        {onlinePayable && (
+          <>
+            <div style={{ display:'flex', alignItems:'center', gap:10, margin:'16px 0' }}>
+              <div style={{ flex:1, height:1, background:'#E8D5D5' }} />
+              <span style={{ fontSize:11, color:'#999' }}>{t('或')}</span>
+              <div style={{ flex:1, height:1, background:'#E8D5D5' }} />
+            </div>
+            <button
+              onClick={() => setOnlinePayFor({ entryType: selectedEntry.type, amount: basePayPrice, gymId })}
+              style={{ width:'100%', padding:'14px 16px', borderRadius:12, border:'1.5px solid #185FA5', background:'#E6F1FB', color:'#185FA5', fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span>{t('🌐 線上支付（付款後立即開通入場券）')}</span>
+              <span>NT${basePayPrice}</span>
+            </button>
+            <div style={{ fontSize:11, color:'#999', marginTop:6, textAlign:'left' }}>
+              {t('線上完成付款後將開通一張 30 天效期的入場券，回首頁選擇「使用單次入場券」即可產生入場 QR，不需在此立即入場。')}
+            </div>
+          </>
+        )}
         {error && <div style={{ marginTop:10, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
       </div>
     </>

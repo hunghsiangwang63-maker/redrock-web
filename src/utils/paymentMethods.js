@@ -8,7 +8,7 @@ import { useState, useEffect } from 'react';
 import { memberClient } from '../api/client';
 
 export const DEFAULT_ENABLED = { cash: true, transfer: true, linepay: false, jkopay: false, taiwanpay: false };
-export const DEFAULT_ONLINE_FLOWS = { checkin: false, course: false, experience: false, competition: false, rental: false, pass: false, installment: false };
+export const DEFAULT_ONLINE_FLOWS = { entry: false, course: false, experience: false, competition: false, rental: false, pass: false, installment: false };
 
 let _cache = null;      // enabled
 let _flowsCache = null; // onlineFlows

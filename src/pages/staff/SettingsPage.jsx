@@ -410,9 +410,9 @@ export default function SettingsPage() {
     { key:'rental', label:'器材租借', note:'器材租借費用', status:'live' },
     { key:'pass', label:'定期票', note:'定期票購買／續約', status:'pending' },
     { key:'installment', label:'分期', note:'分期各期繳款', status:'pending' },
-    { key:'checkin', label:'入場', note:'會員自助入場（見 §10 設計）', status:'pending' },
+    { key:'entry', label:'入場', note:'會員自助入場，限單純付費身份（成人/學生/兒童單次購票，見 §10/§12 設計）', status:'live' },
   ];
-  const [onlineFlows, setOnlineFlows] = useState({ checkin:false, course:false, experience:false, competition:false, rental:false, pass:false, installment:false });
+  const [onlineFlows, setOnlineFlows] = useState({ entry:false, course:false, experience:false, competition:false, rental:false, pass:false, installment:false });
   const [onlineFlowsDirty, setOnlineFlowsDirty] = useState(false);
   const loadPayMethods = async () => {
     try {
