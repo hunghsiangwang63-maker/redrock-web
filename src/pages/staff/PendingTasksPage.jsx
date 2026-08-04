@@ -60,7 +60,7 @@ const NOTIF_LINK = {
   course_leave: '/staff/courses', course_leave_cancel: '/staff/courses', course_makeup_booked: '/staff/courses', course_makeup_cancel: '/staff/courses',
   course_refund: '/staff/courses',
   legacy_vip_claimed: '/staff/members', legacy_pass_claimed: '/staff/members',
-  experience_refund: '/staff/experience-bookings',
+  experience_refund: '/staff/experience',
   single_entry_ticket_approval: '/staff/pending-tasks',
   discount_bind_disclosure: '/staff/cards', black_bind_disclosure: '/staff/cards', legacy_discount_bind_disclosure: '/staff/cards',
   pass_adjustment: '/staff/pending-tasks',
@@ -69,6 +69,14 @@ const NOTIF_LINK = {
 };
 const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名' };
 const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
+// 通知連結：新通知建立時已直接帶 link（見 memberService.js 認領通知）；這裡只為「舊通知」
+// （course_roster_claimed/competition_reg_claimed 在補上 link 欄位前建立的既有紀錄，link 為 null）
+// 用 referenceId/referenceType 補算出「直接跳到那筆」的深連結，查無才退回 NOTIF_LINK 的通用列表頁
+const resolveNotifLink = (n) => {
+  if (n.link) return n.link;
+  if (n.type === 'course_roster_claimed' && n.referenceType === 'course' && n.referenceId) return `/staff/courses?course=${n.referenceId}`;
+  return NOTIF_LINK[n.type] || null;
+};
 
 const TYPE_CONFIG = {
   rental:             { icon:'👟', color:'#854F0B', bg:'#FAEEDA', label:'器材租借' },
@@ -395,7 +403,7 @@ export default function PendingTasksPage() {
         const cutoff = Date.now() / 1000 - 7 * 24 * 3600;
         const notifItems = (notifs || [])
           .filter(n => !n.createdAt?._seconds || n.createdAt._seconds >= cutoff)
-          .map(n => ({ key: 'n_' + n.id, notifId: n.id, cat: notifCatOf(n.type), title: n.title || '通知', message: n.message || n.body, ts: n.createdAt?._seconds || 0, link: n.link || NOTIF_LINK[n.type] || null, catLabel: NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統', canRead: true }));
+          .map(n => ({ key: 'n_' + n.id, notifId: n.id, cat: notifCatOf(n.type), title: n.title || '通知', message: n.message || n.body, ts: n.createdAt?._seconds || 0, link: resolveNotifLink(n), catLabel: NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統', canRead: true }));
         const regItems = (registrations || []).map(r => ({ key: 'r_' + r.id, cat: 'report', title: `${r.memberName} 報名 ${r.name}`, message: [r.detail, REG_CAT[r.regType]].filter(Boolean).join(' · ') + (r.gymId === 'gym-hsinchu' ? ' · 新竹館' : r.gymId === 'gym-shilin' ? ' · 士林館' : ''), ts: r.createdAt || 0, link: r.link, catLabel: '報名', canRead: false }));
         const feed = [...notifItems, ...regItems].filter(i => !notifCat || i.cat === notifCat).sort((a, b) => b.ts - a.ts);
         return (

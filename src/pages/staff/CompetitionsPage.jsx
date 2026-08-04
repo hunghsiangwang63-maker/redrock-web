@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getCompetitions, createCompetition, updateCompetition, getCompetitionRegistrations, returnCompetitionForm, rejectCompetitionForm, rejectCompetitionPayment } from '../../api/competitions';
 import client from '../../api/client';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
@@ -146,6 +146,19 @@ export default function CompetitionsPage() {
     catch(e) { setCompetitions([]); } finally { setLoading(false); }
   };
   useEffect(()=>{ loadCompetitions(); },[]);
+  // 深連結：?comp=<id> → 賽事載入後自動開啟該賽事的報名名單（供通知「查看」按鈕使用；只開一次）
+  const _compDeepLinkDone = useRef(false);
+  useEffect(() => {
+    if (_compDeepLinkDone.current || !competitions.length) return;
+    const cid = new URLSearchParams(window.location.search).get('comp');
+    if (!cid) { _compDeepLinkDone.current = true; return; }
+    const c = competitions.find(x => x.id === cid);
+    if (c) {
+      _compDeepLinkDone.current = true;
+      openRegistrations(c);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [competitions]);
 
   const openCreate = () => { setEditingId(null); setForm(emptyForm()); setShowForm(true); };
   const openEdit = (c) => {

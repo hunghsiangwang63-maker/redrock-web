@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/courseCategories';
 import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
@@ -236,6 +236,20 @@ export default function CoursesPage({ embedded = false }) {
 
   // 切換館別（super_admin 頂部選單）時重新載入該館課程並回到類別總頁，避免顯示他館課程（如士林館看到新竹館小蜘蛛人）
   useEffect(() => { loadCourses(); loadCategories(); loadMakeupTypes(); setSelectedCategory(null); }, [effectiveGymId]);
+  // 深連結：?course=<id> → 課程載入後自動切到該班別＋直接開啟該梯次名單（供通知「查看」按鈕使用；只開一次）
+  const _courseDeepLinkDone = useRef(false);
+  useEffect(() => {
+    if (_courseDeepLinkDone.current || !courses.length) return;
+    const cid = new URLSearchParams(window.location.search).get('course');
+    if (!cid) { _courseDeepLinkDone.current = true; return; }
+    const c = courses.find(x => x.id === cid);
+    if (c) {
+      _courseDeepLinkDone.current = true;
+      setSelectedCategory(c.categoryName || '其他');
+      loadCourseRoster(c);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [courses]);
   useEffect(() => { if (tab === 'sessions' && selectedCourse) loadSessions(selectedCourse); }, [tab]);
   useEffect(() => { if (tab === 'calendar') loadCalendarSessions(); }, [tab, calendarMonth, effectiveGymId]);
 

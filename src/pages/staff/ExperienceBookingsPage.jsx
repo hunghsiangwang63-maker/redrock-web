@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import client from '../../api/client';
 import SaveButton from '../../components/SaveButton';
@@ -212,6 +212,18 @@ export default function ExperienceBookingsPage() {
   };
 
   useEffect(()=>{ load(); }, [gymFilter]);
+  // 深連結：?booking=<id> → 預約載入後自動展開該筆（供通知「查看」按鈕使用；只開一次；若該筆不在目前日期區間內會找不到，維持原本瀏覽範圍限制不特別處理）
+  const _bookingDeepLinkDone = useRef(false);
+  useEffect(() => {
+    if (_bookingDeepLinkDone.current || !bookings.length) return;
+    const bid = new URLSearchParams(window.location.search).get('booking');
+    if (!bid) { _bookingDeepLinkDone.current = true; return; }
+    if (bookings.some(b => b.id === bid)) {
+      _bookingDeepLinkDone.current = true;
+      setExpanded(bid);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [bookings]);
   useEffect(()=>{ loadSettings(); }, []); // 需 needsInsurance 設定判斷是否顯示寄送鈕
 
   const sendInsurance = async (b) => {
