@@ -109,6 +109,16 @@ export default function MemberHomePage() {
       .catch(() => setRejectAlerts([]));
   };
 
+  // 「知道了」關閉比賽已駁回通知（不影響其他通知類型；樂觀移除，失敗則不動畫面）
+  const dismissRejectAlert = async (a, e) => {
+    e.stopPropagation();
+    if (!a.regId) return;
+    try {
+      await memberClient.post(`/competitions/registrations/${a.regId}/dismiss-rejection`);
+      setRejectAlerts(list => list.filter(x => x !== a));
+    } catch (err) { /* 失敗保留原樣，可再按一次 */ }
+  };
+
   useEffect(() => { loadHomeData(); }, [member?.id]);
   // 會員可能把 App 留在背景很久（切別的 App、鎖螢幕）：回到前景時重抓一次，
   // 今日入場/身份效期/退回通知才不會停在剛登入當下的舊資料。
@@ -493,7 +503,14 @@ export default function MemberHomePage() {
                     : `${a.reason ? `${a.reason}，` : ''}請點此前往處理`}
                 </div>
               </div>
-              <div style={{ fontSize:14, color: a.kind === 'action' ? '#854F0B' : '#A32D2D' }}>›</div>
+              {a.kind === 'reject' && a.regId ? (
+                <button onClick={(e) => dismissRejectAlert(a, e)}
+                  style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#A32D2D', background:'#fff', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'6px 10px', cursor:'pointer' }}>
+                  {t('知道了')}
+                </button>
+              ) : (
+                <div style={{ fontSize:14, color: a.kind === 'action' ? '#854F0B' : '#A32D2D' }}>›</div>
+              )}
             </div>
           ))}
         </div>

@@ -16,6 +16,7 @@ const DICT_EN = {
   '體驗課程': 'Trial Class',
   '加入攀岩隊': 'Join Team',
   '器材租借': 'Gear Rental',
+  '知道了': 'Got it',
 
   // ── 入場 QR：共用 ──
   '入場 QR Code': 'Entry QR Code',
@@ -194,6 +195,7 @@ const DICT_JA = {
   '體驗課程': '体験レッスン',
   '加入攀岩隊': 'チーム加入',
   '器材租借': '器材レンタル',
+  '知道了': '了解',
 
   // ── 入場 QR：共用 ──
   '入場 QR Code': '入場QRコード',
