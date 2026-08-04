@@ -402,14 +402,37 @@ export default function SettingsPage() {
   ];
   const [payMethods, setPayMethods] = useState({ cash:true, transfer:true, linepay:false, jkopay:false, taiwanpay:false });
   const [payMethodsDirty, setPayMethodsDirty] = useState(false);
+  // 各流程「是否開放線上支付入口」（見 docs/payment-integration-plan.md §11）；status:'live' 前端已接、'pending' 前端尚未接（開啟暫無效果）
+  const ONLINE_FLOW_KEYS = [
+    { key:'course', label:'課程報名', note:'課程報名／插班', status:'live' },
+    { key:'experience', label:'體驗預約', note:'體驗預約／試上報名', status:'live' },
+    { key:'competition', label:'比賽報名', note:'賽事報名費', status:'live' },
+    { key:'rental', label:'器材租借', note:'器材租借費用', status:'live' },
+    { key:'pass', label:'定期票', note:'定期票購買／續約', status:'pending' },
+    { key:'installment', label:'分期', note:'分期各期繳款', status:'pending' },
+    { key:'checkin', label:'入場', note:'會員自助入場（見 §10 設計）', status:'pending' },
+  ];
+  const [onlineFlows, setOnlineFlows] = useState({ checkin:false, course:false, experience:false, competition:false, rental:false, pass:false, installment:false });
+  const [onlineFlowsDirty, setOnlineFlowsDirty] = useState(false);
   const loadPayMethods = async () => {
-    try { const res = await client.get('/settings/payment-methods'); setPayMethods(res.data.enabled || {}); setPayMethodsDirty(false); } catch (e) {}
+    try {
+      const res = await client.get('/settings/payment-methods');
+      setPayMethods(res.data.enabled || {}); setPayMethodsDirty(false);
+      setOnlineFlows(res.data.onlineFlows || {}); setOnlineFlowsDirty(false);
+    } catch (e) {}
   };
   const handleSavePayMethods = async () => {
     try {
       const res = await client.put('/settings/payment-methods', { enabled: payMethods });
       setPayMethods(res.data.enabled); setPayMethodsDirty(false);
       showMsg('付款方式設定已儲存');
+    } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'red'); }
+  };
+  const handleSaveOnlineFlows = async () => {
+    try {
+      const res = await client.put('/settings/payment-methods', { onlineFlows });
+      setOnlineFlows(res.data.onlineFlows); setOnlineFlowsDirty(false);
+      showMsg('線上支付流程設定已儲存');
     } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'red'); }
   };
 
@@ -943,6 +966,36 @@ export default function SettingsPage() {
                 </span>
                 <span style={{ width:44, height:26, borderRadius:13, background: payMethods[pk.key] ? '#2D7D46' : '#ccc', position:'relative', transition:'.2s', flexShrink:0 }}>
                   <span style={{ position:'absolute', top:3, left: payMethods[pk.key] ? 21 : 3, width:20, height:20, borderRadius:10, background:'#fff', transition:'.2s' }} />
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'paymentMethods' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🌐 各流程線上支付</span>
+            <SaveButton onSave={handleSaveOnlineFlows} isDirty={onlineFlowsDirty} label='儲存線上支付設定' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16, textAlign:'left' }}>
+              控制各流程**是否顯示**「線上支付」入口（LinePay/街口/台灣Pay），跟上面「付款方式開關」是不同層——那個決定某個支付商全站存不存在，這裡決定**哪個流程要秀出來讓會員選**。兩者都要開才會真的出現；沒有金鑰的館別即使開了也不會出現。
+              商品銷售（POS）不在此列——POS 的行動支付走現場實體收款 QR＋店員目視確認，不經此機制。
+            </div>
+            {ONLINE_FLOW_KEYS.map(fk => (
+              <label key={fk.key} onClick={() => { setOnlineFlows(p => ({ ...p, [fk.key]: !p[fk.key] })); setOnlineFlowsDirty(true); }}
+                style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', borderRadius:10, border:'0.5px solid #E8D5D5', marginBottom:10, cursor:'pointer' }}>
+                <span style={{ textAlign:'left' }}>
+                  <span style={{ fontSize:14, fontWeight:600, display:'block' }}>
+                    {fk.label}
+                    {fk.status === 'pending' && <span style={{ fontSize:10, fontWeight:500, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'1px 6px', marginLeft:8 }}>前端尚未接，開啟暫無效果</span>}
+                  </span>
+                  <span style={{ fontSize:11, color:'#999' }}>{fk.note}</span>
+                </span>
+                <span style={{ width:44, height:26, borderRadius:13, background: onlineFlows[fk.key] ? '#2D7D46' : '#ccc', position:'relative', transition:'.2s', flexShrink:0 }}>
+                  <span style={{ position:'absolute', top:3, left: onlineFlows[fk.key] ? 21 : 3, width:20, height:20, borderRadius:10, background:'#fff', transition:'.2s' }} />
                 </span>
               </label>
             ))}
