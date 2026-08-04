@@ -29,6 +29,11 @@ export const getCourseStudentsHistoryList = (gymId) => client.get('/members/repo
 export const getCourseStudentsHistoryDetail = (gymId, courseId) =>
   client.get(`/members/reports/course-students-history/${courseId}`, { params: gymId ? { gymId } : {} });
 
+// 尚未開課資料（總表，practiceStart > today）：已報名/已收款但入館效期還沒開始的梯次
+export const getFutureCourseStudents = (gymId) => client.get('/members/reports/future-course-students', { params: gymId ? { gymId } : {} });
+export const downloadFutureCourseStudents = (gymId, courseId) =>
+  client.get('/members/reports/future-course-students/download', { params: { ...(gymId ? { gymId } : {}), ...(courseId ? { courseId } : {}) }, responseType: 'blob' });
+
 // 課程學員：開立發票（預先建立，待日後發票機串接）
 export const getCourseInvoices = (params) => client.get('/members/course-invoices', { params });
 export const createCourseInvoice = (data) => client.post('/members/course-invoices', data);

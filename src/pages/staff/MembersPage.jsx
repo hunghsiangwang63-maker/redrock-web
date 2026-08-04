@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { entryLabelOf } from '../../utils/entryLabel';
 import PasswordInput from '../../components/PasswordInput';
-import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount, getCourseStudentsHistoryList, getCourseStudentsHistoryDetail } from '../../api/members';
+import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount, getCourseStudentsHistoryList, getCourseStudentsHistoryDetail, getFutureCourseStudents, downloadFutureCourseStudents } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -316,6 +316,11 @@ export default function MembersPage() {
   const [historyDetail, setHistoryDetail] = useState(null);
   const [historyDetailLoading, setHistoryDetailLoading] = useState(false);
 
+  // 尚未開課資料（practiceStart > today，總表——與「效期內」同樣一次顯示全部梯次，非逐一下拉挑選）
+  const [futureOpen, setFutureOpen] = useState(false);
+  const [futureList, setFutureList] = useState(null);
+  const [futureListLoading, setFutureListLoading] = useState(false);
+
   const handleDownloadCourseStudents = async (courseId) => {
     setCsDownloading(true);
     try {
@@ -331,6 +336,21 @@ export default function MembersPage() {
     } finally { setCsDownloading(false); }
   };
 
+  const handleDownloadFutureCourseStudents = async (courseId) => {
+    setCsDownloading(true);
+    try {
+      const res = await downloadFutureCourseStudents(reportGymId, courseId);
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = courseId ? `未開課學員名單_${courseId}.xlsx` : `未開課學員總表_${dayjs().format('YYYYMMDD')}.xlsx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.response?.data?.message || '下載失敗');
+    } finally { setCsDownloading(false); }
+  };
+
   // 課程學員頁「實收金額」就地編修存檔後，同步更新畫面上的 courseList（供開發票 modal 沿用最新值）
   const applyReceivedAmountEdit = (enrollmentId, amount) => {
     setCourseList(list => (list || []).map(c => ({
@@ -338,6 +358,10 @@ export default function MembersPage() {
       members: c.members.map(m => m.enrollmentId === enrollmentId ? { ...m, receivedAmount: amount, receivedAmountOverride: amount } : m),
     })));
     setHistoryDetail(d => d ? { ...d, members: d.members.map(m => m.enrollmentId === enrollmentId ? { ...m, receivedAmount: amount, receivedAmountOverride: amount } : m) } : d);
+    setFutureList(list => (list || []).map(c => ({
+      ...c,
+      members: c.members.map(m => m.enrollmentId === enrollmentId ? { ...m, receivedAmount: amount, receivedAmountOverride: amount } : m),
+    })));
   };
 
   const toggleHistory = () => {
@@ -357,6 +381,16 @@ export default function MembersPage() {
     setHistoryDetailLoading(true);
     getCourseStudentsHistoryDetail(reportGymId, courseId)
       .then(r => setHistoryDetail(r.data.course)).catch(() => setHistoryDetail(null)).finally(() => setHistoryDetailLoading(false));
+  };
+
+  const toggleFuture = () => {
+    const next = !futureOpen;
+    setFutureOpen(next);
+    if (next && futureList === null) {
+      setFutureListLoading(true);
+      getFutureCourseStudents(reportGymId)
+        .then(r => setFutureList(r.data.courses || [])).catch(() => setFutureList([])).finally(() => setFutureListLoading(false));
+    }
   };
 
   const switchView = (v) => {
@@ -828,6 +862,55 @@ export default function MembersPage() {
                       </div>
                     )}
                   </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 尚未開課資料總表（practiceStart > today）：已報名/已收款但入館效期還沒開始的梯次，
+              預設收合、展開後一次顯示全部梯次（與「效期內」總表同樣呈現方式，非逐一下拉挑選） */}
+          <div style={{ marginTop:20, borderTop:'1px solid #E8D5D5', paddingTop:14 }}>
+            <button onClick={toggleFuture}
+              style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', fontSize:13, fontWeight:600, color:'#8B1A1A', padding:0 }}>
+              <span style={{ display:'inline-block', transition:'transform .15s', transform: futureOpen ? 'rotate(90deg)' : 'none' }}>▶</span>
+              📅 尚未開課資料總表（未來梯次，已報名學員）
+            </button>
+            {futureOpen && (
+              <div style={{ marginTop:12 }}>
+                {futureListLoading ? (
+                  <div style={{ fontSize:13, color:'#999' }}>載入中...</div>
+                ) : (futureList || []).length === 0 ? (
+                  <div style={{ fontSize:12, color:'#999' }}>目前沒有尚未開課、且已有學員報名的梯次</div>
+                ) : (
+                  <RowMemberList loading={false} searchPlaceholder="搜尋會員姓名" groupFilterLabel="全部班別"
+                    groups={(futureList || []).map(g => ({
+                      key: g.courseId, title: g.courseName, members: g.members, gymId: g.gymId, courseId: g.courseId, courseName: g.courseName,
+                      range: g.practiceStart && g.practiceEnd ? `${dayjs(g.practiceStart).format('MM/DD')}–${dayjs(g.practiceEnd).format('MM/DD')}` : (g.practiceStart ? `${dayjs(g.practiceStart).format('MM/DD')} 起` : ''),
+                    }))}
+                    headerExtra={isManagerRole ? (gSel) => (
+                      <button onClick={() => handleDownloadFutureCourseStudents(gSel || null)} disabled={csDownloading}
+                        style={{ height:34, padding:'0 12px', borderRadius:8, border:'1px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                        {csDownloading ? '下載中...' : gSel ? '⬇ 下載此班別名單' : '⬇ 下載總表'}
+                      </button>
+                    ) : null}
+                    renderRowExtra={(m, g) => (
+                      <>
+                        <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
+                        {isManagerRole && (
+                          <>
+                            <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
+                              style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                              詳細
+                            </button>
+                            <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
+                              style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                              🧾 開立發票
+                            </button>
+                          </>
+                        )}
+                      </>
+                    )}
+                  />
                 )}
               </div>
             )}
