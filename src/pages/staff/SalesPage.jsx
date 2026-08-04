@@ -169,6 +169,7 @@ export default function SalesPage({ embedded = false }) {
   const [stocktakeResult, setStocktakeResult] = useState(null);
   const [stocktakeHistory, setStocktakeHistory] = useState([]);
   const [historyDetailModal, setHistoryDetailModal] = useState(null); // 點某次歷史盤點日期→跳出該次差異明細
+  const [stocktakeCatFilter, setStocktakeCatFilter] = useState(''); // 盤點清單依類別篩選（僅畫面顯示，勾選完成度仍看全部品項）
   const [restockVariantId, setRestockVariantId] = useState('');
   const [restockQty, setRestockQty] = useState('');
   const [restockNote, setRestockNote] = useState('');
@@ -333,7 +334,7 @@ export default function SalesPage({ embedded = false }) {
     products.forEach(p => {
       (p.variants || []).forEach(v => {
         items.push({
-          productId: p.id, productName: p.name, brand: p.brand || '',
+          productId: p.id, productName: p.name, brand: p.brand || '', category: p.category || '其他',
           variantId: v.id, size: v.size || '', color: v.color || '',
           systemStock: v.stock || 0, actualStock: v.stock || 0, checked: false,
         });
@@ -343,6 +344,7 @@ export default function SalesPage({ embedded = false }) {
     setStocktakeResult(null);
     setStocktakeHistory([]);
     setHistoryDetailModal(null);
+    setStocktakeCatFilter('');
     setShowStocktake(true);
     try {
       const res = await getStocktakeHistory(targetGymId);
@@ -1109,6 +1111,10 @@ export default function SalesPage({ embedded = false }) {
               {(() => {
                 const uncheckedCount = stocktakeItems.filter(it => !it.checked).length;
                 const allChecked = stocktakeItems.length > 0 && uncheckedCount === 0;
+                const stocktakeCatCounts = {};
+                stocktakeItems.forEach(it => { stocktakeCatCounts[it.category] = (stocktakeCatCounts[it.category] || 0) + 1; });
+                const stocktakeCatOptions = Object.entries(stocktakeCatCounts).sort((a, b) => b[1] - a[1]);
+                const visibleStocktakeItems = stocktakeCatFilter ? stocktakeItems.filter(it => it.category === stocktakeCatFilter) : stocktakeItems;
                 const olderSessions = stocktakeHistory.slice(1);
                 const historyRow = (s, i) => (
                   <div key={i} onClick={() => setHistoryDetailModal(s)}
@@ -1132,21 +1138,33 @@ export default function SalesPage({ embedded = false }) {
                         </details>
                       )}
                     </div>
-                    <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
+                    <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
                       請逐項核對實際盤點數量並勾選「已核對」，全部勾選完才能送出
-                      {uncheckedCount > 0 && <span style={{ color:'#854F0B', fontWeight:600 }}>（尚有 {uncheckedCount} 項未核對）</span>}
+                      {uncheckedCount > 0 && <span style={{ color:'#854F0B', fontWeight:600 }}>（全部尚有 {uncheckedCount} 項未核對）</span>}
                     </div>
+                    <select value={stocktakeCatFilter} onChange={e => setStocktakeCatFilter(e.target.value)}
+                      style={{ width:'100%', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:13, padding:'0 8px', background:'#fff', marginBottom:10 }}>
+                      <option value="">全部類別（{stocktakeItems.length} 項）</option>
+                      {stocktakeCatOptions.map(([name, count]) => (
+                        <option key={name} value={name}>{name}（{count} 項）</option>
+                      ))}
+                    </select>
+                    {stocktakeCatFilter && (
+                      <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
+                        「{stocktakeCatFilter}」已核對 {visibleStocktakeItems.filter(it => it.checked).length}/{visibleStocktakeItems.length}
+                      </div>
+                    )}
                     <div style={{ maxHeight:400, overflowY:'auto' }}>
                       <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'6px 10px', fontSize:11, color:'#999', fontWeight:600, background:'#FBF5F5', borderRadius:6, marginBottom:6 }}>
                         <span></span><span>商品</span><span>規格</span><span>帳面</span><span>盤點數量</span>
                       </div>
-                      {stocktakeItems.map((item, i) => {
+                      {visibleStocktakeItems.map((item) => {
                         const hasDiff = parseInt(item.actualStock) !== item.systemStock;
                         return (
-                          <div key={i} style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
+                          <div key={item.variantId} style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
                             background: hasDiff ? '#FFF5E8' : (item.checked ? '#F0F8F2' : 'none') }}>
                             <input type="checkbox" checked={!!item.checked}
-                              onChange={e => setStocktakeItems(stocktakeItems.map((it, idx) => idx===i ? {...it, checked: e.target.checked} : it))}
+                              onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, checked: e.target.checked} : it))}
                               style={{ width:18, height:18, cursor:'pointer' }}/>
                             <div>
                               {item.brand && <div style={{ fontSize:10, color:'#999' }}>{item.brand}</div>}
@@ -1155,7 +1173,7 @@ export default function SalesPage({ embedded = false }) {
                             <span style={{ color:'#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
                             <span style={{ color:'#999' }}>{item.systemStock}</span>
                             <input type="number" value={item.actualStock}
-                              onChange={e => setStocktakeItems(stocktakeItems.map((it, idx) => idx===i ? {...it, actualStock: e.target.value} : it))}
+                              onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, actualStock: e.target.value} : it))}
                               style={{ width:'100%', height:32, borderRadius:6, color:'#1a1a1a', border: hasDiff ? '1px solid #F5A623' : '0.5px solid #E8D5D5',
                                 padding:'0 8px', fontSize:13, outline:'none', textAlign:'center', background: hasDiff ? '#FFF9F0' : '#fff' }}/>
                           </div>
