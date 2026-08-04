@@ -43,3 +43,6 @@ export const createSaleInvoice = (saleId, data) =>
 
 export const voidSaleInvoice = (id, voidReason) =>
   client.post(`/products/invoices/${id}/void`, { voidReason });
+
+export const getStocktakeHistory = (gymId) =>
+  client.get('/products/stocktake/history', { params: gymId ? { gymId } : {} });

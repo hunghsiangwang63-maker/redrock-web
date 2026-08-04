@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice } from '../../api/products';
+import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory } from '../../api/products';
 import InvoiceModal from '../../components/InvoiceModal';
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
@@ -167,6 +167,8 @@ export default function SalesPage({ embedded = false }) {
   const [showStocktake, setShowStocktake] = useState(false);
   const [stocktakeItems, setStocktakeItems] = useState([]);
   const [stocktakeResult, setStocktakeResult] = useState(null);
+  const [stocktakeHistory, setStocktakeHistory] = useState([]);
+  const [stocktakeHistorySel, setStocktakeHistorySel] = useState('');
   const [restockVariantId, setRestockVariantId] = useState('');
   const [restockQty, setRestockQty] = useState('');
   const [restockNote, setRestockNote] = useState('');
@@ -326,7 +328,7 @@ export default function SalesPage({ embedded = false }) {
     } catch (e) { showMsg('匯出失敗', 'red'); }
   };
 
-  const openStocktake = () => {
+  const openStocktake = async () => {
     const items = [];
     products.forEach(p => {
       (p.variants || []).forEach(v => {
@@ -339,7 +341,13 @@ export default function SalesPage({ embedded = false }) {
     });
     setStocktakeItems(items);
     setStocktakeResult(null);
+    setStocktakeHistory([]);
+    setStocktakeHistorySel('');
     setShowStocktake(true);
+    try {
+      const res = await getStocktakeHistory(targetGymId);
+      setStocktakeHistory(res.data.sessions || []);
+    } catch (e) { /* 歷史紀錄載入失敗不影響本次盤點 */ }
   };
 
   const handleStocktake = async () => {
@@ -1101,8 +1109,45 @@ export default function SalesPage({ embedded = false }) {
               {(() => {
                 const uncheckedCount = stocktakeItems.filter(it => !it.checked).length;
                 const allChecked = stocktakeItems.length > 0 && uncheckedCount === 0;
+                const olderSessions = stocktakeHistory.slice(1);
+                const historySession = stocktakeHistorySel !== '' ? olderSessions[Number(stocktakeHistorySel)] : null;
                 return (
                   <>
+                    <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
+                      <div style={{ fontSize:12, color:'#666' }}>
+                        上次盤點時間：{stocktakeHistory.length > 0
+                          ? <strong style={{ color:'#1a1a1a' }}>{dayjs(stocktakeHistory[0].at).format('YYYY-MM-DD HH:mm')}（{stocktakeHistory[0].staffName}）</strong>
+                          : <span style={{ color:'#999' }}>尚無盤點紀錄</span>}
+                      </div>
+                      {olderSessions.length > 0 && (
+                        <div style={{ marginTop:8 }}>
+                          <select value={stocktakeHistorySel} onChange={e => setStocktakeHistorySel(e.target.value)}
+                            style={{ width:'100%', height:30, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:12, padding:'0 8px', background:'#fff' }}>
+                            <option value="">查看更早的盤點紀錄...</option>
+                            {olderSessions.map((s, idx) => (
+                              <option key={idx} value={idx}>
+                                {dayjs(s.at).format('YYYY-MM-DD HH:mm')}・{s.staffName}・共 {s.itemCount} 項{s.discrepancyCount > 0 ? `・${s.discrepancyCount} 項有差異` : '・無差異'}
+                              </option>
+                            ))}
+                          </select>
+                          {historySession && (
+                            <div style={{ marginTop:8, maxHeight:160, overflowY:'auto', background:'#fff', borderRadius:6, border:'0.5px solid #E8D5D5', padding:'6px 10px' }}>
+                              {historySession.items.filter(it => (it.diff ?? 0) !== 0).length > 0 ? (
+                                historySession.items.filter(it => (it.diff ?? 0) !== 0).map((it, i) => (
+                                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 50px', gap:6, padding:'4px 0', fontSize:12, borderBottom: '0.5px solid #F5EFEF' }}>
+                                    <span>{it.productName}</span>
+                                    <span style={{ color:'#666' }}>{[it.size, it.color].filter(Boolean).join('/') || '標準'}</span>
+                                    <span style={{ color: it.diff > 0 ? '#2D7D46' : '#A32D2D', fontWeight:600, textAlign:'right' }}>{it.diff > 0 ? '+' : ''}{it.diff}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <div style={{ fontSize:12, color:'#999', padding:'4px 0' }}>本次盤點無差異</div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
                       請逐項核對實際盤點數量並勾選「已核對」，全部勾選完才能送出
                       {uncheckedCount > 0 && <span style={{ color:'#854F0B', fontWeight:600 }}>（尚有 {uncheckedCount} 項未核對）</span>}
