@@ -668,10 +668,24 @@ export default function MemberCoursesPage() {
     group.sessions.find(s => (s.enrollmentFee || 0) > 0) ||
     group.sessions[0];
 
-  // 重新上傳轉帳（被退回後補正）：走既有 /transfers/upload，refId=主報名 id；不重設付款期限（後端沿用原值）
+  // 重新上傳轉帳（被退回後補正）／候補轉正選付款方式：走既有 /transfers/upload，refId=主報名 id；
+  // 不重設付款期限（後端沿用原值）。候補轉正選「現金」時改走 choose-cash（不需匯款資訊）。
   const handleReupload = async () => {
     if (!reuploadTarget) return;
-    if (reuploadData.method === 'transfer' && !reuploadFile && !reuploadData.bankLastFive) {
+    if (reuploadData.method === 'cash') {
+      setReuploadLoading(true);
+      try {
+        await memberClient.post(`/courses/enrollments/${reuploadTarget.enrollmentId}/choose-cash`, { memberId: reuploadTarget.memberId || member.id });
+        showMsg('已選擇現金付款，請至櫃檯繳費');
+        setReuploadTarget(null);
+        setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
+        await loadMyEnrollments();
+      } catch (err) {
+        showMsg(err.response?.data?.message || '提交失敗', 'red');
+      } finally { setReuploadLoading(false); }
+      return;
+    }
+    if (!reuploadFile && !reuploadData.bankLastFive) {
       showMsg('請上傳轉帳截圖或填寫帳號末五碼', 'red'); return;
     }
     setReuploadLoading(true);
@@ -690,7 +704,7 @@ export default function MemberCoursesPage() {
       if (reuploadData.bankName) fd.append('bankName', reuploadData.bankName);
       if (reuploadData.paymentDate) fd.append('paymentDate', reuploadData.paymentDate);
       await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showMsg('已重新提交轉帳，等待工作人員確認收款');
+      showMsg(reuploadTarget.mode === 'promoted' ? '已提交轉帳資訊，等待工作人員確認收款' : '已重新提交轉帳，等待工作人員確認收款');
       setReuploadTarget(null); setReuploadFile(null);
       setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
       await loadMyEnrollments();
@@ -917,31 +931,49 @@ export default function MemberCoursesPage() {
         </div>
       )}
 
-      {/* 重新上傳轉帳（被退回後補正）*/}
+      {/* 重新上傳轉帳（被退回後補正）／候補轉正選付款方式 */}
       {reuploadTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!reuploadLoading) setReuploadTarget(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>重新上傳轉帳</div>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>{reuploadTarget.mode === 'promoted' ? '選擇付款方式' : '重新上傳轉帳'}</div>
             <div style={{ fontSize:12.5, color:'#666', marginBottom:14, textAlign:'left', lineHeight:1.7 }}>
               {reuploadTarget.courseName}　應付 NT${(reuploadTarget.amount || 0).toLocaleString()}<br/>
-              <span style={{ color:'#B5651D' }}>重新上傳不會延長付款期限（沿用原報名期限）。</span>
+              {reuploadTarget.mode === 'promoted'
+                ? <span style={{ color:'#B5651D' }}>候補已遞補為正取，請選擇付款方式完成報名。</span>
+                : <span style={{ color:'#B5651D' }}>重新上傳不會延長付款期限（沿用原報名期限）。</span>}
             </div>
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>匯款帳號末五碼</label>
-            <input value={reuploadData.bankLastFive} onChange={e => setReuploadData(d => ({ ...d, bankLastFive: e.target.value.replace(/\D/g,'').slice(0,5) }))} maxLength={5} placeholder="末五碼"
-              style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
-            <label style={{ fontSize:12, color:'#666', display:'block', margin:'10px 0 4px', textAlign:'left' }}>匯款日期</label>
-            <input type="date" value={reuploadData.paymentDate} onChange={e => setReuploadData(d => ({ ...d, paymentDate: e.target.value }))}
-              style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
-            <label style={{ fontSize:12, color:'#666', display:'block', margin:'10px 0 4px', textAlign:'left' }}>轉帳截圖（選填）</label>
-            <input type="file" accept="image/*" onChange={e => setReuploadFile(e.target.files?.[0] || null)} style={{ fontSize:12 }} />
-            <div style={{ fontSize:11, color:'#999', margin:'6px 0 14px', textAlign:'left' }}>截圖或末五碼至少填一項。</div>
+            {reuploadTarget.mode === 'promoted' && (
+              <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+                {[{ k:'transfer', l:'🏧 轉帳' }, { k:'cash', l:'💵 現金' }].map(m => (
+                  <button key={m.k} onClick={() => setReuploadData(d => ({ ...d, method: m.k }))}
+                    style={{ flex:1, height:38, borderRadius:8, border: reuploadData.method===m.k ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5', background: reuploadData.method===m.k ? '#FCEBEB' : '#fff', color: reuploadData.method===m.k ? '#8B1A1A' : '#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                    {m.l}
+                  </button>
+                ))}
+              </div>
+            )}
+            {reuploadData.method === 'cash' ? (
+              <div style={{ fontSize:12.5, color:'#666', lineHeight:1.8, textAlign:'left', margin:'4px 0 14px' }}>
+                選擇現金付款後，請至櫃檯繳費，工作人員將為您確認收款。
+              </div>
+            ) : (<>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>匯款帳號末五碼</label>
+              <input value={reuploadData.bankLastFive} onChange={e => setReuploadData(d => ({ ...d, bankLastFive: e.target.value.replace(/\D/g,'').slice(0,5) }))} maxLength={5} placeholder="末五碼"
+                style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+              <label style={{ fontSize:12, color:'#666', display:'block', margin:'10px 0 4px', textAlign:'left' }}>匯款日期</label>
+              <input type="date" value={reuploadData.paymentDate} onChange={e => setReuploadData(d => ({ ...d, paymentDate: e.target.value }))}
+                style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+              <label style={{ fontSize:12, color:'#666', display:'block', margin:'10px 0 4px', textAlign:'left' }}>轉帳截圖（選填）</label>
+              <input type="file" accept="image/*" onChange={e => setReuploadFile(e.target.files?.[0] || null)} style={{ fontSize:12 }} />
+              <div style={{ fontSize:11, color:'#999', margin:'6px 0 14px', textAlign:'left' }}>截圖或末五碼至少填一項。</div>
+            </>)}
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setReuploadTarget(null)} disabled={reuploadLoading}
                 style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
               <button onClick={handleReupload} disabled={reuploadLoading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: reuploadLoading?'not-allowed':'pointer' }}>
-                {reuploadLoading ? '提交中...' : '確認上傳'}
+                {reuploadLoading ? '提交中...' : reuploadData.method === 'cash' ? '確認選擇' : '確認上傳'}
               </button>
             </div>
           </div>
@@ -1804,6 +1836,10 @@ export default function MemberCoursesPage() {
               const pConfirmed = primary?.paymentConfirmed === true;
               const isRejected = primary?.paymentStatus === 'transfer_rejected';
               const awaitingPay = !pConfirmed && !!pDeadline && ['pending','pending_confirm'].includes(primary?.paymentStatus);
+              // 候補自動遞補為正取：待選付款方式 / 已選待確認（無付款期限概念，獨立於上方 awaitingPay）
+              const isPromoted = !!primary?.promotedAt && !pConfirmed && (primary?.enrollmentFee || 0) > 0;
+              const promotedNeedsMethod = isPromoted && !primary?.paymentMethod;
+              const promotedAwaitingConfirm = isPromoted && !!primary?.paymentMethod;
               return (
                 <div key={groupKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
@@ -1843,6 +1879,27 @@ export default function MemberCoursesPage() {
                     <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'9px 12px', marginBottom:8, textAlign:'left' }}>
                       <div style={{ fontSize:12, color:'#8B6914', lineHeight:1.6 }}>
                         ⏳ {primary?.paymentStatus === 'pending_confirm' ? '轉帳待工作人員確認' : '待付款'}：請於 <b>{pDeadline.format('YYYY-MM-DD HH:mm')}</b> 前完成付款，逾期未確認將自動取消報名、釋出名額。
+                      </div>
+                    </div>
+                  )}
+                  {/* 候補自動遞補為正取：待選付款方式 */}
+                  {promotedNeedsMethod && (
+                    <div style={{ background:'#E6F1FB', border:'0.5px solid #C0DCF5', borderRadius:8, padding:'10px 12px', marginBottom:8, textAlign:'left' }}>
+                      <div style={{ fontSize:12.5, color:'#185FA5', fontWeight:600 }}>🎉 候補已遞補為正取！</div>
+                      <div style={{ fontSize:11.5, color:'#185FA5', marginTop:3, lineHeight:1.6 }}>
+                        應繳 NT${(primary.enrollmentFee || 0).toLocaleString()}，請選擇付款方式完成報名。
+                      </div>
+                      <button onClick={() => { setReuploadTarget({ mode:'promoted', enrollmentId: primary.id, courseName: group.courseName, amount: primary.enrollmentFee || 0, memberId: group.memberId, gymId: primary.gymId }); setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' }); setReuploadFile(null); }}
+                        style={{ marginTop:8, height:30, padding:'0 14px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                        選擇付款方式
+                      </button>
+                    </div>
+                  )}
+                  {/* 候補自動遞補為正取：已選付款方式，待工作人員確認 */}
+                  {promotedAwaitingConfirm && (
+                    <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'9px 12px', marginBottom:8, textAlign:'left' }}>
+                      <div style={{ fontSize:12, color:'#8B6914', lineHeight:1.6 }}>
+                        ⏳ 候補已遞補為正取，應繳 NT${(primary.enrollmentFee || 0).toLocaleString()}，{primary.paymentMethod === 'cash' ? '請至櫃檯繳費' : '轉帳資訊已提交'}，待工作人員確認。
                       </div>
                     </div>
                   )}

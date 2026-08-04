@@ -25,7 +25,7 @@ import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 const NOTIF_CAT = {
   // 課程（純請假/銷假/補課/退費/代班；名單認領已併入「報名／認領」）
   course_leave:'course', course_leave_cancel:'course', course_makeup_booked:'course', course_makeup_cancel:'course',
-  course_refund:'course', course_substitute:'course', course_substitute_cancel:'course',
+  course_refund:'course', course_substitute:'course', course_substitute_cancel:'course', course_waitlist_promoted:'course',
   // 報名／認領：合併原「轉帳」「比賽」兩顆分類——轉帳原本的付款確認/退費型別實際從未產生過通知
   // （那些事件走待辦清單的即時任務，不會寫進 notifications），比賽也只有認領有真實資料；
   // 加上課程名單認領，通通歸在此類（regItems 本就 cat:'report'，此處補齊 notifItems 的對應型別）。
@@ -58,7 +58,7 @@ const NOTIF_LINK = {
   shift_assigned: '/staff/schedule', shift_updated: '/staff/schedule', shift_reminder: '/staff/schedule',
   course_roster_claimed: '/staff/courses', course_substitute: '/staff/courses', course_substitute_cancel: '/staff/courses',
   course_leave: '/staff/courses', course_leave_cancel: '/staff/courses', course_makeup_booked: '/staff/courses', course_makeup_cancel: '/staff/courses',
-  course_refund: '/staff/courses',
+  course_refund: '/staff/courses', course_waitlist_promoted: '/staff/courses',
   legacy_vip_claimed: '/staff/members', legacy_pass_claimed: '/staff/members',
   experience_refund: '/staff/experience',
   single_entry_ticket_approval: '/staff/pending-tasks',
