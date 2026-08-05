@@ -28,6 +28,7 @@ const TAB_GROUPS = [
       { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借', managerOnly: true },
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
       { key: 'discountCardValidity', icon: '🎟️', label: '優惠卡期限', superAdminOnly: true },
+      { key: 'cardTransferLimit', icon: '🔢', label: '卡券移轉上限', superAdminOnly: true },
       { key: 'partnerVendor',icon: '🤝', label: '特約廠商優惠', superAdminOnly: true },
       { key: 'partnerGymMember',icon: '🧗', label: '友館隊員優惠', superAdminOnly: true },
       { key: 'partnerGyms',  icon: '🧗', label: '友館折扣清單', superAdminOnly: true },
@@ -155,6 +156,7 @@ export default function SettingsPage() {
     if (activeTab === 'gyms') getAllGyms().then(r => setGyms(r.data.gyms || [])).catch(()=>{});
     if (activeTab === 'bonus' && isSuperAdmin) loadBonus();
     if (activeTab === 'discountCardValidity' && isSuperAdmin) loadDcv();
+    if (activeTab === 'cardTransferLimit' && isSuperAdmin) loadCardTransferLimit();
     if (activeTab === 'partnerVendor' && isSuperAdmin) loadPartnerVendor();
     if (activeTab === 'partnerGymMember' && isSuperAdmin) loadPartnerGymMember();
     if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
@@ -376,6 +378,19 @@ export default function SettingsPage() {
       const res = await client.put('/settings/discount-card-validity', { validityMonths: raw === '' ? null : Number(raw) });
       setDcv({ validityMonths: res.data.validityMonths ?? '' }); setDcvDirty(false);
       showMsg(res.data.validityMonths ? `已設定 ${res.data.validityMonths} 個月` : '已設定為無限期');
+    } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'err'); }
+  };
+  // 黑卡/優惠卡點數移轉、單次入場券批次移轉——單次移轉上限（共用同一設定）
+  const [ctl, setCtl] = useState({ maxCredits: 10 });
+  const [ctlDirty, setCtlDirty] = useState(false);
+  const loadCardTransferLimit = async () => {
+    try { const res = await client.get('/settings/card-transfer-limit'); setCtl({ maxCredits: res.data.maxCredits ?? 10 }); setCtlDirty(false); } catch (e) {}
+  };
+  const handleSaveCtl = async () => {
+    try {
+      const res = await client.put('/settings/card-transfer-limit', { maxCredits: Number(ctl.maxCredits) });
+      setCtl({ maxCredits: res.data.maxCredits }); setCtlDirty(false);
+      showMsg(`已設定單次移轉上限 ${res.data.maxCredits}`);
     } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'err'); }
   };
   const [bonusDirty, setBonusDirty] = useState(false);
@@ -858,6 +873,28 @@ export default function SettingsPage() {
                 onChange={e => { setDcv({ validityMonths: e.target.value }); setDcvDirty(true); }}
                 style={{ ...s.input, width:'100%' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:6 }}>目前：{dcv.validityMonths ? `${dcv.validityMonths} 個月` : '無限期'}。可填 1～60，或留空／0 為無限期。</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'cardTransferLimit' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🔢 卡券移轉單次上限</span>
+            <SaveButton onSave={handleSaveCtl} isDirty={ctlDirty} label='儲存移轉上限' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
+              會員在 App 自行發起<strong>黑卡／優惠卡點數移轉</strong>或<strong>單次入場券批次移轉</strong>給其他會員時，單次最多可移轉的點數／張數。
+              超過上限會被拒絕，需分次移轉。
+            </div>
+            <div style={{ maxWidth:260 }}>
+              <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>單次移轉上限（點／張）</label>
+              <input type="number" value={ctl.maxCredits} min="1" max="100"
+                onChange={e => { setCtl({ maxCredits: e.target.value }); setCtlDirty(true); }}
+                style={{ ...s.input, width:'100%' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 1～100，預設 10。</div>
             </div>
           </div>
         </div>

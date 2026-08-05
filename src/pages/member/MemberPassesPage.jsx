@@ -36,15 +36,17 @@ const BottomNav = ({ navigate }) => (
   </div>
 );
 
-// 移轉 Modal
-function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
+// 移轉 Modal（單張沿用 ticket 傳入；批次（僅單次入場券）傳 tickets 陣列，一次選多張一起送出）
+function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDone }) {
+  const list = (tickets && tickets.length) ? tickets : [ticket];
+  const isBatch = list.length > 1;
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [success, setSuccess] = useState(false);
-  // 優惠卡/黑卡：走新版兩段式，可設定移轉次數
+  // 優惠卡/黑卡：走新版兩段式，可設定移轉次數（批次僅用於單次入場券，此路徑恆單張）
   const isCreditCard = ticketType === 'discount_card' || ticketType === 'black_card';
-  const maxCredits = ticket.remainingCredits || 1;
+  const maxCredits = list[0].remainingCredits || 1;
   const [credits, setCredits] = useState(1);
   // 輸入電話即時帶出受贈者姓名（確認用）
   const [recipient, setRecipient] = useState(null); // { found, self, name } | null（次數型用）
@@ -100,15 +102,16 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
         // 新版兩段式：暫扣→對方於會員 App 接收（24h 未接收自動回沖）
         await memberClient.post('/cards/transfers/initiate', {
           cardType: ticketType === 'black_card' ? 'black' : 'discount',
-          fromCardId: ticket.id,
+          fromCardId: list[0].id,
           toPhone: phone,
           credits: parseInt(credits),
         });
       } else {
         // 紅利/單次券/體驗券：整張移轉；toMemberId 指定實際收件人（可為子女）
+        // 批次（僅單次入場券）帶 ticketIds 陣列一次送出，後端一次建一個移轉單、對方一次接收
         await memberClient.post('/ticket-transfers/request', {
           ticketType,
-          ticketId: ticket.id,
+          ...(isBatch ? { ticketIds: list.map(t => t.id) } : { ticketId: list[0].id }),
           targetPhone: phone,
           toMemberId: pickId,
         });
@@ -125,7 +128,7 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
       <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', width:'100%' }}>
         <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-        <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>{isCreditCard ? '移轉卡片次數' : '申請票券移轉'}</div>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>{isCreditCard ? '移轉卡片次數' : isBatch ? `申請票券移轉（共 ${list.length} 張）` : '申請票券移轉'}</div>
         <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>移轉後對方需在 24 小時內接收，逾期自動回沖；到期日依票券規則計算</div>
         {success ? (
           <div style={{ background:'#E6F4EB', borderRadius:12, padding:16, textAlign:'center', marginBottom:16 }}>
@@ -182,7 +185,7 @@ function TransferModal({ ticket, ticketType, onClose, memberName, onDone }) {
               return (
                 <button onClick={handleTransfer} disabled={!canSend}
                   style={{ width:'100%', height:50, borderRadius:14, background: canSend?'#8B1A1A':'#ccc', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: canSend?'pointer':'not-allowed', marginBottom:10 }}>
-                  {loading ? '送出中...' : (isCreditCard ? `確認移轉 ${credits} 次${recipient?.name ? ` 給 ${recipient.name}` : ''}` : `確認申請移轉${pickedName ? ` 給 ${pickedName}` : ''}`)}
+                  {loading ? '送出中...' : (isCreditCard ? `確認移轉 ${credits} 次${recipient?.name ? ` 給 ${recipient.name}` : ''}` : `確認申請移轉${isBatch ? `（共 ${list.length} 張）` : ''}${pickedName ? ` 給 ${pickedName}` : ''}`)}
                 </button>
               );
             })()}
@@ -328,6 +331,10 @@ export default function MemberPassesPage() {
   const [selectedTicketType, setSelectedTicketType] = useState(null);
   const [showTransfer, setShowTransfer] = useState(false);
   const [msg, setMsg] = useState('');
+  // 單次入場券批次移轉：勾選模式（一次最多幾張由後端 systemSettings/cardTransferLimit 權威把關）
+  const [singleBatchMode, setSingleBatchMode] = useState(false);
+  const [singleBatchIds, setSingleBatchIds] = useState([]);
+  const [showBatchTransfer, setShowBatchTransfer] = useState(false);
 
   // 展延/退費/轉讓申請
   const [myRequests, setMyRequests] = useState([]);
@@ -717,19 +724,28 @@ export default function MemberPassesPage() {
       <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>點擊查看詳情 →</div>
     </div>
   );
-  const renderSingleCard = (t, dim) => (
-    <div key={t.id} onClick={() => handleTicketClick(t, 'single_entry')}
-      style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', opacity: dim ? 0.6 : 1 }}>
-      <div>
-        <div style={{ fontWeight:600, fontSize:15 }}>單日入場券</div>
-        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>有效至 {(tsToDay(t.expiresAt)?.format('YYYY/MM/DD')) || '—'}</div>
+  // batchSelectable：僅有效且屬本人的票券在批次模式下可勾選；勾選模式下點卡片切換勾選，非批次模式維持原本開詳情
+  const renderSingleCard = (t, dim, batchSelectable = false) => {
+    const checked = singleBatchIds.includes(t.id);
+    return (
+    <div key={t.id} onClick={() => batchSelectable ? setSingleBatchIds(ids => checked ? ids.filter(id => id !== t.id) : [...ids, t.id]) : handleTicketClick(t, 'single_entry')}
+      style={{ background:'#fff', borderRadius:14, border: checked ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5', padding:16, marginBottom:12, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', opacity: dim ? 0.6 : 1 }}>
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        {batchSelectable && (
+          <div style={{ width:22, height:22, borderRadius:6, border: checked ? 'none' : '1.5px solid #ccc', background: checked ? '#8B1A1A' : 'transparent', color:'#fff', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{checked ? '✓' : ''}</div>
+        )}
+        <div>
+          <div style={{ fontWeight:600, fontSize:15 }}>單日入場券</div>
+          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>有效至 {(tsToDay(t.expiresAt)?.format('YYYY/MM/DD')) || '—'}</div>
+        </div>
       </div>
       <div style={{ display:'flex', gap:6, alignItems:'center' }}>
         {ownerTag(t)}
         {dim ? invalidBadge(t, 'single') : <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>有效</span>}
       </div>
     </div>
-  );
+    );
+  };
   const renderBonusCard = (b, dim) => (
     <div key={b.id} onClick={() => handleTicketClick(b, 'bonus')}
       style={{ background:'#fff', borderRadius:14, border:'1px solid #B3DEC0', padding:16, marginBottom:12, cursor:'pointer', opacity: dim ? 0.6 : 1 }}>
@@ -887,11 +903,28 @@ export default function MemberPassesPage() {
               if (singleTickets.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎟️</div>目前沒有單日入場券</div>);
               const { valid, invalid } = splitValid(singleTickets, 'single');
               const { consumed, dead } = splitInvalid(invalid, 'single');
+              const selfValid = valid.filter(t => t._isSelf !== false); // 僅本人票券可批次移轉，家人票券唯讀
               return (<>
+                {selfValid.length >= 2 && (
+                  <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:10 }}>
+                    <button onClick={() => { setSingleBatchMode(m => !m); setSingleBatchIds([]); }}
+                      style={{ height:32, padding:'0 12px', borderRadius:8, border:'0.5px solid #8B1A1A', background: singleBatchMode ? '#8B1A1A' : '#fff', color: singleBatchMode ? '#fff' : '#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                      {singleBatchMode ? '取消批次移轉' : '📤 批次移轉給同一人'}
+                    </button>
+                  </div>
+                )}
                 {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效單日券</div>}
-                {valid.map(t => renderSingleCard(t, false))}
+                {valid.map(t => renderSingleCard(t, false, singleBatchMode && t._isSelf !== false))}
                 {renderCollapseSection(sortConsumed(consumed, 'single'), 'single', 'used', '已使用', (t) => renderSingleCard(t, true))}
                 {renderCollapseSection(dead, 'single', 'expired', '已失效', (t) => renderSingleCard(t, true))}
+                {singleBatchMode && (
+                  <div style={{ position:'fixed', left:0, right:0, bottom:60, background:'#fff', borderTop:'0.5px solid #E8D5D5', padding:'10px 16px', paddingBottom:'calc(10px + env(safe-area-inset-bottom))', zIndex:60 }}>
+                    <button disabled={singleBatchIds.length === 0} onClick={() => setShowBatchTransfer(true)}
+                      style={{ width:'100%', height:46, borderRadius:12, border:'none', background: singleBatchIds.length ? '#8B1A1A' : '#ccc', color:'#fff', fontSize:14, fontWeight:600, cursor: singleBatchIds.length ? 'pointer' : 'not-allowed' }}>
+                      移轉已選 {singleBatchIds.length} 張給同一人
+                    </button>
+                  </div>
+                )}
               </>);
             })()}
 
@@ -930,6 +963,17 @@ export default function MemberPassesPage() {
           memberName={member?.name}
           onClose={() => { setShowTransfer(false); setSelectedTicket(null); }}
           onDone={() => { loadTransfers(); reloadCards(); }}
+        />
+      )}
+
+      {/* 批次移轉 Modal（單次入場券，一次選多張給同一人） */}
+      {showBatchTransfer && (
+        <TransferModal
+          tickets={singleTickets.filter(t => singleBatchIds.includes(t.id))}
+          ticketType="single_entry"
+          memberName={member?.name}
+          onClose={() => setShowBatchTransfer(false)}
+          onDone={() => { loadTransfers(); reloadCards(); setShowBatchTransfer(false); setSingleBatchMode(false); setSingleBatchIds([]); }}
         />
       )}
 
