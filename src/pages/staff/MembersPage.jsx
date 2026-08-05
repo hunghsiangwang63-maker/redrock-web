@@ -52,6 +52,7 @@ function MemberRecords({ records }) {
     { key:'courses',  icon:'📚', label:'課程', count:(r.courses||[]).length },
     { key:'competitions', icon:'🏆', label:'比賽', count:(r.competitions||[]).length },
     { key:'adjustments', icon:'📋', label:'退費', count:(r.adjustments||[]).length },
+    { key:'passAdjustments', icon:'📜', label:'票券異動', count:(r.passAdjustments||[]).length },
   ];
   const fmtExp = (v) => v?._seconds ? dayjs(v._seconds*1000).format('YYYY/MM/DD') : (v ? dayjs(v).format('YYYY/MM/DD') : '無期限');
   const cardValid = (c) => (c.remainingCredits ?? 0) > 0 && c.isActive !== false && !c.isExpired;
@@ -167,6 +168,37 @@ function MemberRecords({ records }) {
             </div>
           </div>
         ))}
+      </div>}
+      {tab==='passAdjustments' && <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+        {!(r.passAdjustments||[]).length && <div style={{ color:'#999', fontSize:12, textAlign:'center', padding:12 }}>無定期票展延／退費／轉讓申請紀錄</div>}
+        {(r.passAdjustments||[]).map((a,i) => {
+          const typeLabel = { extension:'展延', refund:'退費', transfer:'轉讓' }[a.type] || a.type;
+          const approved = a.status === 'approved';
+          const badge = a.status==='pending' ? { bg:'#FAEEDA', color:'#854F0B', label:'待審核' } : approved ? { bg:'#E6F4EB', color:'#2D7D46', label:'已核准' } : { bg:'#FCEBEB', color:'#A32D2D', label:'已拒絕' };
+          const dateStr = (a.reviewedAt?._seconds || a.createdAt?._seconds) ? dayjs(((a.reviewedAt||a.createdAt)._seconds)*1000).format('YYYY/MM/DD') : '';
+          return (
+            <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px' }}>
+              <div style={{ display:'flex', justifyContent:'space-between' }}>
+                <div style={{ fontSize:12, fontWeight:500 }}>{a.passTypeName||'定期票'} · {typeLabel}</div>
+                <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:badge.bg, color:badge.color }}>{badge.label}</span>
+              </div>
+              <div style={{ fontSize:11, color:'#999', marginTop:2 }}>原因：{a.reasonLabel || '—'}</div>
+              {approved && a.type === 'extension' && a.result?.newEndDate && (
+                <div style={{ fontSize:11, color:'#2D7D46', marginTop:2 }}>新到期日：{a.result.newEndDate}{a.result.suspendStart ? `（停用期間 ${a.result.suspendStart}~${a.result.suspendEnd}）` : ''}</div>
+              )}
+              {approved && a.type === 'refund' && a.result?.netRefund != null && (
+                <div style={{ fontSize:11, color:'#2D7D46', marginTop:2 }}>已退款 NT${a.result.netRefund}（毛額 NT${a.result.grossRefund}－手續費 NT${a.result.fee}）</div>
+              )}
+              {approved && a.type === 'transfer' && a.result?.newOwnerName && (
+                <div style={{ fontSize:11, color:'#2D7D46', marginTop:2 }}>已轉讓給 {a.result.newOwnerName}</div>
+              )}
+              {a.status==='rejected' && a.rejectReason && (
+                <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>拒絕原因：{a.rejectReason}</div>
+              )}
+              {dateStr && <div style={{ fontSize:11, color:'#bbb', marginTop:2 }}>{dateStr}</div>}
+            </div>
+          );
+        })}
       </div>}
     </div>
   );
@@ -427,12 +459,13 @@ export default function MembersPage() {
   const loadMemberRecords = async (memberId) => {
     setRecordsLoading(true);
     try {
-      const [checkins, passes, courses, comps, adjs, disc, legacyDisc, black, bonus] = await Promise.allSettled([
+      const [checkins, passes, courses, comps, adjs, passAdjs, disc, legacyDisc, black, bonus] = await Promise.allSettled([
         client.get('/checkin/history', { params: { memberId, limit:30 } }),
         client.get('/passes/member/' + memberId),
         client.get('/courses/member/' + memberId + '/enrollments'),
         client.get('/competitions/registrations/member/' + memberId),
         client.get('/course-adjustments/member/' + memberId),
+        client.get('/pass-adjustments/requests/member/' + memberId),
         client.get('/cards/discount/member/' + memberId, { params:{ all:1 } }),
         client.get('/cards/legacy-discount/member/' + memberId, { params:{ all:1 } }),
         client.get('/cards/black/member/' + memberId, { params:{ all:1 } }),
@@ -450,6 +483,7 @@ export default function MembersPage() {
         courses: courses.status==='fulfilled' ? (courses.value.data.enrollments || []) : [],
         competitions: comps.status==='fulfilled' ? (comps.value.data.registrations || []) : [],
         adjustments: adjs.status==='fulfilled' ? (adjs.value.data.requests || []) : [],
+        passAdjustments: passAdjs.status==='fulfilled' ? (passAdjs.value.data.requests || []) : [],
         discountCards,
         blackCards: ok(black, 'cards'),
         bonuses: ok(bonus, 'bonuses'),
