@@ -188,8 +188,12 @@ export default function MemberCoursesPage() {
   // 試上報名對象（本人/子女）＋送出
   const trialTarget = trialFor === 'self' ? member : familyMembers.find(c => c.id === trialFor);
   const trialTargetUnder5 = (() => { const b = trialTarget?.birthday; if (!b) return false; return dayjs().diff(dayjs(b), 'year') < 5; })();
+  // 小蜘蛛人/青少年試上限未滿18歲——同步一開始選試上場次就提醒（後端 handleTrialBooking 仍為權威）
+  const trialTargetIsMinor = trialTarget?.isMinor ?? (trialTarget?.birthday ? dayjs().diff(dayjs(trialTarget.birthday), 'year') < 18 : false);
+  const trialYouthAgeBlocked = trialModal?.categoryGroup === 'youth' && !trialTargetIsMinor;
   const submitTrial = async () => {
     if (trialTargetUnder5) { showMsg('未滿 5 歲無法報名課程／試上', 'red'); return; }
+    if (trialYouthAgeBlocked) { showMsg('此課程限未滿 18 歲學員報名，請確認報名對象是否正確選擇子女', 'red'); return; }
     if (!trialConsent) { showMsg('請先勾選同意免責同意書', 'red'); return; }
     if (trialPay.method === 'transfer' && (!trialPay.paymentDate || !trialPay.bankLastFive)) { showMsg('請填寫匯款日期與末五碼', 'red'); return; }
     setTrialSubmitting(true);
@@ -228,6 +232,9 @@ export default function MemberCoursesPage() {
     ?? (enrollTarget?.birthday ? dayjs().diff(dayjs(enrollTarget.birthday), 'year') < 18 : false);
   // 未滿 5 歲無法報名課程（友善提示，後端仍為權威）
   const targetUnder5 = isUnder5(enrollTarget);
+  // 小蜘蛛人/青少年（班別大類 group==='youth'）限未滿18歲——一選好課程/報名對象就提醒，
+  // 避免家長忘記切換成子女、填完整份報名表最後才被後端擋下（友善提示，後端 handleEnrollAll/handleTrialBooking 仍為權威）
+  const youthAgeBlocked = selectedCourse?.categoryGroup === 'youth' && !targetIsMinor;
 
   useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, [member?.id]);
 
@@ -1274,6 +1281,11 @@ export default function MemberCoursesPage() {
                         </div>
                       </div>
                     )}
+                    {youthAgeBlocked && !alreadyEnrolled && (
+                      <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#B3261E', lineHeight:1.7, textAlign:'left' }}>
+                        ⚠️ 此課程限未滿 18 歲學員報名。{enrollTarget?.name || '目前選定的報名對象'} 不符資格，請確認上方「為誰報名」是否已切換成正確的子女帳號。
+                      </div>
+                    )}
                     {feeReady && !enrollOpenNow && !alreadyEnrolled && (
                       <div style={{ background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#8A5A00', lineHeight:1.7, textAlign:'left' }}>
                         ⏰ {openBlockMsg}
@@ -1340,13 +1352,13 @@ export default function MemberCoursesPage() {
                         ✓ 已報名此課程
                       </div>
                     ) : (
-                      <button disabled={!feeReady || !enrollOpenNow} onClick={() => {
-                        if (!feeReady || !enrollOpenNow) return;
+                      <button disabled={!feeReady || !enrollOpenNow || youthAgeBlocked} onClick={() => {
+                        if (!feeReady || !enrollOpenNow || youthAgeBlocked) return;
                         setEnrollSession({ id: sessions.find(s => s.courseId === selectedCourse.id && s.date >= today)?.id, courseId: selectedCourse.id, isCourse: true, fee, isWaitlist: isCourseFull });
                         setShowEnrollModal(true);
                       }}
-                        style={{ width:'100%', height:44, borderRadius:10, background: (!feeReady || !enrollOpenNow)?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: (!feeReady || !enrollOpenNow)?'not-allowed':'pointer' }}>
-                        {!feeReady ? '費用計算中…' : !enrollOpenNow ? '尚未開放報名' : (isCourseFull ? '加入候補名單' : '報名課程')}
+                        style={{ width:'100%', height:44, borderRadius:10, background: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'not-allowed':'pointer' }}>
+                        {!feeReady ? '費用計算中…' : youthAgeBlocked ? '報名對象不符資格' : !enrollOpenNow ? '尚未開放報名' : (isCourseFull ? '加入候補名單' : '報名課程')}
                       </button>
                     )}
                   </div>
@@ -1541,9 +1553,14 @@ export default function MemberCoursesPage() {
                 {trialTarget?.name || '報名對象'} 未滿 5 歲，無法報名課程／試上。
               </div>
             )}
+            {trialYouthAgeBlocked && (
+              <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
+                此課程限未滿 18 歲學員試上。{trialTarget?.name || '報名對象'} 不符資格，請切換成正確的子女帳號。
+              </div>
+            )}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={submitTrial} disabled={trialSubmitting || trialTargetUnder5} style={{ flex:2, height:44, borderRadius:10, background:(trialSubmitting||trialTargetUnder5)?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:(trialTargetUnder5?'not-allowed':'pointer') }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
+              <button onClick={submitTrial} disabled={trialSubmitting || trialTargetUnder5 || trialYouthAgeBlocked} style={{ flex:2, height:44, borderRadius:10, background:(trialSubmitting||trialTargetUnder5||trialYouthAgeBlocked)?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:((trialTargetUnder5||trialYouthAgeBlocked)?'not-allowed':'pointer') }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
             </div>
           </div>
         </div>
@@ -2112,6 +2129,11 @@ export default function MemberCoursesPage() {
                 {enrollTarget?.name || '報名對象'} 未滿 5 歲，無法報名課程。
               </div>
             )}
+            {youthAgeBlocked && (
+              <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
+                此課程限未滿 18 歲學員報名。{enrollTarget?.name || '報名對象'} 不符資格，請切換成正確的子女帳號。
+              </div>
+            )}
 
             {/* Step 1: 付款資訊 */}
             {enrollStep === 1 && (<>
@@ -2283,7 +2305,7 @@ export default function MemberCoursesPage() {
                   return true;
                 };
                 const _sigOk = selectedCourse?.skipSignature || (portraitSig && (!targetIsMinor || guardianSig));
-                const _submitDisabled = loading || targetUnder5 || !_sigOk;
+                const _submitDisabled = loading || targetUnder5 || youthAgeBlocked || !_sigOk;
                 return enrollStep < _lastStep ? (
                   <button onClick={() => {
                     if (enrollStep === 2 && !_step2Ok()) return;
