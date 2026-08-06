@@ -17,6 +17,7 @@ const TAB_GROUPS = [
       { key: 'staffAccounts',icon: '👤', label: '員工帳號',   superAdminOnly: true },
       { key: 'devices',      icon: '📱', label: '裝置審核',   adminOnly: true },
       { key: 'transition',   icon: '🔄', label: '系統轉換',   adminOnly: true },
+      { key: 'invoicePrinting', icon: '🖨️', label: '發票列印', superAdminOnly: true },
     ],
   },
   {
@@ -161,7 +162,11 @@ export default function SettingsPage() {
     if (activeTab === 'partnerGymMember' && isSuperAdmin) loadPartnerGymMember();
     if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
+    if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
   }, [activeTab]);
+  useEffect(() => {
+    if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
+  }, [invoicePrintingGym]);
 
   const openAddStation = () => {
     setEditingStation(null);
@@ -451,6 +456,28 @@ export default function SettingsPage() {
     } catch (e) { showMsg(e.response?.data?.message || '儲存失敗', 'red'); }
   };
 
+  // ─── 發票列印（P3，每館單一開關，五流程 POS/入場/課程/比賽/租借同時生效，見 invoice-integration-plan.md §6.1）──
+  const [invoicePrintingGym, setInvoicePrintingGym] = useState('gym-hsinchu');
+  const [invoicePrinting, setInvoicePrinting] = useState({ enabled: false, changedAt: null, changedBy: null });
+  const [invoicePrintingDirty, setInvoicePrintingDirty] = useState(false);
+  const loadInvoicePrinting = async (gymId) => {
+    try {
+      const res = await client.get('/invoices/printing-status', { params: { gymId } });
+      setInvoicePrinting({ enabled: !!res.data.enabled, changedAt: res.data.changedAt, changedBy: res.data.changedBy });
+      setInvoicePrintingDirty(false);
+    } catch (e) {}
+  };
+  const handleSaveInvoicePrinting = async () => {
+    setLoading(true);
+    try {
+      const res = await client.put('/invoices/printing-status', { gymId: invoicePrintingGym, enabled: !!invoicePrinting.enabled });
+      setInvoicePrinting({ enabled: res.data.enabled, changedAt: res.data.changedAt, changedBy: res.data.changedBy });
+      setInvoicePrintingDirty(false);
+      showMsg(res.data.enabled ? '已開啟真實發票列印' : '已關閉真實發票列印');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+
   // ─── 特約廠商入場優惠（啟用 + 折扣金額）──────────────────────────
   const [partnerVendor, setPartnerVendor] = useState({ enabled: true, discount: 20 });
   const [partnerVendorDirty, setPartnerVendorDirty] = useState(false);
@@ -734,6 +761,50 @@ export default function SettingsPage() {
             ))}
             {!entryTypes.length && (
               <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>尚無入場類型，點「新增」加入</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'invoicePrinting' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🖨️ 發票列印（P3）</span>
+            <SaveButton onSave={handleSaveInvoicePrinting} isDirty={invoicePrintingDirty} label='儲存' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
+              開啟後，此館 <strong>POS(銷售) / 入場 / 課程 / 比賽報名 / 器材租借</strong> 五個流程會<strong>同時</strong>切換成真實發票機列印，原本各流程的手動記帳「開立發票」按鈕會自動不再顯示（不會有兩個地方可以開發票）。<strong style={{ color:'#8B1A1A' }}>開啟前請先確認本機列印代理（local-print-agent）已在此館櫃檯電腦正式運作、發票號碼已於「發票號碼管理」設定妥當</strong>——這是會實際消耗真實發票號碼、要求印表機正常運作的正式開關，不是單純顯示設定。
+            </div>
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              {gyms.map(g => (
+                <button key={g.id} onClick={() => setInvoicePrintingGym(g.id)}
+                  style={{ flex:1, height:36, borderRadius:8,
+                    border: invoicePrintingGym === g.id ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
+                    background: invoicePrintingGym === g.id ? '#FBF5F5' : '#fff',
+                    color: invoicePrintingGym === g.id ? '#8B1A1A' : '#666',
+                    fontSize:13, fontWeight: invoicePrintingGym === g.id ? 600 : 400, cursor:'pointer' }}>
+                  {g.name}
+                </button>
+              ))}
+            </div>
+            <label onClick={() => { setInvoicePrinting(p => ({ ...p, enabled: !p.enabled })); setInvoicePrintingDirty(true); }}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', borderRadius:10, border:'0.5px solid #E8D5D5', marginBottom:12, cursor:'pointer' }}>
+              <span style={{ fontSize:14, fontWeight:600 }}>此館啟用真實發票列印</span>
+              <span style={{ width:44, height:26, borderRadius:13, background: invoicePrinting.enabled ? '#2D7D46' : '#ccc', position:'relative', transition:'.2s', flexShrink:0 }}>
+                <span style={{ position:'absolute', top:3, left: invoicePrinting.enabled ? 21 : 3, width:20, height:20, borderRadius:10, background:'#fff', transition:'.2s' }} />
+              </span>
+            </label>
+            {invoicePrintingDirty && invoicePrinting.enabled && (
+              <div style={{ fontSize:12, color:'#A66A00', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:8, padding:10, marginBottom:12 }}>
+                ⚠️ 儲存後此館五個流程將立即改用真實列印，手動記帳按鈕會消失。請先確認本機列印代理已就緒再儲存。
+              </div>
+            )}
+            {invoicePrinting.changedAt && (
+              <div style={{ fontSize:11, color:'#999' }}>
+                上次變更：{invoicePrinting.changedAt._seconds ? new Date(invoicePrinting.changedAt._seconds * 1000).toLocaleString('zh-TW') : ''}
+                {invoicePrinting.changedBy ? `（${invoicePrinting.changedBy}）` : ''}
+              </div>
             )}
           </div>
         </div>

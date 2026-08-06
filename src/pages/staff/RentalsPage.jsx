@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff, cancelRentalStaff, updateRentalStaff, saveRentalStaffNote, returnRentalDeposit } from '../../api/rentals';
+import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff, cancelRentalStaff, updateRentalStaff, saveRentalStaffNote, returnRentalDeposit, getRentalInvoices, createRentalInvoice, voidRentalInvoice } from '../../api/rentals';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import InvoiceModal from '../../components/InvoiceModal';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -54,6 +55,8 @@ export default function RentalsPage({ embedded = false }) {
   const [noteTarget, setNoteTarget] = useState(null);       // 員工備註 {r, text}
   const [depositTarget, setDepositTarget] = useState(null); // 退回押金確認
   const [rowSaving, setRowSaving] = useState(false); // { type:'confirm'|'return', rental }
+  const [returnedRental, setReturnedRental] = useState(null); // 剛歸還成功的租借，供帶出「開立發票」入口
+  const [rentalInvoiceTarget, setRentalInvoiceTarget] = useState(null);
   const [settingsModal, setSettingsModal] = useState(false);
   const [rentalSettings, setRentalSettings] = useState(null);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -333,7 +336,44 @@ export default function RentalsPage({ embedded = false }) {
           action={actionModal.type}
           rental={actionModal.rental}
           onClose={() => setActionModal(null)}
-          onDone={(m)=>{ setActionModal(null); showMsg(m); loadAll(); }}
+          onDone={(m)=>{
+            const wasReturn = actionModal.type === 'return';
+            const rental = actionModal.rental;
+            setActionModal(null); showMsg(m); loadAll();
+            // 歸還確認成功 → 顯示「開立發票」入口（只有歸還，不是取件/收款當下；見 invoice-integration-plan.md §9）
+            if (wasReturn) setReturnedRental(rental);
+          }}
+        />
+      )}
+
+      {/* 歸還成功 + 開立發票入口 */}
+      {returnedRental && (
+        <div style={{ position:'fixed', bottom:20, right:20, zIndex:190, background:'#E6F4EB', border:'0.5px solid #2D7D4633', borderRadius:10, padding:16, maxWidth:320, boxShadow:'0 4px 16px rgba(0,0,0,.12)' }}>
+          <div style={{ fontWeight:600, color:'#2D7D46', fontSize:14, marginBottom:6 }}>✓ 歸還已確認</div>
+          <div style={{ fontSize:12, color:'#2D7D46', marginBottom:12 }}>{returnedRental.memberName} — 租金 NT${returnedRental.totalRentalFee}</div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setReturnedRental(null)}
+              style={{ flex:1, height:32, borderRadius:6, background:'none', border:'0.5px solid #ccc', color:'#666', fontSize:12, cursor:'pointer' }}>關閉</button>
+            <button onClick={() => setRentalInvoiceTarget(returnedRental)}
+              style={{ flex:1, height:32, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+              🧾 開立發票
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 開立發票 Modal（共用元件，與課程/比賽/入場/POS 同一套；手動記帳版，尚未接實體印表機） */}
+      {rentalInvoiceTarget && (
+        <InvoiceModal
+          title={rentalInvoiceTarget.memberName || ''}
+          subtitle={`${rentalInvoiceTarget.gymId==='gym-hsinchu'?'新竹館':'士林館'} · 器材租借（${rentalInvoiceTarget.pickupDate}～${rentalInvoiceTarget.returnDate}）`}
+          feeInfo={`租金 NT$${rentalInvoiceTarget.totalRentalFee}（不含押金）`}
+          defaultItemName="器材租借費"
+          defaultAmount={rentalInvoiceTarget.totalRentalFee ?? 0}
+          onClose={() => setRentalInvoiceTarget(null)}
+          listInvoices={() => getRentalInvoices(rentalInvoiceTarget.id).then(r => r.data.invoices || [])}
+          createInvoice={(payload) => createRentalInvoice(rentalInvoiceTarget.id, payload).then(r => r.data.invoice)}
+          voidInvoiceFn={(id) => voidRentalInvoice(id)}
         />
       )}
 
