@@ -2008,6 +2008,11 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       onChange={e => setCourseForm({...courseForm, trialPrice: e.target.value})}
                       style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                   </div>
+                  {courseForm.type === 'weekly' && cat.group === 'special' && (
+                    <div style={{ gridColumn:'1/-1', background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#B3261E' }}>
+                      ⚠️ 此為專班課程，隊員9折與續報/舊生優惠一律不適用（後端強制關閉，以下設定無效果）。
+                    </div>
+                  )}
                   {courseForm.type === 'weekly' && [
                     { key:'fullTermRenewalDiscount', label:'續報優惠（前一期整期）', def:90 },
                     { key:'alumniDiscount', label:'舊生優惠（曾報名/插班）', def:95 },
@@ -2569,7 +2574,11 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               <div>
                 <div style={{ fontSize:16, fontWeight:600 }}>{rosterModal.course?.name} — 報名名單</div>
                 <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
-                  {rosterModal.enrollments ? `共 ${new Set(rosterModal.enrollments.map(e => e.memberId)).size} 人` : '載入中...'}
+                  {rosterModal.enrollments ? (() => {
+                    const confirmedN = new Set(rosterModal.enrollments.filter(e => e.status !== 'waitlist').map(e => e.memberId)).size;
+                    const waitlistN = new Set(rosterModal.enrollments.filter(e => e.status === 'waitlist').map(e => e.memberId)).size;
+                    return `共 ${confirmedN} 人${waitlistN > 0 ? `・候補 ${waitlistN} 人` : ''}`;
+                  })() : '載入中...'}
                 </div>
               </div>
               <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -2593,8 +2602,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
                 const byMember = {};
                 rosterModal.enrollments.forEach(e => {
-                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null, enrollNote:null, healthNote:null, referralSource:null, enrolledAt:null, fee:null, paymentStatus:null, confirmedAmount:null, receivedAmount:null, receivedAmountOverride:null, paymentDate:null, staffNote:null });
+                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null, enrollNote:null, healthNote:null, referralSource:null, enrolledAt:null, fee:null, paymentStatus:null, confirmedAmount:null, receivedAmount:null, receivedAmountOverride:null, paymentDate:null, staffNote:null, isWaitlist:false, waitlistPosition:null });
                   m.count++;
+                  if (e.status === 'waitlist') { m.isWaitlist = true; if (e.waitlistPosition != null) m.waitlistPosition = e.waitlistPosition; }
                   if (e.memberPaidAmount != null && m.paidAmount == null) m.paidAmount = e.memberPaidAmount;
                   if (e.status==='leave') m.leaveUsed++;
                   if (e.maxLeavesAllowed != null) m.override = e.maxLeavesAllowed;
@@ -2610,8 +2620,13 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   if (!m.paymentDate && e.paymentDate) m.paymentDate = e.paymentDate;
                   if (!m.staffNote && e.staffNote) m.staffNote = e.staffNote;
                 });
-                const members = Object.values(byMember);
+                const allMembers = Object.values(byMember);
+                const members = allMembers.filter(m => !m.isWaitlist);
+                const waitlistMembers = allMembers.filter(m => m.isWaitlist)
+                  .sort((a, b) => (a.waitlistPosition ?? 999) - (b.waitlistPosition ?? 999));
                 return (
+                <>
+                {members.length > 0 && (
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
                     <tr style={{ background:'#FBF5F5' }}>
@@ -2677,6 +2692,33 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     })}
                   </tbody>
                 </table>
+                )}
+                {waitlistMembers.length > 0 && (
+                  <div style={{ marginTop: members.length > 0 ? 20 : 0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#8A5A00', marginBottom:8 }}>
+                      🕐 候補名單（{waitlistMembers.length} 人）
+                    </div>
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                      <thead>
+                        <tr style={{ background:'#FFF8E6' }}>
+                          <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#8A5A00' }}>候補順位</th>
+                          <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#8A5A00' }}>學員</th>
+                          <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#8A5A00' }}>電話</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {waitlistMembers.map((m, i) => (
+                          <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
+                            <td style={{ padding:'10px 12px', color:'#8A5A00', fontWeight:600 }}>第 {m.waitlistPosition ?? '?'} 位</td>
+                            <td style={{ padding:'10px 12px', fontWeight:500 }}>{m.memberName}</td>
+                            <td style={{ padding:'10px 12px', color:'#666', fontFamily:'monospace', fontSize:12 }}>{m.memberPhone}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                </>
                 );
               })()}
             </div>

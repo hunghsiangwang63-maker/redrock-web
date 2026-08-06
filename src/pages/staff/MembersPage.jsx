@@ -206,6 +206,7 @@ function MemberRecords({ records }) {
 
 // 名單（分組、條列式、可搜尋、顯示有效起訖）：定期票 / 課程學員 共用
 const fmtDate = (d) => d ? dayjs(d).format('YYYY/MM/DD') : '';
+const fmtTs = (t) => { const sec = t?._seconds ?? t?.seconds; return sec ? dayjs(sec * 1000).format('YYYY/MM/DD HH:mm') : ''; };
 const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', groupFilterLabel = null, headerExtra = null, renderRowExtra = null }) => {
   const [q, setQ] = useState('');
   const [gSel, setGSel] = useState('');
@@ -241,19 +242,37 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
             <div key={g.key} style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', overflow:'hidden' }}>
               <div style={{ padding:'10px 16px', background:'#FBF5F5', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
                 <span style={{ fontSize:14, fontWeight:600, color:'#8B1A1A' }}>{g.title}</span>
-                <span style={{ fontSize:12, color:'#999', flexShrink:0 }}>{g.members.length} 人{g.range ? ` · 效期 ${g.range}` : ''}</span>
+                <span style={{ fontSize:12, color:'#999', flexShrink:0 }}>
+                  {g.members.filter(m => !m.isWaitlist).length} 人
+                  {g.members.some(m => m.isWaitlist) && `・候補 ${g.members.filter(m => m.isWaitlist).length} 人`}
+                  {g.range ? ` · 效期 ${g.range}` : ''}
+                </span>
               </div>
               {g.members.map((m, i) => (
-                <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
-                  <span style={{ fontSize:13, fontWeight:500 }}>{m.memberName || m.memberId}</span>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
-                    {(m.startDate || m.endDate) && (
-                      <span style={{ fontSize:12, color:'#666', fontFamily:'monospace' }}>
-                        {fmtDate(m.startDate)} ~ {fmtDate(m.endDate)}
-                      </span>
-                    )}
-                    {renderRowExtra && renderRowExtra(m, g)}
+                <div key={i} style={{ padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
+                    <span style={{ fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:6 }}>
+                      {m.memberName || m.memberId}
+                      {m.isWaitlist && (
+                        <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:'#FFF8E6', color:'#8A5A00' }}>
+                          🕐 候補・第{m.waitlistPosition ?? '?'}位
+                        </span>
+                      )}
+                    </span>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                      {(m.startDate || m.endDate) && (
+                        <span style={{ fontSize:12, color:'#666', fontFamily:'monospace' }}>
+                          {fmtDate(m.startDate)} ~ {fmtDate(m.endDate)}
+                        </span>
+                      )}
+                      {renderRowExtra && renderRowExtra(m, g)}
+                    </div>
                   </div>
+                  {m.suspendStart && (
+                    <div style={{ fontSize:11, color:'#8A5A00', marginTop:4, textAlign:'left' }}>
+                      ⏸ 申請時間 {fmtTs(m.suspendRequestedAt) || '—'}｜暫停期間 {fmtDate(m.suspendStart)} ~ {fmtDate(m.suspendEnd)}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -796,7 +815,7 @@ export default function MembersPage() {
                 </button>
               </>
             ) : null}
-            renderRowExtra={(m, g) => (
+            renderRowExtra={(m, g) => m.isWaitlist ? null : (
               <>
                 <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                 {isManagerRole && (
@@ -875,7 +894,7 @@ export default function MembersPage() {
                               {csDownloading ? '下載中...' : '⬇ 下載此班別名單'}
                             </button>
                           ) : null}
-                          renderRowExtra={(m, g) => (
+                          renderRowExtra={(m, g) => m.isWaitlist ? null : (
                             <>
                               <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                               {isManagerRole && (
@@ -927,7 +946,7 @@ export default function MembersPage() {
                         {csDownloading ? '下載中...' : gSel ? '⬇ 下載此班別名單' : '⬇ 下載總表'}
                       </button>
                     ) : null}
-                    renderRowExtra={(m, g) => (
+                    renderRowExtra={(m, g) => m.isWaitlist ? null : (
                       <>
                         <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                         {isManagerRole && (
