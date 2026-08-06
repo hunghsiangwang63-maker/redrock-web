@@ -16,6 +16,10 @@ const DENOMINATIONS = [
   { key:'d1',    label:'NT$1',    value:1    },
 ];
 
+// 本地發票列印代理（跑在櫃檯電腦，見 local-print-agent/），開錢箱走 http://localhost 直接呼叫，
+// 不經過 RedRock 後端——純機器內部動作，代理未啟動/未連接印表機時會連線失敗，此為預期行為（非本機不會誤觸）。
+const PRINT_AGENT_URL = 'http://localhost:3399';
+
 const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','押金收取','押金退還','其他退款','其他'];
 const INCOME_KEYS = ['entry', 'shoeRental', 'equipmentRental', 'product', 'course', 'pass'];
 
@@ -67,6 +71,19 @@ export default function DailySettlementPage() {
   const [savingDraft, setSavingDraft] = useState(false);
   const [resettleMode, setResettleMode] = useState(false); // 當日再次結帳（由已結帳畫面進入）
   const [resettleReason, setResettleReason] = useState('');
+  // 獨立開錢箱（找零準備/交接點鈔用；不夾帶列印，直接呼叫本機發票代理，見 invoice-integration-plan.md §4）
+  const [drawerBusy, setDrawerBusy] = useState(false);
+  const [drawerMsg, setDrawerMsg] = useState('');
+  const handleOpenDrawer = async () => {
+    setDrawerBusy(true); setDrawerMsg('');
+    try {
+      const res = await fetch(`${PRINT_AGENT_URL}/open-drawer`, { method: 'POST' });
+      const data = await res.json();
+      setDrawerMsg(data.ok ? '✅ 已送出開櫃指令' : `❌ 開櫃失敗：${data.error || '未知錯誤'}`);
+    } catch (e) {
+      setDrawerMsg('❌ 無法連線到發票機（請確認本機已啟動列印代理程式）');
+    } finally { setDrawerBusy(false); }
+  };
   const setSegment = (i, field, val) => setInvoiceSegments(prev => prev.map((sg, idx) => idx === i ? { ...sg, [field]: val } : sg));
   const addSegment = () => setInvoiceSegments(prev => {
     const lastSeg = prev[prev.length - 1];
@@ -296,6 +313,18 @@ export default function DailySettlementPage() {
           ) : (
             <span style={{ color:'#A32D2D' }}>⚠ 目前為「🏛 全館」，結帳需針對單一場館，請於上方切換到具體場館。</span>
           )}
+        </div>
+      )}
+
+      {/* 獨立開錢箱（找零準備/交接點鈔用；不夾帶列印）——需在有連接發票機+錢櫃的櫃檯電腦上使用 */}
+      {(isOperatorMode || isSuperAdmin) && (
+        <div style={{ ...s.card, padding:'10px 14px', marginBottom:14, display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+          <button onClick={handleOpenDrawer} disabled={drawerBusy}
+            style={{ height:36, padding:'0 16px', borderRadius:8, background: drawerBusy ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor: drawerBusy ? 'not-allowed' : 'pointer' }}>
+            {drawerBusy ? '開櫃中...' : '💰 獨立開錢箱'}
+          </button>
+          <span style={{ fontSize:11, color:'#999' }}>找零準備、班次交接點鈔核對用；須在有接發票機/錢櫃的櫃檯電腦操作</span>
+          {drawerMsg && <span style={{ fontSize:12, color: drawerMsg.startsWith('✅') ? '#2D7D46' : '#A32D2D' }}>{drawerMsg}</span>}
         </div>
       )}
 
