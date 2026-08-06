@@ -1331,6 +1331,11 @@ export default function MemberCoursesPage() {
                         </div>
                       </div>
                     )}
+                    {feeReady && isLateJoin && !alreadyEnrolled && (
+                      <div style={{ background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#8A5A00', lineHeight:1.7, textAlign:'left' }}>
+                        ⚠️ 插班報名可請假次數會依據報名堂數調整，以館方計算結果為準。
+                      </div>
+                    )}
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
                       <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
                         {!feeReady ? (
