@@ -4,7 +4,7 @@ import Modal from './Modal';
 // 課程學員「詳細資料」modal（唯讀）：個別學員完整報名/繳費/備註資訊，比照賽事管理報名名單頁的詳細資料彈窗樣式。
 // 共用於「會員 → 課程學員」報表（已開課/已過期梯次）與「課程管理 → 報名名單」（尚未開課梯次），資料來源不同、欄位形狀一致。
 // props: r {memberName, memberPhone, courseName, range, enrolledAt, fee, paymentMethod, paymentStatus,
-//           memberPaidAmount, confirmedAmount, receivedAmount, receivedAmountOverride, bankLastFive,
+//           memberPaidAmount, confirmedAmount, receivedAmount, receivedAmountOverride, bankName, bankLastFive,
 //           paymentDate, staffNote, healthNote, referralSource, enrollNote}
 const COURSE_PAY_LABEL = { pending: '待確認', confirmed: '已確認', pending_confirm: '待確認', transfer_rejected: '已退回', na: '—' };
 
@@ -30,6 +30,7 @@ export default function CourseRegDetailModal({ r, onClose }) {
         {Row('會員自報金額', r.memberPaidAmount != null ? `NT$${r.memberPaidAmount}` : '—')}
         {Row('店員核對金額', r.confirmedAmount != null ? `NT$${r.confirmedAmount}` : '—')}
         {Row('實收金額', <span style={{ fontWeight: 600, color: '#8B1A1A' }}>NT${r.receivedAmount ?? 0}{r.receivedAmountOverride != null ? '（管理員已編修）' : ''}</span>)}
+        {Row('匯款銀行', r.bankName)}
         {Row('匯款末五碼', r.bankLastFive)}
         {Row('匯款日期', r.paymentDate)}
         {Row('員工備註', r.staffNote)}
