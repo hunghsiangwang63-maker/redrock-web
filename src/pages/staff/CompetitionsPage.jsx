@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
 import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice, updateCompetitionReceivedAmount } from '../../api/competitions';
 import SegmentedTabs from '../../components/SegmentedTabs';
-import InvoiceModal from '../../components/InvoiceModal';
+import InvoiceIssuer from '../../components/InvoiceIssuer';
 
 // 「實收金額」就地編修（管理員；扣除保費，供開發票/結帳共用）——比照課程學員頁的實收金額編輯器
 const RegReceivedAmountEditor = ({ reg, onSaved }) => {
@@ -654,11 +654,17 @@ export default function CompetitionsPage() {
         />
       )}
 
-      {/* 開立發票 Modal（共用元件，與員工端報到頁/課程學員頁同一套） */}
+      {/* 開立發票（共用元件，與員工端報到頁/課程學員頁同一套；依開關自動切換真列印／手動記帳版） */}
       {invoiceTarget && (() => {
         const r = invoiceTarget;
         return (
-          <InvoiceModal
+          <InvoiceIssuer
+            gymId={r.gymId}
+            sourceType="competition"
+            refId={r.id}
+            memberId={r.memberId}
+            memberName={r.memberName}
+            paymentMethod={r.paymentMethod}
             title={r.memberName || ''}
             subtitle={`${r.competitionName || ''}・${r.divisionName || ''}`}
             feeInfo={`報名費用 NT$${r.registrationFee ?? 0}`

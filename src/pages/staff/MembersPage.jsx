@@ -9,7 +9,7 @@ import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import VipPage from './VipPage';
 import SegmentedTabs from '../../components/SegmentedTabs';
-import InvoiceModal from '../../components/InvoiceModal';
+import InvoiceIssuer from '../../components/InvoiceIssuer';
 import CourseRegDetailModal from '../../components/CourseRegDetailModal';
 
 const Modal = ({ title, onClose, children }) => (

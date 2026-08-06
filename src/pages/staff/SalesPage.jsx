@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory } from '../../api/products';
-import InvoiceModal from '../../components/InvoiceModal';
+import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
@@ -670,9 +670,15 @@ export default function SalesPage({ embedded = false }) {
         </div>
       )}
 
-      {/* 開立發票 Modal（共用元件，與課程/比賽/入場同一套；手動記帳版，尚未接實體印表機） */}
+      {/* 開立發票（共用元件，與課程/比賽/入場同一套；依開關自動切換真列印／手動記帳版） */}
       {saleInvoiceTarget && (
-        <InvoiceModal
+        <InvoiceIssuer
+          gymId={saleInvoiceTarget.gymId}
+          sourceType="product"
+          refId={saleInvoiceTarget.id}
+          memberId={saleInvoiceTarget.memberId}
+          memberName={saleInvoiceTarget.memberName}
+          paymentMethod={saleInvoiceTarget.paymentMethod}
           title={saleInvoiceTarget.memberName || '匿名'}
           subtitle={(saleInvoiceTarget.items || []).map(i => i.productName).join('、')}
           feeInfo={`銷售總額 NT$${saleInvoiceTarget.totalAmount ?? 0}`}

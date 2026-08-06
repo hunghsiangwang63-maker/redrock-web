@@ -10,7 +10,7 @@ import jsQR from 'jsqr';
 import { entryLabelOf } from '../../utils/entryLabel';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
-import InvoiceModal from '../../components/InvoiceModal';
+import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
 
 const ENTRY_TYPE_LABEL = {
@@ -629,9 +629,15 @@ export default function CheckinPage() {
               </div>
             )}
 
-            {/* 比賽報到「開立發票」Modal（共用元件，與賽事管理報名名單頁/課程學員頁同一套） */}
+            {/* 比賽報到「開立發票」（共用元件，與賽事管理報名名單頁/課程學員頁同一套；依開關自動切換真列印／手動記帳版） */}
             {compInvoiceTarget && (
-              <InvoiceModal
+              <InvoiceIssuer
+                gymId={compInvoiceTarget.gymId}
+                sourceType="competition"
+                refId={compInvoiceTarget.registrationId}
+                memberId={compInvoiceTarget.memberId}
+                memberName={compInvoiceTarget.memberName}
+                paymentMethod={compInvoiceTarget.paymentMethod}
                 title={compInvoiceTarget.memberName || ''}
                 subtitle={`${compInvoiceTarget.competitionName || ''}・${compInvoiceTarget.divisionName || ''}`}
                 feeInfo={`報名費用 NT$${compInvoiceTarget.registrationFee ?? 0}` + (compInvoiceTarget.insuranceFee != null ? `　保費 NT$${compInvoiceTarget.insuranceFee}` : '')}
@@ -834,9 +840,15 @@ export default function CheckinPage() {
               </div>
             )}
 
-            {/* 開立發票 Modal（共用元件，與比賽報到頁/課程學員頁同一套；手動記帳版，尚未接實體印表機） */}
+            {/* 開立發票（共用元件，與比賽報到頁/課程學員頁同一套；依開關自動切換真列印／手動記帳版） */}
             {checkinInvoiceTarget && (
-              <InvoiceModal
+              <InvoiceIssuer
+                gymId={checkinInvoiceTarget.gymId}
+                sourceType="checkin"
+                refId={checkinInvoiceTarget.id}
+                memberId={checkinInvoiceTarget.memberId}
+                memberName={checkinInvoiceTarget.memberName}
+                paymentMethod={checkinInvoiceTarget.paymentMethod}
                 title={checkinInvoiceTarget.memberName || ''}
                 subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
                 feeInfo={checkinInvoiceTarget.amountPaid > 0 ? `實收金額 NT$${checkinInvoiceTarget.amountPaid}` : ''}
