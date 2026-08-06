@@ -39,8 +39,9 @@ const NOTIF_CAT = {
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
   legacy_pass_claimed:'ticket',
   discount_bind_disclosure:'ticket', black_bind_disclosure:'ticket', legacy_discount_bind_disclosure:'ticket',
-  // 取消入場
-  cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
+  // 取消入場（checkin_cancelled 為實際使用的直接取消通知；cancel_checkin_* 三型別對應的申請/審核
+  // 流程從未被前端呼叫過、正式環境 0 筆資料，保留對照僅供萬一之後接上時不必再改分類）
+  checkin_cancelled:'cancel', cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
   // 排班
   shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
   // 會員（VIP 等舊系統資料認領）
@@ -67,6 +68,7 @@ const NOTIF_LINK = {
   pass_adjustment: '/staff/pending-tasks',
   competition_refund_request: '/staff/pending-tasks', competition_reg_claimed: '/staff/competitions',
   settlement_difference: '/staff/settlement', stocktake_discrepancy: '/staff/sales',
+  checkin_cancelled: '/staff/checkin',
 };
 const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名' };
 const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
