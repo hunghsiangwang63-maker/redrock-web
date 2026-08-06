@@ -164,9 +164,6 @@ export default function SettingsPage() {
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
     if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
   }, [activeTab]);
-  useEffect(() => {
-    if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
-  }, [invoicePrintingGym]);
 
   const openAddStation = () => {
     setEditingStation(null);
@@ -777,8 +774,8 @@ export default function SettingsPage() {
               開啟後，此館 <strong>POS(銷售) / 入場 / 課程 / 比賽報名 / 器材租借</strong> 五個流程會<strong>同時</strong>切換成真實發票機列印，原本各流程的手動記帳「開立發票」按鈕會自動不再顯示（不會有兩個地方可以開發票）。<strong style={{ color:'#8B1A1A' }}>開啟前請先確認本機列印代理（local-print-agent）已在此館櫃檯電腦正式運作、發票號碼已於「發票號碼管理」設定妥當</strong>——這是會實際消耗真實發票號碼、要求印表機正常運作的正式開關，不是單純顯示設定。
             </div>
             <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-              {gyms.map(g => (
-                <button key={g.id} onClick={() => setInvoicePrintingGym(g.id)}
+              {gyms.filter(g => g.name).map(g => (
+                <button key={g.id} onClick={() => { setInvoicePrintingGym(g.id); loadInvoicePrinting(g.id); }}
                   style={{ flex:1, height:36, borderRadius:8,
                     border: invoicePrintingGym === g.id ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
                     background: invoicePrintingGym === g.id ? '#FBF5F5' : '#fff',

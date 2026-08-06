@@ -4,7 +4,7 @@ import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
 import SegmentedTabs from '../../components/SegmentedTabs';
-import InvoiceModal from '../../components/InvoiceModal';
+import InvoiceIssuer from '../../components/InvoiceIssuer';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -362,9 +362,15 @@ export default function RentalsPage({ embedded = false }) {
         </div>
       )}
 
-      {/* 開立發票 Modal（共用元件，與課程/比賽/入場/POS 同一套；手動記帳版，尚未接實體印表機） */}
+      {/* 開立發票（共用元件，與課程/比賽/入場/POS 同一套；依該館開關自動切換真列印／手動記帳版） */}
       {rentalInvoiceTarget && (
-        <InvoiceModal
+        <InvoiceIssuer
+          gymId={rentalInvoiceTarget.gymId}
+          sourceType="rental"
+          refId={rentalInvoiceTarget.id}
+          memberId={rentalInvoiceTarget.memberId}
+          memberName={rentalInvoiceTarget.memberName}
+          paymentMethod={rentalInvoiceTarget.paymentMethod}
           title={rentalInvoiceTarget.memberName || ''}
           subtitle={`${rentalInvoiceTarget.gymId==='gym-hsinchu'?'新竹館':'士林館'} · 器材租借（${rentalInvoiceTarget.pickupDate}～${rentalInvoiceTarget.returnDate}）`}
           feeInfo={`租金 NT$${rentalInvoiceTarget.totalRentalFee}（不含押金）`}

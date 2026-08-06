@@ -834,7 +834,13 @@ export default function MembersPage() {
             )}
           />
           {invoiceTarget && (
-            <InvoiceModal
+            <InvoiceIssuer
+              gymId={invoiceTarget.gymId}
+              sourceType="course"
+              refId={invoiceTarget.enrollmentId}
+              memberId={invoiceTarget.memberId}
+              memberName={invoiceTarget.memberName}
+              paymentMethod={invoiceTarget.paymentMethod}
               title={invoiceTarget.memberName || ''}
               subtitle={`${invoiceTarget.courseName || ''}${invoiceTarget.memberPhone ? ` · ${invoiceTarget.memberPhone}` : ''}`}
               feeInfo={invoiceTarget.fee != null
