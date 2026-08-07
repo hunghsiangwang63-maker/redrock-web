@@ -190,8 +190,16 @@ export default function DailySettlementPage() {
   const actualCash = DENOMINATIONS.reduce((sum, d) => sum + (denominations[d.key]||0) * d.value, 0);
   // 加減項：sign '+' ＝加入抽屜（預期上升）、'-' ＝取出（預期下降）；舊資料無 sign 視為 '-'（減）
   const netAdjust = deductions.reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount)||0)), 0);
-  const manualCashVal = transition.settlementManualInput && paymentManual.cash !== '' && paymentManual.cash != null ? Number(paymentManual.cash) || 0 : null;
-  const effectiveCash = manualCashVal != null ? manualCashVal : (settlement?.payment?.cash || 0);
+  // 轉換期手動模式：現金＝手動發票總金額－線上支付（LinePay/街口/台灣Pay/轉帳，缺手動值回退系統）；
+  // 不再獨立填現金——待正式發票列印上線、關閉手動輸入後，這段不再觸發、直接用系統 payment.cash。
+  const onlinePaymentManualTotal = ['linePay', 'jko', 'taiwanPay', 'transfer'].reduce((sum, k) => {
+    const v = paymentManual[k];
+    const has = v !== '' && v != null;
+    return sum + (has ? (Number(v) || 0) : (settlement?.payment?.[k] || 0));
+  }, 0);
+  const effectiveCash = transition.settlementManualInput
+    ? manualIncomeTotal(settlement?.income, incomeManual) - onlinePaymentManualTotal
+    : (settlement?.payment?.cash || 0);
   const expectedCash = (settlement?.prevCashBalance || 0) + effectiveCash + netAdjust;
   const difference = actualCash - expectedCash;
   // 發票總金額＝income 各項合計（轉換期手動開啟時：入場逐類加總、其餘取手動缺項回退系統）
@@ -489,8 +497,17 @@ export default function DailySettlementPage() {
           {/* 付款方式 */}
           <div style={s.card}>
             <div style={s.cardHead}>付款方式統計{transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : ''}</div>
+            {transition.settlementManualInput && (
+              <div style={s.row}>
+                <span style={s.label}>現金（自動）</span>
+                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ fontSize:11, color:'#999' }}>發票總金額－線上支付</span>
+                  <span style={{ ...s.value, minWidth:72, textAlign:'right' }}>NT${effectiveCash.toLocaleString()}</span>
+                </div>
+              </div>
+            )}
             {[
-              { key:'cash', label:'現金', value: settlement?.payment?.cash || 0 },
+              ...(transition.settlementManualInput ? [] : [{ key:'cash', label:'現金', value: settlement?.payment?.cash || 0 }]),
               { key:'linePay', label:'Line Pay', value: settlement?.payment?.linePay || 0 },
               { key:'jko', label:'街口支付', value: settlement?.payment?.jko || 0 },
               { key:'taiwanPay', label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
@@ -514,7 +531,7 @@ export default function DailySettlementPage() {
           <div style={s.card}>
             <div style={s.cardHead}>收銀機餘額</div>
             <div style={s.row}><span style={s.label}>前日餘額</span><span style={s.value}>NT${(settlement?.prevCashBalance||0).toLocaleString()}</span></div>
-            <div style={s.row}><span style={s.label}>今日現金收入</span><span style={s.value}>NT${(settlement?.payment?.cash||0).toLocaleString()}</span></div>
+            <div style={s.row}><span style={s.label}>今日現金收入{transition.settlementManualInput ? '（發票總金額－線上支付）' : ''}</span><span style={s.value}>NT${effectiveCash.toLocaleString()}</span></div>
             <div style={{ ...s.row, background:'#FBF5F5' }}>
               <span style={{ ...s.label, fontWeight:500 }}>應有餘額</span>
               <span style={{ fontSize:15, fontWeight:600, color:'#185FA5' }}>NT${expectedCash.toLocaleString()}</span>
