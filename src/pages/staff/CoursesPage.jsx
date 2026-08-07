@@ -997,7 +997,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     </div>
                     <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', width:90, textAlign:'right' }}>NT${(c.price||0).toLocaleString()}</div>
                     <div style={{ fontSize:12, color:'#666', width:150, textAlign:'right' }}>
-                      <span style={{ fontWeight:600 }}>{c.enrolledCount || 0}/{c.maxStudents} 人</span>
+                      <div><span style={{ fontWeight:600 }}>{c.enrolledCount || 0}/{c.maxStudents} 人</span></div>
+                      {c.waitlistCount > 0 && <div style={{ fontSize:11, color:'#A66A00', marginTop:2 }}>候補 {c.waitlistCount} 人</div>}
                     </div>
                     <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setSelectedCourse(c); setSelectedSession(null); setRoster(null); setTab('sessions'); }}
