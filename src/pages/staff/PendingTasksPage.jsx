@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -120,7 +120,6 @@ export default function PendingTasksPage() {
   const isMobile = useIsMobile();
   const { staff, operator, station } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [tasks, setTasks] = useState([]);
   const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,28 +135,6 @@ export default function PendingTasksPage() {
   const [notifs, setNotifs] = useState(null);                // 通知（系統未讀）
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifCat, setNotifCat] = useState('');              // 類別過濾
-
-  // 通知/近7天報名「查看」深連結 ?view=payment：關掉任何已開的追蹤面板，露出恆常顯示的「💰 待收款」分段並捲動過去
-  // （單純 navigate('/staff/pending-tasks') 在已身處本頁時是 no-op；帶查詢字串才會觸發 location 變化）
-  // 待收款分段來自 tasks（異步載入），DOM 節點出現時機不確定——改輪詢直到找到節點再捲動，
-  // 不依賴 React state/effect 執行順序的假設（曾踩雷：state 依賴的兩段式 effect 完全沒捲動，原因不明）。
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (params.get('view') !== 'payment') return;
-    setTrackView(null);
-    let tries = 0;
-    const timer = setInterval(() => {
-      tries += 1;
-      const el = document.getElementById('group-payment');
-      if (el) {
-        clearInterval(timer);
-        el.scrollIntoView({ behavior: 'auto', block: 'start' });
-      } else if (tries > 40) {
-        clearInterval(timer); // 4 秒都找不到（該分段當下真的沒有待收款項目），放棄
-      }
-    }, 100);
-    return () => clearInterval(timer);
-  }, [location.search]);
 
   // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
   const isManager = isAdmin;                          // super_admin / gym_manager
@@ -611,7 +588,7 @@ export default function PendingTasksPage() {
       )}
 
       {!loading && groups.map(group => (
-        <div key={group.key} id={group.key === 'payment' ? 'group-payment' : undefined} style={{ marginBottom:20 }}>
+        <div key={group.key} style={{ marginBottom:20 }}>
           {/* 內容分段標題 */}
           <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
             <div style={{ fontSize:13, fontWeight:700, color:group.color }}>{group.label}</div>
