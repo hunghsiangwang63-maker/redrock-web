@@ -139,6 +139,11 @@ export default function PendingTasksPage() {
   // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
   const isManager = isAdmin;                          // super_admin / gym_manager
   const isOpStation = !!operator || !!station;        // 值班人員 / 站台電腦帳號
+  // 兼職個人帳號（未打卡值班）待辦頁權限收斂（2026-08-08 拍板）：只留「今日提醒／預約」+ 我的近7日班表，
+  // 通知／退回追蹤兩個按鈕隱藏（課程相關／定期票相關本就靠下方 perm.course_adjustment 等已是 false 而隱藏，不用再改）。
+  // 對應後端 pendingTasks.js 同步收斂（GET / 只回 remind 類型任務、GET /returned 回空）。
+  // ⚠ 不直接用下方才宣告的 isRealStaff（避免 TDZ），改就地重算同一條件。
+  const isRestrictedPartTime = !!staff?.id && !operator && !station && staff?.role === 'part_time';
   const perm = {
     rental:              true,                         // 全部員工（後端僅 authenticate）
     rental_return:       true,
@@ -320,21 +325,27 @@ export default function PendingTasksPage() {
               🎫 定期票相關
             </button>
           )}
-          <button onClick={() => openTrack('notif')}
-            style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='notif' ? '#854F0B' : '#fff', color: trackView==='notif' ? '#fff' : '#854F0B', border:'0.5px solid #854F0B', fontSize:12, cursor:'pointer' }}>
-            🔔 通知
-          </button>
-          <button onClick={() => openTrack('returned')}
-            style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='returned' ? '#A32D2D' : '#fff', color: trackView==='returned' ? '#fff' : '#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>
-            ↩️ 退回追蹤{returnedItems.length ? `（${returnedItems.length}）` : ''}
-          </button>
+          {!isRestrictedPartTime && (
+            <button onClick={() => openTrack('notif')}
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='notif' ? '#854F0B' : '#fff', color: trackView==='notif' ? '#fff' : '#854F0B', border:'0.5px solid #854F0B', fontSize:12, cursor:'pointer' }}>
+              🔔 通知
+            </button>
+          )}
+          {!isRestrictedPartTime && (
+            <button onClick={() => openTrack('returned')}
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='returned' ? '#A32D2D' : '#fff', color: trackView==='returned' ? '#fff' : '#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>
+              ↩️ 退回追蹤{returnedItems.length ? `（${returnedItems.length}）` : ''}
+            </button>
+          )}
           <button onClick={load} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
             重新整理
           </button>
         </div>
       </div>
       <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>
-        上次更新：{dayjs().format('HH:mm')}　·　🔔 今日提醒（器材取件·歸還／體驗）　🔍 需審核（課程／票券／單次券）　💰 待收款（轉帳／比賽／攀岩隊／器材）　·　近 7 天動態請看「🔔 通知」
+        {isRestrictedPartTime
+          ? `上次更新：${dayjs().format('HH:mm')}　·　🔔 今日提醒（器材取件·歸還／體驗）`
+          : `上次更新：${dayjs().format('HH:mm')}　·　🔔 今日提醒（器材取件·歸還／體驗）　🔍 需審核（課程／票券／單次券）　💰 待收款（轉帳／比賽／攀岩隊／器材）　·　近 7 天動態請看「🔔 通知」`}
       </div>
 
       {/* 我的近 7 日班表（員工本人登入才顯示；站台／值班電腦帳號不顯示）*/}
