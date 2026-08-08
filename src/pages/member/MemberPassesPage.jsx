@@ -56,7 +56,7 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
   const [pickId, setPickId] = useState('');
 
   useEffect(() => {
-    if (!phone || phone.length < 10) { setRecipient(null); return; }
+    if (!phone || phone.length < 7) { setRecipient(null); return; }
     let cancelled = false;
     setLooking(true);
     const t = setTimeout(async () => {
@@ -72,7 +72,7 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
   // 整張券（紅利/單次券/體驗券）：載入該手機下家庭成員清單，預設家長（後端已家長排前）
   useEffect(() => {
     if (isCreditCard) return;
-    if (!phone || phone.length < 10) { setRecipients([]); setPickId(''); return; }
+    if (!phone || phone.length < 7) { setRecipients([]); setPickId(''); return; }
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
@@ -87,7 +87,7 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
   }, [phone, isCreditCard]);
 
   const handleTransfer = async () => {
-    if (!phone || phone.length < 10) { setMsg('請輸入有效手機號碼'); return; }
+    if (!phone || phone.length < 7) { setMsg('請輸入有效手機號碼'); return; }
     if (isCreditCard) {
       if (!recipient?.found) { setMsg('查無此手機號碼的會員'); return; }
       if (recipient.self) { setMsg('不能移轉給自己'); return; }
@@ -149,10 +149,10 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>對方手機號碼</label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="0912345678" maxLength={10}
+                placeholder="0912345678（外籍：+ 開頭國際格式）"
                 style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               {/* 接收人：次數型用 cards lookup；整張券用家庭成員清單（可挑子女）*/}
-              {phone.length >= 10 && (isCreditCard ? (
+              {phone.length >= 7 && (isCreditCard ? (
                 looking ? (
                   <div style={{ fontSize:13, color:'#999', marginTop:8 }}>查詢中…</div>
                 ) : recipient?.self ? (
@@ -358,7 +358,7 @@ export default function MemberPassesPage() {
   useEffect(() => {
     if (requestType !== 'transfer') { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(false); return; }
     const phone = (transferToPhone || '').trim();
-    if (phone.length < 10) { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(false); return; }
+    if (phone.length < 7) { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(false); return; }
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
@@ -1061,10 +1061,10 @@ export default function MemberPassesPage() {
                 <div style={{ marginBottom:14 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>轉讓對象手機號碼</label>
                   <input type="tel" value={transferToPhone} onChange={e => setTransferToPhone(e.target.value)}
-                    placeholder="0912345678"
+                    placeholder="0912345678（外籍：+ 開頭國際格式）"
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                   {/* 查該電話的會員（含家庭成員）供確認/選擇；未滿13歲不可接收、查無則擋 */}
-                  {transferToPhone.trim().length >= 10 && (() => {
+                  {transferToPhone.trim().length >= 7 && (() => {
                     const selectable = transferRecipients.filter(r => !r.under13); // 未滿13歲不可接收定期票
                     if (transferRecipients.length === 0) {
                       return transferLookupDone
