@@ -21,10 +21,11 @@ const STAFF_COLORS = ['#8B1A1A','#185FA5','#2D7D46','#854F0B','#533AB7','#0F6E56
 
 // 重要事項標籤（休館/比賽/維修等，獨立於員工排班）
 const EVENT_CATEGORY_META = {
-  closure:     { label: '休館',      emoji: '⛔', color: '#A32D2D' },
-  competition: { label: '比賽',      emoji: '🏆', color: '#6B3FA0' },
-  maintenance: { label: '維修/保養', emoji: '🔧', color: '#B5762B' },
-  other:       { label: '其他',      emoji: '📌', color: '#185FA5' },
+  closure:      { label: '休館',      emoji: '⛔', color: '#A32D2D' },
+  competition:  { label: '比賽',      emoji: '🏆', color: '#6B3FA0' },
+  maintenance:  { label: '維修/保養', emoji: '🔧', color: '#B5762B' },
+  routesetting: { label: '定線',      emoji: '🧗', color: '#2D7D46' },
+  other:        { label: '其他',      emoji: '📌', color: '#185FA5' },
 };
 
 export default function SchedulePage() {
