@@ -104,6 +104,7 @@ export default function CompetitionsPage() {
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
   const [showRegistrations, setShowRegistrations] = useState(null);
+  const [confirmDeleteComp, setConfirmDeleteComp] = useState(null); // 刪除賽事二次確認 Modal
   const [registrations, setRegistrations] = useState([]);
   const [regLoading, setRegLoading] = useState(false);
   const [regTab, setRegTab] = useState('all'); // all | refunds
@@ -211,7 +212,7 @@ export default function CompetitionsPage() {
   };
 
   const handleDelete = async (c) => {
-    if (!window.confirm(`確定要刪除「${c.name}」？此動作無法復原。`)) return;
+    setConfirmDeleteComp(null);
     try {
       await client.delete(`/competitions/${c.id}`);
       showMsg('比賽已刪除');
@@ -378,7 +379,7 @@ export default function CompetitionsPage() {
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
                     <button onClick={()=>handleDownloadInsuranceRoster(c,'xlsx')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#2D7D46', border:'0.5px solid #B5E4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(xlsx)</button>
                     <button onClick={()=>handleDownloadInsuranceRoster(c,'pdf')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#A32D2D', border:'0.5px solid #F0C4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(PDF)</button>
-                    <button onClick={()=>handleDelete(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C4C4', fontSize:12, cursor:'pointer' }}>🗑 刪除</button>
+                    <button onClick={()=>setConfirmDeleteComp(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C4C4', fontSize:12, cursor:'pointer' }}>🗑 刪除</button>
                   </>}
                 </div>
               </div>
@@ -646,6 +647,27 @@ export default function CompetitionsPage() {
           </div>
         );
       })()}
+
+      {/* 刪除賽事二次確認 Modal（取代原 window.confirm） */}
+      {confirmDeleteComp && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setConfirmDeleteComp(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:14, padding:20, width:'100%', maxWidth:400 }}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:10 }}>刪除賽事</div>
+            <div style={{ fontSize:14, color:'#1a1a1a', lineHeight:1.7, marginBottom:6 }}>
+              確定要<strong style={{ color:'#A32D2D' }}>刪除</strong>「<strong>{confirmDeleteComp.name}</strong>」？
+            </div>
+            <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, lineHeight:1.6, background:'#FBEEEE', border:'0.5px solid #E8C5C5', borderRadius:6, padding:'8px 10px' }}>
+              ⚠ 此動作<strong>無法復原</strong>，賽事將從資料庫完全移除。若此賽事已有報名紀錄，這些報名不會一併刪除，但會找不到對應賽事（孤兒資料）；若只是想暫時關閉報名，請改用「關閉報名」。
+            </div>
+            <div style={{ display:'flex', gap:8, marginTop:8 }}>
+              <button onClick={()=>setConfirmDeleteComp(null)}
+                style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button onClick={()=>handleDelete(confirmDeleteComp)}
+                style={{ flex:1, height:42, borderRadius:9, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確認刪除</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 收款/退費 Modal（共用元件） */}
       {actionModal && (
