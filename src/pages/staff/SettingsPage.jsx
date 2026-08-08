@@ -39,6 +39,16 @@ const TAB_GROUPS = [
 ];
 const TAB_ITEMS = TAB_GROUPS.flatMap(g => g.items);
 
+// 正職個人辦公權限（可逐人覆寫、供管理員指定給部分正職員工）——與後端
+// middleware/auth.js 的 PER_STAFF_OVERRIDABLE_KEYS 一一對應，勿只改一邊。
+const FULL_TIME_PERM_GROUPS = [
+  { label: '課程管理', hint: '新增/編輯/刪除梯次、通知學員', keys: ['courses.manage','courses.create','courses.update','courses.delete','courses.notify'] },
+  { label: '比賽賽事管理', hint: '新增/編輯賽事、開放報名、查看與下載名單', keys: ['competitions.manage'] },
+  { label: '比賽計分系統同步', hint: '手動重新推送名單到計分系統', keys: ['competitions.sync'] },
+  { label: '商品／庫存管理', hint: '商品建立/編輯、進貨、庫存盤點', keys: ['products.manage','inventory.manage'] },
+  { label: '排班重要事項', hint: '休館/比賽/維修等標籤新增編修', keys: ['schedule.events'] },
+];
+
 export default function SettingsPage() {
   const { staff, operator } = useAuth();
   const _role = operator?.role || staff?.role;
@@ -81,7 +91,7 @@ export default function SettingsPage() {
   const [staffLoading, setStaffLoading] = useState(false);
   const [showStaffForm, setShowStaffForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
-  const [staffForm, setStaffForm] = useState({ name:'', email:'', phone:'', role:'full_time', gymId:'', notificationEmail:'', password:'' });
+  const [staffForm, setStaffForm] = useState({ name:'', email:'', phone:'', role:'full_time', gymId:'', notificationEmail:'', password:'', permissionOverrides:{} });
   const [staffSaving, setStaffSaving] = useState(false);
   const [staffFormMsg, setStaffFormMsg] = useState('');
   const [resettingPasswordFor, setResettingPasswordFor] = useState(null);
@@ -200,16 +210,23 @@ export default function SettingsPage() {
     try { await updateStation(st.id, { isActive: !st.isActive }); await loadStationList(); } catch (e) {}
   };
 
+  // 正職辦公權限預設全開（對齊角色預設值），既有帳號則以已存的 permissionOverrides 覆蓋（缺的 key 視為預設 true）
+  const defaultFullTimeOverrides = (existing) => {
+    const out = {};
+    FULL_TIME_PERM_GROUPS.forEach(g => g.keys.forEach(k => { out[k] = existing && k in existing ? !!existing[k] : true; }));
+    return out;
+  };
+
   const openAddStaff = () => {
     setEditingStaff(null);
-    setStaffForm({ name:'', email:'', phone:'', role:'full_time', gymId: gyms[0]?.id || '', notificationEmail:'', password:'' });
+    setStaffForm({ name:'', email:'', phone:'', role:'full_time', gymId: gyms[0]?.id || '', notificationEmail:'', password:'', permissionOverrides: defaultFullTimeOverrides() });
     setStaffFormMsg('');
     setShowStaffForm(true);
   };
 
   const openEditStaff = (s) => {
     setEditingStaff(s);
-    setStaffForm({ name:s.name, email:s.email, phone:s.phone||'', role:s.role, gymId:s.gymId||'', notificationEmail:s.notificationEmail||'', password:'' });
+    setStaffForm({ name:s.name, email:s.email, phone:s.phone||'', role:s.role, gymId:s.gymId||'', notificationEmail:s.notificationEmail||'', password:'', permissionOverrides: defaultFullTimeOverrides(s.permissionOverrides) });
     setStaffFormMsg('');
     setShowStaffForm(true);
   };
@@ -221,17 +238,21 @@ export default function SettingsPage() {
     setStaffSaving(true);
     setStaffFormMsg('');
     try {
+      // 逐人覆寫僅正職適用（其餘角色的這 5 類權限全站統一由角色矩陣決定，無個別差異需求）
+      const permOverridePayload = staffForm.role === 'full_time' ? { permissionOverrides: staffForm.permissionOverrides } : {};
       if (editingStaff) {
         await updateStaff(editingStaff.id, {
           name: staffForm.name, email: staffForm.email, phone: staffForm.phone,
           role: staffForm.role, gymId: staffForm.role === 'super_admin' ? null : staffForm.gymId,
           notificationEmail: staffForm.notificationEmail,
+          ...permOverridePayload,
         });
       } else {
         await createStaff({
           name: staffForm.name, email: staffForm.email, phone: staffForm.phone,
           role: staffForm.role, gymId: staffForm.role === 'super_admin' ? null : staffForm.gymId,
           notificationEmail: staffForm.notificationEmail, password: staffForm.password,
+          ...permOverridePayload,
         });
       }
       setShowStaffForm(false);
@@ -1435,6 +1456,30 @@ export default function SettingsPage() {
                 <option value="super_admin">系統管理員</option>
               </select>
             </div>
+            {staffForm.role === 'full_time' && (
+              <div style={{ marginBottom:12 }}>
+                <label style={s.label}>辦公權限（每人負責工作不同，可個別勾選）</label>
+                <div style={{ display:'flex', flexDirection:'column', gap:6, background:'#FAF7F7', borderRadius:8, padding:'8px 10px', border:'0.5px solid #EDE5E5' }}>
+                  {FULL_TIME_PERM_GROUPS.map(g => {
+                    const checked = g.keys.every(k => staffForm.permissionOverrides?.[k] !== false);
+                    return (
+                      <label key={g.label} style={{ display:'flex', alignItems:'flex-start', gap:8, cursor:'pointer' }}>
+                        <input type="checkbox" checked={checked} style={{ marginTop:2 }}
+                          onChange={e => {
+                            const next = { ...staffForm.permissionOverrides };
+                            g.keys.forEach(k => { next[k] = e.target.checked; });
+                            setStaffForm({ ...staffForm, permissionOverrides: next });
+                          }} />
+                        <span>
+                          <div style={{ fontSize:13, color:'#333' }}>{g.label}</div>
+                          <div style={{ fontSize:11, color:'#999' }}>{g.hint}</div>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {staffForm.role !== 'super_admin' && (
               <div style={{ marginBottom:12 }}>
                 <label style={s.label}>所屬場館</label>
