@@ -143,7 +143,8 @@ export default function PendingTasksPage() {
   // 通知／退回追蹤兩個按鈕隱藏（課程相關／定期票相關本就靠下方 perm.course_adjustment 等已是 false 而隱藏，不用再改）。
   // 對應後端 pendingTasks.js 同步收斂（GET / 只回 remind 類型任務、GET /returned 回空）。
   // ⚠ 不直接用下方才宣告的 isRealStaff（避免 TDZ），改就地重算同一條件。
-  const isRestrictedPartTime = !!staff?.id && !operator && !station && staff?.role === 'part_time';
+  // 2026-08-08 同日再擴及正職（非值班）：兼職／正職個人帳號皆收斂，值班(operator)/館別電腦/管理員不受影響。
+  const isRestrictedPartTime = !!staff?.id && !operator && !station && ['part_time', 'full_time'].includes(staff?.role);
   const perm = {
     rental:              true,                         // 全部員工（後端僅 authenticate）
     rental_return:       true,

@@ -31,8 +31,8 @@ export default function CheckinPage() {
   const isManagerOnly = ['super_admin', 'gym_manager'].includes(staff?.role); // 下載明細限管理員
   // 入場動作限值班(operator)/管理員（與後端 requireManagerOrStation 一致）；報表 tab 不限
   const canCheckin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator;
-  // 兼職個人帳號（未打卡值班）權限收斂（2026-08-08 拍板）：隱藏「歷史入場」查詢分頁
-  const isRestrictedPartTime = staff?.role === 'part_time' && !operator;
+  // 個人帳號（兼職／正職，未打卡值班）權限收斂（2026-08-08 拍板，同日再擴及正職）：隱藏「歷史入場」查詢分頁
+  const isRestrictedPartTime = ['part_time', 'full_time'].includes(staff?.role) && !operator;
   const [gyms, setGyms] = useState([]);
   // 場館由頂部全域選擇器控制；入場屬操作類，super_admin 個人登入時「全館」退回第一個館
   const targetGymId = activeGymId || staff?.gymId || (isSuperAdmin ? (viewGym || gyms[0]?.id || '') : '');
