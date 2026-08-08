@@ -19,6 +19,8 @@ import { getAllPassRequests } from '../../api/passAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
 import { getMyUpcomingShifts } from '../../api/schedule';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
+import { markInstallmentPaid } from '../../api/installments';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 
 // 通知 type → 類別（待辦頁通知面板過濾用）
 // 對照現行實際會產生的通知 type（2026-08 依 Firestore notifications 集合實際資料 + 全站 createNotification/
@@ -96,14 +98,23 @@ const TYPE_CONFIG = {
   transfer_confirm:   { icon:'🏦', color:'#185FA5', bg:'#E6F1FB', label:'轉帳確認' },
   ticket_approval:    { icon:'🎟️', color:'#5B2D8B', bg:'#F3EEF9', label:'票券審核' },
   fall_test_pending:  { icon:'🧗', color:'#8B1A1A', bg:'#FBF5F5', label:'墜落測驗' },
+  installment:        { icon:'🧾', color:'#185FA5', bg:'#E6F1FB', label:'分期收款' },
 };
+
+const INSTALLMENT_PAY_METHODS = [
+  { key:'cash', label:'現金' },
+  { key:'transfer', label:'轉帳' },
+  { key:'linepay', label:'Line Pay' },
+  { key:'jkopay', label:'街口支付' },
+  { key:'taiwanpay', label:'台灣Pay' },
+];
 
 // 待辦總覽：依「性質」分段（今日提醒／需審核／待收款）
 const CATEGORIES = [
   { key:'remind',  label:'🔔 今日提醒／預約', color:'#854F0B', types:['rental_pickup','rental_return','experience'] },
   { key:'falltest',label:'🧗 墜落測驗待安排', color:'#8B1A1A', types:['fall_test_pending'] },
   { key:'review',  label:'🔍 需審核（核准／拒絕）', color:'#5B2D8B', types:['course_adjustment','pass_adjustment','ticket_approval'] },
-  { key:'payment', label:'💰 待收款（核對後確認）', color:'#185FA5', types:['transfer_confirm','competition_payment','competition_refund','team_member','rental'] },
+  { key:'payment', label:'💰 待收款（核對後確認）', color:'#185FA5', types:['transfer_confirm','competition_payment','competition_refund','team_member','rental','installment'] },
 ];
 
 function useIsMobile() {
@@ -157,6 +168,7 @@ export default function PendingTasksPage() {
     competition_refund:  isManager,
     ticket_approval:     isManager,                    // checkPermission('passes.approve')
     fall_test_pending:   true,                          // 站台/值班/員工皆可登記（後端 authenticate）
+    installment:         isManager || isOpStation,      // checkPermission('installments.manage')
   };
   const [returnedItems, setReturnedItems] = useState([]);
   const [returnedDetail, setReturnedDetail] = useState(null);
@@ -191,6 +203,10 @@ export default function PendingTasksPage() {
   const [teamNote, setTeamNote] = useState('');
   const [teamBusy, setTeamBusy] = useState(false);
   const [teamError, setTeamError] = useState('');
+  const [installMethod, setInstallMethod] = useState('cash');
+  const [installBusy, setInstallBusy] = useState(false);
+  const [installError, setInstallError] = useState('');
+  const enabledPay = useEnabledPayments();
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
   const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassCompleted(); if (trackView === 'notif') loadNotifs(); };
@@ -282,6 +298,11 @@ export default function PendingTasksPage() {
       }
       case 'fall_test_pending':
         return <><button onClick={() => setModal({ kind:'falltest', record: task.record })} style={primaryBtn('#8B1A1A')}>檢視／登記</button></>;
+      case 'installment':
+        return <>
+          <button onClick={() => { setInstallMethod('cash'); setInstallError(''); setModal({ kind:'installment', record: task.record, props:{ seq: task.dueSeq, amount: task.dueAmount, desc: task.desc } }); }} style={primaryBtn('#2D7D46')}>確認收款</button>
+          {goLink(task)}
+        </>;
       default:
         // rental_pickup（取件提醒）、transfer_payment、experience_transfer：維持前往處理
         return <button onClick={() => navigate(task.link)} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 }}>前往處理</button>;
@@ -685,6 +706,40 @@ export default function PendingTasksPage() {
                 catch (e) { setTeamError(e.response?.data?.message || '確認失敗，請重試'); setTeamBusy(false); }
               }} style={{ flex:2, height:42, borderRadius:8, background: teamBusy ? '#9CB9A6' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: teamBusy ? 'not-allowed' : 'pointer' }}>
                 {teamBusy ? '處理中…' : '確認收款'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {modal?.kind === 'installment' && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:220, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:420, border:'0.5px solid #E8D5D5' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontSize:16, fontWeight:600 }}>🧾 確認收款 — 分期付款</div>
+              <span onClick={() => setModal(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
+            </div>
+            <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:14, fontSize:13, color:'#444' }}>{modal.props.desc}</div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8 }}>收款方式</label>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
+              {filterPayments(INSTALLMENT_PAY_METHODS, enabledPay).map(pm => (
+                <button key={pm.key} onClick={() => setInstallMethod(pm.key)}
+                  style={{ height:38, borderRadius:8, border: installMethod===pm.key?'none':'0.5px solid #E8D5D5', background: installMethod===pm.key?'#8B1A1A':'#fff', color: installMethod===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                  {pm.label}
+                </button>
+              ))}
+            </div>
+            {installError && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#A32D2D', marginBottom:12 }}>{installError}</div>}
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setModal(null)} disabled={installBusy} style={{ flex:1, height:42, borderRadius:8, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+              <button disabled={installBusy} onClick={async () => {
+                setInstallBusy(true); setInstallError('');
+                try {
+                  const res = await markInstallmentPaid(modal.record.id, modal.props.seq, installMethod);
+                  afterDone(res.data.message || '已標記此期繳款完成');
+                } catch (e) { setInstallError(e.response?.data?.message || '確認失敗，請重試'); setInstallBusy(false); }
+              }} style={{ flex:2, height:42, borderRadius:8, background: installBusy ? '#9CB9A6' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: installBusy ? 'not-allowed' : 'pointer' }}>
+                {installBusy ? '處理中…' : '確認收款'}
               </button>
             </div>
           </div>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { createInstallmentPlan, markInstallmentPaid, getAllInstallments, runOverdueCheck, sendInstallmentReminders } from '../../api/installments';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
@@ -76,6 +77,18 @@ export default function InstallmentsPage({ embedded = false }) {
   };
 
   useEffect(() => { loadPlans(); }, [statusFilter]);
+
+  // 深連結：待辦頁「前往」帶 ?plan=<id>&seq=<n> 過來時，資料載完自動開啟該筆的標記繳款 Modal
+  const [searchParams] = useSearchParams();
+  const deepLinkDone = useRef(false);
+  useEffect(() => {
+    if (deepLinkDone.current || loading || !plans.length) return;
+    const planId = searchParams.get('plan');
+    const seq = searchParams.get('seq');
+    if (!planId || !seq) return;
+    const plan = plans.find(p => p.id === planId);
+    if (plan) { openPayModal(plan, Number(seq)); deepLinkDone.current = true; }
+  }, [loading, plans, searchParams]);
 
   const handleSearchMember = async (q) => {
     setMemberQuery(q);
