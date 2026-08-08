@@ -91,7 +91,10 @@ const emptyForm = () => ({
 
 export default function CompetitionsPage() {
   const { staff } = useAuth();
-  const canManage = ['super_admin','gym_manager'].includes(staff?.role);
+  // 2026-08-08：後端 competitions.manage 早已開放 full_time 編輯，前端這裡漏更新（一直卡在只認管理員）
+  const canManage = ['super_admin','gym_manager','full_time'].includes(staff?.role);
+  // 財務類動作（實收金額覆寫／開立發票）後端走 requireManager，維持僅管理員（full_time 不含）
+  const isManagerOnly = ['super_admin','gym_manager'].includes(staff?.role);
   const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
@@ -541,7 +544,7 @@ export default function CompetitionsPage() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
                         <span style={{ fontSize:14, fontWeight:600 }}>{r.memberName}</span>
-                        {canManage && (
+                        {isManagerOnly && (
                           <span onClick={e => e.stopPropagation()} style={{ display:'inline-flex', alignItems:'center', gap:3 }}>
                             <span style={{ fontSize:10, color:'#999' }}>實收</span>
                             <RegReceivedAmountEditor reg={r} onSaved={(id, amt) => {
@@ -560,7 +563,7 @@ export default function CompetitionsPage() {
                         {remark.map((rm,i)=><span key={i} style={{ fontSize:10, background:'#FFF8E6', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>{rm}</span>)}
                       </div>
                     </div>
-                    {canManage && (
+                    {isManagerOnly && (
                       <button onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }}
                         style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
                         🧾 開立發票
@@ -619,7 +622,7 @@ export default function CompetitionsPage() {
                 {r.paymentDate && Row('繳款日期', r.paymentDate)}
                 {r.paymentStatus==='confirmed' && Row('確認收款', `NT$${r.paidAmount||r.registrationFee}｜${r.paidConfirmedByName||'—'}`)}
                 {r.insuranceFee != null && Row('保險費', `NT$${r.insuranceFee}${r.isChild?'（兒童）':'（成人）'}`)}
-                {Row('實收金額', canManage
+                {Row('實收金額', isManagerOnly
                   ? <RegReceivedAmountEditor reg={r} onSaved={(id, amt) => {
                       setRegDetail(d => d && d.id === id ? { ...d, receivedAmount: amt, receivedAmountOverride: amt } : d);
                       setRegistrations(list => list.map(x => x.id === id ? { ...x, receivedAmount: amt, receivedAmountOverride: amt } : x));

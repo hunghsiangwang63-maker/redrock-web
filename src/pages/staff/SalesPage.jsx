@@ -75,10 +75,13 @@ const VariantForm = ({ variants, onChange }) => {
 
 export default function SalesPage({ embedded = false }) {
   const enabledPay = useEnabledPayments();
-  const { staff, activeGymId, viewGym } = useAuth();
+  const { staff, activeGymId, viewGym, operator } = useAuth();
+  // 正職個人帳號（未打卡值班）權限收斂（2026-08-08 拍板）：只開放「庫存管理」，銷售／銷售紀錄拿掉
+  // （值班 operator 走 COUNTER_PERMS 完整權限、不受此限）
+  const isInventoryOnly = staff?.role === 'full_time' && !operator;
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const fileRef = useRef();
-  const [tab, setTab] = useState('sell');
+  const [tab, setTab] = useState(isInventoryOnly ? 'inventory' : 'sell');
   const [products, setProducts] = useState([]);
   const [cart, setCart] = useState([]);
   const [confirmClear, setConfirmClear] = useState(false); // 清空購物車二次確認
@@ -388,7 +391,9 @@ export default function SalesPage({ embedded = false }) {
     setMemberResults(res.data.members || []);
   };
 
-  const TABS = [{ key:'sell', label:'銷售' }, { key:'inventory', label:'庫存管理' }, { key:'history', label:'銷售紀錄' }];
+  const TABS = isInventoryOnly
+    ? [{ key:'inventory', label:'庫存管理' }]
+    : [{ key:'sell', label:'銷售' }, { key:'inventory', label:'庫存管理' }, { key:'history', label:'銷售紀錄' }];
 
   // 計算商品最低價
   const getProductPriceRange = (product) => {
