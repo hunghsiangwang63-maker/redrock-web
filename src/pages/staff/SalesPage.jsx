@@ -1122,7 +1122,16 @@ export default function SalesPage({ embedded = false }) {
             <>
               {(() => {
                 const uncheckedCount = stocktakeItems.filter(it => !it.checked).length;
-                const allChecked = stocktakeItems.length > 0 && uncheckedCount === 0;
+                // 兩週內盤點過的品項（依 stocktakeHistory，已由後端依時間新→舊排序，取每個 variantId 最新一次）
+                const recentCountMap = {};
+                stocktakeHistory.forEach(s => {
+                  (s.items || []).forEach(it => { if (it.variantId && !recentCountMap[it.variantId]) recentCountMap[it.variantId] = s.at; });
+                });
+                const twoWeeksAgo = dayjs().subtract(14, 'day');
+                const isRecentlyCounted = (variantId) => {
+                  const at = recentCountMap[variantId];
+                  return !!at && dayjs(at).isAfter(twoWeeksAgo);
+                };
                 const stocktakeCatCounts = {};
                 stocktakeItems.forEach(it => { stocktakeCatCounts[it.category] = (stocktakeCatCounts[it.category] || 0) + 1; });
                 const stocktakeCatOptions = Object.entries(stocktakeCatCounts).sort((a, b) => b[1] - a[1]);
@@ -1151,8 +1160,9 @@ export default function SalesPage({ embedded = false }) {
                       )}
                     </div>
                     <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
-                      請逐項核對實際盤點數量並勾選「已核對」，全部勾選完才能送出
-                      {uncheckedCount > 0 && <span style={{ color:'#854F0B', fontWeight:600 }}>（全部尚有 {uncheckedCount} 項未核對）</span>}
+                      請逐項核對實際盤點數量並勾選「已核對」（無須全部核對即可送出）
+                      {uncheckedCount > 0 && <span style={{ color:'#854F0B' }}>（全部尚有 {uncheckedCount} 項未核對）</span>}
+                      {' '}<span style={{ color:'#185FA5' }}>藍字＝兩週內已盤點過</span>
                     </div>
                     <select value={stocktakeCatFilter} onChange={e => setStocktakeCatFilter(e.target.value)}
                       style={{ width:'100%', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:13, padding:'0 8px', background:'#fff', marginBottom:10 }}>
@@ -1172,17 +1182,18 @@ export default function SalesPage({ embedded = false }) {
                       </div>
                       {visibleStocktakeItems.map((item) => {
                         const hasDiff = parseInt(item.actualStock) !== item.systemStock;
+                        const recent = isRecentlyCounted(item.variantId);
                         return (
                           <div key={item.variantId} style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
                             background: hasDiff ? '#FFF5E8' : (item.checked ? '#F0F8F2' : 'none') }}>
                             <input type="checkbox" checked={!!item.checked}
                               onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, checked: e.target.checked} : it))}
                               style={{ width:18, height:18, cursor:'pointer' }}/>
-                            <div>
-                              {item.brand && <div style={{ fontSize:10, color:'#999' }}>{item.brand}</div>}
+                            <div style={{ color: recent ? '#185FA5' : 'inherit' }}>
+                              {item.brand && <div style={{ fontSize:10, color: recent ? '#185FA5' : '#999' }}>{item.brand}</div>}
                               <div>{item.productName}</div>
                             </div>
-                            <span style={{ color:'#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
+                            <span style={{ color: recent ? '#185FA5' : '#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
                             <span style={{ color:'#999' }}>{item.systemStock}</span>
                             <input type="number" value={item.actualStock}
                               onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, actualStock: e.target.value} : it))}
@@ -1195,10 +1206,10 @@ export default function SalesPage({ embedded = false }) {
                     <div style={{ display:'flex', gap:8, marginTop:16 }}>
                       <button onClick={() => setShowStocktake(false)}
                         style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
-                      <button onClick={handleStocktake} disabled={loading || !allChecked}
-                        style={{ flex:2, height:40, borderRadius:9, background: allChecked ? '#854F0B' : '#ccc', color:'#fff', border:'none', fontSize:13, fontWeight:500,
-                          cursor: allChecked && !loading ? 'pointer' : 'not-allowed' }}>
-                        {loading ? '盤點中...' : allChecked ? '確認盤點' : `請先核對全部項目（尚有 ${uncheckedCount} 項）`}
+                      <button onClick={handleStocktake} disabled={loading || stocktakeItems.length === 0}
+                        style={{ flex:2, height:40, borderRadius:9, background: '#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:500,
+                          cursor: !loading ? 'pointer' : 'not-allowed' }}>
+                        {loading ? '盤點中...' : uncheckedCount > 0 ? `確認盤點（尚有 ${uncheckedCount} 項未核對）` : '確認盤點'}
                       </button>
                     </div>
                   </>
