@@ -118,7 +118,7 @@ export default function SalesPage({ embedded = false }) {
     const rows = [['日期時間', '經手人', '付款方式', '會員', '館別', '品項', '金額']];
     salesList.forEach(s => {
       const t = s.soldAt?.seconds ? s.soldAt.seconds*1000 : s.soldAt?._seconds ? s.soldAt._seconds*1000 : s.soldAt;
-      const items = (s.items||[]).map(i => `${i.brand?i.brand+' ':''}${i.productName}${i.size?` ${i.size}`:''}×${Math.abs(i.quantity)}`).join('、');
+      const items = (s.items||[]).map(i => { const sc = [i.size, i.color].filter(Boolean).join(' / '); return `${i.brand?i.brand+' ':''}${i.productName}${sc?` ${sc}`:''}×${Math.abs(i.quantity)}`; }).join('、');
       rows.push([
         dayjs(t).format('YYYY-MM-DD HH:mm'),
         s.staffName || '',
@@ -740,9 +740,10 @@ export default function SalesPage({ embedded = false }) {
                           if (n == null) return null;
                           return <span style={{ color: n === 0 ? '#A32D2D' : '#666', fontWeight: n === 0 ? 700 : 400 }}>{label} {n}</span>;
                         };
+                        const sizeColor = [i.size, i.color].filter(Boolean).join(' / ');
                         return (
                           <div key={idx} style={{ marginBottom: idx < (sale.items.length-1) ? 5 : 0 }}>
-                            <span>{i.brand ? `${i.brand} ` : ''}{i.productName}{i.size ? ` ${i.size}` : ''}×{Math.abs(i.quantity)}</span>
+                            <span>{i.brand ? `${i.brand} ` : ''}{i.productName}{sizeColor ? ` ${sizeColor}` : ''}×{Math.abs(i.quantity)}</span>
                             {variant && (
                               <span style={{ fontSize:11, marginLeft:8, display:'inline-flex', gap:8, flexWrap:'wrap' }}>
                                 <span style={{ color:'#bbb' }}>存貨</span>
