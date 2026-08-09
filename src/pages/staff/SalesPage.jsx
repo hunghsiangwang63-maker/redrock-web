@@ -1128,10 +1128,17 @@ export default function SalesPage({ embedded = false }) {
                   (s.items || []).forEach(it => { if (it.variantId && !recentCountMap[it.variantId]) recentCountMap[it.variantId] = s.at; });
                 });
                 const twoWeeksAgo = dayjs().subtract(14, 'day');
-                const isRecentlyCounted = (variantId) => {
+                const oneDayAgo = dayjs().subtract(1, 'day');
+                // 回傳 'today'(一天內，紅字) | 'recent'(兩週內，藍字) | null(無)
+                const countedTier = (variantId) => {
                   const at = recentCountMap[variantId];
-                  return !!at && dayjs(at).isAfter(twoWeeksAgo);
+                  if (!at) return null;
+                  const t = dayjs(at);
+                  if (t.isAfter(oneDayAgo)) return 'today';
+                  if (t.isAfter(twoWeeksAgo)) return 'recent';
+                  return null;
                 };
+                const TIER_COLOR = { today: '#A32D2D', recent: '#185FA5' };
                 const stocktakeCatCounts = {};
                 stocktakeItems.forEach(it => { stocktakeCatCounts[it.category] = (stocktakeCatCounts[it.category] || 0) + 1; });
                 const stocktakeCatOptions = Object.entries(stocktakeCatCounts).sort((a, b) => b[1] - a[1]);
@@ -1171,6 +1178,7 @@ export default function SalesPage({ embedded = false }) {
                     <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
                       請逐項核對實際盤點數量並勾選「已核對」（無須全部核對即可送出）
                       {uncheckedCount > 0 && <span style={{ color:'#854F0B' }}>（全部尚有 {uncheckedCount} 項未核對）</span>}
+                      {' '}<span style={{ color:'#A32D2D' }}>紅字＝一天內已盤點過</span>
                       {' '}<span style={{ color:'#185FA5' }}>藍字＝兩週內已盤點過</span>
                     </div>
                     <select value={stocktakeCatFilter} onChange={e => setStocktakeCatFilter(e.target.value)}
@@ -1191,18 +1199,19 @@ export default function SalesPage({ embedded = false }) {
                       </div>
                       {visibleStocktakeItems.map((item) => {
                         const hasDiff = parseInt(item.actualStock) !== item.systemStock;
-                        const recent = isRecentlyCounted(item.variantId);
+                        const tier = countedTier(item.variantId);
+                        const tierColor = tier ? TIER_COLOR[tier] : null;
                         return (
                           <div key={item.variantId} style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
                             background: hasDiff ? '#FFF5E8' : (item.checked ? '#F0F8F2' : 'none') }}>
                             <input type="checkbox" checked={!!item.checked}
                               onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, checked: e.target.checked} : it))}
                               style={{ width:18, height:18, cursor:'pointer' }}/>
-                            <div style={{ color: recent ? '#185FA5' : 'inherit' }}>
-                              {item.brand && <div style={{ fontSize:10, color: recent ? '#185FA5' : '#999' }}>{item.brand}</div>}
+                            <div style={{ color: tierColor || 'inherit' }}>
+                              {item.brand && <div style={{ fontSize:10, color: tierColor || '#999' }}>{item.brand}</div>}
                               <div>{item.productName}</div>
                             </div>
-                            <span style={{ color: recent ? '#185FA5' : '#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
+                            <span style={{ color: tierColor || '#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
                             <span style={{ color:'#999' }}>{item.systemStock}</span>
                             <input type="number" value={item.actualStock}
                               onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, actualStock: e.target.value} : it))}
