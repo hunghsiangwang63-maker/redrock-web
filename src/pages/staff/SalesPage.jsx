@@ -1147,6 +1147,15 @@ export default function SalesPage({ embedded = false }) {
                 );
                 return (
                   <>
+                    <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+                      <button onClick={() => setShowStocktake(false)}
+                        style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
+                      <button onClick={handleStocktake} disabled={loading || stocktakeItems.length === 0}
+                        style={{ flex:2, height:40, borderRadius:9, background: '#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:500,
+                          cursor: !loading ? 'pointer' : 'not-allowed' }}>
+                        {loading ? '盤點中...' : uncheckedCount > 0 ? `確認盤點（尚有 ${uncheckedCount} 項未核對）` : '確認盤點'}
+                      </button>
+                    </div>
                     <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
                       <div style={{ fontSize:12, color:'#666', marginBottom: stocktakeHistory.length > 0 ? 4 : 0 }}>上次盤點時間：</div>
                       {stocktakeHistory.length > 0 ? historyRow(stocktakeHistory[0], 'latest') : <span style={{ fontSize:12, color:'#999' }}>尚無盤點紀錄</span>}
@@ -1202,15 +1211,6 @@ export default function SalesPage({ embedded = false }) {
                           </div>
                         );
                       })}
-                    </div>
-                    <div style={{ display:'flex', gap:8, marginTop:16 }}>
-                      <button onClick={() => setShowStocktake(false)}
-                        style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
-                      <button onClick={handleStocktake} disabled={loading || stocktakeItems.length === 0}
-                        style={{ flex:2, height:40, borderRadius:9, background: '#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:500,
-                          cursor: !loading ? 'pointer' : 'not-allowed' }}>
-                        {loading ? '盤點中...' : uncheckedCount > 0 ? `確認盤點（尚有 ${uncheckedCount} 項未核對）` : '確認盤點'}
-                      </button>
                     </div>
                   </>
                 );
