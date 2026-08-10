@@ -67,13 +67,17 @@ export default function InstallmentsPage({ embedded = false }) {
 
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 4000); };
 
+  // ⚠️ 由篩選條件切換與多個繳款/動作處理觸發，序號防過期回應覆蓋。
+  const plansSeqRef = useRef(0);
   const loadPlans = async () => {
+    const seq = ++plansSeqRef.current;
     setLoading(true);
     try {
       const res = await getAllInstallments(statusFilter || undefined);
+      if (seq !== plansSeqRef.current) return;
       setPlans(res.data.plans || []);
-    } catch (e) { setPlans([]); }
-    finally { setLoading(false); }
+    } catch (e) { if (seq === plansSeqRef.current) setPlans([]); }
+    finally { if (seq === plansSeqRef.current) setLoading(false); }
   };
 
   useEffect(() => { loadPlans(); }, [statusFilter]);

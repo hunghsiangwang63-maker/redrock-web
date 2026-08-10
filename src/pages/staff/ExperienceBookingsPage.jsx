@@ -116,8 +116,16 @@ export default function ExperienceBookingsPage() {
   const [assignQ, setAssignQ] = useState({});     // { ticketId: query }
   const [assignRes, setAssignRes] = useState({}); // { ticketId: members[] }
   const [assigningTid, setAssigningTid] = useState(null);
+  // ⚠️ 依 bid（預約 id）各自獨立記序號——展開某預約與其後指派動作都會重呼叫同一筆 bid，用序號防
+  // 過期回應覆蓋（不同 bid 各自獨立，不互相影響）。
+  const ticketsSeqRef = useRef({});
   const loadTickets = async (bid) => {
-    try { const r = await client.get(`/experience-bookings/${bid}/tickets`); setTicketsByBooking(m => ({ ...m, [bid]: r.data.tickets || [] })); }
+    const seq = (ticketsSeqRef.current[bid] = (ticketsSeqRef.current[bid] || 0) + 1);
+    try {
+      const r = await client.get(`/experience-bookings/${bid}/tickets`);
+      if (seq !== ticketsSeqRef.current[bid]) return;
+      setTicketsByBooking(m => ({ ...m, [bid]: r.data.tickets || [] }));
+    }
     catch { /* 忽略 */ }
   };
   const searchAssign = async (tid, q) => {
@@ -198,12 +206,16 @@ export default function ExperienceBookingsPage() {
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
 
+  // ⚠️ 由館別篩選與多個備註/教練/指派/編輯/狀態動作觸發，序號防過期回應覆蓋。
+  const loadSeqRef = useRef(0);
   const load = async () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     try {
       const res = await client.get('/experience-bookings', { params:{ gymId:gymFilter||undefined, from:fromDate, to:toDate } });
+      if (seq !== loadSeqRef.current) return;
       setBookings(res.data.bookings||[]);
-    } catch(e){} finally { setLoading(false); }
+    } catch(e){} finally { if (seq === loadSeqRef.current) setLoading(false); }
   };
 
   const loadSettings = async () => {
@@ -239,11 +251,18 @@ export default function ExperienceBookingsPage() {
     finally { setSendingId(null); }
   };
 
+  // ⚠️ 由寄送保險名冊、分頁切換、館別篩選、手動按鈕四處觸發，序號防過期回應覆蓋。
+  const historySeqRef = useRef(0);
   const loadHistory = async (g) => {
+    const seq = ++historySeqRef.current;
     setHistory(null);
     const gid = g !== undefined ? g : gymFilter;
-    try { const r = await client.get('/experience-bookings/insurance-history', { params:{ gymId: gid||undefined } }); setHistory(r.data.records||[]); }
-    catch(e) { setHistory([]); }
+    try {
+      const r = await client.get('/experience-bookings/insurance-history', { params:{ gymId: gid||undefined } });
+      if (seq !== historySeqRef.current) return;
+      setHistory(r.data.records||[]);
+    }
+    catch(e) { if (seq === historySeqRef.current) setHistory([]); }
   };
 
 

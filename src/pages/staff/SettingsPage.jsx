@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import PasswordInput from '../../components/PasswordInput';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
@@ -148,22 +148,30 @@ export default function SettingsPage() {
     finally { setEmailVerifySaving(false); }
   };
 
+  // ⚠️ 由分頁切換與多個員工帳號動作觸發，序號防過期回應覆蓋。
+  const staffListSeqRef = useRef(0);
   const loadStaffList = async () => {
+    const seq = ++staffListSeqRef.current;
     setStaffLoading(true);
     try {
       const res = await getStaffList();
+      if (seq !== staffListSeqRef.current) return;
       setStaffList(res.data.staffList || []);
-    } catch (e) { setStaffList([]); }
-    finally { setStaffLoading(false); }
+    } catch (e) { if (seq === staffListSeqRef.current) setStaffList([]); }
+    finally { if (seq === staffListSeqRef.current) setStaffLoading(false); }
   };
 
+  // ⚠️ 由分頁切換與多個館別電腦動作觸發，序號防過期回應覆蓋。
+  const stationListSeqRef = useRef(0);
   const loadStationList = async () => {
+    const seq = ++stationListSeqRef.current;
     setStationLoading(true);
     try {
       const res = await getStations();
+      if (seq !== stationListSeqRef.current) return;
       setStationList(res.data.stations || []);
-    } catch (e) { setStationList([]); }
-    finally { setStationLoading(false); }
+    } catch (e) { if (seq === stationListSeqRef.current) setStationList([]); }
+    finally { if (seq === stationListSeqRef.current) setStationLoading(false); }
   };
 
   useEffect(() => {
@@ -483,9 +491,13 @@ export default function SettingsPage() {
   const [invoicePrintingGym, setInvoicePrintingGym] = useState('gym-hsinchu');
   const [invoicePrinting, setInvoicePrinting] = useState({ enabled: false, changedAt: null, changedBy: null });
   const [invoicePrintingDirty, setInvoicePrintingDirty] = useState(false);
+  // ⚠️ 由分頁開啟與切換館別兩處觸發，序號防過期回應覆蓋（快速切換館別按鈕時避免顯示錯的館別狀態）。
+  const invoicePrintingSeqRef = useRef(0);
   const loadInvoicePrinting = async (gymId) => {
+    const seq = ++invoicePrintingSeqRef.current;
     try {
       const res = await client.get('/invoices/printing-status', { params: { gymId } });
+      if (seq !== invoicePrintingSeqRef.current) return;
       setInvoicePrinting({ enabled: !!res.data.enabled, changedAt: res.data.changedAt, changedBy: res.data.changedBy });
       setInvoicePrintingDirty(false);
     } catch (e) {}
@@ -518,13 +530,17 @@ export default function SettingsPage() {
       setInvNumGym(ownGymId);
     }
   }, [activeTab, canManageInvoiceNumbers, isSuperAdmin, ownGymId]);
+  // ⚠️ 由分頁開啟與切換館別兩處觸發，序號防過期回應覆蓋。
+  const invStateSeqRef = useRef(0);
   const loadInvState = async (gymId) => {
+    const seq = ++invStateSeqRef.current;
     setInvStateLoading(true);
     try {
       const res = await client.get('/invoices/state', { params: { gymId } });
+      if (seq !== invStateSeqRef.current) return;
       setInvState(res.data.invoiceState || null);
-    } catch (e) { setInvState(null); }
-    finally { setInvStateLoading(false); }
+    } catch (e) { if (seq === invStateSeqRef.current) setInvState(null); }
+    finally { if (seq === invStateSeqRef.current) setInvStateLoading(false); }
   };
   const handleSetInvState = async (force = false) => {
     setInvDupWarning(null);
@@ -631,9 +647,14 @@ export default function SettingsPage() {
   const [pendingDevices, setPendingDevices] = useState([]);
   const [deviceActionLoading, setDeviceActionLoading] = useState(null);
 
+  // ⚠️ 由核准/拒絕裝置動作觸發，連續處理多筆待審裝置（核准A→立刻核准B）容易讓兩次載入重疊，
+  // 序號防過期回應覆蓋、避免已核准/拒絕的裝置看起來又跑回待審清單。
+  const pendingDevicesSeqRef = useRef(0);
   const loadPendingDevices = async () => {
+    const seq = ++pendingDevicesSeqRef.current;
     try {
       const res = await client.get('/auth/device/pending');
+      if (seq !== pendingDevicesSeqRef.current) return;
       setPendingDevices(res.data.devices || []);
     } catch (e) {}
   };
@@ -660,9 +681,13 @@ export default function SettingsPage() {
 
   // 已核准（信任）裝置
   const [trustedDevices, setTrustedDevices] = useState([]);
+  // ⚠️ 由分頁切換與移除裝置動作觸發，序號防過期回應覆蓋。
+  const trustedDevicesSeqRef = useRef(0);
   const loadTrustedDevices = async () => {
+    const seq = ++trustedDevicesSeqRef.current;
     try {
       const res = await client.get('/auth/device/trusted');
+      if (seq !== trustedDevicesSeqRef.current) return;
       setTrustedDevices(res.data.devices || []);
     } catch (e) {}
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore.jsx';
 import { getGyms } from '../../api/gyms';
@@ -131,10 +131,15 @@ export default function DailySettlementPage() {
   // 系統轉換期設定（手動輸入並列 / 卡號顯示）
   useEffect(() => { client.get('/settings/transition').then(r => setTransition(r.data)).catch(() => {}); }, []);
 
+  // ⚠️ 由館別切換與完成結帳後兩處觸發，序號防過期回應覆蓋這份正在填寫的結帳表單
+  // （若過期資料蓋掉剛結帳完成後的最新狀態，或蓋掉店員正在輸入的點鈔/發票欄位，影響較大）。
+  const todaySeqRef = useRef(0);
   const loadToday = async () => {
+    const seq = ++todaySeqRef.current;
     setLoading(true);
     try {
       const res = await client.get('/daily-settlements/today', { params: { gymId } });
+      if (seq !== todaySeqRef.current) return;
       setSettlement(res.data.settlement);
       setAlreadySettled(res.data.alreadySettled);
       setLiveSettlement(res.data.live || null);
@@ -170,13 +175,17 @@ export default function DailySettlementPage() {
           if (sug || sugTrack) setInvoiceSegments([{ track: sugTrack || '', start: sug || '', last: '' }]);
         }
       }
-    } catch (e) { showMsg('載入失敗', 'err'); }
-    finally { setLoading(false); }
+    } catch (e) { if (seq === todaySeqRef.current) showMsg('載入失敗', 'err'); }
+    finally { if (seq === todaySeqRef.current) setLoading(false); }
   };
 
+  // ⚠️ 同上，由館別切換與完成結帳後觸發，序號防過期回應覆蓋歷史清單。
+  const historySeqRef = useRef(0);
   const loadHistory = async () => {
+    const seq = ++historySeqRef.current;
     try {
       const res = await client.get('/daily-settlements', { params: { gymId, days: 30 } });
+      if (seq !== historySeqRef.current) return;
       setHistory(res.data.settlements || []);
     } catch (e) {}
   };

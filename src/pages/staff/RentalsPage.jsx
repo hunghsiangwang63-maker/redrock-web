@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff, cancelRentalStaff, updateRentalStaff, saveRentalStaffNote, returnRentalDeposit, getRentalInvoices, createRentalInvoice, voidRentalInvoice } from '../../api/rentals';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -63,16 +63,20 @@ export default function RentalsPage({ embedded = false }) {
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
 
+  // ⚠️ 由館別篩選與多個取消/修改/退押金/備註/動作 Modal 觸發，序號防過期回應覆蓋。
+  const loadAllSeqRef = useRef(0);
   const loadAll = async () => {
+    const seq = ++loadAllSeqRef.current;
     setLoading(true);
     try {
       const [rr, sr] = await Promise.allSettled([
         getRentals({ gymId: filterGym || undefined }),
         getRentalStats({ gymId: filterGym || undefined, from: filterFrom, to: filterTo }),
       ]);
+      if (seq !== loadAllSeqRef.current) return;
       if (rr.status==='fulfilled') setRentals(rr.value.data.rentals||[]);
       if (sr.status==='fulfilled') setStats(sr.value.data);
-    } finally { setLoading(false); }
+    } finally { if (seq === loadAllSeqRef.current) setLoading(false); }
   };
 
   useEffect(() => { loadAll(); }, [filterGym]);

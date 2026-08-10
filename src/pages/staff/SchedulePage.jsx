@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule, getScheduleEvents, createScheduleEvent, createRecurringScheduleEvent, updateScheduleEvent, deleteScheduleEvent } from '../../api/schedule';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
@@ -128,8 +128,11 @@ export default function SchedulePage() {
     } catch(e) {}
   };
 
+  // ⚠️ 由館別/月份切換與 7 個排班動作處理觸發，連續處理多筆排班異動時序號防過期回應覆蓋。
+  const loadDataSeqRef = useRef(0);
   const loadData = async () => {
     if (!targetGymId) return;
+    const seq = ++loadDataSeqRef.current;
     setLoading(true);
     try {
       const [shiftsRes, staffRes, eventsRes] = await Promise.all([
@@ -137,11 +140,12 @@ export default function SchedulePage() {
         canManage ? getScheduleStaffList(targetGymId) : Promise.resolve({ data: { staffList: [] } }),
         getScheduleEvents(targetGymId, month).catch(() => ({ data: { events: [] } })),
       ]);
+      if (seq !== loadDataSeqRef.current) return;
       setShifts(shiftsRes.data.shifts || []);
       setStaffList(staffRes.data.staffList || []);
       setEvents(eventsRes.data.events || []);
-    } catch (e) { setShifts([]); }
-    finally { setLoading(false); }
+    } catch (e) { if (seq === loadDataSeqRef.current) setShifts([]); }
+    finally { if (seq === loadDataSeqRef.current) setLoading(false); }
   };
 
   useEffect(() => { loadData(); loadSettings(); }, [targetGymId, month]);

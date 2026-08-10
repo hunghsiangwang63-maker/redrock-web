@@ -144,10 +144,19 @@ export default function CompetitionsPage() {
     finally { setFormSaving(false); }
   };
 
+  // ⚠️ 由 mount effect 與多個報名狀態異動動作觸發，連續處理多筆報名（核准A→立刻核准B）容易讓
+  // 兩次載入重疊，序號只採用最新一次回應，避免過期資料蓋掉剛處理完成後的最新賽事清單。
+  const competitionsSeqRef = useRef(0);
   const loadCompetitions = async () => {
+    const seq = ++competitionsSeqRef.current;
     setLoading(true);
-    try { const r = await getCompetitions(); setCompetitions(r.data.competitions||[]); }
-    catch(e) { setCompetitions([]); } finally { setLoading(false); }
+    try {
+      const r = await getCompetitions();
+      if (seq !== competitionsSeqRef.current) return;
+      setCompetitions(r.data.competitions||[]);
+    }
+    catch(e) { if (seq === competitionsSeqRef.current) setCompetitions([]); }
+    finally { if (seq === competitionsSeqRef.current) setLoading(false); }
   };
   useEffect(()=>{ loadCompetitions(); },[]);
   // 深連結：?comp=<id> → 賽事載入後自動開啟該賽事的報名名單（供通知「查看」按鈕使用；只開一次）

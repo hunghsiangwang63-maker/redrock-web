@@ -103,15 +103,19 @@ export default function SalesPage({ embedded = false }) {
   const [salesTo, setSalesTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [confirmReturn, setConfirmReturn] = useState(null); // 待退貨的銷售
   const [returnReason, setReturnReason] = useState('');
+  // ⚠️ 由完成銷售、分頁/館別/日期區間變動兩處觸發，序號防過期回應覆蓋。
+  const salesSeqRef = useRef(0);
   const loadSales = async () => {
     if (salesFrom > salesTo) { setSalesList([]); return; }
+    const seq = ++salesSeqRef.current;
     setSalesLoading(true);
     try {
       const base = { dateFrom: salesFrom, dateTo: salesTo };
       const res = await getProductSales(targetGymId && targetGymId !== 'warehouse' ? { gymId: targetGymId, ...base } : base);
+      if (seq !== salesSeqRef.current) return;
       setSalesList(res.data.sales || []);
-    } catch (e) { setSalesList([]); }
-    finally { setSalesLoading(false); }
+    } catch (e) { if (seq === salesSeqRef.current) setSalesList([]); }
+    finally { if (seq === salesSeqRef.current) setSalesLoading(false); }
   };
   const exportSalesCsv = () => {
     const method = { cash:'現金', linepay:'Line Pay', jkopay:'街口', taiwanpay:'台灣Pay' };
@@ -207,9 +211,13 @@ export default function SalesPage({ embedded = false }) {
   useEffect(() => { loadProducts(); }, [targetGymId]);
   useEffect(() => { if (tab === 'history') loadSales(); /* eslint-disable-next-line */ }, [tab, targetGymId, salesFrom, salesTo]);
 
+  // ⚠️ 由館別切換與 8+ 個商品 CRUD/銷售動作觸發，序號防過期回應覆蓋（連續處理多筆商品異動時常見）。
+  const productsSeqRef = useRef(0);
   const loadProducts = async () => {
+    const seq = ++productsSeqRef.current;
     try {
       const res = await getProducts(targetGymId);
+      if (seq !== productsSeqRef.current) return;
       setProducts(res.data.products || []);
     } catch (e) {}
   };

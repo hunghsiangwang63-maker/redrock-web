@@ -73,14 +73,19 @@ export default function CheckinPage() {
   const [courseStudentsLoading, setCourseStudentsLoading] = useState(false);
   const [quickCheckinLoading, setQuickCheckinLoading] = useState(null); // memberId 正在處理中
 
+  // ⚠️ 由 targetGymId 效果、快速入場成功後、視窗取得焦點三處觸發；連續快速入場多位學員可能讓
+  // 多次載入重疊，用序號只採用最新一次回應，避免過期資料蓋掉最新學員名單。
+  const courseStudentsSeqRef = useRef(0);
   const loadCourseStudents = async () => {
     if (!targetGymId) return;
+    const seq = ++courseStudentsSeqRef.current;
     setCourseStudentsLoading(true);
     try {
       const res = await getTodayCourseStudents(targetGymId);
+      if (seq !== courseStudentsSeqRef.current) return;
       setCourseStudents(res.data.students || []);
-    } catch (e) { setCourseStudents([]); }
-    finally { setCourseStudentsLoading(false); }
+    } catch (e) { if (seq === courseStudentsSeqRef.current) setCourseStudents([]); }
+    finally { if (seq === courseStudentsSeqRef.current) setCourseStudentsLoading(false); }
   };
 
   useEffect(() => { loadCourseStudents(); }, [targetGymId]);
@@ -175,9 +180,13 @@ export default function CheckinPage() {
     if (tab === 'history') loadHistory();
   });
 
+  // ⚠️ 由 8+ 處觸發（入場/取消/確認等每個動作完成後皆呼叫），序號防過期回應覆蓋最新統計。
+  const statsSeqRef = useRef(0);
   const loadStats = async () => {
+    const seq = ++statsSeqRef.current;
     try {
       const res = await getTodayStats(staff?.gymId);
+      if (seq !== statsSeqRef.current) return;
       setStats(res.data);
     } catch (e) {}
   };
@@ -197,20 +206,27 @@ export default function CheckinPage() {
     } catch (e) {}
   };
 
+  // ⚠️ 由分頁切換、視窗取得焦點兩處觸發，序號防過期回應覆蓋。
+  const todayCheckInsSeqRef = useRef(0);
   const loadTodayCheckIns = async () => {
+    const seq = ++todayCheckInsSeqRef.current;
     setTodayLoading(true);
     try {
       const res = await client.get('/checkin/today');
+      if (seq !== todayCheckInsSeqRef.current) return;
       const all = res.data?.recent || [];
       setTodayCheckIns(all.filter(c => !c.isCancelled));
     } catch(e) { console.error(e); }
-    finally { setTodayLoading(false); }
+    finally { if (seq === todayCheckInsSeqRef.current) setTodayLoading(false); }
   };
 
   // 歷史入場：指定區間（台灣時間，含起訖整日）全館逐筆
+  // ⚠️ 由分頁切換、日期區間變動、視窗取得焦點三處觸發，序號防過期回應覆蓋。
+  const historySeqRef = useRef(0);
   const loadHistory = async () => {
     if (!targetGymId && !isSuperAdmin) return;
     if (historyFrom > historyTo) { setHistoryCheckIns([]); return; }
+    const seq = ++historySeqRef.current;
     setHistoryLoading(true);
     try {
       const res = await getCheckInHistory({
@@ -219,9 +235,10 @@ export default function CheckinPage() {
         dateTo: `${historyTo}T23:59:59+08:00`,
         limit: 10000,
       });
+      if (seq !== historySeqRef.current) return;
       setHistoryCheckIns((res.data.checkIns || []).filter(c => !c.isCancelled));
-    } catch (e) { setHistoryCheckIns([]); }
-    finally { setHistoryLoading(false); }
+    } catch (e) { if (seq === historySeqRef.current) setHistoryCheckIns([]); }
+    finally { if (seq === historySeqRef.current) setHistoryLoading(false); }
   };
 
   const exportHistoryCsv = () => {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../../store/authStore';
 import { searchMembers } from '../../api/members';
 import {
@@ -467,13 +467,18 @@ export default function CardsPage({ embedded = false }) {
   const [bonuses, setBonuses] = useState([]);
   const [pendingXfers, setPendingXfers] = useState([]);
 
+  // ⚠️ 由選取會員、取消移轉、子元件 onRefresh（轉入/轉出/黑卡動作完成後）等多處觸發，序號防過期
+  // 回應覆蓋（快速切換會員或連續處理卡片動作時）。
+  const loadCardsSeqRef = useRef(0);
   const loadCards = async (m) => {
+    const seq = ++loadCardsSeqRef.current;
     const [dc, bc, bn, px] = await Promise.all([
       getMemberDiscountCards(m.id),
       getMemberBlackCards(m.id),
       getMemberBonuses(m.id),
       getOutgoingTransfers(m.id).catch(() => ({ data: { transfers: [] } })),
     ]);
+    if (seq !== loadCardsSeqRef.current) return;
     setDiscountCards(dc.data.cards || []);
     setBlackCards(bc.data.cards || []);
     setBonuses(bn.data.bonuses || []);

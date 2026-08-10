@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getGyms, getAnnouncements, updateGymInfo, updateGymHours, createAnnouncement, updateAnnouncement, deleteAnnouncement } from '../../api/gyms';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
@@ -56,28 +56,38 @@ export default function GymsPage({ embedded = false }) {
   const [bankSaving, setBankSaving] = useState(false);
   const [bankMsg, setBankMsg] = useState('');
 
+  // ⚠️ 由 mount effect 與儲存銀行帳號動作觸發，序號防過期回應覆蓋。
+  const bankSeqRef = useRef(0);
   const loadBank = async () => {
+    const seq = ++bankSeqRef.current;
     try {
       const res = await client.get('/settings/bank-accounts');
+      if (seq !== bankSeqRef.current) return;
       setBankAccounts(res.data.bankAccounts || {});
     } catch (e) {}
   };
 
+  // ⚠️ 由 mount effect 與 reloadGyms()（儲存場館/營業時間後）共用同一組序號，防過期回應覆蓋 gyms/selected。
+  const gymsSeqRef = useRef(0);
   useEffect(() => {
     loadBank();
+    const seq = ++gymsSeqRef.current;
     Promise.all([getGyms(), getAnnouncements()])
       .then(([gRes, aRes]) => {
+        if (seq !== gymsSeqRef.current) return;
         const gs = gRes.data.gyms || [];
         setGyms(gs);
         setAnnouncements(aRes.data.announcements || []);
         const mine = isSuperAdmin ? gs : gs.filter(g => g.id === myGymId);
         if (mine.length > 0) setSelected(mine[0]);
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (seq === gymsSeqRef.current) setLoading(false); });
   }, []);
 
   const reloadGyms = async () => {
+    const seq = ++gymsSeqRef.current;
     const gRes = await getGyms();
+    if (seq !== gymsSeqRef.current) return;
     setGyms(gRes.data.gyms || []);
     if (selected) {
       const fresh = (gRes.data.gyms || []).find(g => g.id === selected.id);

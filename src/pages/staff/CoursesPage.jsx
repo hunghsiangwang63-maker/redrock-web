@@ -350,14 +350,22 @@ export default function CoursesPage({ embedded = false }) {
     }
   };
 
+  // ⚠️ 由館別切換與多個課程 CRUD 動作完成後觸發，連續操作可能讓多次載入重疊，序號防過期覆蓋。
+  const coursesSeqRef = useRef(0);
   const loadCourses = async () => {
+    const seq = ++coursesSeqRef.current;
     try {
       const res = await getCourses(effectiveGymId);
+      if (seq !== coursesSeqRef.current) return;
       setCourses(res.data.courses || []);
     } catch (e) {}
   };
 
+  // ⚠️ 由分頁切換與多個場次/名單相關動作觸發，序號防過期回應覆蓋（尤其快速切換課程時避免用
+  // 舊課程的場次資料算錯插班費用等）。
+  const sessionsSeqRef = useRef(0);
   const loadSessions = async (course) => {
+    const seq = ++sessionsSeqRef.current;
     try {
       const c = course || selectedCourse;
       const fromDate = c?.startDate || dayjs().subtract(7, 'day').format('YYYY-MM-DD');
@@ -365,6 +373,7 @@ export default function CoursesPage({ embedded = false }) {
       const horizon = dayjs().add(180, 'day').format('YYYY-MM-DD');
       const toDate = (c?.endDate && c.endDate > horizon) ? c.endDate : horizon;
       const res = await getSessions({ gymId: effectiveGymId, fromDate, toDate });
+      if (seq !== sessionsSeqRef.current) return;
       setSessions(res.data.sessions || []);
     } catch (e) {}
   };
@@ -380,11 +389,16 @@ export default function CoursesPage({ embedded = false }) {
     finally { setCalendarLoading(false); }
   };
 
+  // ⚠️ 由多個場次名單點擊入口觸發，快速切換不同場次時序號防過期回應覆蓋（避免顯示錯的名單）。
+  const rosterSeqRef = useRef(0);
   const loadRoster = async (sessionId) => {
+    const seq = ++rosterSeqRef.current;
     try {
       const res = await getSessionRoster(sessionId);
+      if (seq !== rosterSeqRef.current) return;
       setRoster(res.data);
     } catch (e) {
+      if (seq !== rosterSeqRef.current) return;
       // 不吞錯誤：403/失敗顯示真實原因（曾因權限 403 被吞、誤顯示「尚無學員報名」）
       setRoster({ roster: [], error: e.response?.status === 403 ? '無權限檢視名單' : (e.response?.data?.message || '名單載入失敗') });
     }
@@ -727,25 +741,34 @@ export default function CoursesPage({ embedded = false }) {
     setEnrollResults(res.data.members || []);
   };
 
+  // ⚠️ loadLmAll 與 loadLeaveMakeup 共用同一個 lmSummary 狀態（切換「全部課程」與「單一課程」檢視），
+  // 快速切換不同課程/檢視模式時共用序號防過期回應覆蓋（例：先點課程A又立刻點課程B，A 的回應較晚
+  // 到達時不該蓋掉已顯示的 B）。
+  const lmSeqRef = useRef(0);
   const loadLmAll = async (sel) => {
+    const seq = ++lmSeqRef.current;
     setLmSummary({ loading: true, mode: 'all', sel });
     try {
       if (sel === 'all') {
         const params = effectiveGymId ? { gymId: effectiveGymId } : {};
         const r = await client.get('/courses/leave-makeup-summary/all', { params });
+        if (seq !== lmSeqRef.current) return;
         setLmSummary({ loading: false, mode: 'all', sel: 'all', groups: r.data.groups || [], crossMakeups: r.data.crossMakeups || [], overdueMakeups: r.data.overdueMakeups || [], historicalLeaves: r.data.historicalLeaves || [] });
       } else {
         const r = await client.get(`/courses/${sel}/leave-makeup-summary`);
+        if (seq !== lmSeqRef.current) return;
         setLmSummary({ loading: false, mode: 'all', sel, groups: [r.data] });
       }
-    } catch (e) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); }
+    } catch (e) { if (seq === lmSeqRef.current) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); } }
   };
   const loadLeaveMakeup = async (c) => {
+    const seq = ++lmSeqRef.current;
     setLmSummary({ loading: true, courseName: c.name });
     try {
       const r = await client.get(`/courses/${c.id}/leave-makeup-summary`);
+      if (seq !== lmSeqRef.current) return;
       setLmSummary({ loading: false, ...r.data });
-    } catch (e) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); }
+    } catch (e) { if (seq === lmSeqRef.current) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); } }
   };
 const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 {session}
   const doClosureCancel = async () => {
@@ -816,15 +839,19 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
   const copyPublicCategoryLink = (cat) => copyPublicLink(`https://app.redrocktaiwan.com/book/category?id=${cat.id}`);
   const copyPublicWorkshopLink = (courseId, sessionId) => copyPublicLink(`https://app.redrocktaiwan.com/book/workshop?course=${courseId}&session=${sessionId}`);
   const copyPublicTrialLink = (sessionId) => copyPublicLink(`https://app.redrocktaiwan.com/book/trial?session=${sessionId}`);
+  // ⚠️ 由多個課程名單點擊入口＋深連結觸發，快速切換不同課程時序號防過期回應覆蓋。
+  const courseRosterSeqRef = useRef(0);
   const loadCourseRoster = async (course) => {
+    const seq = ++courseRosterSeqRef.current;
     setRosterModal({ course, enrollments: null });
     setRosterLoading(true);
     try {
       const res = await client.get(`/courses/${course.id}/enrollments`);
+      if (seq !== courseRosterSeqRef.current) return;
       const enrollments = res.data.enrollments || [];
       setRosterModal({ course, enrollments });
-    } catch(e) { setRosterModal({ course, enrollments: [] }); }
-    finally { setRosterLoading(false); }
+    } catch(e) { if (seq === courseRosterSeqRef.current) setRosterModal({ course, enrollments: [] }); }
+    finally { if (seq === courseRosterSeqRef.current) setRosterLoading(false); }
   };
 
   // 管理員為（插班）學員個別填寫可請假次數（空＝回課程整期預設）

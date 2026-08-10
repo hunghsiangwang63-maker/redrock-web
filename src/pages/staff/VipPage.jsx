@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getVipList, addVip, updateVip, removeVip } from '../../api/vip';
 import { getTeamFeeSettings, updateTeamFeeSettings, getTeamMembers, createTeamMember, updateTeamApplication, deleteTeamApplication, confirmTeamPayment, downloadTeamFile } from '../../api/team';
 import { searchMembers } from '../../api/members';
@@ -71,17 +71,22 @@ export default function VipPage({ embedded = false, section = null }) {
     finally { setTeamFeesSaving(false); }
   };
 
+  // ⚠️ 由年度切換與 4 個隊員動作觸發，連續處理多筆隊員異動時序號防過期回應覆蓋。
+  const teamMembersSeqRef = useRef(0);
   const loadTeamMembers = async () => {
+    const seq = ++teamMembersSeqRef.current;
     setTeamLoading(true);
     setTeamError(null);
     try {
       const res = await getTeamMembers(teamYear);
+      if (seq !== teamMembersSeqRef.current) return;
       setTeamMembers(res.data.members || []);
     } catch (e) {
+      if (seq !== teamMembersSeqRef.current) return;
       setTeamError(e.response?.data?.message || '載入失敗');
       setTeamMembers([]);
     } finally {
-      setTeamLoading(false);
+      if (seq === teamMembersSeqRef.current) setTeamLoading(false);
     }
   };
 
@@ -177,15 +182,20 @@ export default function VipPage({ embedded = false, section = null }) {
 
   useEffect(() => { loadVips(); }, []);
 
+  // ⚠️ 由掛載與 3 個 VIP 核准/處理動作觸發，連續處理多筆時序號防過期回應覆蓋。
+  const vipsSeqRef = useRef(0);
   const loadVips = async () => {
+    const seq = ++vipsSeqRef.current;
     setLoading(true);
     try {
       const res = await getVipList();
+      if (seq !== vipsSeqRef.current) return;
       setVips(res.data.vips || []);
     } catch (e) {
+      if (seq !== vipsSeqRef.current) return;
       setError(null); setVips([]);
     } finally {
-      setLoading(false);
+      if (seq === vipsSeqRef.current) setLoading(false);
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { entryLabelOf } from '../../utils/entryLabel';
 import PasswordInput from '../../components/PasswordInput';
 import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount, getCourseStudentsHistoryList, getCourseStudentsHistoryDetail, getFutureCourseStudents, downloadFutureCourseStudents } from '../../api/members';
@@ -650,10 +650,15 @@ export default function MembersPage() {
   const [successBanner, setSuccessBanner] = useState('');
   const showBanner = (msg) => { setSuccessBanner(msg); setTimeout(() => setSuccessBanner(''), 3000); };
 
+  // ⚠️ 由編輯儲存、退回聲明書/墜測、登記墜測結果等多個動作觸發，同一會員連續快速處理多個動作時
+  // 序號防過期回應覆蓋剛完成動作後的最新會員詳情。
+  const reloadDetailSeqRef = useRef(0);
   const reloadDetail = async () => {
     if (!detail?.member?.id) return;
+    const seq = ++reloadDetailSeqRef.current;
     try {
       const res = await getMember(detail.member.id);
+      if (seq !== reloadDetailSeqRef.current) return;
       setDetail(res.data);
       const updatedMember = res.data.member;
       if (updatedMember) {

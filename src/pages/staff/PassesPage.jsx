@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getPassTypes, getMemberPasses, createPass, updatePass, renewPass,
          getMemberSingleEntryTickets, issueSingleEntryTicket,
          createPassType, updatePassType, setPassTypeActive, deletePassType } from '../../api/passes';
@@ -307,13 +307,17 @@ export default function PassesPage() {
     loadPassHistory(pass.id);
   };
 
+  // ⚠️ 由選取定期票與儲存異動兩處觸發，序號防過期回應覆蓋（快速切換不同票或連續編輯時）。
+  const passHistorySeqRef = useRef(0);
   const loadPassHistory = async (passId) => {
+    const seq = ++passHistorySeqRef.current;
     setHistoryLoading(true);
     try {
       const res = await getPassHistory(passId);
+      if (seq !== passHistorySeqRef.current) return;
       setPassHistory(res.data.history || []);
-    } catch (e) { setPassHistory([]); }
-    finally { setHistoryLoading(false); }
+    } catch (e) { if (seq === passHistorySeqRef.current) setPassHistory([]); }
+    finally { if (seq === passHistorySeqRef.current) setHistoryLoading(false); }
   };
 
   const handleSavePass = async () => {
