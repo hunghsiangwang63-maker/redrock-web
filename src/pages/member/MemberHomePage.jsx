@@ -76,37 +76,44 @@ export default function MemberHomePage() {
   }, [raStep, raToken]);
   const bannerLen = banners.length || 1;
 
+  // ⚠️ 由 mount effect 與 useRefetchOnFocus（視窗取得焦點）兩處觸發，快速切回分頁時可能與前一次
+  // 尚未完成的載入重疊；用單一序號蓋住底下 5 個獨立請求，過期的那一輪回應一律不採用，避免舊資料
+  // 蓋掉最新狀態（比照 PendingTasksPage.jsx 同一套修法）。
+  const loadSeqRef = useRef(0);
   const loadHomeData = () => {
     if (!member?.id) return;
+    const seq = ++loadSeqRef.current;
     const today = new Date().toISOString().split('T')[0];
     const nextWeek = new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0];
     memberClient.get(`/courses/member/${member.id}/enrollments`)
       .then(r => {
+        if (seq !== loadSeqRef.current) return;
         const upcoming = (r.data.enrollments || [])
           .filter(e => (e.status === 'confirmed' || e.status === 'leave' || e.status === 'course_cancelled') && e.date >= today && e.date <= nextWeek)
           .sort((a,b) => a.date.localeCompare(b.date))
           .slice(0, 5);
         setMyEnrollments(upcoming);
-      }).catch(() => {});
+      }).catch(() => { if (seq === loadSeqRef.current) setMyEnrollments([]); });
     memberClient.get('/experience-bookings/my')
       .then(r => {
+        if (seq !== loadSeqRef.current) return;
         const upcoming = (r.data.bookings || [])
           .filter(b => b.status !== 'cancelled' && b.bookingDate >= today && b.bookingDate <= nextWeek)
           .sort((a,b) => a.bookingDate.localeCompare(b.bookingDate));
         setMyExperiences(upcoming);
-      }).catch(() => {});
+      }).catch(() => { if (seq === loadSeqRef.current) setMyExperiences([]); });
     // 今日入場橫幅（資料源自後端 checkIns，全天顯示、隔日午夜後自然消失、取消後消失）
     memberClient.get('/checkin/my-today')
-      .then(r => setTodayCheckin(r.data || null))
-      .catch(() => setTodayCheckin(null));
+      .then(r => { if (seq === loadSeqRef.current) setTodayCheckin(r.data || null); })
+      .catch(() => { if (seq === loadSeqRef.current) setTodayCheckin(null); });
     // 身份別與效期（效期內攀岩隊員 / 課程學員入館權益）
     memberClient.get('/members/my/identity')
-      .then(r => setIdentity(r.data || null))
-      .catch(() => setIdentity(null));
+      .then(r => { if (seq === loadSeqRef.current) setIdentity(r.data || null); })
+      .catch(() => { if (seq === loadSeqRef.current) setIdentity(null); });
     // 轉帳被退回通知（含子女訂單；重新上傳後端點即不再回傳、自動消失）
     memberClient.get('/members/my/alerts')
-      .then(r => setRejectAlerts(r.data?.alerts || []))
-      .catch(() => setRejectAlerts([]));
+      .then(r => { if (seq === loadSeqRef.current) setRejectAlerts(r.data?.alerts || []); })
+      .catch(() => { if (seq === loadSeqRef.current) setRejectAlerts([]); });
   };
 
   // 「知道了」關閉比賽已駁回通知（不影響其他通知類型；樂觀移除，失敗則不動畫面）

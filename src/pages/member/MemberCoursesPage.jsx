@@ -354,20 +354,29 @@ export default function MemberCoursesPage() {
     } catch (e) {}
   };
 
+  // ⚠️ 由選課效果與報名成功後兩處觸發；快速切換課程時可能讓兩次載入重疊，序號只採用最新一次回應
+  // （避免舊課程場次資料蓋掉新課程的，可能導致插班費用算錯）。
+  const loadSessionsSeqRef = useRef(0);
   const loadSessions = async (course) => {
+    const seq = ++loadSessionsSeqRef.current;
     setSessionsLoading(true);
     setSessions([]); // 清掉前一門課的場次，避免以舊資料算出錯誤（原價）插班費
     try {
       // 只查該課程場次（後端快速路徑、極小 payload）→ 插班費用即時算好，避免溢繳
       const res = await memberClient.get('/courses/sessions', { params: { courseId: course.id } });
+      if (seq !== loadSessionsSeqRef.current) return;
       const filtered = (res.data.sessions || []).filter(s => s.courseId === course.id);
       setSessions(filtered);
     } catch (e) {}
-    finally { setSessionsLoading(false); }
+    finally { if (seq === loadSessionsSeqRef.current) setSessionsLoading(false); }
   };
 
+  // ⚠️ 由 mount effect 與 10+ 個報名/請假/補課/退費等動作完成後觸發，是本頁觸發點最多的載入函式；
+  // 連續快速操作（如連續請假兩堂課）極容易讓多次載入重疊，序號只採用最新一次回應。
+  const loadMyEnrollmentsSeqRef = useRef(0);
   const loadMyEnrollments = async () => {
     if (!member?.id) return;
+    const seq = ++loadMyEnrollmentsSeqRef.current;
     try {
       // 家長帳號：一併載入子女的報名（否則「幫家庭成員報名」的課程不會出現在我的課程）
       let childIds = familyMembers.map(c => c.id);
@@ -377,11 +386,13 @@ export default function MemberCoursesPage() {
       const ids = [member.id, ...childIds];
       const lists = await Promise.all(ids.map(id =>
         memberClient.get(`/courses/member/${id}/enrollments`).then(r => r.data.enrollments || []).catch(() => [])));
+      if (seq !== loadMyEnrollmentsSeqRef.current) return;
       setMyEnrollments(lists.flat());
 
       // 回填審核中的退費/暫停申請（跨重整持續禁止重複申請＋退費凍結顯示）
       const reqLists = await Promise.all(ids.map(id =>
         memberClient.get(`/course-adjustments/member/${id}`).then(r => r.data.requests || []).catch(() => [])));
+      if (seq !== loadMyEnrollmentsSeqRef.current) return;
       const m = new Map();
       reqLists.flat().filter(r => r.status === 'pending')
         .forEach(r => m.set(adjKey(r.courseId, r.memberId), r.type));
@@ -508,8 +519,11 @@ export default function MemberCoursesPage() {
     } catch (e) {}
   };
 
+  // ⚠️ 由 mount effect 與多個請假/銷假/補課動作完成後觸發，同上採序號防過期回應覆蓋。
+  const loadMakeupRightsSeqRef = useRef(0);
   const loadMakeupRights = async () => {
     if (!member?.id) return;
+    const seq = ++loadMakeupRightsSeqRef.current;
     try {
       // 家長帳號：一併載入子女的補課資格（券擁有者為子女，家長代操作）
       let childList = familyMembers;
@@ -521,6 +535,7 @@ export default function MemberCoursesPage() {
         memberClient.get(`/courses/makeup/member/${o.id}`)
           .then(r => (r.data.rights || []).map(x => ({ ...x, _ownerId: o.id, _ownerName: o.name, _isSelf: o.self })))
           .catch(() => [])));
+      if (seq !== loadMakeupRightsSeqRef.current) return;
       setMakeupRights(lists.flat());
     } catch (e) {}
   };

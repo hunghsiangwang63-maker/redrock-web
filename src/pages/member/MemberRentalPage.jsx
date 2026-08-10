@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
@@ -53,7 +53,15 @@ export default function MemberRentalPage() {
   const [alertModal, setAlertModal] = useState(null);
   const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
-  const refreshMyRentals = () => getMyRentals().then(rr=>setMyRentals(rr.data.rentals||[])).catch(()=>{});
+  // ⚠️ 原本 mount effect／handleApply／付款完成／重新送出 四處各自獨立 inline 重抓，皆已改呼叫此
+  // 共用函式；序號只採用最新一次回應，避免過期資料蓋掉剛完成動作後的最新租借清單。
+  const rentalsSeqRef = useRef(0);
+  const refreshMyRentals = () => {
+    const seq = ++rentalsSeqRef.current;
+    return getMyRentals()
+      .then(rr => { if (seq === rentalsSeqRef.current) setMyRentals(rr.data.rentals||[]); })
+      .catch(() => { if (seq === rentalsSeqRef.current) setMyRentals([]); });
+  };
   const doCancel = async () => {
     if (!cancelTarget) return;
     setRowSaving(true);
@@ -80,12 +88,13 @@ export default function MemberRentalPage() {
   };
 
   useEffect(() => {
+    const seq = ++rentalsSeqRef.current; // 與 refreshMyRentals() 共用同一組序號，防止重疊時互相覆蓋
     Promise.allSettled([
       getRentalSettings(),
       member?.id ? getMyRentals() : Promise.resolve({ data: { rentals: [] } }),
     ]).then(([sr, rr]) => {
       if (sr.status === 'fulfilled') setSettings(sr.value.data);
-      if (rr.status === 'fulfilled') setMyRentals(rr.value.data.rentals || []);
+      if (rr.status === 'fulfilled' && seq === rentalsSeqRef.current) setMyRentals(rr.value.data.rentals || []);
     }).finally(() => setLoading(false));
   }, [member?.id]);
 
@@ -168,8 +177,7 @@ export default function MemberRentalPage() {
       setShowPayModal(false);
       setQuantities({ crashPad: 0, helmet: 0, harness: 0 });
       setPickupDate(''); setReturnDate('');
-      const rr = await getMyRentals();
-      setMyRentals(rr.data.rentals || []);
+      await refreshMyRentals();
       setTab('history');
       if (onlinePayEnabled && rentalId && total > 0) setPayFor({ rentalId, total, gymId });
     } catch (err) {
@@ -213,7 +221,7 @@ export default function MemberRentalPage() {
               orderRef={{ rentalId: payFor.rentalId }}
               amount={payFor.total}
               gymId={payFor.gymId}
-              onPaid={()=>{ setPayFor(null); showMsg('付款完成，租借已確認！'); getMyRentals().then(rr=>setMyRentals(rr.data.rentals||[])); }}
+              onPaid={()=>{ setPayFor(null); showMsg('付款完成，租借已確認！'); refreshMyRentals(); }}
               onCancel={()=>{ setPayFor(null); showMsg('申請已保留，可於「租借紀錄」完成付款或改用匯款'); }}
             />
           </div>
@@ -598,7 +606,7 @@ export default function MemberRentalPage() {
       {reupTarget && (
         <TransferReuploadModal target={reupTarget} memberName={member?.name}
           onClose={()=>setReupTarget(null)}
-          onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); getMyRentals().then(rr=>setMyRentals(rr.data.rentals||[])).catch(()=>{}); }} />
+          onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); refreshMyRentals(); }} />
       )}
       <MemberLogoutButton />
       <NavBar />

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
@@ -76,7 +76,15 @@ export default function MemberExperiencePage() {
   const [alertModal, setAlertModal] = useState(null);
   const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
-  const refreshBookings = () => memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])).catch(()=>{});
+  // ⚠️ 由 mount effect（原為獨立重複的 inline fetch，已改呼叫此函式共用同一份序號保護）與取消/修改
+  // 預約動作觸發；序號只採用最新一次回應，避免過期資料蓋掉剛取消/修改後的最新預約狀態。
+  const bookingsSeqRef = useRef(0);
+  const refreshBookings = () => {
+    const seq = ++bookingsSeqRef.current;
+    return memberClient.get('/experience-bookings/my')
+      .then(r => { if (seq === bookingsSeqRef.current) setMyBookings(r.data.bookings||[]); })
+      .catch(() => { if (seq === bookingsSeqRef.current) setMyBookings([]); });
+  };
   const bkPaid = (b) => ['confirmed','paid'].includes(b.paymentStatus) && (b.totalFee||0) > 0;
   const bkEditable = (b) => ['pending','confirmed'].includes(b.status) && b.bookingDate && dayjs().format('YYYY-MM-DD') < b.bookingDate;
   const doBkCancel = async () => {
@@ -103,15 +111,19 @@ export default function MemberExperiencePage() {
     finally { setBkSaving(false); }
   };
 
+  // ⚠️ 由 gymId 切換與試上報名成功後觸發，同上採序號防過期回應覆蓋。
+  const trialSeqRef = useRef(0);
   const loadTrialSessions = () => {
+    const seq = ++trialSeqRef.current;
     memberClient.get('/courses/trial-sessions', { params:{ gymId } })
-      .then(r => setTrialSessions(r.data.sessions||[])).catch(()=>setTrialSessions([]));
+      .then(r => { if (seq === trialSeqRef.current) setTrialSessions(r.data.sessions||[]); })
+      .catch(() => { if (seq === trialSeqRef.current) setTrialSessions([]); });
   };
 
   useEffect(() => {
     memberClient.get('/experience-bookings/settings').then(r => setCourseSettings(r.data)).catch(()=>{});
     if (member?.id) {
-      memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
+      refreshBookings();
       memberClient.get('/members/my/children').then(r => setChildren(r.data.children||[])).catch(()=>setChildren([]));
     }
   }, [member?.id]);

@@ -53,9 +53,13 @@ export default function MemberFallTestPage() {
   const [booking, setBooking] = useState(null);      // 此人的 pending 排測
   const [ftBusy, setFtBusy] = useState(false);
   const [ftMsg, setFtMsg] = useState('');
+  // ⚠️ 由 mount effect 與安排排測成功後兩處觸發，序號防過期回應覆蓋剛安排完成的最新狀態。
+  const bookingSeqRef = useRef(0);
   const loadBooking = async () => {
+    const seq = ++bookingSeqRef.current;
     try {
       const r = await getMyFallTestBookings();
+      if (seq !== bookingSeqRef.current) return;
       setBooking((r.data.bookings || []).find(b => b.memberId === targetId && b.status === 'pending') || null);
     } catch (e) { /* 排測載入失敗不影響其餘 */ }
   };

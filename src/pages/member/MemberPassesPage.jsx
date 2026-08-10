@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
@@ -378,8 +378,12 @@ export default function MemberPassesPage() {
   const tagOwner = (arr, o) => (arr || []).map(x => ({ ...x, _ownerId: o.id, _ownerName: o.name, _isSelf: o.isSelf }));
 
   // 載入「本人＋子會員」全部票券，攤平合併、每筆標持有人（本人優先，其次依子女順序）
+  // ⚠️ 由 mount effect 與多個接收/取消/拒絕移轉的動作觸發，快速連續操作（如連續接收兩筆移轉）
+  // 可能讓兩次載入重疊；用序號只採用最新一次的回應，避免過期資料蓋掉剛完成動作後的最新票券清單。
+  const loadAllSeqRef = useRef(0);
   const loadAll = async () => {
     if (!member) return;
+    const seq = ++loadAllSeqRef.current;
     setLoading(true);
     try {
       let children = [];
@@ -408,6 +412,7 @@ export default function MemberPassesPage() {
           requests: tagOwner(reqs.data.requests, o),
         };
       }));
+      if (seq !== loadAllSeqRef.current) return;
       setPasses(perOwner.flatMap(x => x.passes));
       setDiscountCards(perOwner.flatMap(x => x.discount));
       setBlackCards(perOwner.flatMap(x => x.black));
@@ -415,7 +420,7 @@ export default function MemberPassesPage() {
       setBonuses(perOwner.flatMap(x => x.bonus));
       setMyRequests(perOwner.flatMap(x => x.requests));
     } catch (e) {}
-    finally { setLoading(false); }
+    finally { if (seq === loadAllSeqRef.current) setLoading(false); }
   };
 
   useEffect(() => {
@@ -424,14 +429,17 @@ export default function MemberPassesPage() {
     loadTransfers();
   }, [member]);
 
+  const loadTransfersSeqRef = useRef(0);
   const loadTransfers = async () => {
     if (!member) return;
+    const seq = ++loadTransfersSeqRef.current;
     try {
       const [inc, out, tPend] = await Promise.all([
         memberClient.get('/cards/transfers/incoming').catch(() => ({ data: { transfers: [] } })),
         memberClient.get('/cards/transfers/outgoing').catch(() => ({ data: { transfers: [] } })),
         memberClient.get('/ticket-transfers/pending').catch(() => ({ data: { transfers: [] } })),
       ]);
+      if (seq !== loadTransfersSeqRef.current) return;
       setXferIn(inc.data.transfers || []);
       setXferOut(out.data.transfers || []);
       setTXferIn(tPend.data.transfers || []);

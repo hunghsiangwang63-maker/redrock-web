@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t } from '../../utils/memberI18n';
 import PasswordInput from '../../components/PasswordInput';
@@ -77,9 +77,13 @@ export default function MemberProfilePage() {
   const [childBookings, setChildBookings] = useState({}); // memberId -> pending booking
   const [ftBusyChild, setFtBusyChild] = useState(null);
 
+  // ⚠️ 由 loadChildren 內部、安排/取消子女排測動作觸發，序號防過期回應覆蓋。
+  const childBookingsSeqRef = useRef(0);
   const loadChildBookings = async () => {
+    const seq = ++childBookingsSeqRef.current;
     try {
       const r = await getMyFallTestBookings();
+      if (seq !== childBookingsSeqRef.current) return;
       const map = {};
       (r.data.bookings || []).forEach(b => { map[b.memberId] = b; });
       setChildBookings(map);
@@ -107,7 +111,10 @@ export default function MemberProfilePage() {
     } finally { setFtBusyChild(null); }
   };
 
+  // ⚠️ 由 showFamily 開啟、新增子女成功、選單點擊三處觸發，序號防過期回應覆蓋。
+  const childrenSeqRef = useRef(0);
   const loadChildren = async () => {
+    const seq = ++childrenSeqRef.current;
     try {
       loadChildBookings();
       const r = await memberClient.get('/members/my/children');
@@ -126,6 +133,7 @@ export default function MemberProfilePage() {
           fallTestSigned: ftSigRes.status==='fulfilled' ? !!ftSigRes.value.data?.signature : false,
         };
       }));
+      if (seq !== childrenSeqRef.current) return;
       setChildren(enriched);
     } catch(e) {}
   };

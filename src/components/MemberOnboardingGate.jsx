@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../store/memberStore.jsx';
 import { memberClient } from '../api/client';
@@ -42,8 +42,12 @@ export default function MemberOnboardingGate({ children }) {
     finally { setBusy(false); }
   };
 
+  // ⚠️ 由 mount effect 與排測申請完成後兩處觸發，序號防過期回應覆蓋剛完成動作後的最新入場前置狀態
+  // （此 gate 卡住整個會員 App 首頁，過期資料若蓋掉最新狀態影響面較大）。
+  const refreshSeqRef = useRef(0);
   const refresh = useCallback(async () => {
     if (!memberId) return;
+    const seq = ++refreshSeqRef.current;
     setLoading(true);
     try {
       // 刷新 waiver 封鎖狀態（/auth/member/me 即時算 waiver blockReasons）
@@ -73,9 +77,10 @@ export default function MemberOnboardingGate({ children }) {
       const hasExperience = (expRes.data?.bookings || [])
         .some(b => b.status !== 'cancelled' && (!b.bookingDate || b.bookingDate >= today));
 
+      if (seq !== refreshSeqRef.current) return;
       setState({ needsWaiver, parentPending, consentSigned, testPassed, booking, hasExperience });
     } finally {
-      setLoading(false);
+      if (seq === refreshSeqRef.current) setLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);

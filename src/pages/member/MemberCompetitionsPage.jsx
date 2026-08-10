@@ -253,12 +253,18 @@ export default function MemberCompetitionsPage() {
   }, [showModal, selectedComp?.id, registerForId, member?.id, partnerGymId]);
   const feeInfo = quote ? { fee: quote.registrationFee, isEarlyBird: quote.isEarlyBird, isChild: quote.isChild, partnerApplied: quote.partnerGymApplied, teamApplied: quote.teamDiscountApplied } : null;
 
+  // ⚠️ 由 mount effect 與多個報名/取消/繳費完成後的動作觸發（共 7+ 處），連續快速操作可能讓兩次
+  // 載入重疊；用序號只採用最新一次回應，避免過期資料蓋掉剛完成動作後的最新報名清單。
+  const loadSeqRef = useRef(0);
   const load = async () => {
+    const seq = ++loadSeqRef.current;
     setLoading(true);
     try {
       const compRes = await getMemberCompetitions().catch(() => ({ data: { competitions: [] } }));
+      if (seq !== loadSeqRef.current) return;
       setCompetitions(compRes.data.competitions || []);
-      memberClient.get('/settings/partner-gyms').then(r => setPartnerGymList(r.data.gyms || [])).catch(() => {});
+      memberClient.get('/settings/partner-gyms')
+        .then(r => { if (seq === loadSeqRef.current) setPartnerGymList(r.data.gyms || []); }).catch(() => {});
       if (member?.id) {
         // 本人＋子女的報名一併載入（子女標 👦 名字）
         let kids = [];
@@ -269,9 +275,10 @@ export default function MemberCompetitionsPage() {
             .then(r => (r.data.registrations || []).map(x => ({ ...x, _ownerName: o.self ? null : o.name })))
             .catch(() => [])
         ));
+        if (seq !== loadSeqRef.current) return;
         setMyRegistrations(lists.flat());
-      } else setMyRegistrations([]);
-    } finally { setLoading(false); }
+      } else if (seq === loadSeqRef.current) setMyRegistrations([]);
+    } finally { if (seq === loadSeqRef.current) setLoading(false); }
   };
 
   useEffect(() => {
