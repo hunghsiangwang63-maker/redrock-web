@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
@@ -172,16 +172,25 @@ export default function PendingTasksPage() {
   };
   const [returnedItems, setReturnedItems] = useState([]);
   const [returnedDetail, setReturnedDetail] = useState(null);
+  // ⚠️ load() 被 afterDone()（每次審核動作完成後）、視窗取得焦點（useRefetchOnFocus）、初次掛載三處觸發，
+  // 連續快速處理多筆待辦（核准A→立刻核准B）很容易讓兩個請求同時在飛；較舊的請求若較晚回來，會用過期
+  // 資料蓋掉剛核准完成後的最新清單，讓已處理項目「看起來又跑回來」。用序號只採用最新一次請求的回應
+  // （比照 loadNotifs() 同一套修法）。
+  const loadReqSeq = useRef(0);
   const load = useCallback(async () => {
+    const seq = ++loadReqSeq.current;
     setLoading(true);
     try {
       const params = isAdmin && gymFilter ? { gymId: gymFilter } : {};
       const res = await client.get('/pending-tasks', { params });
+      if (seq !== loadReqSeq.current) return;
       setTasks(res.data.tasks || []);
       setRegistrations(res.data.registrations || []);
       client.get('/pending-tasks/returned', { params })
-        .then(r => setReturnedItems(r.data.items || [])).catch(() => setReturnedItems([]));
-    } catch(e) { setTasks([]); setRegistrations([]); } finally { setLoading(false); }
+        .then(r => { if (seq === loadReqSeq.current) setReturnedItems(r.data.items || []); })
+        .catch(() => { if (seq === loadReqSeq.current) setReturnedItems([]); });
+    } catch(e) { if (seq === loadReqSeq.current) { setTasks([]); setRegistrations([]); } }
+    finally { if (seq === loadReqSeq.current) setLoading(false); }
   }, [gymFilter, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
@@ -212,28 +221,44 @@ export default function PendingTasksPage() {
   const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassCompleted(); if (trackView === 'notif') loadNotifs(); };
 
   // 課程：已完成（已核准/已拒絕）退費/暫停
+  // 同 load()／loadNotifs()：afterDone() 與切換分頁都可能觸發，快速連續處理時用序號擋過期回應。
+  const completedReqSeq = useRef(0);
   const loadCompleted = async () => {
+    const seq = ++completedReqSeq.current;
     setCompletedLoading(true);
     try {
       const res = await getCourseAdjustmentRequests(); // 後端依角色授權（主管/站台）
+      if (seq !== completedReqSeq.current) return;
       setCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
-    } catch (e) { setCompleted([]); } finally { setCompletedLoading(false); }
+    } catch (e) { if (seq === completedReqSeq.current) setCompleted([]); }
+    finally { if (seq === completedReqSeq.current) setCompletedLoading(false); }
   };
   // 定期票：已完成（已核准/已拒絕）展延/退費/轉讓
+  const passCompletedReqSeq = useRef(0);
   const loadPassCompleted = async () => {
+    const seq = ++passCompletedReqSeq.current;
     setPassCompletedLoading(true);
     try {
       const res = await getAllPassRequests(); // 不帶 status＝全部，前端自行過濾已完成
+      if (seq !== passCompletedReqSeq.current) return;
       setPassCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
-    } catch (e) { setPassCompleted([]); } finally { setPassCompletedLoading(false); }
+    } catch (e) { if (seq === passCompletedReqSeq.current) setPassCompleted([]); }
+    finally { if (seq === passCompletedReqSeq.current) setPassCompletedLoading(false); }
   };
   // 通知：載入系統未讀通知
+  // ⚠️ 頁面內多處會觸發 loadNotifs()（手動點已讀/全部已讀、afterDone() 完成其他審核動作時），
+  // 快速連續操作可能讓兩個請求同時在飛、且較「舊」的那個請求反而較晚回來——若不擋，會用過期的
+  // 回應蓋掉剛標記已讀後的最新狀態，讓已讀項目「看起來又跑回來」。用序號只採用最新一次請求的回應。
+  const notifReqSeq = useRef(0);
   const loadNotifs = async () => {
+    const seq = ++notifReqSeq.current;
     setNotifLoading(true);
     try {
       const res = await getNotifications();
+      if (seq !== notifReqSeq.current) return; // 已有更新的請求發出，這筆回應過期、不採用
       setNotifs(res.data.notifications || []);
-    } catch (e) { setNotifs([]); } finally { setNotifLoading(false); }
+    } catch (e) { if (seq === notifReqSeq.current) setNotifs([]); }
+    finally { if (seq === notifReqSeq.current) setNotifLoading(false); }
   };
   // 追蹤面板切換（互斥；再點一次收合）
   const openTrack = (view) => {
