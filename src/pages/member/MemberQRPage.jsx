@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -130,7 +130,13 @@ export default function MemberQRPage() {
     return () => clearInterval(iv);
   }, [qrToken]); // eslint-disable-line
 
+  // ⚠️ 由「切換入場人員/場館」的 effect 觸發，快速連續切換（如連點場館按鈕、快速切換家庭成員）
+  // 沒有取消前一次呼叫，兩次驗票請求可能重疊；較舊的回應若較晚到達，會用錯的館別/對象驗票結果
+  // 蓋掉畫面（可能顯示錯誤的入場資格/金額）。序號只採用最新一次回應——上方清空選取狀態是同步、
+  // 每次呼叫都該立即生效，只有 await 之後的結果套用需要防過期。
+  const verifySeqRef = useRef(0);
   const doVerify = async () => {
+    const seq = ++verifySeqRef.current;
     setStep('loading');
     setError(null);
     // 切換對象時清空上一位的流程狀態
@@ -140,6 +146,7 @@ export default function MemberQRPage() {
     setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
     try {
       const res = await memberClient.post('/checkin/verify', { identifier: member.phone, gymId, targetMemberId: entrant.id });
+      if (seq !== verifySeqRef.current) return;
       const data = res.data;
       setVerifyResult(data);
       if (!data.allowed) {
@@ -151,6 +158,7 @@ export default function MemberQRPage() {
         setStep('select_entry');
       }
     } catch (err) {
+      if (seq !== verifySeqRef.current) return;
       setError(err.response?.data?.message || t('驗票失敗'));
       setStep('blocked');
     }
