@@ -1194,6 +1194,7 @@ export default function CheckinPage() {
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                       {checkedInAt.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' })}
                       {' · NT$'}{c.amountPaid}
+                      {c.amountPaid > 0 && c.paymentMethod ? ` (${PAYMENT_LABEL[c.paymentMethod] || c.paymentMethod})` : ''}
                       {canCancel ? <span style={{ color:'#2D7D46', marginLeft:6 }}>({minutesAgo}分鐘前)</span> : <span style={{ color:'#ccc', marginLeft:6 }}>(已超過10分鐘)</span>}
                     </div>
                   </div>
