@@ -78,13 +78,24 @@ function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymen
   };
 
   if (status === 'success' && issued) {
+    // 印製過程中（紙本已印出、配號完成前）對應交易被取消/退貨/退費時，後端會直接把這筆記為
+    // 已作廢（號碼仍消耗、仍建紀錄，只是狀態不是 issued）——這裡要用明顯不同的警示樣式提醒店員，
+    // 紙本雖已印出但這筆已經作廢，不該交給客人當正式收據。
+    const autoVoided = issued.status === 'void';
     return (
-      <Modal title={`發票已列印 · ${title || ''}`} onClose={onClose}>
-        <div style={{ background:'#E6F4EB', border:'1px solid #2D7D4633', borderRadius:8, padding:14, marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>✅ 已列印</div>
+      <Modal title={autoVoided ? `⚠️ 已自動作廢 · ${title || ''}` : `發票已列印 · ${title || ''}`} onClose={onClose}>
+        <div style={{ background: autoVoided ? '#FCEBEB' : '#E6F4EB', border: `1px solid ${autoVoided ? '#A32D2D33' : '#2D7D4633'}`, borderRadius:8, padding:14, marginBottom:16 }}>
+          <div style={{ fontSize:13, fontWeight:600, color: autoVoided ? '#A32D2D' : '#2D7D46', marginBottom:6 }}>
+            {autoVoided ? '⚠️ 紙本已印出，但對應交易已失效，此號碼已自動作廢' : '✅ 已列印'}
+          </div>
           <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:4 }}>{issued.invoiceNo}</div>
           <div style={{ fontSize:13 }}>{issued.itemName}　NT${issued.amount}</div>
           {issued.taxId && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>統編 {issued.taxId}</div>}
+          {autoVoided && (
+            <div style={{ fontSize:12, color:'#A32D2D', marginTop:8, lineHeight:1.6 }}>
+              請勿將這張紙本收據交給客人——列印期間對應的訂單/入場已被取消，系統已將此發票號碼標記作廢（不會重複使用）。如需開立新發票，請確認交易狀態後重新操作。
+            </div>
+          )}
         </div>
         <button onClick={onClose} style={{ width:'100%', height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>關閉</button>
       </Modal>
