@@ -7,6 +7,7 @@ import { getStaffList, createStaff, updateStaff, resetStaffPassword, toggleStaff
 import { getStations, createStation, updateStation } from '../../api/stations';
 import SaveButton from '../../components/SaveButton';
 import GymsPage from './GymsPage';
+import { RealPrintPanel } from '../../components/InvoiceIssuer';
 
 const TAB_GROUPS = [
   {
@@ -18,6 +19,7 @@ const TAB_GROUPS = [
       { key: 'devices',      icon: '📱', label: '裝置審核',   adminOnly: true },
       { key: 'transition',   icon: '🔄', label: '系統轉換',   adminOnly: true },
       { key: 'invoicePrinting', icon: '🖨️', label: '發票列印', superAdminOnly: true },
+      { key: 'invoiceNumbers', icon: '🔢', label: '發票號碼管理', managerOrStation: true },
     ],
   },
   {
@@ -56,6 +58,8 @@ export default function SettingsPage() {
   const isManagerPlus = ['super_admin', 'gym_manager'].includes(_role); // 管理員等級以上
   // 場館公告分頁：非 super 的館別管理員 / 值班 operator / 正職員工可見（super 走「場館設置」）
   const canOwnGymAnnounce = !isSuperAdmin && (_role === 'gym_manager' || _role === 'full_time' || !!operator);
+  // 發票號碼管理：管理員以上 或 值班 operator（比照後端 requireManagerOrStation 精確對應）
+  const canManageInvoiceNumbers = isManagerPlus || !!operator;
   const [gyms, setGyms] = useState([]);
   const [showAddGym, setShowAddGym] = useState(false);
   const [newGymName, setNewGymName] = useState('');
@@ -71,11 +75,11 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('entryTypes');
   // 若預設分頁對此角色不可見（如正職/值班只看得到場館公告），自動切到第一個可見分頁
   useEffect(() => {
-    const vis = t => (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce) && (!t.managerOnly || isManagerPlus);
+    const vis = t => (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce) && (!t.managerOnly || isManagerPlus) && (!t.managerOrStation || canManageInvoiceNumbers);
     const cur = TAB_ITEMS.find(t => t.key === activeTab);
     if (cur && !vis(cur)) { const first = TAB_ITEMS.find(vis); if (first) setActiveTab(first.key); }
     // eslint-disable-next-line
-  }, [isSuperAdmin, isAdmin, canOwnGymAnnounce, isManagerPlus]);
+  }, [isSuperAdmin, isAdmin, canOwnGymAnnounce, isManagerPlus, canManageInvoiceNumbers]);
   const [msg, setMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -173,6 +177,7 @@ export default function SettingsPage() {
     if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
     if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
+    if (activeTab === 'invoiceNumbers' && canManageInvoiceNumbers) loadInvState(invNumGym);
   }, [activeTab]);
 
   const openAddStation = () => {
@@ -496,6 +501,67 @@ export default function SettingsPage() {
     finally { setLoading(false); }
   };
 
+  // ─── 發票號碼管理（P2 號碼狀態／換捲校正 ＋ 手動開立無來源發票 ＋ 依號碼查詢作廢）──────
+  const [invNumGym, setInvNumGym] = useState('gym-hsinchu');
+  const [invState, setInvState] = useState(null);
+  const [invStateLoading, setInvStateLoading] = useState(false);
+  const [invTrackInput, setInvTrackInput] = useState('');
+  const [invStartNumInput, setInvStartNumInput] = useState('');
+  const [invReasonInput, setInvReasonInput] = useState('');
+  const [invDupWarning, setInvDupWarning] = useState(null); // {message, existing} 待強制覆寫確認
+  const loadInvState = async (gymId) => {
+    setInvStateLoading(true);
+    try {
+      const res = await client.get('/invoices/state', { params: { gymId } });
+      setInvState(res.data.invoiceState || null);
+    } catch (e) { setInvState(null); }
+    finally { setInvStateLoading(false); }
+  };
+  const handleSetInvState = async (force = false) => {
+    setInvDupWarning(null);
+    try {
+      const res = await client.put('/invoices/state', {
+        gymId: invNumGym, track: invTrackInput.trim().toUpperCase(),
+        startNumber: invStartNumInput.trim(), reason: invReasonInput.trim(), force,
+      });
+      setInvState(res.data.invoiceState);
+      setInvTrackInput(''); setInvStartNumInput(''); setInvReasonInput('');
+      showMsg('已設定發票號碼');
+    } catch (err) {
+      if (err.response?.status === 409 && err.response?.data?.warning) { setInvDupWarning(err.response.data); return; }
+      showMsg(err.response?.data?.message || '設定失敗', 'red');
+    }
+  };
+
+  const [showAdhocInvoice, setShowAdhocInvoice] = useState(false);
+  const [adhocPayMethod, setAdhocPayMethod] = useState('cash');
+
+  const [voidLookupInput, setVoidLookupInput] = useState('');
+  const [voidLookupResult, setVoidLookupResult] = useState(null); // invoice物件 | 'not_found' | null
+  const [voidLookupBusy, setVoidLookupBusy] = useState(false);
+  const [voidReasonInput, setVoidReasonInput] = useState('');
+  const [voidBusy, setVoidBusy] = useState(false);
+  const handleLookupInvoice = async () => {
+    if (!voidLookupInput.trim()) return;
+    setVoidLookupBusy(true); setVoidLookupResult(null);
+    try {
+      const res = await client.get('/invoices/lookup', { params: { invoiceNo: voidLookupInput.trim() } });
+      setVoidLookupResult(res.data.invoice);
+    } catch (e) { setVoidLookupResult('not_found'); }
+    finally { setVoidLookupBusy(false); }
+  };
+  const handleVoidInvoice = async () => {
+    if (!voidLookupResult || voidLookupResult === 'not_found') return;
+    setVoidBusy(true);
+    try {
+      const res = await client.post(`/invoices/${voidLookupResult.id}/void`, { voidReason: voidReasonInput.trim() });
+      setVoidLookupResult(res.data.invoice);
+      setVoidReasonInput('');
+      showMsg('已作廢此發票');
+    } catch (err) { showMsg(err.response?.data?.message || '作廢失敗', 'red'); }
+    finally { setVoidBusy(false); }
+  };
+
   // ─── 特約廠商入場優惠（啟用 + 折扣金額）──────────────────────────
   const [partnerVendor, setPartnerVendor] = useState({ enabled: true, discount: 20 });
   const [partnerVendorDirty, setPartnerVendorDirty] = useState(false);
@@ -695,7 +761,7 @@ export default function SettingsPage() {
       <div style={{ display:'flex', flexDirection:'column', gap:12, marginBottom:20 }}>
         {TAB_GROUPS.map(group => {
           const visible = group.items.filter(t =>
-            (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce) && (!t.managerOnly || isManagerPlus)
+            (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce) && (!t.managerOnly || isManagerPlus) && (!t.managerOrStation || canManageInvoiceNumbers)
           );
           if (!visible.length) return null;
           return (
@@ -825,6 +891,165 @@ export default function SettingsPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'invoiceNumbers' && canManageInvoiceNumbers && (
+        <div style={s.card}>
+          <div style={s.cardHead}><span>🔢 發票號碼管理</span></div>
+          <div style={{ padding:16 }}>
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              {gyms.filter(g => g.name).map(g => (
+                <button key={g.id} onClick={() => { setInvNumGym(g.id); loadInvState(g.id); setInvDupWarning(null); setVoidLookupResult(null); }}
+                  style={{ flex:1, height:36, borderRadius:8,
+                    border: invNumGym === g.id ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
+                    background: invNumGym === g.id ? '#FBF5F5' : '#fff',
+                    color: invNumGym === g.id ? '#8B1A1A' : '#666',
+                    fontSize:13, fontWeight: invNumGym === g.id ? 600 : 400, cursor:'pointer' }}>
+                  {g.name}
+                </button>
+              ))}
+            </div>
+
+            {/* 目前狀態 */}
+            <div style={{ background:'#FBF5F5', borderRadius:8, padding:14, marginBottom:20 }}>
+              <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>目前狀態</div>
+              {invStateLoading ? (
+                <div style={{ fontSize:13, color:'#999' }}>載入中...</div>
+              ) : invState ? (
+                <>
+                  <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
+                    {invState.track}{invState.currentNumber}
+                  </div>
+                  <div style={{ fontSize:11, color:'#999', marginTop:4 }}>下一張將配發此號碼（本捲起始 {invState.track}{invState.rollStart}）</div>
+                  {invState.lastChange && (
+                    <div style={{ fontSize:11, color:'#999', marginTop:8, borderTop:'0.5px solid #E8D5D5', paddingTop:8, lineHeight:1.7 }}>
+                      上次變更：{invState.lastChange.at?._seconds ? new Date(invState.lastChange.at._seconds * 1000).toLocaleString('zh-TW') : ''}
+                      {invState.lastChange.byName ? `（${invState.lastChange.byName}）` : ''}
+                      {invState.lastChange.reason ? `・原因：${invState.lastChange.reason}` : ''}
+                      {invState.lastChange.from && (
+                        <div>由 {invState.lastChange.from.track}{invState.lastChange.from.number} 改為 {invState.lastChange.to.track}{invState.lastChange.to.number}</div>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div style={{ fontSize:13, color:'#A66A00' }}>此館尚未設定發票號碼</div>
+              )}
+            </div>
+
+            {/* 換捲重設／校正 */}
+            <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>換捲重設／號碼校正</div>
+            <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+              <div style={{ flex:1 }}>
+                <label style={s.label}>字軌（2碼英文）</label>
+                <input value={invTrackInput} maxLength={2}
+                  onChange={e => setInvTrackInput(e.target.value.replace(/[^a-zA-Z]/g, '').toUpperCase())}
+                  style={s.input} placeholder="如 AB" />
+              </div>
+              <div style={{ flex:2 }}>
+                <label style={s.label}>起始號碼（8碼數字）</label>
+                <input value={invStartNumInput} maxLength={8}
+                  onChange={e => setInvStartNumInput(e.target.value.replace(/\D/g, ''))}
+                  style={s.input} placeholder="如 00000001" />
+              </div>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={s.label}>原因（選填）</label>
+              <input value={invReasonInput} onChange={e => setInvReasonInput(e.target.value)} style={s.input} placeholder="如：換新捲、中途號碼校正" />
+            </div>
+            {invDupWarning && (
+              <div style={{ fontSize:12, color:'#A32D2D', background:'#FCEBEB', border:'0.5px solid #F5C6C6', borderRadius:8, padding:10, marginBottom:10 }}>
+                ⚠️ {invDupWarning.message}
+                <button onClick={() => handleSetInvState(true)}
+                  style={{ display:'block', marginTop:8, height:32, padding:'0 12px', borderRadius:6, background:'#A32D2D', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                  確定要強制覆寫
+                </button>
+              </div>
+            )}
+            <button onClick={() => handleSetInvState(false)} disabled={!invTrackInput.trim() || !invStartNumInput.trim()}
+              style={{ width:'100%', height:40, borderRadius:9, marginBottom:24,
+                background: (!invTrackInput.trim() || !invStartNumInput.trim()) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500,
+                cursor: (!invTrackInput.trim() || !invStartNumInput.trim()) ? 'not-allowed' : 'pointer' }}>
+              設定
+            </button>
+
+            {/* 手動開立無來源發票 */}
+            <div style={{ borderTop:'0.5px solid #E8D5D5', paddingTop:16, marginBottom:20 }}>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>手動開立發票（無來源）</div>
+              <div style={{ fontSize:11, color:'#999', marginBottom:10, lineHeight:1.6 }}>
+                供不屬於 POS／入場／課程／比賽／租借任何一種既有流程的臨時交易開立發票。
+              </div>
+              <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+                {[{ k:'cash', l:'現金' }, { k:'other', l:'其他（不開錢櫃）' }].map(p => (
+                  <button key={p.k} onClick={() => setAdhocPayMethod(p.k)}
+                    style={{ flex:1, height:34, borderRadius:8,
+                      border: adhocPayMethod === p.k ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
+                      background: adhocPayMethod === p.k ? '#FBF5F5' : '#fff',
+                      color: adhocPayMethod === p.k ? '#8B1A1A' : '#666', fontSize:12, cursor:'pointer' }}>
+                    {p.l}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => setShowAdhocInvoice(true)}
+                style={{ width:'100%', height:40, borderRadius:9, background:'#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                🧾 開立發票
+              </button>
+            </div>
+
+            {/* 依發票號碼查詢／作廢 */}
+            <div style={{ borderTop:'0.5px solid #E8D5D5', paddingTop:16 }}>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>依發票號碼查詢／作廢</div>
+              <div style={{ fontSize:11, color:'#999', marginBottom:10, lineHeight:1.6 }}>
+                主要供例外/補救情境——日常的退貨/取消已會自動連動作廢，這裡是找不到對應訂單、
+                或需要手動處理時的查詢入口。
+              </div>
+              <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+                <input value={voidLookupInput} onChange={e => setVoidLookupInput(e.target.value.toUpperCase())}
+                  style={{ ...s.input, flex:1 }} placeholder="輸入發票號碼，如 AB00000123" />
+                <button onClick={handleLookupInvoice} disabled={voidLookupBusy || !voidLookupInput.trim()}
+                  style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer', flexShrink:0 }}>
+                  {voidLookupBusy ? '查詢中...' : '查詢'}
+                </button>
+              </div>
+              {voidLookupResult === 'not_found' && (
+                <div style={{ fontSize:12, color:'#999' }}>查無此發票號碼</div>
+              )}
+              {voidLookupResult && voidLookupResult !== 'not_found' && (
+                <div style={{ background:'#FBF5F5', borderRadius:8, padding:12 }}>
+                  <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{voidLookupResult.invoiceNo}</div>
+                  <div style={{ fontSize:13, marginTop:4 }}>{voidLookupResult.itemName}　NT${voidLookupResult.amount}</div>
+                  <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
+                    {voidLookupResult.memberName || '（無會員）'}
+                    {voidLookupResult.issuedAt?._seconds ? new Date(voidLookupResult.issuedAt._seconds * 1000).toLocaleString('zh-TW') : ''}
+                  </div>
+                  <div style={{ marginTop:8 }}>
+                    {voidLookupResult.status === 'void' ? (
+                      <div style={{ fontSize:12, color:'#A32D2D', lineHeight:1.6 }}>
+                        ⚠️ 已作廢{voidLookupResult.voidReason ? `（${voidLookupResult.voidReason}）` : ''}
+                        {voidLookupResult.voidedByName ? `・經手：${voidLookupResult.voidedByName}` : ''}
+                      </div>
+                    ) : (
+                      <>
+                        <input value={voidReasonInput} onChange={e => setVoidReasonInput(e.target.value)}
+                          style={{ ...s.input, marginBottom:8 }} placeholder="作廢原因" />
+                        <button onClick={handleVoidInvoice} disabled={voidBusy}
+                          style={{ width:'100%', height:36, borderRadius:8, background:'#A32D2D', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
+                          {voidBusy ? '作廢中...' : '作廢此發票'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {showAdhocInvoice && (
+            <RealPrintPanel gymId={invNumGym} paymentMethod={adhocPayMethod}
+              title="手動開立發票（無來源）" defaultItemName="費用" defaultAmount={0}
+              onClose={() => setShowAdhocInvoice(false)} />
+          )}
         </div>
       )}
 

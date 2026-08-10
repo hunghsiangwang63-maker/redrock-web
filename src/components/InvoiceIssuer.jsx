@@ -40,7 +40,9 @@ export default function InvoiceIssuer(props) {
 const inp = { width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const lab = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 
-function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, onClose }) {
+// 匯出供「發票號碼管理」設定頁的「手動開立發票（無來源）」直接重用——不透過 InvoiceIssuer 的
+// 開關判斷（那個是給五流程各自的既有入口用的），無來源發票本就只在真列印啟用時才有意義。
+export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, onClose }) {
   const [itemName, setItemName] = useState(defaultItemName || '費用');
   const [amount, setAmount] = useState(defaultAmount ?? 0);
   const [taxId, setTaxId] = useState('');
