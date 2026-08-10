@@ -50,12 +50,23 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
   const [status, setStatus] = useState('idle'); // idle | printing | success | error
   const [error, setError] = useState('');
   const [issued, setIssued] = useState(null);
+  const [rollStatus, setRollStatus] = useState(null); // 印完這張後的紙捲剩餘狀態（後端 print-record 回傳）
   const [agentConnected, setAgentConnected] = useState(null);
+  const [rollState, setRollState] = useState(null); // 開啟面板當下的紙捲狀態（供列印前預先擋下已用完的情況）
 
   const refreshAgent = async () => setAgentConnected(await checkPrinterAgent());
-  useEffect(() => { refreshAgent(); }, []);
+  useEffect(() => {
+    refreshAgent();
+    if (!gymId) return;
+    client.get('/invoices/state', { params: { gymId } })
+      .then(r => setRollState(r.data.invoiceState || null))
+      .catch(() => setRollState(null));
+  }, [gymId]);
+
+  const rollDepleted = !!rollState?.rollDepleted;
 
   const doPrint = async () => {
+    if (rollDepleted) { setError('這捲發票紙已用完，請先到「系統設定 → 發票號碼管理」設定新捲起始號'); return; }
     if (!(Number(amount) > 0)) { setError('請輸入大於 0 的金額'); return; }
     if (taxId.trim() && !isValidTaiwanTaxId(taxId)) { setError('統一編號檢查碼錯誤，請確認號碼是否正確'); return; }
     setStatus('printing'); setError('');
@@ -72,8 +83,14 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
         gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note,
       });
       setIssued(res.data.invoice);
+      setRollStatus(res.data.rollStatus || null);
       setStatus('success');
     } catch (err) {
+      // 紙本已印出但配號失敗（如列印當下剛好被別人用到最後一張）——同樣要醒目提醒換捲，
+      // 而非只顯示一般錯誤訊息。
+      if (err.response?.data?.error === 'ROLL_DEPLETED') {
+        setRollState(prev => ({ ...(prev || {}), rollDepleted: true }));
+      }
       setError(err.message || err.response?.data?.message || '列印失敗，請確認印表機連線後重試');
       setStatus('error');
     }
@@ -99,6 +116,16 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
             </div>
           )}
         </div>
+        {rollStatus?.rollDepleted && (
+          <div style={{ background:'#A32D2D', color:'#fff', borderRadius:8, padding:12, marginBottom:16, fontSize:13, fontWeight:700 }}>
+            🚨 這捲發票紙已用完！請立即更換新捲，並到「系統設定 → 發票號碼管理」設定新捲起始號。
+          </div>
+        )}
+        {!rollStatus?.rollDepleted && rollStatus?.rollLow && (
+          <div style={{ background:'#FCEBD6', color:'#A66A00', border:'1.5px solid #E8A73C', borderRadius:8, padding:12, marginBottom:16, fontSize:13, fontWeight:700 }}>
+            ⚠️ 發票紙捲即將用完！剩餘 {rollStatus.remaining} 張，請盡快準備下一捲。
+          </div>
+        )}
         <button onClick={onClose} style={{ width:'100%', height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>關閉</button>
       </Modal>
     );
@@ -106,6 +133,16 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
 
   return (
     <Modal title={`開立發票 · ${title || ''}`} onClose={onClose}>
+      {rollDepleted && (
+        <div style={{ background:'#A32D2D', color:'#fff', borderRadius:8, padding:12, marginBottom:14, fontSize:13, fontWeight:700, lineHeight:1.6 }}>
+          🚨 這捲發票紙已用完，無法繼續開票！請先更換新捲，並到「系統設定 → 發票號碼管理」設定新捲起始號。
+        </div>
+      )}
+      {!rollDepleted && rollState?.rollLow && (
+        <div style={{ background:'#FCEBD6', color:'#A66A00', border:'1.5px solid #E8A73C', borderRadius:8, padding:12, marginBottom:14, fontSize:13, fontWeight:700 }}>
+          ⚠️ 發票紙捲即將用完！剩餘 {rollState.remaining} 張，請盡快準備下一捲。
+        </div>
+      )}
       <div style={{ background:'#FBF5F5', borderRadius:8, padding:10, marginBottom:14, fontSize:12, color:'#666' }}>
         {subtitle}
         {feeInfo && <div style={{ marginTop:4 }}>{feeInfo}</div>}

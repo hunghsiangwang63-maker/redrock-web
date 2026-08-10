@@ -507,8 +507,17 @@ export default function SettingsPage() {
   const [invStateLoading, setInvStateLoading] = useState(false);
   const [invTrackInput, setInvTrackInput] = useState('');
   const [invStartNumInput, setInvStartNumInput] = useState('');
+  const [invRollSizeInput, setInvRollSizeInput] = useState('');
   const [invReasonInput, setInvReasonInput] = useState('');
   const [invDupWarning, setInvDupWarning] = useState(null); // {message, existing} 待強制覆寫確認
+  const ownGymId = operator?.gymId || staff?.gymId || '';
+  // 非 super_admin（值班/館別電腦）限當館：畫面直接鎖自己的館，不顯示可切換的館別按鈕
+  // （後端亦已權威擋跨館，這裡純粹避免誤導性 UI——點了別館按鈕其實仍會操作自己的館）。
+  useEffect(() => {
+    if (activeTab === 'invoiceNumbers' && canManageInvoiceNumbers && !isSuperAdmin && ownGymId && invNumGym !== ownGymId) {
+      setInvNumGym(ownGymId);
+    }
+  }, [activeTab, canManageInvoiceNumbers, isSuperAdmin, ownGymId]);
   const loadInvState = async (gymId) => {
     setInvStateLoading(true);
     try {
@@ -522,16 +531,26 @@ export default function SettingsPage() {
     try {
       const res = await client.put('/invoices/state', {
         gymId: invNumGym, track: invTrackInput.trim().toUpperCase(),
-        startNumber: invStartNumInput.trim(), reason: invReasonInput.trim(), force,
+        startNumber: invStartNumInput.trim(), reason: invReasonInput.trim(),
+        rollSize: invRollSizeInput.trim() || undefined, force,
       });
       setInvState(res.data.invoiceState);
-      setInvTrackInput(''); setInvStartNumInput(''); setInvReasonInput('');
+      setInvTrackInput(''); setInvStartNumInput(''); setInvRollSizeInput(''); setInvReasonInput('');
       showMsg('已設定發票號碼');
     } catch (err) {
       if (err.response?.status === 409 && err.response?.data?.warning) { setInvDupWarning(err.response.data); return; }
       showMsg(err.response?.data?.message || '設定失敗', 'red');
     }
   };
+  // 財政部二聯式收銀機發票每捲末三碼固定為 249／499／749／999（每捲 250 張，跨越四分位邊界）——
+  // 依起始號＋張數即時算出這捲最後一張，供店員對照紙捲包裝上的號碼；末三碼不符時僅提示、不阻擋
+  // 送出（可能是特殊裁切捲，非典型情況）。
+  const invRollEndPreview = (invStartNumInput.trim() && invRollSizeInput.trim())
+    ? String(Number(invStartNumInput) + Number(invRollSizeInput) - 1).padStart(8, '0')
+    : null;
+  const invRollEndPreviewSuffixOk = invRollEndPreview
+    ? ['249', '499', '749', '999'].includes(invRollEndPreview.slice(-3))
+    : true;
 
   const [showAdhocInvoice, setShowAdhocInvoice] = useState(false);
   const [adhocPayMethod, setAdhocPayMethod] = useState('cash');
@@ -898,18 +917,36 @@ export default function SettingsPage() {
         <div style={s.card}>
           <div style={s.cardHead}><span>🔢 發票號碼管理</span></div>
           <div style={{ padding:16 }}>
-            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-              {gyms.filter(g => g.name).map(g => (
-                <button key={g.id} onClick={() => { setInvNumGym(g.id); loadInvState(g.id); setInvDupWarning(null); setVoidLookupResult(null); }}
-                  style={{ flex:1, height:36, borderRadius:8,
-                    border: invNumGym === g.id ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
-                    background: invNumGym === g.id ? '#FBF5F5' : '#fff',
-                    color: invNumGym === g.id ? '#8B1A1A' : '#666',
-                    fontSize:13, fontWeight: invNumGym === g.id ? 600 : 400, cursor:'pointer' }}>
-                  {g.name}
-                </button>
-              ))}
-            </div>
+            {isSuperAdmin ? (
+              <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+                {gyms.filter(g => g.name).map(g => (
+                  <button key={g.id} onClick={() => { setInvNumGym(g.id); loadInvState(g.id); setInvDupWarning(null); setVoidLookupResult(null); }}
+                    style={{ flex:1, height:36, borderRadius:8,
+                      border: invNumGym === g.id ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
+                      background: invNumGym === g.id ? '#FBF5F5' : '#fff',
+                      color: invNumGym === g.id ? '#8B1A1A' : '#666',
+                      fontSize:13, fontWeight: invNumGym === g.id ? 600 : 400, cursor:'pointer' }}>
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>
+                本館：{gyms.find(g => g.id === ownGymId)?.name || ownGymId || '（未知）'}（限操作本館，不可切換）
+              </div>
+            )}
+
+            {/* 紙捲即將用完／已用完醒目警語 */}
+            {invState && invState.rollDepleted && (
+              <div style={{ background:'#A32D2D', color:'#fff', borderRadius:10, padding:14, marginBottom:16, fontSize:14, fontWeight:700 }}>
+                🚨 這捲發票紙已用完！請立即更換新捲，並在下方「換捲重設」輸入新捲起始號後才能繼續開票。
+              </div>
+            )}
+            {invState && !invState.rollDepleted && invState.rollLow && (
+              <div style={{ background:'#FCEBD6', color:'#A66A00', border:'1.5px solid #E8A73C', borderRadius:10, padding:14, marginBottom:16, fontSize:14, fontWeight:700 }}>
+                ⚠️ 發票紙捲即將用完！剩餘 {invState.remaining} 張，請盡快準備下一捲。
+              </div>
+            )}
 
             {/* 目前狀態 */}
             <div style={{ background:'#FBF5F5', borderRadius:8, padding:14, marginBottom:20 }}>
@@ -922,6 +959,11 @@ export default function SettingsPage() {
                     {invState.track}{invState.currentNumber}
                   </div>
                   <div style={{ fontSize:11, color:'#999', marginTop:4 }}>下一張將配發此號碼（本捲起始 {invState.track}{invState.rollStart}）</div>
+                  {invState.remaining != null && (
+                    <div style={{ fontSize:12, color: invState.rollDepleted ? '#A32D2D' : (invState.rollLow ? '#A66A00' : '#666'), marginTop:6, fontWeight: (invState.rollDepleted || invState.rollLow) ? 700 : 400 }}>
+                      本捲剩餘 {Math.max(invState.remaining, 0)} 張（共 {invState.rollSize} 張，至 {invState.track}{invState.rollEndNumber}）
+                    </div>
+                  )}
                   {invState.lastChange && (
                     <div style={{ fontSize:11, color:'#999', marginTop:8, borderTop:'0.5px solid #E8D5D5', paddingTop:8, lineHeight:1.7 }}>
                       上次變更：{invState.lastChange.at?._seconds ? new Date(invState.lastChange.at._seconds * 1000).toLocaleString('zh-TW') : ''}
@@ -953,6 +995,18 @@ export default function SettingsPage() {
                   onChange={e => setInvStartNumInput(e.target.value.replace(/\D/g, ''))}
                   style={s.input} placeholder="如 00000001" />
               </div>
+            </div>
+            <div style={{ marginBottom:10 }}>
+              <label style={s.label}>這捲共幾張（選填，填了才會提醒即將用完）</label>
+              <input value={invRollSizeInput} maxLength={4}
+                onChange={e => setInvRollSizeInput(e.target.value.replace(/\D/g, ''))}
+                style={s.input} placeholder="如 250（財政部紙捲通常每捲 250 張）" />
+              {invRollEndPreview && (
+                <div style={{ fontSize:12, marginTop:6, color: invRollEndPreviewSuffixOk ? '#666' : '#A66A00', fontWeight: invRollEndPreviewSuffixOk ? 400 : 600 }}>
+                  本捲最後一張預計為 {invTrackInput.trim().toUpperCase() || '__'}{invRollEndPreview}
+                  {!invRollEndPreviewSuffixOk && '　⚠️ 末三碼非 249/499/749/999，請對照紙捲確認張數是否正確'}
+                </div>
+              )}
             </div>
             <div style={{ marginBottom:10 }}>
               <label style={s.label}>原因（選填）</label>
