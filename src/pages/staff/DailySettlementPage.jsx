@@ -548,26 +548,42 @@ export default function DailySettlementPage() {
             {deductions.length === 0 ? (
               <div style={{ padding:'12px 16px', fontSize:13, color:'#ccc' }}>尚無加減項</div>
             ) : deductions.map((d, i) => (
-              <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF' }}>
-                <div style={{ display:'flex', gap:8, marginBottom:6 }}>
-                  <select value={d.sign || '-'} onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, sign: e.target.value} : x))}
-                    style={{ ...s.input, width:72, color: (d.sign==='+') ? '#2D7D46' : '#A32D2D', fontWeight:600 }}>
-                    <option value="-">－減</option>
-                    <option value="+">＋加</option>
-                  </select>
-                  <select value={d.type} onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, type: e.target.value} : x))}
-                    style={{ ...s.input, flex:1 }}>
-                    {DEDUCTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                  <input type="number" value={d.amount} placeholder="金額"
-                    onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, amount: e.target.value} : x))}
-                    style={{ ...s.input, width:100 }} />
-                  <button onClick={() => removeDeduction(i)}
-                    style={{ height:36, width:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#A32D2D', cursor:'pointer', fontSize:16 }}>✕</button>
-                </div>
-                <input value={d.note} placeholder="備註（選填）"
-                  onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, note: e.target.value} : x))}
-                  style={{ ...s.input, width:'100%' }} />
+              <div key={d.id || i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', background: d.auto ? '#FAFAFA' : undefined }}>
+                {d.auto ? (
+                  // 系統自動記錄（發票開立/作廢、現金補入等）——不可人工刪除或修改，如有錯誤請另外新增
+                  // 一筆手動加減項沖銷（2026-08-10 拍板；後端 findRemovedOrAlteredAutoDeductions 權威擋）。
+                  <div>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:d.note ? 4 : 0 }}>
+                      <span style={{ fontSize:10, color:'#999', border:'0.5px solid #ddd', borderRadius:4, padding:'1px 5px' }}>🔒 系統自動</span>
+                      <span style={{ fontSize:13, fontWeight:600, color: (d.sign==='+') ? '#2D7D46' : '#A32D2D' }}>
+                        {d.type}　{d.sign==='+' ? '＋' : '－'}NT${Number(d.amount || 0).toLocaleString()}
+                      </span>
+                    </div>
+                    {d.note && <div style={{ fontSize:12, color:'#666' }}>{d.note}</div>}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display:'flex', gap:8, marginBottom:6 }}>
+                      <select value={d.sign || '-'} onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, sign: e.target.value} : x))}
+                        style={{ ...s.input, width:72, color: (d.sign==='+') ? '#2D7D46' : '#A32D2D', fontWeight:600 }}>
+                        <option value="-">－減</option>
+                        <option value="+">＋加</option>
+                      </select>
+                      <select value={d.type} onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, type: e.target.value} : x))}
+                        style={{ ...s.input, flex:1 }}>
+                        {DEDUCTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <input type="number" value={d.amount} placeholder="金額"
+                        onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, amount: e.target.value} : x))}
+                        style={{ ...s.input, width:100 }} />
+                      <button onClick={() => removeDeduction(i)}
+                        style={{ height:36, width:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#A32D2D', cursor:'pointer', fontSize:16 }}>✕</button>
+                    </div>
+                    <input value={d.note} placeholder="備註（選填）"
+                      onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, note: e.target.value} : x))}
+                      style={{ ...s.input, width:'100%' }} />
+                  </>
+                )}
               </div>
             ))}
             {deductions.length > 0 && (
