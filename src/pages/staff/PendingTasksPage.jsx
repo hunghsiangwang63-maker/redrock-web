@@ -334,10 +334,22 @@ export default function PendingTasksPage() {
     }
   };
 
-  // 分組：依「內容」分段（票券/比賽/攀岩隊/體驗/課程/器材），段內依日期新→舊
+  // 「今日提醒／預約」依日期+時間排序（最近的在最上面）：體驗預約有 bookingTime 精確到分鐘；
+  // 器材取件/歸還無特定時段（全日事項），視為當日 00:00、排在同日有時段任務之前。
+  const remindSortKey = (t) => {
+    const m = String(t.bookingTime || '').match(/(\d{1,2}):(\d{2})/);
+    const hhmm = m ? `${m[1].padStart(2, '0')}:${m[2]}` : '00:00';
+    return `${t.date || ''} ${hhmm}`;
+  };
+
+  // 分組：依「內容」分段（票券/比賽/攀岩隊/體驗/課程/器材）；「今日提醒／預約」段內依時間近→遠，其餘依日期新→舊
   const groups = CATEGORIES.map(c => ({
     ...c,
-    tasks: tasks.filter(t => c.types.includes(t.type)).sort((a, b) => (a.date < b.date ? 1 : -1)),
+    tasks: tasks.filter(t => c.types.includes(t.type)).sort(
+      c.key === 'remind'
+        ? (a, b) => remindSortKey(a).localeCompare(remindSortKey(b))
+        : (a, b) => (a.date < b.date ? 1 : -1)
+    ),
   })).filter(g => g.tasks.length > 0);
 
   const total = tasks.length;
