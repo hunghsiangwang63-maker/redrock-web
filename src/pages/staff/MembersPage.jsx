@@ -824,16 +824,17 @@ export default function MembersPage() {
               <>
                 <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                 {isManagerRole && (
-                  <>
-                    <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
-                      style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                      詳細
-                    </button>
-                    <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
-                      style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                      🧾 開立發票
-                    </button>
-                  </>
+                  <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
+                    style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                    詳細
+                  </button>
+                )}
+                {/* 開立發票：站台/值班比照後端 requireManagerOrStation 一併開放（原本只有管理員看得到） */}
+                {(isManagerRole || isStationContext) && (
+                  <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
+                    style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                    🧾 開立發票
+                  </button>
                 )}
               </>
             )}
@@ -909,16 +910,16 @@ export default function MembersPage() {
                             <>
                               <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                               {isManagerRole && (
-                                <>
-                                  <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
-                                    style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                                    詳細
-                                  </button>
-                                  <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
-                                    style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                                    🧾 開立發票
-                                  </button>
-                                </>
+                                <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
+                                  style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                                  詳細
+                                </button>
+                              )}
+                              {(isManagerRole || isStationContext) && (
+                                <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
+                                  style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                                  🧾 開立發票
+                                </button>
                               )}
                             </>
                           )}
@@ -961,16 +962,16 @@ export default function MembersPage() {
                       <>
                         <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                         {isManagerRole && (
-                          <>
-                            <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
-                              style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                              詳細
-                            </button>
-                            <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
-                              style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                              🧾 開立發票
-                            </button>
-                          </>
+                          <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
+                            style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                            詳細
+                          </button>
+                        )}
+                        {(isManagerRole || isStationContext) && (
+                          <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
+                            style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                            🧾 開立發票
+                          </button>
                         )}
                       </>
                     )}
