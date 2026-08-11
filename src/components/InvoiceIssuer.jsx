@@ -15,6 +15,9 @@ import { isValidTaiwanTaxId } from '../utils/taiwanTaxId';
 // props:
 //   gymId, sourceType, refId, memberId, memberName, paymentMethod（'cash' 才會開錢櫃）
 //   title, subtitle, feeInfo, defaultItemName, defaultAmount, onClose
+//   itemBreakdown - 選填，[{name, amount}]，列印紙本時若加總等於目前金額欄位的值，改印成多行明細
+//     （如「成人入場」+「租借岩鞋」分開兩行）；不提供或加總對不上（店員手動改過金額）則印單一行。
+//     只影響印在紙上的內容，發票「紀錄」（invoices 集合）仍只存單一 itemName/amount，不受影響。
 //   listInvoices, createInvoice, voidInvoiceFn（開關關閉時原封不動轉給 InvoiceModal）
 export default function InvoiceIssuer(props) {
   const { gymId, sourceType, refId, memberId, memberName, paymentMethod, ...rest } = props;
@@ -42,7 +45,7 @@ const lab = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 
 // 匯出供「發票號碼管理」設定頁的「手動開立發票（無來源）」直接重用——不透過 InvoiceIssuer 的
 // 開關判斷（那個是給五流程各自的既有入口用的），無來源發票本就只在真列印啟用時才有意義。
-export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, onClose }) {
+export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, itemBreakdown, onClose }) {
   const [itemName, setItemName] = useState(defaultItemName || '費用');
   const [amount, setAmount] = useState(defaultAmount ?? 0);
   const [taxId, setTaxId] = useState('');
@@ -87,10 +90,16 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
     if (taxId.trim() && !isValidTaiwanTaxId(taxId)) { setError('統一編號檢查碼錯誤，請確認號碼是否正確'); return; }
     setStatus('printing'); setError('');
     try {
+      // 有提供明細、且加總仍等於目前金額欄位（店員沒手動改過總額）→ 紙本印成多行明細（如「成人入場」
+      // 「租借岩鞋」分開列）；否則印成單一行——只影響紙本排版，發票紀錄仍只存 itemName/amount 這一組。
+      const breakdownSum = Array.isArray(itemBreakdown) ? itemBreakdown.reduce((s, i) => s + Number(i.amount || 0), 0) : null;
+      const printItems = Array.isArray(itemBreakdown) && itemBreakdown.length > 0 && breakdownSum === Number(amount)
+        ? itemBreakdown.map(i => ({ name: i.name, price: Number(i.amount), qty: 1 }))
+        : [{ name: itemName, price: Number(amount), qty: 1 }];
       // ① 先真的印——失敗不消耗號碼、不建立任何紀錄，可安全重試（見 invoice-integration-plan.md §6.1「失敗退路」）
       await printReceipt({
         gymId,
-        items: [{ name: itemName, price: Number(amount), qty: 1 }],
+        items: printItems,
         buyerTaxId: taxId.trim() || undefined,
         openDrawer: paymentMethod === 'cash',
       });

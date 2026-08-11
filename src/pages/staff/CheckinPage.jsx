@@ -7,7 +7,7 @@ import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 import jsQR from 'jsqr';
-import { entryLabelOf } from '../../utils/entryLabel';
+import { entryLabelOf, invoiceEntryItemName, invoiceRentalItemName } from '../../utils/entryLabel';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
@@ -859,26 +859,37 @@ export default function CheckinPage() {
               </div>
             )}
 
-            {/* 開立發票（共用元件，與比賽報到頁/課程學員頁同一套；依開關自動切換真列印／手動記帳版） */}
-            {checkinInvoiceTarget && (
-              <InvoiceIssuer
-                gymId={checkinInvoiceTarget.gymId}
-                sourceType="checkin"
-                refId={checkinInvoiceTarget.id}
-                memberId={checkinInvoiceTarget.memberId}
-                memberName={checkinInvoiceTarget.memberName}
-                paymentMethod={checkinInvoiceTarget.paymentMethod}
-                title={checkinInvoiceTarget.memberName || ''}
-                subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
-                feeInfo={checkinInvoiceTarget.amountPaid > 0 ? `實收金額 NT$${checkinInvoiceTarget.amountPaid}` : ''}
-                defaultItemName={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || '入場費'}
-                defaultAmount={checkinInvoiceTarget.amountPaid ?? 0}
-                onClose={() => setCheckinInvoiceTarget(null)}
-                listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
-                createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
-                voidInvoiceFn={(id) => voidCheckinInvoice(id)}
-              />
-            )}
+            {/* 開立發票（共用元件，與比賽報到頁/課程學員頁同一套；依開關自動切換真列印／手動記帳版）——
+                品項名稱比照「今日結帳」的入場分類（成人/學生/兒童＋優惠券/隊員/特約商店），租借岩鞋/粉袋
+                另列一行，不是原始 entryType 英文對照的「入場費」籠統帶過。 */}
+            {checkinInvoiceTarget && (() => {
+              const entryName = invoiceEntryItemName(checkinInvoiceTarget);
+              const rentalName = invoiceRentalItemName(checkinInvoiceTarget);
+              const rentalAmount = (Number(checkinInvoiceTarget.shoesPrice) || 0) + (Number(checkinInvoiceTarget.chalkPrice) || 0);
+              const entryFee = checkinInvoiceTarget.entryFee != null
+                ? Number(checkinInvoiceTarget.entryFee)
+                : (Number(checkinInvoiceTarget.amountPaid) || 0) - rentalAmount; // 舊資料無 entryFee 欄位時反推
+              return (
+                <InvoiceIssuer
+                  gymId={checkinInvoiceTarget.gymId}
+                  sourceType="checkin"
+                  refId={checkinInvoiceTarget.id}
+                  memberId={checkinInvoiceTarget.memberId}
+                  memberName={checkinInvoiceTarget.memberName}
+                  paymentMethod={checkinInvoiceTarget.paymentMethod}
+                  title={checkinInvoiceTarget.memberName || ''}
+                  subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
+                  feeInfo={checkinInvoiceTarget.amountPaid > 0 ? `實收金額 NT$${checkinInvoiceTarget.amountPaid}` : ''}
+                  defaultItemName={rentalName ? `${entryName}＋${rentalName}` : entryName}
+                  defaultAmount={checkinInvoiceTarget.amountPaid ?? 0}
+                  itemBreakdown={rentalName ? [{ name: entryName, amount: entryFee }, { name: rentalName, amount: rentalAmount }] : null}
+                  onClose={() => setCheckinInvoiceTarget(null)}
+                  listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
+                  createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
+                  voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+                />
+              );
+            })()}
             </div>
 
             {/* 下：手機號碼查詢 */}
