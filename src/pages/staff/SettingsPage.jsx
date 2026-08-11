@@ -522,6 +522,10 @@ export default function SettingsPage() {
   const [invRollSizeInput, setInvRollSizeInput] = useState('');
   const [invReasonInput, setInvReasonInput] = useState('');
   const [invDupWarning, setInvDupWarning] = useState(null); // {message, existing} 待強制覆寫確認
+  // 換新捲（動到實體紙）／僅校正號碼（同一捲，純數字修正，不動紙）——見 invoiceNumberService.js
+  // ALIGNMENT_NOT_CONFIRMED：前者才需要「已試印確認定位」的確認勾選。
+  const [invIsRollChange, setInvIsRollChange] = useState(true);
+  const [invAlignmentConfirmed, setInvAlignmentConfirmed] = useState(false);
   const ownGymId = operator?.gymId || staff?.gymId || '';
   // 非 super_admin（值班/館別電腦）限當館：畫面直接鎖自己的館，不顯示可切換的館別按鈕
   // （後端亦已權威擋跨館，這裡純粹避免誤導性 UI——點了別館按鈕其實仍會操作自己的館）。
@@ -549,9 +553,11 @@ export default function SettingsPage() {
         gymId: invNumGym, track: invTrackInput.trim().toUpperCase(),
         startNumber: invStartNumInput.trim(), reason: invReasonInput.trim(),
         rollSize: invRollSizeInput.trim() || undefined, force,
+        isRollChange: invIsRollChange, confirmedAlignment: invAlignmentConfirmed,
       });
       setInvState(res.data.invoiceState);
       setInvTrackInput(''); setInvStartNumInput(''); setInvRollSizeInput(''); setInvReasonInput('');
+      setInvIsRollChange(true); setInvAlignmentConfirmed(false);
       showMsg('已設定發票號碼');
     } catch (err) {
       if (err.response?.status === 409 && err.response?.data?.warning) { setInvDupWarning(err.response.data); return; }
@@ -1008,6 +1014,19 @@ export default function SettingsPage() {
             {/* 換捲重設／校正 */}
             <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>換捲重設／號碼校正</div>
             <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+              {[{ k:true, l:'換新捲' }, { k:false, l:'僅校正號碼（同一捲）' }].map(o => (
+                <button key={String(o.k)} type="button"
+                  onClick={() => { setInvIsRollChange(o.k); if (!o.k) setInvAlignmentConfirmed(false); }}
+                  style={{ flex:1, height:34, borderRadius:8,
+                    border: invIsRollChange === o.k ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
+                    background: invIsRollChange === o.k ? '#FBF5F5' : '#fff',
+                    color: invIsRollChange === o.k ? '#8B1A1A' : '#666',
+                    fontSize:12, fontWeight: invIsRollChange === o.k ? 600 : 400, cursor:'pointer' }}>
+                  {o.l}
+                </button>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:8, marginBottom:10 }}>
               <div style={{ flex:1 }}>
                 <label style={s.label}>字軌（2碼英文）</label>
                 <input value={invTrackInput} maxLength={2}
@@ -1037,6 +1056,19 @@ export default function SettingsPage() {
               <label style={s.label}>原因（選填）</label>
               <input value={invReasonInput} onChange={e => setInvReasonInput(e.target.value)} style={s.input} placeholder="如：換新捲、中途號碼校正" />
             </div>
+            {invIsRollChange && (
+              <label style={{ display:'flex', alignItems:'flex-start', gap:8, background:'#FCEBD6', border:'1px solid #E8A73C', borderRadius:8, padding:12, marginBottom:14, cursor:'pointer' }}>
+                <input type="checkbox" checked={invAlignmentConfirmed}
+                  onChange={e => setInvAlignmentConfirmed(e.target.checked)}
+                  style={{ marginTop:2, width:16, height:16, flexShrink:0 }} />
+                <span style={{ fontSize:12, color:'#854F0B', lineHeight:1.7 }}>
+                  <strong>換新捲前必須確認：</strong>①印表機已開電、連線正常　②新捲紙已正確裝妥　③已到
+                  <code style={{ background:'#fff', padding:'1px 5px', borderRadius:4, margin:'0 2px' }}>http://localhost:3399</code>
+                  試印一張測試發票、目視確認存根聯與收執聯位置皆正確（無跨頁、無錯位）。
+                  <strong>確認以上皆已完成才可勾選送出。</strong>
+                </span>
+              </label>
+            )}
             {invDupWarning && (
               <div style={{ fontSize:12, color:'#A32D2D', background:'#FCEBEB', border:'0.5px solid #F5C6C6', borderRadius:8, padding:10, marginBottom:10 }}>
                 ⚠️ {invDupWarning.message}
@@ -1046,12 +1078,17 @@ export default function SettingsPage() {
                 </button>
               </div>
             )}
-            <button onClick={() => handleSetInvState(false)} disabled={!invTrackInput.trim() || !invStartNumInput.trim()}
-              style={{ width:'100%', height:40, borderRadius:9, marginBottom:24,
-                background: (!invTrackInput.trim() || !invStartNumInput.trim()) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500,
-                cursor: (!invTrackInput.trim() || !invStartNumInput.trim()) ? 'not-allowed' : 'pointer' }}>
-              設定
-            </button>
+            {(() => {
+              const invSetDisabled = !invTrackInput.trim() || !invStartNumInput.trim() || (invIsRollChange && !invAlignmentConfirmed);
+              return (
+                <button onClick={() => handleSetInvState(false)} disabled={invSetDisabled}
+                  style={{ width:'100%', height:40, borderRadius:9, marginBottom:24,
+                    background: invSetDisabled ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500,
+                    cursor: invSetDisabled ? 'not-allowed' : 'pointer' }}>
+                  {invIsRollChange && !invAlignmentConfirmed ? '請先勾選定位確認' : '設定'}
+                </button>
+              );
+            })()}
 
             {/* 手動開立無來源發票 */}
             <div style={{ borderTop:'0.5px solid #E8D5D5', paddingTop:16, marginBottom:20 }}>
