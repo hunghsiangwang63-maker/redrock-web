@@ -850,10 +850,13 @@ export default function CheckinPage() {
                       style={{ fontSize:12, color:'#A32D2D', background:'none', border:'0.5px solid #A32D2D', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
                       取消入場（10分鐘內）
                     </button>
-                    <button onClick={() => setCheckinInvoiceTarget(confirmedCheckIn)}
-                      style={{ fontSize:12, color:'#8B1A1A', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
-                      🧾 開立發票
-                    </button>
+                    {/* 定期票/課程學員/VIP 等免費入場（沒有實際收款）不需要開發票 */}
+                    {confirmedCheckIn.amountPaid > 0 && (
+                      <button onClick={() => setCheckinInvoiceTarget(confirmedCheckIn)}
+                        style={{ fontSize:12, color:'#8B1A1A', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
+                        🧾 開立發票
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1130,8 +1133,17 @@ export default function CheckinPage() {
                       ⚠️ {phoneCheckedIn.promotionMessage}
                     </div>
                   )}
-                  <button onClick={() => setPhoneCheckedIn(null)}
-                    style={{ marginTop:8, fontSize:12, color:'#999', background:'none', border:'none', cursor:'pointer' }}>關閉</button>
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                    <button onClick={() => setPhoneCheckedIn(null)}
+                      style={{ fontSize:12, color:'#999', background:'none', border:'none', cursor:'pointer' }}>關閉</button>
+                    {/* 定期票/課程學員/VIP 等免費入場（沒有實際收款）不需要開發票 */}
+                    {phoneCheckedIn.amountPaid > 0 && (
+                      <button onClick={() => setCheckinInvoiceTarget(phoneCheckedIn)}
+                        style={{ fontSize:12, color:'#8B1A1A', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
+                        🧾 開立發票
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
