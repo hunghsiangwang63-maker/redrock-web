@@ -13,6 +13,7 @@ import { gymPrefix } from '../../utils/gymLabel';
 import { courseColor } from '../../utils/courseColor';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
+import WorkshopRefundTiersEditor from '../../components/WorkshopRefundTiersEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import CourseRegDetailModal from '../../components/CourseRegDetailModal';
 import dayjs from 'dayjs';
@@ -137,7 +138,7 @@ export default function CoursesPage({ embedded = false }) {
     cohortName: '', name: '', price: '', pricePerSession: '', maxStudents: 6, maxWaitlist: 2, categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
-    gymAccessDays: 60, midpointSurcharge: 1.05,
+    gymAccessDays: 60, midpointSurcharge: 1.05, refundTiers: null,
     // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
     leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
     allowTrial: '', trialPrice: '', trialTarget: 'auto', makeupTarget: 'auto', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
@@ -438,6 +439,7 @@ export default function CoursesPage({ embedded = false }) {
         price: isWorkshop ? parseInt(courseForm.price) : undefined,
         pricePerSession: isWorkshop ? undefined : (parseInt(courseForm.pricePerSession) || 0),
         midpointSurcharge: isWorkshop ? (parseFloat(courseForm.midpointSurcharge) || 1.05) : undefined,
+        refundTiers: isWorkshop ? courseForm.refundTiers : undefined,
         // 續報/舊生優惠（比率＋開關，週課專用）
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!courseForm.fullTermRenewalDiscountEnabled,
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(courseForm.fullTermRenewalDiscountRate) || 90) / 100,
@@ -508,6 +510,7 @@ export default function CoursesPage({ embedded = false }) {
       allowTrial: course.allowTrial ?? '', trialTarget: course.trialTarget || 'auto', makeupTarget: course.makeupTarget || 'auto',
       trialPrice: course.trialPrice ?? '',
       midpointSurcharge: course.midpointSurcharge || 1.05,
+      refundTiers: course.refundTiers || null,
       type: course.type || 'weekly',
       unlimitedPracticeStart: course.unlimitedPracticeStart || course.startDate || '',
       unlimitedPracticeEnd: course.unlimitedPracticeEnd || course.endDate || '',
@@ -540,6 +543,7 @@ export default function CoursesPage({ embedded = false }) {
         price: isWorkshop ? parseInt(editForm.price) : undefined,
         pricePerSession: isWorkshop ? undefined : (parseInt(editForm.pricePerSession) || 0),
         midpointSurcharge: isWorkshop ? (parseFloat(editForm.midpointSurcharge) || 1.05) : undefined,
+        refundTiers: isWorkshop ? editForm.refundTiers : undefined,
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!editForm.fullTermRenewalDiscountEnabled,
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(editForm.fullTermRenewalDiscountRate) || 90) / 100,
         alumniDiscountEnabled: isWorkshop ? undefined : !!editForm.alumniDiscountEnabled,
@@ -1807,6 +1811,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       totalSessions: src.totalSessions || '',
                       gymAccessDays: src.gymAccessDays || 60,
                       midpointSurcharge: src.midpointSurcharge || 1.05,
+                      refundTiers: src.refundTiers || null,
                       fullTermRenewalDiscountEnabled: !!src.fullTermRenewalDiscountEnabled,
                       fullTermRenewalDiscountRate: src.fullTermRenewalDiscountRate != null ? Math.round(src.fullTermRenewalDiscountRate * 100) : 90,
                       alumniDiscountEnabled: !!src.alumniDiscountEnabled,
@@ -1941,6 +1946,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               <input type="number" step="0.01" value={courseForm.midpointSurcharge}
                 onChange={e => setCourseForm({...courseForm, midpointSurcharge: e.target.value})}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+          )}
+          {courseForm.type === 'workshop' && (
+            <div style={{ marginTop:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>退費分級（整筆退課，依距開課天數比例退費）</label>
+              <WorkshopRefundTiersEditor value={courseForm.refundTiers} onChange={v => setCourseForm({...courseForm, refundTiers: v})} />
             </div>
           )}
           <div style={{ marginTop:14 }}>
@@ -2414,6 +2425,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             <InstallmentRuleEditor value={editForm.installment} price={editForm.price}
               onChange={v => setEditForm({...editForm, installment: v})} />
           </div>
+          {editForm.type === 'workshop' && (
+            <div style={{ marginTop:16 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>退費分級（整筆退課，依距開課天數比例退費）</label>
+              <WorkshopRefundTiersEditor value={editForm.refundTiers} onChange={v => setEditForm({...editForm, refundTiers: v})} />
+            </div>
+          )}
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
             <button onClick={() => setEditingCourse(null)}
               style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>

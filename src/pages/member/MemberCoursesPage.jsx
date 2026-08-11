@@ -31,7 +31,29 @@ function LeaveMakeupRulesBox({ course }) {
     </div>
   );
 }
+// 工作坊退費比例級距預設值（僅供未自訂梯次顯示用；與後端 courseService.DEFAULT_WORKSHOP_REFUND_TIERS 同步維護）
+const DEFAULT_WORKSHOP_REFUND_TIERS = [
+  { daysBefore: 7, rate: 1.0 },
+  { daysBefore: 3, rate: 0.5 },
+  { daysBefore: 1, rate: 0.2 },
+];
 function RefundRulesBox({ course }) {
+  // 工作坊：整筆退課，依「距開課天數」分級比例退費（與週課的剩餘堂數公式完全不同）
+  if (course?.type === 'workshop') {
+    const tiers = (Array.isArray(course?.refundTiers) && course.refundTiers.length ? course.refundTiers : DEFAULT_WORKSHOP_REFUND_TIERS)
+      .slice().sort((a, b) => b.daysBefore - a.daysBefore);
+    return (
+      <div style={RULE_BOX_STYLE}>
+        <strong>1. 退費方式</strong><br/>
+        ・工作坊為<strong>整筆退課</strong>（無法只取消其中一堂，一經申請即取消整個報名）。<br/>
+        ・依申請當下「距開課天數」決定退費比例，比例 × 已繳費用即為建議退費金額。<br/>
+        ・未透過系統收費之工作坊（費用另計，如直接支付予講師）無退費金額。<br/>
+        <strong>2. 退費比例級距</strong><br/>
+        {tiers.map((t, i) => (<span key={i}>・距開課 <strong>{t.daysBefore}</strong> 天以上：退 <strong>{Math.round(t.rate * 100)}%</strong><br/></span>))}
+        ・未達最低級距天數（含開課當天或之後）：不予退費
+      </div>
+    );
+  }
   const _r = Math.round(((course?.refundFeeRate ?? 0.2)) * 100);
   const _p = Math.round(((course?.refundPreStartFeeRate ?? 0.05)) * 100);
   const _exFee = Math.round(6000 * _r / 100);
