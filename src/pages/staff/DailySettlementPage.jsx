@@ -109,7 +109,9 @@ export default function DailySettlementPage() {
   const [paymentManual, setPaymentManual] = useState({});
   const [exportMonth, setExportMonth] = useState(dayjs().format('YYYY-MM'));
   const [notes, setNotes] = useState('');
-  const [invoiceAutoFilled, setInvoiceAutoFilled] = useState(false); // 該館已開真列印：發票起訖是否為系統自動帶入（非店員手動猜測）
+  // 該館是否已開啟「發票列印」（真列印上線）——今日收入/發票起訖/作廢一律由系統依實際列印紀錄權威決定，
+  // 不再手動輸入、也不可編輯（付款方式統計的手動輸入欄不受此影響，仍由 transition.settlementManualInput 控制）
+  const [printingEnabled, setPrintingEnabled] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
   const [history, setHistory] = useState([]);
@@ -146,43 +148,51 @@ export default function DailySettlementPage() {
       setLiveSettlement(res.data.live || null);
       setResettleMode(false);
       const draft = res.data.draft;
-      if (draft) {
-        // 載回暫存檔續填
-        if (draft.denominations) setDenominations(draft.denominations);
-        if (Array.isArray(draft.deductions)) setDeductions(draft.deductions);
-        if (Array.isArray(draft.invoiceSegments) && draft.invoiceSegments.length) setInvoiceSegments(draft.invoiceSegments);
-        else if (draft.invoiceStartNumber || draft.invoiceLastNumber) setInvoiceSegments([{ track: '', start: draft.invoiceStartNumber || '', last: draft.invoiceLastNumber || '' }]);
-        if (draft.invoiceVoidNumbers) setVoidList(String(draft.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean));
-        if (draft.voidInvoiceAmount) setVoidInvoiceAmount(String(draft.voidInvoiceAmount));
-        setNotes(draft.notes || '');
-        if (draft.incomeManual) setIncomeManual(draft.incomeManual);
-        if (draft.paymentManual) setPaymentManual(draft.paymentManual);
-        showMsg('已載入暫存檔');
-      } else {
-        // 這個館別今天沒有暫存檔 → 重置本地表單狀態，避免殘留「上一個檢視館別」的填寫內容
-        // （切換館別時 useEffect 會重打 loadToday，若沒重置，state 會繼續顯示前一館的點鈔/加減項/發票等資料）
-        setDenominations({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
-        setDeductions([]);
-        setInvoiceSegments([{ track:'', start:'', last:'' }]);
-        setVoidList([]);
-        setVoidInvoiceAmount('');
-        setNotes('');
-        setIncomeManual({});
-        setPaymentManual({});
-        setInvoiceAutoFilled(false);
-        if (!res.data.alreadySettled) {
-          const todaySeg = res.data.settlement?.todayInvoiceSegment;
-          if (todaySeg && (todaySeg.start || todaySeg.last)) {
-            // 該館已開真列印：今日實際印出的號碼範圍，權威、起訖皆帶入（不需再猜「最後一張」）
-            setInvoiceSegments([{ track: todaySeg.track || '', start: todaySeg.start || '', last: todaySeg.last || '' }]);
-            setInvoiceAutoFilled(true);
-          } else {
-            // 首段起始號帶入前一天最後+1、字軌沿用前一天最後一段（換發票本才需要手動改）
-            const sug = res.data.settlement?.suggestedInvoiceStart;
-            const sugTrack = res.data.settlement?.suggestedInvoiceTrack;
-            if (sug || sugTrack) setInvoiceSegments([{ track: sugTrack || '', start: sug || '', last: '' }]);
-          }
+      if (!res.data.alreadySettled) {
+        const printing = !!res.data.settlement?.printingEnabled;
+        setPrintingEnabled(printing);
+        if (draft) {
+          // 載回暫存檔續填（點鈔/加減項/備註/線上支付手動值皆真人輸入，照舊還原）
+          if (draft.denominations) setDenominations(draft.denominations);
+          if (Array.isArray(draft.deductions)) setDeductions(draft.deductions);
+          setNotes(draft.notes || '');
+          if (draft.incomeManual) setIncomeManual(draft.incomeManual);
+          if (draft.paymentManual) setPaymentManual(draft.paymentManual);
+          showMsg('已載入暫存檔');
+        } else {
+          // 這個館別今天沒有暫存檔 → 重置本地表單狀態，避免殘留「上一個檢視館別」的填寫內容
+          // （切換館別時 useEffect 會重打 loadToday，若沒重置，state 會繼續顯示前一館的點鈔/加減項/發票等資料）
+          setDenominations({ d1:0, d5:0, d10:0, d50:0, d100:0, d500:0, d1000:0 });
+          setDeductions([]);
+          setNotes('');
+          setIncomeManual({});
+          setPaymentManual({});
         }
+        // 發票段落/作廢資料：已開真列印一律用系統即時權威值（不管有無暫存檔、且不可編輯，見發票管理區塊）；
+        // 未開真列印才照原本邏輯（暫存檔優先、否則帶入前一天+1 的手動建議，仍可編輯）
+        if (printing) {
+          const s = res.data.settlement;
+          setInvoiceSegments(s?.todayInvoiceSegments?.length ? s.todayInvoiceSegments : [{ track:'', start:'', last:'' }]);
+          setVoidList(s?.todayInvoiceVoidNumbers || []);
+          setVoidInvoiceAmount(s?.voidInvoiceAmount ? String(s.voidInvoiceAmount) : '');
+        } else if (draft) {
+          if (Array.isArray(draft.invoiceSegments) && draft.invoiceSegments.length) setInvoiceSegments(draft.invoiceSegments);
+          else if (draft.invoiceStartNumber || draft.invoiceLastNumber) setInvoiceSegments([{ track: '', start: draft.invoiceStartNumber || '', last: draft.invoiceLastNumber || '' }]);
+          else setInvoiceSegments([{ track:'', start:'', last:'' }]);
+          setVoidList(draft.invoiceVoidNumbers ? String(draft.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []);
+          setVoidInvoiceAmount(draft.voidInvoiceAmount ? String(draft.voidInvoiceAmount) : '');
+        } else {
+          setInvoiceSegments([{ track:'', start:'', last:'' }]);
+          setVoidList([]);
+          setVoidInvoiceAmount('');
+          // 首段起始號帶入前一天最後+1、字軌沿用前一天最後一段（換發票本才需要手動改）
+          const sug = res.data.settlement?.suggestedInvoiceStart;
+          const sugTrack = res.data.settlement?.suggestedInvoiceTrack;
+          if (sug || sugTrack) setInvoiceSegments([{ track: sugTrack || '', start: sug || '', last: '' }]);
+        }
+      } else {
+        // 已結帳：表單欄位不會顯示，仍記錄該日是否為真列印模式，供「當日再次結帳」入口判斷
+        setPrintingEnabled(!!res.data.settlement?.printingEnabled);
       }
     } catch (e) { if (seq === todaySeqRef.current) showMsg('載入失敗', 'err'); }
     finally { if (seq === todaySeqRef.current) setLoading(false); }
@@ -208,22 +218,28 @@ export default function DailySettlementPage() {
   const actualCash = DENOMINATIONS.reduce((sum, d) => sum + (denominations[d.key]||0) * d.value, 0);
   // 加減項：sign '+' ＝加入抽屜（預期上升）、'-' ＝取出（預期下降）；舊資料無 sign 視為 '-'（減）
   const netAdjust = deductions.reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount)||0)), 0);
-  // 轉換期手動模式：現金＝手動發票總金額－線上支付（LinePay/街口/台灣Pay/轉帳，缺手動值回退系統）；
-  // 不再獨立填現金——待正式發票列印上線、關閉手動輸入後，這段不再觸發、直接用系統 payment.cash。
+  // 線上支付合計（LinePay/街口/台灣Pay/轉帳，缺手動值回退系統）——真列印/轉換期手動模式皆用得到。
   const onlinePaymentManualTotal = ['linePay', 'jko', 'taiwanPay', 'transfer'].reduce((sum, k) => {
     const v = paymentManual[k];
     const has = v !== '' && v != null;
     return sum + (has ? (Number(v) || 0) : (settlement?.payment?.[k] || 0));
   }, 0);
-  const effectiveCash = transition.settlementManualInput
-    ? manualIncomeTotal(settlement?.income, incomeManual) - onlinePaymentManualTotal
-    : (settlement?.payment?.cash || 0);
+  // 已開真列印的館別：現金＝今日實際列印發票總金額（invoices 集合權威、不可手動修改）－線上支付；
+  // 轉換期手動模式：現金＝手動發票總金額－線上支付；皆非則直接用系統 payment.cash。
+  const invoiceActualTotal = settlement?.invoiceActualTotal || 0;
+  const effectiveCash = printingEnabled
+    ? invoiceActualTotal - onlinePaymentManualTotal
+    : transition.settlementManualInput
+      ? manualIncomeTotal(settlement?.income, incomeManual) - onlinePaymentManualTotal
+      : (settlement?.payment?.cash || 0);
   const expectedCash = (settlement?.prevCashBalance || 0) + effectiveCash + netAdjust;
   const difference = actualCash - expectedCash;
-  // 發票總金額＝income 各項合計（轉換期手動開啟時：入場逐類加總、其餘取手動缺項回退系統）
-  const invoiceTotal = transition.settlementManualInput
-    ? manualIncomeTotal(settlement?.income, incomeManual)
-    : (settlement?.income?.total || 0);
+  // 發票總金額：已開真列印一律用今日實際列印發票總額（權威）；轉換期手動開啟時取手動合計；皆非則用系統交易紀錄總額
+  const invoiceTotal = printingEnabled
+    ? invoiceActualTotal
+    : transition.settlementManualInput
+      ? manualIncomeTotal(settlement?.income, incomeManual)
+      : (settlement?.income?.total || 0);
 
   const addDeduction = () => setDeductions(prev => [...prev, { sign: '-', type: DEDUCTION_TYPES[0], amount: '', note: '' }]);
   const removeDeduction = (i) => setDeductions(prev => prev.filter((_, idx) => idx !== i));
@@ -236,7 +252,10 @@ export default function DailySettlementPage() {
     invoiceVoidNumbers: [...voidList, voidInput.trim()].filter(Boolean).join(', '),
     voidInvoiceAmount: Number(voidInvoiceAmount) || 0,
     checkinCount: settlement?.checkinCount ?? null,
-    ...(transition.settlementManualInput ? { incomeManual, paymentManual } : {}),
+    // 已開真列印的館別不再送 incomeManual（後端也不會信任、一律用系統權威值覆蓋）；
+    // 付款方式統計的手動輸入（paymentManual）不受真列印影響，維持原本邏輯
+    ...(printingEnabled ? {} : (transition.settlementManualInput ? { incomeManual } : {})),
+    ...(transition.settlementManualInput ? { paymentManual } : {}),
   });
 
   const saveDraft = async () => {
@@ -247,8 +266,11 @@ export default function DailySettlementPage() {
   };
 
   const openConfirm = () => {
-    const segs = cleanSegments();
-    if (!segs.length || !segs[segs.length - 1].last) { showMsg('請至少填一段發票，且最後一段需填末號', 'err'); return; }
+    // 真列印館別的發票段落由系統權威帶入（可能今天尚無列印、合理為空），不強制要求手動填末號
+    if (!printingEnabled) {
+      const segs = cleanSegments();
+      if (!segs.length || !segs[segs.length - 1].last) { showMsg('請至少填一段發票，且最後一段需填末號', 'err'); return; }
+    }
     setShowConfirm(true);
   };
 
@@ -266,17 +288,27 @@ export default function DailySettlementPage() {
   // 由「今日已結帳」進入當日再次結帳：用已結帳資料預填表單、切回編輯
   const startResettle = () => {
     const st = settlement;
+    const live = liveSettlement;
+    const pe = !!(live?.printingEnabled ?? st?.printingEnabled);
     if (st?.denominations) setDenominations(st.denominations);
     if (Array.isArray(st?.deductions)) setDeductions(st.deductions);
-    if (Array.isArray(st?.invoiceSegments) && st.invoiceSegments.length) setInvoiceSegments(st.invoiceSegments);
-    else setInvoiceSegments([{ track: '', start: st?.invoiceStartNumber || '', last: st?.invoiceLastNumber || '' }]);
-    setVoidList(st?.invoiceVoidNumbers ? String(st.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []);
-    setVoidInvoiceAmount(st?.voidInvoiceAmount ? String(st.voidInvoiceAmount) : '');
+    if (pe) {
+      // 真列印：發票段/作廢一律用即時重算的系統權威資料（原結帳後可能又有新列印/作廢，需要最新的）
+      setInvoiceSegments(live?.todayInvoiceSegments?.length ? live.todayInvoiceSegments : [{ track:'', start:'', last:'' }]);
+      setVoidList(live?.todayInvoiceVoidNumbers || []);
+      setVoidInvoiceAmount(live?.voidInvoiceAmount ? String(live.voidInvoiceAmount) : '');
+    } else {
+      if (Array.isArray(st?.invoiceSegments) && st.invoiceSegments.length) setInvoiceSegments(st.invoiceSegments);
+      else setInvoiceSegments([{ track: '', start: st?.invoiceStartNumber || '', last: st?.invoiceLastNumber || '' }]);
+      setVoidList(st?.invoiceVoidNumbers ? String(st.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []);
+      setVoidInvoiceAmount(st?.voidInvoiceAmount ? String(st.voidInvoiceAmount) : '');
+    }
     setNotes(st?.notes || ''); setResettleReason('');
     if (st?.incomeManual) setIncomeManual(st.incomeManual);
     if (st?.paymentManual) setPaymentManual(st.paymentManual);
+    setPrintingEnabled(pe);
     // 系統收入改用即時重算值（live）——結帳後新入帳的交易（如體驗教學費）才帶得進來；
-    // 點鈔/加減項/發票等人工欄位仍沿用上方快照預填。
+    // 點鈔/加減項等人工欄位仍沿用上方快照預填。
     if (liveSettlement) setSettlement(liveSettlement);
     setResettleMode(true);
     setAlreadySettled(false);
@@ -402,10 +434,11 @@ export default function DailySettlementPage() {
               {open && (
                 <div style={{ padding:'4px 16px 14px', borderTop:'0.5px solid #F5EFEF' }}>
                   <SettlementSummary
-                    invoiceTotal={h.income?.total || 0}
-                    manualTotal={manualIncomeTotal(h.income, h.incomeManual)}
+                    invoiceTotal={h.printingEnabled ? (h.invoiceActualTotal || 0) : (h.income?.total || 0)}
+                    manualTotal={h.printingEnabled ? (h.invoiceActualTotal || 0) : manualIncomeTotal(h.income, h.incomeManual)}
+                    compareLabel={h.printingEnabled ? '發票列印' : '手計'}
                     income={h.income}
-                    incomeManual={h.incomeManual || null}
+                    incomeManual={h.printingEnabled ? null : (h.incomeManual || null)}
                     deductions={h.deductions || []}
                     netAdjust={(h.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
                     actualCash={h.actualCashBalance || 0}
@@ -430,10 +463,11 @@ export default function DailySettlementPage() {
           <div style={{ ...s.card, padding:'6px 16px 12px' }}>
             <div style={{ ...s.cardHead, padding:'10px 0', marginBottom:2 }}>結帳摘要</div>
             <SettlementSummary
-              invoiceTotal={settlement?.income?.total || 0}
-              manualTotal={manualIncomeTotal(settlement?.income, settlement?.incomeManual)}
+              invoiceTotal={settlement?.printingEnabled ? (settlement?.invoiceActualTotal || 0) : (settlement?.income?.total || 0)}
+              manualTotal={settlement?.printingEnabled ? (settlement?.invoiceActualTotal || 0) : manualIncomeTotal(settlement?.income, settlement?.incomeManual)}
+              compareLabel={settlement?.printingEnabled ? '發票列印' : '手計'}
               income={settlement?.income}
-              incomeManual={settlement?.incomeManual || null}
+              incomeManual={settlement?.printingEnabled ? null : (settlement?.incomeManual || null)}
               deductions={settlement?.deductions || []}
               netAdjust={(settlement?.deductions || []).reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount) || 0)), 0)}
               actualCash={settlement?.actualCashBalance || 0}
@@ -457,27 +491,27 @@ export default function DailySettlementPage() {
 
           {/* 五大類收入 */}
           <div style={s.card}>
-            <div style={s.cardHead}>今日收入{transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : '（系統自動帶入）'}</div>
+            <div style={s.cardHead}>今日收入{printingEnabled ? '（依實際列印發票金額計算，不可手動修改）' : transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : '（系統自動帶入）'}</div>
             {[
               { key:'entry', label:'入場收入', value: settlement?.income?.entry || 0 },
               { key:'shoeRental', label:'岩鞋租借', value: settlement?.income?.shoeRental || 0 },
               { key:'equipmentRental', label:'器材租借', value: settlement?.income?.equipmentRental || 0 },
               { key:'product', label:'商品銷售', value: settlement?.income?.product || 0 },
-              { key:'course', label:'課程收入', value: settlement?.income?.course || 0 },
+              { key:'course', label:'課程收入', value: settlement?.income?.course || 0, sourceNote: printingEnabled ? '依今日開立發票' : null },
               { key:'pass', label:'定期票', value: settlement?.income?.pass || 0, sub: settlement?.income?.passItems },
             ].map((item, i) => (
               <div key={i}>
                 <div style={s.row}>
-                  <span style={s.label}>{item.label}</span>
+                  <span style={s.label}>{item.label}{item.sourceNote && <span style={{ fontSize:10.5, color:'#2D7D46', marginLeft:6 }}>({item.sourceNote})</span>}</span>
                   <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                     {/* 入場收入：手動輸入改逐分類（下方各列），此處總額＝各類加總、不放單一輸入框 */}
-                    {transition.settlementManualInput && item.key !== 'entry' && (
+                    {transition.settlementManualInput && !printingEnabled && item.key !== 'entry' && (
                       <input type="number" value={incomeManual[item.key] ?? ''} placeholder="手動"
                         onChange={e => setIncomeManual(p => ({ ...p, [item.key]: e.target.value }))}
                         style={{ width:88, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
                     )}
-                    <span style={{ ...s.value, color: transition.settlementManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>
-                      NT${(item.key === 'entry' && transition.settlementManualInput
+                    <span style={{ ...s.value, color: (transition.settlementManualInput && !printingEnabled) ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>
+                      NT${(item.key === 'entry' && transition.settlementManualInput && !printingEnabled
                         ? entryManualTotal(settlement?.income, incomeManual)
                         : item.value).toLocaleString()}
                     </span>
@@ -488,12 +522,12 @@ export default function DailySettlementPage() {
                   <div key={j} style={{ ...s.row, padding:'4px 16px 4px 22px' }}>
                     <span style={{ ...s.label, fontSize:12, color:'#999' }}>· {cat}</span>
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      {transition.settlementManualInput && (
+                      {transition.settlementManualInput && !printingEnabled && (
                         <input type="number" value={incomeManual.entryItems?.[cat] ?? ''} placeholder="手動"
                           onChange={e => setIncomeManual(p => ({ ...p, entryItems: { ...(p.entryItems || {}), [cat]: e.target.value } }))}
                           style={{ width:76, height:26, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
                       )}
-                      <span style={{ ...s.value, fontSize:12, color:'#999', minWidth:64, textAlign:'right' }}>{transition.settlementManualInput ? '系統 ' : 'NT$'}{sysEntryVal(settlement?.income, cat).toLocaleString()}</span>
+                      <span style={{ ...s.value, fontSize:12, color:'#999', minWidth:64, textAlign:'right' }}>{(transition.settlementManualInput && !printingEnabled) ? '系統 ' : 'NT$'}{sysEntryVal(settlement?.income, cat).toLocaleString()}</span>
                     </div>
                   </div>
                 ))}
@@ -506,26 +540,35 @@ export default function DailySettlementPage() {
                 ))}
               </div>
             ))}
-            <div style={{ ...s.row, background:'#FBF5F5' }}>
-              <span style={{ ...s.label, fontWeight:600, color:'#1a1a1a' }}>總計</span>
-              <span style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>NT${(transition.settlementManualInput ? manualIncomeTotal(settlement?.income, incomeManual) : (settlement?.income?.total || 0)).toLocaleString()}</span>
+            <div style={{ ...s.row, background:'#FBF5F5', flexDirection: printingEnabled ? 'column' : 'row', alignItems: printingEnabled ? 'stretch' : 'center' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ ...s.label, fontWeight:600, color:'#1a1a1a' }}>{printingEnabled ? '發票實際總額' : '總計'}</span>
+                <span style={{ fontSize:16, fontWeight:700, color:'#8B1A1A' }}>
+                  NT${(printingEnabled ? invoiceActualTotal : (transition.settlementManualInput ? manualIncomeTotal(settlement?.income, incomeManual) : (settlement?.income?.total || 0))).toLocaleString()}
+                </span>
+              </div>
+              {printingEnabled && (
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#999', marginTop:4 }}>
+                  <span>系統交易紀錄總額（供比對，非入帳金額）</span><span>NT${(settlement?.income?.total || 0).toLocaleString()}</span>
+                </div>
+              )}
             </div>
           </div>
 
           {/* 付款方式 */}
           <div style={s.card}>
             <div style={s.cardHead}>付款方式統計{transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : ''}</div>
-            {transition.settlementManualInput && (
+            {(transition.settlementManualInput || printingEnabled) && (
               <div style={s.row}>
                 <span style={s.label}>現金（自動）</span>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ fontSize:11, color:'#999' }}>發票總金額－線上支付</span>
+                  <span style={{ fontSize:11, color:'#999' }}>{printingEnabled ? '發票實際總額－線上支付' : '發票總金額－線上支付'}</span>
                   <span style={{ ...s.value, minWidth:72, textAlign:'right' }}>NT${effectiveCash.toLocaleString()}</span>
                 </div>
               </div>
             )}
             {[
-              ...(transition.settlementManualInput ? [] : [{ key:'cash', label:'現金', value: settlement?.payment?.cash || 0 }]),
+              ...((transition.settlementManualInput || printingEnabled) ? [] : [{ key:'cash', label:'現金', value: settlement?.payment?.cash || 0 }]),
               { key:'linePay', label:'Line Pay', value: settlement?.payment?.linePay || 0 },
               { key:'jko', label:'街口支付', value: settlement?.payment?.jko || 0 },
               { key:'taiwanPay', label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
@@ -549,7 +592,7 @@ export default function DailySettlementPage() {
           <div style={s.card}>
             <div style={s.cardHead}>收銀機餘額</div>
             <div style={s.row}><span style={s.label}>前日餘額</span><span style={s.value}>NT${(settlement?.prevCashBalance||0).toLocaleString()}</span></div>
-            <div style={s.row}><span style={s.label}>今日現金收入{transition.settlementManualInput ? '（發票總金額－線上支付）' : ''}</span><span style={s.value}>NT${effectiveCash.toLocaleString()}</span></div>
+            <div style={s.row}><span style={s.label}>今日現金收入{printingEnabled ? '（發票實際總額－線上支付）' : transition.settlementManualInput ? '（發票總金額－線上支付）' : ''}</span><span style={s.value}>NT${effectiveCash.toLocaleString()}</span></div>
             <div style={{ ...s.row, background:'#FBF5F5' }}>
               <span style={{ ...s.label, fontWeight:500 }}>應有餘額</span>
               <span style={{ fontSize:15, fontWeight:600, color:'#185FA5' }}>NT${expectedCash.toLocaleString()}</span>
@@ -639,62 +682,89 @@ export default function DailySettlementPage() {
             </div>
           </div>
 
-          {/* 發票號碼（多段：換發票捲時可加新序號起始）*/}
+          {/* 發票號碼（多段：換發票捲時可加新序號起始；已開真列印的館別全區唯讀，由系統依實際列印紀錄權威帶入）*/}
           <div style={s.card}>
             <div style={{ ...s.cardHead, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span>發票管理</span>
-              <button onClick={addSegment}
-                style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增發票序號</button>
+              {!printingEnabled && (
+                <button onClick={addSegment}
+                  style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增發票序號</button>
+              )}
             </div>
-            {invoiceAutoFilled && (
+            {printingEnabled && (
               <div style={{ margin:'8px 16px 0', padding:'6px 10px', borderRadius:6, background:'#EAF6EE', color:'#2D7D46', fontSize:12 }}>
-                ✅ 已自動帶入本日實際列印發票號碼（來自發票機列印紀錄），如有作廢/漏印請自行核對調整
+                🔒 發票起訖／作廢資料已依實際列印紀錄自動帶入，本區不可手動修改
               </div>
             )}
-            {invoiceSegments.map((sg, i) => (
-              <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                <span style={{ ...s.label, minWidth:56 }}>{invoiceSegments.length > 1 ? `第 ${i+1} 段` : '發票號'}</span>
-                <input value={sg.track || ''} onChange={e => setSegment(i, 'track', e.target.value.toUpperCase().slice(0, 2))} placeholder="字軌" style={{ ...s.input, width:60, textAlign:'center', textTransform:'uppercase' }} />
-                <input value={sg.start} onChange={e => setSegment(i, 'start', e.target.value)} placeholder="起始號" style={{ ...s.input, width:130 }} />
-                <span style={{ color:'#999' }}>～</span>
-                <input value={sg.last} onChange={e => setSegment(i, 'last', e.target.value)} placeholder="最後一張" style={{ ...s.input, width:130 }} />
-                {invoiceSegments.length > 1 && (
-                  <button onClick={() => removeSegment(i)}
-                    style={{ height:36, width:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#A32D2D', cursor:'pointer', fontSize:16 }}>✕</button>
-                )}
-              </div>
-            ))}
+            {printingEnabled ? (
+              invoiceSegments.some(sg => sg.start || sg.last) ? (
+                invoiceSegments.map((sg, i) => (
+                  <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:8 }}>
+                    <span style={{ ...s.label, minWidth:56 }}>{invoiceSegments.length > 1 ? `第 ${i+1} 段` : '發票號'}</span>
+                    <span style={{ fontFamily:'monospace', fontSize:13 }}>{sg.track ? `${sg.track} ` : ''}{sg.start || '—'} ～ {sg.last || '—'}</span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding:'12px 16px', fontSize:13, color:'#999' }}>今日尚無列印發票</div>
+              )
+            ) : (
+              invoiceSegments.map((sg, i) => (
+                <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                  <span style={{ ...s.label, minWidth:56 }}>{invoiceSegments.length > 1 ? `第 ${i+1} 段` : '發票號'}</span>
+                  <input value={sg.track || ''} onChange={e => setSegment(i, 'track', e.target.value.toUpperCase().slice(0, 2))} placeholder="字軌" style={{ ...s.input, width:60, textAlign:'center', textTransform:'uppercase' }} />
+                  <input value={sg.start} onChange={e => setSegment(i, 'start', e.target.value)} placeholder="起始號" style={{ ...s.input, width:130 }} />
+                  <span style={{ color:'#999' }}>～</span>
+                  <input value={sg.last} onChange={e => setSegment(i, 'last', e.target.value)} placeholder="最後一張" style={{ ...s.input, width:130 }} />
+                  {invoiceSegments.length > 1 && (
+                    <button onClick={() => removeSegment(i)}
+                      style={{ height:36, width:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#A32D2D', cursor:'pointer', fontSize:16 }}>✕</button>
+                  )}
+                </div>
+              ))
+            )}
             <div style={{ ...s.row, alignItems:'flex-start' }}>
               <span style={{ ...s.label, marginTop:8 }}>作廢發票號碼</span>
               <div style={{ display:'flex', flexDirection:'column', gap:6, flex:1, maxWidth:340 }}>
-                <div style={{ display:'flex', gap:6 }}>
-                  <input value={voidTrack} onChange={e => setVoidTrack(e.target.value.toUpperCase().slice(0, 2))}
-                    placeholder="字軌" style={{ ...s.input, width:60, textAlign:'center', textTransform:'uppercase', flex:'0 0 auto' }} />
-                  <input value={voidInput} onChange={e => setVoidInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addVoid(); } }}
-                    placeholder="輸入一張號碼後按 Enter / 加入（無則留空）" style={{ ...s.input, flex:1 }} />
-                  <button type="button" onClick={addVoid}
-                    style={{ height:36, padding:'0 14px', borderRadius:8, border:'0.5px solid #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>加入</button>
-                </div>
-                {voidList.length > 0 && (
+                {!printingEnabled && (
+                  <div style={{ display:'flex', gap:6 }}>
+                    <input value={voidTrack} onChange={e => setVoidTrack(e.target.value.toUpperCase().slice(0, 2))}
+                      placeholder="字軌" style={{ ...s.input, width:60, textAlign:'center', textTransform:'uppercase', flex:'0 0 auto' }} />
+                    <input value={voidInput} onChange={e => setVoidInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addVoid(); } }}
+                      placeholder="輸入一張號碼後按 Enter / 加入（無則留空）" style={{ ...s.input, flex:1 }} />
+                    <button type="button" onClick={addVoid}
+                      style={{ height:36, padding:'0 14px', borderRadius:8, border:'0.5px solid #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>加入</button>
+                  </div>
+                )}
+                {voidList.length > 0 ? (
                   <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                     {voidList.map(n => (
                       <span key={n} style={{ display:'inline-flex', alignItems:'center', gap:6, background:'#FBEEEE', border:'0.5px solid #E8C5C5', color:'#A32D2D', borderRadius:14, padding:'3px 6px 3px 10px', fontSize:12, fontFamily:'monospace' }}>
                         {n}
-                        <button type="button" onClick={() => removeVoid(n)}
-                          style={{ border:'none', background:'#A32D2D', color:'#fff', borderRadius:'50%', width:16, height:16, lineHeight:'14px', fontSize:11, cursor:'pointer', padding:0 }}>×</button>
+                        {!printingEnabled && (
+                          <button type="button" onClick={() => removeVoid(n)}
+                            style={{ border:'none', background:'#A32D2D', color:'#fff', borderRadius:'50%', width:16, height:16, lineHeight:'14px', fontSize:11, cursor:'pointer', padding:0 }}>×</button>
+                        )}
                       </span>
                     ))}
                   </div>
+                ) : printingEnabled && (
+                  <span style={{ fontSize:12, color:'#999' }}>今日無作廢發票</span>
                 )}
               </div>
             </div>
             <div style={{ ...s.row }}>
               <span style={s.label}>作廢票號碼總金額</span>
-              <input type="number" value={voidInvoiceAmount} onChange={e => setVoidInvoiceAmount(e.target.value)}
-                placeholder="打錯發票金額（僅備註、不扣總計）" style={{ ...s.input, width:220 }} />
+              {printingEnabled ? (
+                <span style={s.value}>NT${(Number(voidInvoiceAmount) || 0).toLocaleString()}</span>
+              ) : (
+                <input type="number" value={voidInvoiceAmount} onChange={e => setVoidInvoiceAmount(e.target.value)}
+                  placeholder="打錯發票金額（僅備註、不扣總計）" style={{ ...s.input, width:220 }} />
+              )}
             </div>
-            <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>作廢多張可逐一加入（也可一次貼多組、以逗號分隔）；起訖／作廢號碼／作廢票號碼總金額會帶入月銷售紀錄，並從發票總金額（今日收入總額）扣除</div>
+            {!printingEnabled && (
+              <div style={{ padding:'6px 16px 10px', fontSize:11, color:'#999' }}>作廢多張可逐一加入（也可一次貼多組、以逗號分隔）；起訖／作廢號碼／作廢票號碼總金額會帶入月銷售紀錄，並從發票總金額（今日收入總額）扣除</div>
+            )}
           </div>
 
           {/* 今日人數（月銷售紀錄用） */}
@@ -741,9 +811,10 @@ export default function DailySettlementPage() {
         <Modal title={resettleMode ? '確認更新今日結帳' : '確認完成結帳'} onClose={() => !saving && setShowConfirm(false)} width={460}>
           <SettlementSummary
             invoiceTotal={invoiceTotal}
-            manualTotal={transition.settlementManualInput ? invoiceTotal : null}
+            manualTotal={(printingEnabled || transition.settlementManualInput) ? invoiceTotal : null}
+            compareLabel={printingEnabled ? '發票列印' : '手計'}
             income={settlement?.income}
-            incomeManual={transition.settlementManualInput ? incomeManual : null}
+            incomeManual={printingEnabled ? null : (transition.settlementManualInput ? incomeManual : null)}
             deductions={deductions} netAdjust={netAdjust}
             actualCash={actualCash} difference={difference}
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
@@ -770,7 +841,7 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations }) {
+function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const denom = denominations || {};
@@ -812,7 +883,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, income, incomeManual, de
         )}
         {hasManual && (
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4, color:'#888' }}>
-            <span>手計 {money(netManualTotal)}　·　系統 {money(sysTotal)}</span>
+            <span>{compareLabel} {money(netManualTotal)}　·　系統 {money(sysTotal)}</span>
             {Number(netManualTotal) !== Number(sysTotal) && <span style={{ color:'#A32D2D' }}>差 {money(Number(netManualTotal) - Number(sysTotal))}</span>}
           </div>
         )}
