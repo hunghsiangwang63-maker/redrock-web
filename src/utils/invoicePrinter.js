@@ -7,19 +7,17 @@ const AGENT_BASE = 'http://localhost:3399';
 
 const shortGymId = (gymId) => String(gymId || '').replace(/^gym-/, '');
 
-// 檢查代理是否連線中（印表機真的有回應，非只是 COM 埠開得起來，已於 2026-08-12 實機驗證通過）。
-// 連不到本機服務或印表機斷線都回 false，不丟例外。
-// ⚠️ 原本這裡還會回傳 positionOk（紙張定位偵測），已於 2026-08-12 實機測試證實這台印表機的
-// DLE EOT 4 查詢不隨實際紙張狀態變化（回傳固定值），繼續使用會讓系統誤報「定位正常」掩蓋真正
-// 異常，故撤回，見 local-print-agent/server.js 檔頭說明；紙張定位目前仍完全信任印表機自身既有的
-// 自動對位機制（0x0C，已驗證可靠）。
+// 查詢代理狀態：connected＝印表機是否真的有回應；positionOk＝存根聯/收執聯定位是否正常
+// （true/false/null，null＝查詢無回應，未知不代表異常）。兩者皆已於 2026-08-12 在真實 WP-560
+// 上實機驗證通過（含極性校正，見 local-print-agent/server.js 檔頭說明）。
+// 連不到本機服務時回全 false/null，不丟例外。
 export async function checkPrinterAgent() {
   try {
     const res = await fetch(`${AGENT_BASE}/status`, { signal: AbortSignal.timeout(3000) });
     const data = await res.json();
-    return !!data.connected;
+    return { connected: !!data.connected, positionOk: data.positionOk ?? null };
   } catch {
-    return false;
+    return { connected: false, positionOk: null };
   }
 }
 

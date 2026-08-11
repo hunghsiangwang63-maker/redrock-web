@@ -55,11 +55,16 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
   const [issued, setIssued] = useState(null);
   const [rollStatus, setRollStatus] = useState(null); // 印完這張後的紙捲剩餘狀態（後端 print-record 回傳）
   const [agentConnected, setAgentConnected] = useState(null);
+  const [positionOk, setPositionOk] = useState(null); // 存根聯/收執聯定位狀態（true/false/null＝未知不擋）；已於 2026-08-12 實機驗證通過（含極性校正）
   const [rollState, setRollState] = useState(null); // 開啟面板當下的紙捲狀態（供列印前預先擋下已用完的情況）
   const [checkingExisting, setCheckingExisting] = useState(true); // 開面板時先查有沒有已開立過，查完前不顯示表單/按鈕
   const [printedItems, setPrintedItems] = useState(null); // 這次實際送去列印的明細（供成功彈窗逐行顯示；重開既有發票/競態情況下沒有值，退回顯示單一品項）
 
-  const refreshAgent = async () => setAgentConnected(await checkPrinterAgent());
+  const refreshAgent = async () => {
+    const s = await checkPrinterAgent();
+    setAgentConnected(s.connected);
+    setPositionOk(s.positionOk);
+  };
   useEffect(() => {
     refreshAgent();
     if (!gymId) return;
@@ -87,6 +92,9 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
 
   const doPrint = async () => {
     if (rollDepleted) { setError('這捲發票紙已用完，請先到「系統設定 → 發票號碼管理」設定新捲起始號'); return; }
+    // 這裡用開面板時查到的快取值先擋一次（避免明顯已知異常還讓店員點下去）；印表機自己的 /print
+    // 端點在真正列印前也會重新即時查一次（見 server.js），才是真正的最後防線。
+    if (positionOk === false) { setError('偵測到發票紙未正確定位（存根聯/收執聯黑點感應異常），請確認紙張裝妥後點「重新檢查」再試'); return; }
     if (!(Number(amount) > 0)) { setError('請輸入大於 0 的金額'); return; }
     if (taxId.trim() && !isValidTaiwanTaxId(taxId)) { setError('統一編號檢查碼錯誤，請確認號碼是否正確'); return; }
     setStatus('printing'); setError('');
@@ -204,13 +212,16 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       <div style={{ background:'#FBF5F5', borderRadius:8, padding:10, marginBottom:14, fontSize:12, color:'#666' }}>
         {subtitle}
         {feeInfo && <div style={{ marginTop:4 }}>{feeInfo}</div>}
-        <div style={{ marginTop:8, display:'flex', alignItems:'center', gap:8 }}>
+        <div style={{ marginTop:8, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
           {agentConnected === null ? (
             <span style={{ color:'#999' }}>檢查印表機連線中...</span>
           ) : agentConnected ? (
             <span style={{ color:'#2D7D46', fontWeight:600 }}>🖨️ 印表機已連線</span>
           ) : (
             <span style={{ color:'#A32D2D', fontWeight:600 }}>⚠️ 無法連線到本機列印代理</span>
+          )}
+          {agentConnected && positionOk === false && (
+            <span style={{ color:'#A32D2D', fontWeight:600 }}>／⚠️ 紙張未正確定位</span>
           )}
           <button onClick={refreshAgent} style={{ fontSize:11, color:'#185FA5', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>重新檢查</button>
         </div>
@@ -243,10 +254,15 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       )}
       <div style={{ display:'flex', gap:8 }}>
         <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>關閉</button>
-        <button onClick={doPrint} disabled={status === 'printing' || agentConnected === false}
-          style={{ flex:2, height:40, borderRadius:9, background: agentConnected === false ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: agentConnected === false ? 'not-allowed' : 'pointer' }}>
-          {status === 'printing' ? '列印中...' : status === 'error' ? '🖨️ 重新列印' : '🖨️ 列印發票'}
-        </button>
+        {(() => {
+          const printDisabled = status === 'printing' || agentConnected === false || positionOk === false;
+          return (
+            <button onClick={doPrint} disabled={printDisabled}
+              style={{ flex:2, height:40, borderRadius:9, background: printDisabled ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: printDisabled ? 'not-allowed' : 'pointer' }}>
+              {status === 'printing' ? '列印中...' : status === 'error' ? '🖨️ 重新列印' : '🖨️ 列印發票'}
+            </button>
+          );
+        })()}
       </div>
     </Modal>
   );
