@@ -53,6 +53,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
   const [rollStatus, setRollStatus] = useState(null); // 印完這張後的紙捲剩餘狀態（後端 print-record 回傳）
   const [agentConnected, setAgentConnected] = useState(null);
   const [rollState, setRollState] = useState(null); // 開啟面板當下的紙捲狀態（供列印前預先擋下已用完的情況）
+  const [checkingExisting, setCheckingExisting] = useState(true); // 開面板時先查有沒有已開立過，查完前不顯示表單/按鈕
 
   const refreshAgent = async () => setAgentConnected(await checkPrinterAgent());
   useEffect(() => {
@@ -62,6 +63,21 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       .then(r => setRollState(r.data.invoiceState || null))
       .catch(() => setRollState(null));
   }, [gymId]);
+
+  // 這筆訂單如果已經開立過發票（不論是這次操作剛印的，還是之前印過、這次只是重新打開這個面板），
+  // 一律直接顯示唯讀摘要——不重新顯示可以再按一次「列印發票」的空白表單，避免重複列印/重複消耗號碼。
+  useEffect(() => {
+    if (!sourceType || !refId) { setCheckingExisting(false); return; }
+    let alive = true;
+    client.get('/invoices/active', { params: { sourceType, refId } })
+      .then(r => {
+        if (!alive) return;
+        if (r.data.invoice) { setIssued(r.data.invoice); setStatus('success'); }
+        setCheckingExisting(false);
+      })
+      .catch(() => { if (alive) setCheckingExisting(false); }); // 查詢失敗不擋（後端 print-record 仍有最後一道防線）
+    return () => { alive = false; };
+  }, [sourceType, refId]);
 
   const rollDepleted = !!rollState?.rollDepleted;
 
@@ -86,6 +102,14 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       setRollStatus(res.data.rollStatus || null);
       setStatus('success');
     } catch (err) {
+      // 極少數競態情況（如雙分頁/雙人同時操作同一筆訂單）：紙本已在①印出，但②配號時被後端擋下
+      // 「已有作用中發票」——這張紙已經印出去、浪費掉了，但沒有多消耗一個號碼、也沒建立重複紀錄。
+      // 直接切到唯讀摘要（顯示既有那張正確的發票），不要再讓店員誤以為「列印失敗」而重新按一次。
+      if (err.response?.data?.error === 'ALREADY_INVOICED' && err.response.data.invoice) {
+        setIssued(err.response.data.invoice);
+        setStatus('success');
+        return;
+      }
       // 紙本已印出但配號失敗（如列印當下剛好被別人用到最後一張）——同樣要醒目提醒換捲，
       // 而非只顯示一般錯誤訊息。
       if (err.response?.data?.error === 'ROLL_DEPLETED') {
@@ -127,6 +151,16 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
           </div>
         )}
         <button onClick={onClose} style={{ width:'100%', height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>關閉</button>
+      </Modal>
+    );
+  }
+
+  // 還沒查完「這筆訂單是否已開過發票」之前，先不要顯示表單/按鈕——避免在查詢結果回來、
+  // 切換成上方唯讀摘要之前，讓店員看到一瞬間可以按的空白表單、搶快點下去。
+  if (checkingExisting) {
+    return (
+      <Modal title={`開立發票 · ${title || ''}`} onClose={onClose}>
+        <div style={{ fontSize:13, color:'#999', textAlign:'center', padding:'30px 0' }}>查詢中...</div>
       </Modal>
     );
   }
