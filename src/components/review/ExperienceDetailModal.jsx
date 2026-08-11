@@ -45,7 +45,7 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
           <Row label="聯絡人">{record.contactName || '—'}{record.contactPhone ? `（${record.contactPhone}）` : ''}</Row>
           {record.contactEmail && <Row label="Email">{record.contactEmail}</Row>}
           <Row label="體驗日期">{record.bookingDate || '—'}{record.bookingTime ? ` ${record.bookingTime}` : ''}</Row>
-          <Row label="課程類型">{record.courseType || '—'}</Row>
+          <Row label="課程類型">{record.courseTypeName || record.courseType || '—'}</Row>
           <Row label="人數">{record.numParticipants || participants.length || '—'} 人</Row>
           <Row label="費用"><strong style={{ color: '#A32D2D' }}>NT${(record.totalFee || 0).toLocaleString()}</strong></Row>
           <Row label="館別">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
