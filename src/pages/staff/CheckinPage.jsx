@@ -125,6 +125,11 @@ export default function CheckinPage() {
   const streamRef = useRef(null);
   const rafRef = useRef(null);
   const scanningRef = useRef(false);
+  // 目前處理中／顯示中尚未確認的掃描結果所屬 token。掃描槍連續觸發（trigger 沒放開會一直重送同一組
+  // 資料）或相機在同一張 QR 上重複偵測時，同一個 token 的重複掃描會直接 no-op，避免把畫面清空重繪、
+  // 讓店員來不及點「確認入場／報到／入館／補租」就整個跳開重來。只在真的成功「確認」了才清空，
+  // 讓下一次全新掃描（不同 token，或同 token 但真的想重掃）可以正常進行。
+  const pendingScanTokenRef = useRef(null);
   const [scanResult, setScanResult] = useState(null);
   const [compScan, setCompScan] = useState(null); // 比賽報到掃描結果（compchk: QR）
   const [compInvoiceTarget, setCompInvoiceTarget] = useState(null); // 比賽報到「開立發票」modal 目標
@@ -278,39 +283,48 @@ export default function CheckinPage() {
   const runScan = async (token) => {
     const t = (token || '').trim();
     if (!t) return;
+    // 同一張 QR 還在處理中或結果還顯示著（尚未按下確認）→ 忽略這次重複掃描，不清空畫面
+    if (t === pendingScanTokenRef.current) return;
     // 比賽報到 QR（compchk: 前綴）→ 走比賽報到流程（驗報名資格、不卡墜測）
     if (t.startsWith('compchk:')) {
+      pendingScanTokenRef.current = t;
       setLoading(true); setScanResult(null); setConfirmedCheckIn(null); setCompScan(null);
       try {
         const res = await client.post('/competitions/checkin/scan', { token: t });
         setCompScan({ ...res.data, token: t });
       } catch (err) {
         setCompScan({ error: err.response?.data?.message || '掃描失敗' });
+        pendingScanTokenRef.current = null; // 失敗不算「待確認」，允許立即重掃
       } finally { setLoading(false); }
       return;
     }
     // 員工入館 QR（staffentry: 前綴）
     if (t.startsWith('staffentry:')) {
+      pendingScanTokenRef.current = t;
       setLoading(true); setScanResult(null); setConfirmedCheckIn(null); setCompScan(null); setStaffScan(null);
       try {
         const res = await client.post('/staff-entry/scan', { token: t });
         setStaffScan({ ...res.data, token: t });
       } catch (err) {
         setStaffScan({ error: err.response?.data?.message || '掃描失敗' });
+        pendingScanTokenRef.current = null;
       } finally { setLoading(false); }
       return;
     }
     // 會員自助「補租器材」QR（rentaladd: 前綴）
     if (t.startsWith('rentaladd:')) {
+      pendingScanTokenRef.current = t;
       setLoading(true); setScanResult(null); setConfirmedCheckIn(null); setCompScan(null); setStaffScan(null); setRentalAddonScan(null);
       try {
         const res = await scanRentalAddon(t);
         setRentalAddonScan({ ...res.data, token: t });
       } catch (err) {
         setRentalAddonScan({ error: err.response?.data?.message || '掃描失敗' });
+        pendingScanTokenRef.current = null;
       } finally { setLoading(false); }
       return;
     }
+    pendingScanTokenRef.current = t;
     setLoading(true);
     setScanResult(null);
     setConfirmedCheckIn(null);
@@ -318,9 +332,10 @@ export default function CheckinPage() {
     setStaffScan(null);
     try {
       const res = await scanQrCode(t);
-      setScanResult(res.data);
+      setScanResult({ ...res.data, qrToken: res.data.qrToken || t });
     } catch (err) {
       setScanResult({ error: err.response?.data?.message || '掃描失敗' });
+      pendingScanTokenRef.current = null;
     } finally {
       setLoading(false);
       setQrInput('');
@@ -392,6 +407,7 @@ export default function CheckinPage() {
       const res = await confirmCheckIn(scanResult.qrToken);
       setConfirmedCheckIn(res.data.checkIn);
       setScanResult(null);
+      pendingScanTokenRef.current = null;
       await loadStats();
     } catch (err) {
       setScanResult({ ...scanResult, confirmError: err.response?.data?.message || '確認失敗' });
@@ -630,6 +646,7 @@ export default function CheckinPage() {
                         try {
                           const r = await client.post('/competitions/checkin/confirm', { token: compScan.token });
                           setCompScan(null);
+                          pendingScanTokenRef.current = null;
                           setConfirmedCheckIn({ memberName: compScan.memberName, entryType: 'competition', amountPaid: 0, message: r.data.message });
                         } catch (err) { setCompScan(prev => ({ ...prev, error: err.response?.data?.message || '報到失敗' })); }
                       }}
@@ -688,6 +705,7 @@ export default function CheckinPage() {
                       try {
                         const r = await client.post('/staff-entry/confirm', { token: staffScan.token });
                         setStaffScan(null);
+                        pendingScanTokenRef.current = null;
                         setConfirmedCheckIn({ memberName: staffScan.staffName, entryType: 'staff_entry', amountPaid: staffScan.fee, message: r.data.message });
                       } catch (err) { setStaffScan(prev => ({ ...prev, error: err.response?.data?.message || '入館失敗' })); }
                     }}
@@ -718,6 +736,7 @@ export default function CheckinPage() {
                       try {
                         await confirmRentalAddon(rentalAddonScan.token);
                         setRentalAddonScan(null);
+                        pendingScanTokenRef.current = null;
                         alert('已確認補租，扣費完成');
                       } catch (err) { setRentalAddonScan(prev => ({ ...prev, error: err.response?.data?.message || '確認失敗' })); }
                       finally { setConfirmingRentalAddon(false); }
