@@ -7,14 +7,16 @@ const AGENT_BASE = 'http://localhost:3399';
 
 const shortGymId = (gymId) => String(gymId || '').replace(/^gym-/, '');
 
-// 檢查代理是否連線中（開得起序列埠）。連不到本機服務或印表機斷線都回 false，不丟例外。
+// 查詢代理狀態：connected＝印表機是否真的有回應（DLE EOT，非只是 COM 埠開得起來）；
+// positionOk＝存根聯/收執聯定位是否正常（true/false/null，null＝這台印表機的查詢無回應，未知不代表異常）。
+// 連不到本機服務時回全 false/null，不丟例外。
 export async function checkPrinterAgent() {
   try {
     const res = await fetch(`${AGENT_BASE}/status`, { signal: AbortSignal.timeout(3000) });
     const data = await res.json();
-    return !!data.connected;
+    return { connected: !!data.connected, positionOk: data.positionOk ?? null };
   } catch {
-    return false;
+    return { connected: false, positionOk: null };
   }
 }
 
