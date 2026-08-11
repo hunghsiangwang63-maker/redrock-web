@@ -167,15 +167,13 @@ export default function CoursesPage({ embedded = false }) {
       notes: '',
     });
     setShowAddSession(true);
-    // 載入該課現有學員（依 memberId 去重，confirmed/leave 都算課程學員）供勾選帶入（預設全勾）
+    // 載入該課現有學員（confirmed/leave 都算課程學員；已依會員去重、非候補）供勾選帶入（預設全勾）
     setAddSessionStudents([]);
     client.get(`/courses/${course.id}/enrollments`).then(res => {
-      const seen = new Map();
-      (res.data.enrollments || []).forEach(e => {
-        if (!['confirmed', 'leave'].includes(e.status)) return;
-        if (!seen.has(e.memberId)) seen.set(e.memberId, { memberId: e.memberId, name: e.memberName || '', checked: true });
-      });
-      setAddSessionStudents([...seen.values()]);
+      const list = (res.data.enrollments || [])
+        .filter(e => !e.isWaitlist)
+        .map(e => ({ memberId: e.memberId, name: e.memberName || '', checked: true }));
+      setAddSessionStudents(list);
     }).catch(() => setAddSessionStudents([]));
   };
 
@@ -2603,8 +2601,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 <div style={{ fontSize:16, fontWeight:600 }}>{rosterModal.course?.name} — 報名名單</div>
                 <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                   {rosterModal.enrollments ? (() => {
-                    const confirmedN = new Set(rosterModal.enrollments.filter(e => e.status !== 'waitlist').map(e => e.memberId)).size;
-                    const waitlistN = new Set(rosterModal.enrollments.filter(e => e.status === 'waitlist').map(e => e.memberId)).size;
+                    // 後端已依會員去重（一人一列），直接算數量即可，不用再 Set 去重
+                    const confirmedN = rosterModal.enrollments.filter(e => !e.isWaitlist).length;
+                    const waitlistN = rosterModal.enrollments.filter(e => e.isWaitlist).length;
                     return `共 ${confirmedN} 人${waitlistN > 0 ? `・候補 ${waitlistN} 人` : ''}`;
                   })() : '載入中...'}
                 </div>
@@ -2628,29 +2627,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               {!rosterLoading && rosterModal.enrollments?.length > 0 && (() => {
                 const isWorkshop = rosterModal.course?.type === 'workshop'; // 工作坊不提供請假功能，名單不顯示可請假欄位
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
-                const byMember = {};
-                rosterModal.enrollments.forEach(e => {
-                  const m = byMember[e.memberId] || (byMember[e.memberId] = { memberId:e.memberId, memberName:e.memberName, memberPhone:e.memberPhone, paymentMethod:e.paymentMethod, bankLastFive:e.bankLastFive, paidAmount:null, count:0, leaveUsed:0, override:null, enrollNote:null, healthNote:null, referralSource:null, enrolledAt:null, fee:null, paymentStatus:null, confirmedAmount:null, receivedAmount:null, receivedAmountOverride:null, paymentDate:null, staffNote:null, isWaitlist:false, waitlistPosition:null });
-                  m.count++;
-                  if (e.status === 'waitlist') { m.isWaitlist = true; if (e.waitlistPosition != null) m.waitlistPosition = e.waitlistPosition; }
-                  if (e.memberPaidAmount != null && m.paidAmount == null) m.paidAmount = e.memberPaidAmount;
-                  if (e.status==='leave') m.leaveUsed++;
-                  if (e.maxLeavesAllowed != null) m.override = e.maxLeavesAllowed;
-                  if (!m.enrollNote && e.enrollNote) m.enrollNote = e.enrollNote;
-                  if (!m.healthNote && e.healthNote) m.healthNote = e.healthNote;
-                  if (!m.referralSource && e.referralSource) m.referralSource = e.referralSource;
-                  if (!m.enrolledAt && e.enrolledAt) m.enrolledAt = e.enrolledAt;
-                  if (m.fee == null && e.fee != null) m.fee = e.fee;
-                  if (!m.paymentStatus && e.paymentStatus) m.paymentStatus = e.paymentStatus;
-                  if (m.confirmedAmount == null && e.confirmedAmount != null) m.confirmedAmount = e.confirmedAmount;
-                  if (m.receivedAmount == null && e.receivedAmount != null) m.receivedAmount = e.receivedAmount;
-                  if (m.receivedAmountOverride == null && e.receivedAmountOverride != null) m.receivedAmountOverride = e.receivedAmountOverride;
-                  if (!m.paymentDate && e.paymentDate) m.paymentDate = e.paymentDate;
-                  if (!m.staffNote && e.staffNote) m.staffNote = e.staffNote;
-                });
-                const allMembers = Object.values(byMember);
-                const members = allMembers.filter(m => !m.isWaitlist);
-                const waitlistMembers = allMembers.filter(m => m.isWaitlist)
+                // 後端已依會員去重（一人一列，含 count/leaveUsed 聚合），不用再前端 reduce
+                const members = rosterModal.enrollments.filter(m => !m.isWaitlist);
+                const waitlistMembers = rosterModal.enrollments.filter(m => m.isWaitlist)
                   .sort((a, b) => (a.waitlistPosition ?? 999) - (b.waitlistPosition ?? 999));
                 return (
                 <>
@@ -2666,7 +2645,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   </thead>
                   <tbody>
                     {members.map((m, i) => {
-                      const limit = m.override ?? courseMax;
+                      const limit = m.maxLeavesAllowed ?? courseMax;
                       const isEditing = editLeave?.memberId === m.memberId;
                       return (
                       <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
@@ -2679,7 +2658,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                               range: (rosterModal.course?.startDate && rosterModal.course?.endDate)
                                 ? `${dayjs(rosterModal.course.startDate).format('MM/DD')}–${dayjs(rosterModal.course.endDate).format('MM/DD')}` : '',
                               enrolledAt: m.enrolledAt, fee: m.fee, paymentMethod: m.paymentMethod, paymentStatus: m.paymentStatus,
-                              memberPaidAmount: m.paidAmount, confirmedAmount: m.confirmedAmount,
+                              memberPaidAmount: m.memberPaidAmount, confirmedAmount: m.confirmedAmount,
                               receivedAmount: m.receivedAmount, receivedAmountOverride: m.receivedAmountOverride,
                               bankLastFive: m.bankLastFive, paymentDate: m.paymentDate,
                               staffNote: m.staffNote, healthNote: m.healthNote, referralSource: m.referralSource, enrollNote: m.enrollNote,
@@ -2708,8 +2687,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           ) : (
                             <span style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
                               <span style={{ color: m.leaveUsed>=limit?'#A32D2D':'#1a1a1a' }}>請假 {m.leaveUsed}/{limit}</span>
-                              {m.override != null && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:5, background:'#FAEEDA', color:'#854F0B' }}>插班</span>}
-                              <button onClick={()=>setEditLeave({ memberId:m.memberId, value: m.override ?? '' })}
+                              {m.maxLeavesAllowed != null && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:5, background:'#FAEEDA', color:'#854F0B' }}>插班</span>}
+                              <button onClick={()=>setEditLeave({ memberId:m.memberId, value: m.maxLeavesAllowed ?? '' })}
                                 style={{ height:26, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:11, cursor:'pointer' }}>✏️ 填寫</button>
                             </span>
                           )}
