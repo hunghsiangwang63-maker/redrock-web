@@ -2212,11 +2212,21 @@ export default function MemberCoursesPage() {
               ) : (<>
               <PaymentPlanChoice installment={selectedCourse?.installment} price={enrollSession?.fee ?? selectedCourse?.price}
                 plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
+              {Number(selectedCourse?.depositAmount) > 0 && (
+                <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#8B6914', lineHeight:1.7, textAlign:'left' }}>
+                  本次報名須另收<b>保證金 NT${Number(selectedCourse.depositAmount).toLocaleString()}</b>，<b>當天報到後全額退還</b>；未出席則保證金沒收。
+                </div>
+              )}
               <PaymentSection
                 value={paymentData}
                 methods={selectedCourse?.paymentMethods?.length ? selectedCourse.paymentMethods : ['cash','transfer']} /* 課程端隱藏電子支付；課程可覆寫(如運動按摩只現金) */
                 onChange={d => { setPaymentData(d); setPaymentMethod(d.method); }}
-                amount={(() => { const full = enrollSession?.fee ?? selectedCourse?.price ?? 0; const fp = (selectedCourse?.installment?.periods||[])[0]?.percent; return (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full; })()}
+                amount={(() => {
+                  const full = enrollSession?.fee ?? selectedCourse?.price ?? 0;
+                  const fp = (selectedCourse?.installment?.periods||[])[0]?.percent;
+                  const feeToPay = (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full;
+                  return feeToPay + (Number(selectedCourse?.depositAmount) || 0); // 保證金一律全額隨本次繳清，不併入分期
+                })()}
                 bankInfo={(() => { const bk = bankAccounts[selectedCourse?.gymId || enrollSession?.gymId || gymId]; return bk ? { bankName: bk.bankName, branch: bk.branch||'', account: bk.accountNumber, accountName: bk.accountName } : null; })()}
               />
               {(paymentData.method==='cash'||paymentData.method==='transfer') && (

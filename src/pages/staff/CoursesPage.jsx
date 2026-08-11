@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../../api/courseCategories';
 import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
-         generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, reopenCourse, permanentDeleteCourse } from '../../api/courses';
+         generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, reopenCourse, permanentDeleteCourse,
+         refundDeposit, forfeitDeposit } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import client from '../../api/client';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
@@ -138,7 +139,7 @@ export default function CoursesPage({ embedded = false }) {
     cohortName: '', name: '', price: '', pricePerSession: '', maxStudents: 6, maxWaitlist: 2, categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
-    gymAccessDays: 60, midpointSurcharge: 1.05, refundTiers: null,
+    gymAccessDays: 60, midpointSurcharge: 1.05, refundTiers: null, depositAmount: 0,
     // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
     leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
     allowTrial: '', trialPrice: '', trialTarget: 'auto', makeupTarget: 'auto', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
@@ -440,6 +441,7 @@ export default function CoursesPage({ embedded = false }) {
         pricePerSession: isWorkshop ? undefined : (parseInt(courseForm.pricePerSession) || 0),
         midpointSurcharge: isWorkshop ? (parseFloat(courseForm.midpointSurcharge) || 1.05) : undefined,
         refundTiers: isWorkshop ? courseForm.refundTiers : undefined,
+        depositAmount: isWorkshop ? (parseInt(courseForm.depositAmount) || 0) : undefined,
         // 續報/舊生優惠（比率＋開關，週課專用）
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!courseForm.fullTermRenewalDiscountEnabled,
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(courseForm.fullTermRenewalDiscountRate) || 90) / 100,
@@ -511,6 +513,7 @@ export default function CoursesPage({ embedded = false }) {
       trialPrice: course.trialPrice ?? '',
       midpointSurcharge: course.midpointSurcharge || 1.05,
       refundTiers: course.refundTiers || null,
+      depositAmount: course.depositAmount || 0,
       type: course.type || 'weekly',
       unlimitedPracticeStart: course.unlimitedPracticeStart || course.startDate || '',
       unlimitedPracticeEnd: course.unlimitedPracticeEnd || course.endDate || '',
@@ -544,6 +547,7 @@ export default function CoursesPage({ embedded = false }) {
         pricePerSession: isWorkshop ? undefined : (parseInt(editForm.pricePerSession) || 0),
         midpointSurcharge: isWorkshop ? (parseFloat(editForm.midpointSurcharge) || 1.05) : undefined,
         refundTiers: isWorkshop ? editForm.refundTiers : undefined,
+        depositAmount: isWorkshop ? (parseInt(editForm.depositAmount) || 0) : undefined,
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!editForm.fullTermRenewalDiscountEnabled,
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(editForm.fullTermRenewalDiscountRate) || 90) / 100,
         alumniDiscountEnabled: isWorkshop ? undefined : !!editForm.alumniDiscountEnabled,
@@ -866,6 +870,29 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       showMsg(res.data.message || '已更新');
     } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'red'); }
     finally { setSavingLeave(false); }
+  };
+
+  // 工作坊保證金：退還／沒收（獨立於出席標記之外的店員動作）
+  const [depositActionLoading, setDepositActionLoading] = useState(null); // enrollmentId 進行中
+  const handleRefundDeposit = async (m) => {
+    if (!window.confirm(`確定退還 ${m.memberName} 的保證金 NT$${m.depositAmount}？`)) return;
+    setDepositActionLoading(m.enrollmentId);
+    try {
+      const res = await refundDeposit(m.enrollmentId);
+      setRosterModal(rm => rm ? { ...rm, enrollments: rm.enrollments.map(e => e.enrollmentId === m.enrollmentId ? { ...e, depositResolved: true, depositResolution: 'refunded' } : e) } : rm);
+      showMsg(res.data.message || '已退還');
+    } catch (e) { showMsg(e.response?.data?.message || '退還失敗', 'red'); }
+    finally { setDepositActionLoading(null); }
+  };
+  const handleForfeitDeposit = async (m) => {
+    if (!window.confirm(`確定沒收 ${m.memberName} 的保證金 NT$${m.depositAmount}？（會員未出席）`)) return;
+    setDepositActionLoading(m.enrollmentId);
+    try {
+      const res = await forfeitDeposit(m.enrollmentId);
+      setRosterModal(rm => rm ? { ...rm, enrollments: rm.enrollments.map(e => e.enrollmentId === m.enrollmentId ? { ...e, depositResolved: true, depositResolution: 'forfeited' } : e) } : rm);
+      showMsg(res.data.message || '已沒收');
+    } catch (e) { showMsg(e.response?.data?.message || '沒收失敗', 'red'); }
+    finally { setDepositActionLoading(null); }
   };
 
   const courseTypeLabel = (t) => t === 'weekly' ? '週課' : '工作坊';
@@ -1812,6 +1839,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       gymAccessDays: src.gymAccessDays || 60,
                       midpointSurcharge: src.midpointSurcharge || 1.05,
                       refundTiers: src.refundTiers || null,
+                      depositAmount: src.depositAmount || 0,
                       fullTermRenewalDiscountEnabled: !!src.fullTermRenewalDiscountEnabled,
                       fullTermRenewalDiscountRate: src.fullTermRenewalDiscountRate != null ? Math.round(src.fullTermRenewalDiscountRate * 100) : 90,
                       alumniDiscountEnabled: !!src.alumniDiscountEnabled,
@@ -1952,6 +1980,16 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             <div style={{ marginTop:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>退費分級（整筆退課，依距開課天數比例退費）</label>
               <WorkshopRefundTiersEditor value={courseForm.refundTiers} onChange={v => setCourseForm({...courseForm, refundTiers: v})} />
+            </div>
+          )}
+          {courseForm.type === 'workshop' && (
+            <div style={{ marginTop:14 }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>
+                保證金（選填；免費工作坊也可收，報到後由店員「退還」或未到「沒收」，提前取消依上方退費分級比例部分退還）
+              </label>
+              <input type="number" min="0" value={courseForm.depositAmount} placeholder="0＝不收保證金"
+                onChange={e => setCourseForm({...courseForm, depositAmount: e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
           )}
           <div style={{ marginTop:14 }}>
@@ -2431,6 +2469,16 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               <WorkshopRefundTiersEditor value={editForm.refundTiers} onChange={v => setEditForm({...editForm, refundTiers: v})} />
             </div>
           )}
+          {editForm.type === 'workshop' && (
+            <div style={{ marginTop:16 }}>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>
+                保證金（選填；免費工作坊也可收，報到後由店員「退還」或未到「沒收」，提前取消依上方退費分級比例部分退還）
+              </label>
+              <input type="number" min="0" value={editForm.depositAmount ?? 0} placeholder="0＝不收保證金"
+                onChange={e => setEditForm({...editForm, depositAmount: e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+          )}
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
             <button onClick={() => setEditingCourse(null)}
               style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
@@ -2644,6 +2692,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               {!rosterLoading && rosterModal.enrollments?.length > 0 && (() => {
                 const isWorkshop = rosterModal.course?.type === 'workshop'; // 工作坊不提供請假功能，名單不顯示可請假欄位
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
+                const hasDeposit = isWorkshop && Number(rosterModal.course?.depositAmount) > 0; // 課程本身有設保證金才顯示此欄
                 // 後端已依會員去重（一人一列，含 count/leaveUsed 聚合），不用再前端 reduce
                 const members = rosterModal.enrollments.filter(m => !m.isWaitlist);
                 const waitlistMembers = rosterModal.enrollments.filter(m => m.isWaitlist)
@@ -2658,6 +2707,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>電話</th>
                       <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>報名堂數</th>
                       {!isWorkshop && <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>可請假（已用/上限）</th>}
+                      {hasDeposit && <th style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666' }}>保證金</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -2707,6 +2757,28 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                               {m.maxLeavesAllowed != null && <span style={{ fontSize:10, padding:'1px 6px', borderRadius:5, background:'#FAEEDA', color:'#854F0B' }}>插班</span>}
                               <button onClick={()=>setEditLeave({ memberId:m.memberId, value: m.maxLeavesAllowed ?? '' })}
                                 style={{ height:26, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:11, cursor:'pointer' }}>✏️ 填寫</button>
+                            </span>
+                          )}
+                        </td>
+                        )}
+                        {hasDeposit && (
+                        <td style={{ padding:'10px 12px' }}>
+                          {!(m.depositAmount > 0) ? (
+                            <span style={{ color:'#ccc' }}>—</span>
+                          ) : !m.depositCollectedAdjDone ? (
+                            <span style={{ fontSize:11, color:'#999' }}>NT${m.depositAmount}（待收款）</span>
+                          ) : m.depositResolved ? (
+                            <span style={{ fontSize:11, fontWeight:600,
+                              color: m.depositResolution==='refunded' ? '#2D7D46' : m.depositResolution==='forfeited' ? '#A32D2D' : '#8B6914' }}>
+                              {m.depositResolution==='refunded' ? '✓ 已退還' : m.depositResolution==='forfeited' ? '✕ 已沒收' : '部分退還'}
+                            </span>
+                          ) : (
+                            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                              <span style={{ fontSize:12 }}>NT${m.depositAmount}</span>
+                              <button disabled={depositActionLoading===m.enrollmentId} onClick={()=>handleRefundDeposit(m)}
+                                style={{ height:24, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer' }}>退還</button>
+                              <button disabled={depositActionLoading===m.enrollmentId} onClick={()=>handleForfeitDeposit(m)}
+                                style={{ height:24, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:11, cursor:'pointer' }}>沒收</button>
                             </span>
                           )}
                         </td>

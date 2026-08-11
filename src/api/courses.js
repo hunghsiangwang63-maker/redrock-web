@@ -83,3 +83,10 @@ export const reopenCourse = (courseId) =>
 // 永久刪除（含場次/報名，僅限無在籍學員）
 export const permanentDeleteCourse = (courseId) =>
   client.delete(`/courses/${courseId}/permanent`);
+
+// 工作坊保證金：退還／沒收（店員獨立動作，與出席標記無關）
+export const refundDeposit = (enrollmentId) =>
+  client.post(`/courses/enrollments/${enrollmentId}/refund-deposit`);
+
+export const forfeitDeposit = (enrollmentId, reason) =>
+  client.post(`/courses/enrollments/${enrollmentId}/forfeit-deposit`, { reason });
