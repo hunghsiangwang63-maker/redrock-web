@@ -109,6 +109,7 @@ export default function DailySettlementPage() {
   const [paymentManual, setPaymentManual] = useState({});
   const [exportMonth, setExportMonth] = useState(dayjs().format('YYYY-MM'));
   const [notes, setNotes] = useState('');
+  const [invoiceAutoFilled, setInvoiceAutoFilled] = useState(false); // 該館已開真列印：發票起訖是否為系統自動帶入（非店員手動猜測）
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
   const [history, setHistory] = useState([]);
@@ -168,11 +169,19 @@ export default function DailySettlementPage() {
         setNotes('');
         setIncomeManual({});
         setPaymentManual({});
+        setInvoiceAutoFilled(false);
         if (!res.data.alreadySettled) {
-          // 首段起始號帶入前一天最後+1、字軌沿用前一天最後一段（換發票本才需要手動改）
-          const sug = res.data.settlement?.suggestedInvoiceStart;
-          const sugTrack = res.data.settlement?.suggestedInvoiceTrack;
-          if (sug || sugTrack) setInvoiceSegments([{ track: sugTrack || '', start: sug || '', last: '' }]);
+          const todaySeg = res.data.settlement?.todayInvoiceSegment;
+          if (todaySeg && (todaySeg.start || todaySeg.last)) {
+            // 該館已開真列印：今日實際印出的號碼範圍，權威、起訖皆帶入（不需再猜「最後一張」）
+            setInvoiceSegments([{ track: todaySeg.track || '', start: todaySeg.start || '', last: todaySeg.last || '' }]);
+            setInvoiceAutoFilled(true);
+          } else {
+            // 首段起始號帶入前一天最後+1、字軌沿用前一天最後一段（換發票本才需要手動改）
+            const sug = res.data.settlement?.suggestedInvoiceStart;
+            const sugTrack = res.data.settlement?.suggestedInvoiceTrack;
+            if (sug || sugTrack) setInvoiceSegments([{ track: sugTrack || '', start: sug || '', last: '' }]);
+          }
         }
       }
     } catch (e) { if (seq === todaySeqRef.current) showMsg('載入失敗', 'err'); }
@@ -637,6 +646,11 @@ export default function DailySettlementPage() {
               <button onClick={addSegment}
                 style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>＋ 新增發票序號</button>
             </div>
+            {invoiceAutoFilled && (
+              <div style={{ margin:'8px 16px 0', padding:'6px 10px', borderRadius:6, background:'#EAF6EE', color:'#2D7D46', fontSize:12 }}>
+                ✅ 已自動帶入本日實際列印發票號碼（來自發票機列印紀錄），如有作廢/漏印請自行核對調整
+              </div>
+            )}
             {invoiceSegments.map((sg, i) => (
               <div key={i} style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                 <span style={{ ...s.label, minWidth:56 }}>{invoiceSegments.length > 1 ? `第 ${i+1} 段` : '發票號'}</span>
