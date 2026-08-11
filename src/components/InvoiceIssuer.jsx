@@ -57,6 +57,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
   const [agentConnected, setAgentConnected] = useState(null);
   const [rollState, setRollState] = useState(null); // 開啟面板當下的紙捲狀態（供列印前預先擋下已用完的情況）
   const [checkingExisting, setCheckingExisting] = useState(true); // 開面板時先查有沒有已開立過，查完前不顯示表單/按鈕
+  const [printedItems, setPrintedItems] = useState(null); // 這次實際送去列印的明細（供成功彈窗逐行顯示；重開既有發票/競態情況下沒有值，退回顯示單一品項）
 
   const refreshAgent = async () => setAgentConnected(await checkPrinterAgent());
   useEffect(() => {
@@ -96,6 +97,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       const printItems = Array.isArray(itemBreakdown) && itemBreakdown.length > 0 && breakdownSum === Number(amount)
         ? itemBreakdown.map(i => ({ name: i.name, price: Number(i.amount), qty: 1 }))
         : [{ name: itemName, price: Number(amount), qty: 1 }];
+      setPrintedItems(printItems); // 記下這次實際送印的明細，成功彈窗要逐行顯示
       // ① 先真的印——失敗不消耗號碼、不建立任何紀錄，可安全重試（見 invoice-integration-plan.md §6.1「失敗退路」）
       await printReceipt({
         gymId,
@@ -141,7 +143,20 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
             {autoVoided ? '⚠️ 紙本已印出，但對應交易已失效，此號碼已自動作廢' : '✅ 已列印'}
           </div>
           <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:4 }}>{issued.invoiceNo}</div>
-          <div style={{ fontSize:13 }}>{issued.itemName}　NT${issued.amount}</div>
+          {Array.isArray(printedItems) && printedItems.length > 1 ? (
+            <div style={{ fontSize:13 }}>
+              {printedItems.map((it, i) => (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'2px 0' }}>
+                  <span>{it.name}</span><span>NT${it.price}</span>
+                </div>
+              ))}
+              <div style={{ display:'flex', justifyContent:'space-between', fontWeight:700, borderTop:'1px solid #2D7D4633', marginTop:4, paddingTop:4 }}>
+                <span>合計</span><span>NT${issued.amount}</span>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize:13 }}>{issued.itemName}　NT${issued.amount}</div>
+          )}
           {issued.taxId && <div style={{ fontSize:12, color:'#666', marginTop:2 }}>統編 {issued.taxId}</div>}
           {autoVoided && (
             <div style={{ fontSize:12, color:'#A32D2D', marginTop:8, lineHeight:1.6 }}>
