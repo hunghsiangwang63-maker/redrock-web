@@ -10,7 +10,7 @@ import dayjs from 'dayjs';
 import { isChild } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
-import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
+import { useOnlineFlowEnabled, useEnabledPayments } from '../../utils/paymentMethods';
 
 // 支援線上付款（pay-first）的入館身份——純付費身份，卡/券/免費資格皆有自己的免費入場路徑，
 // 不適用；與後端 orderResolvers.entry（paymentService.js）白名單一致，勿單方修改。
@@ -40,6 +40,7 @@ export default function MemberQRPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const onlineEntryPayEnabled = useOnlineFlowEnabled('entry');
+  const enabledPay = useEnabledPayments(); // 系統層付款方式開關；街口尚未接金鑰前可能被關閉，此時即使 onlineFlows.entry 開著也不該顯示線上金流文案/入口
 
   const [step, setStep] = useState('loading');
   const [verifyResult, setVerifyResult] = useState(null);
@@ -559,10 +560,13 @@ export default function MemberQRPage() {
    const _pgmOn = pgmEligible && partnerGymMember;
    const _pvOn = !_pgmOn && pvEligible && partnerVendor;
    const pvShownPrice = _pgmOn ? Math.round(basePayPrice * pgmRate) : (basePayPrice - (_pvOn ? pvDiscount : 0));
-   // 真線上付款（pay-first，LinePay 等）：僅限單純付費身份、且未勾選需現場核對的友館隊員/特約廠商優惠
+   // 真線上付款（pay-first，街口等）：僅限單純付費身份、且未勾選需現場核對的友館隊員/特約廠商優惠
    // （那兩項後端 entry orderType 不支援，勾了會跟顯示金額不符，故此時隱藏線上付款改走原有現金/標籤方式）
    const onlinePayable = onlineEntryPayEnabled && selectedEntry?.kind === 'pay'
      && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type) && !_pgmOn && !_pvOn;
+   // 目前唯一接了線上金流的方式是街口——若系統層「付款方式開關」把街口關了（如金鑰尚未到位），
+   // 即使 onlinePayable 為 true 也不該顯示線上付款文案/觸發線上金流，否則會指向一個根本不存在的選項。
+   const jkopayOnlineLive = onlinePayable && enabledPay.jkopay !== false;
    return wrap(
     <>
       <Header title={t('選擇付款方式')} onBack={() => setStep('shoes')} />
@@ -614,7 +618,7 @@ export default function MemberQRPage() {
           {selectedEntry?.type === 'buy_pass' && buyPassPlan === 'installment' ? t('請選擇「頭款（第一期）」付款方式') : t('請選擇付款方式')}
         </div>
         <div style={{ fontSize:12, color:'#999', marginBottom:10, textAlign:'left' }}>
-          {onlinePayable
+          {jkopayOnlineLive
             ? t('選擇「街口支付」可直接完成線上付款、付款後立即開通入場券；選擇 LinePay／台灣Pay 需至櫃檯掃描店內立牌條碼付款。')
             : t('選擇 LinePay／台灣Pay／街口支付皆需至櫃檯掃描店內立牌條碼付款。')}
         </div>
@@ -627,7 +631,7 @@ export default function MemberQRPage() {
           t={t}
           onChange={v => setSelectedPayment(v.method)}
           onSelect={key => {
-            if (key === 'jkopay' && onlinePayable) {
+            if (key === 'jkopay' && jkopayOnlineLive) {
               setOnlinePayFor({ entryType: selectedEntry.type, amount: basePayPrice, gymId });
             } else {
               handleGenerateQR(rentShoes, rentChalk, key);
@@ -879,9 +883,9 @@ export default function MemberQRPage() {
               <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:10, padding:'12px 14px', marginTop:14, fontSize:13, color:'#8A5A00', fontWeight:600, display:'flex', gap:8, textAlign:'left', alignItems:'flex-start' }}>
                 <span style={{ flexShrink:0 }}>📷</span>
                 <span>{tt(
-                  `請至櫃檯以${appName[0]}掃描店內立牌 QR 碼完成付款，再出示此入場 QR 供工作人員掃描確認入場。`,
-                  `Please scan the counter's standee QR code with your ${appName[1]} to pay, then show this entry QR code to staff to confirm entry.`,
-                  `カウンターの立て看板QRコードを${appName[2]}でスキャンしてお支払いいただき、その後スタッフにこの入場QRコードをご提示ください。`
+                  `請先出示此入場 QR 供工作人員掃描確認入場，再至櫃檯以${appName[0]}掃描店內立牌 QR 碼完成付款。`,
+                  `Please show this entry QR code to staff to confirm entry first, then scan the counter's standee QR code with your ${appName[1]} to pay.`,
+                  `まずこの入場QRコードをスタッフにご提示のうえ入場確認を行い、その後カウンターの立て看板QRコードを${appName[2]}でスキャンしてお支払いください。`
                 )}</span>
               </div>
             );

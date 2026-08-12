@@ -1241,7 +1241,7 @@ export default function CheckinPage() {
                       {canCancel ? <span style={{ color:'#2D7D46', marginLeft:6 }}>({minutesAgo}分鐘前)</span> : <span style={{ color:'#ccc', marginLeft:6 }}>(已超過10分鐘)</span>}
                     </div>
                   </div>
-                  <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
                     {c.amountPaid > 0 && (
                       <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                         onClick={() => setCheckinInvoiceTarget(c)} />
@@ -1304,7 +1304,7 @@ export default function CheckinPage() {
                       {dayjs(t).format('YYYY-MM-DD HH:mm')}{c.amountPaid > 0 ? ` · NT$${c.amountPaid}` : ''}
                     </div>
                   </div>
-                  <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
                     {c.amountPaid > 0 && (
                       <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                         onClick={() => setCheckinInvoiceTarget(c)} />
