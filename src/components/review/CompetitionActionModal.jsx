@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Modal from '../Modal';
+import client from '../../api/client';
 import { confirmCompetitionPayment, rejectCompetitionPayment, refundCompetitionRegistration } from '../../api/competitions';
 
 const inp = { width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
@@ -15,6 +16,17 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
   const [rejectReason, setRejectReason] = useState('');            // 退回原因（報名者看得到，必填）
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [existingInvoice, setExistingInvoice] = useState(null); // {invoiceNo, amount} | null——退費若已開過發票，處理前要警示取回
+
+  // 退費才查（收款不涉及發票作廢）；退費處理後會自動作廢，這裡先讓經手人知道要提醒會員交回紙本
+  useEffect(() => {
+    if (action !== 'refund' || !reg.id) return;
+    let alive = true;
+    client.get('/invoices/status', { params: { sourceType: 'competition', refId: reg.id } })
+      .then(r => { if (alive && r.data.invoiceNo) setExistingInvoice(r.data); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [action, reg.id]);
 
   const submit = async () => {
     setSaving(true); setError('');
@@ -68,6 +80,16 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
         <div style={{ marginBottom:14 }}>
           <label style={lbl}>退費原因</label>
           <input style={inp} value={reason} onChange={e => setReason(e.target.value)}/>
+        </div>
+      )}
+      {existingInvoice && (
+        <div style={{ background:'#FCEBEB', border:'1px solid #A32D2D33', borderRadius:8, padding:14, marginBottom:16 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'#A32D2D', marginBottom:6 }}>⚠️ 務必取回原列印發票</div>
+          <div style={{ fontSize:12, color:'#444', lineHeight:1.7 }}>
+            這筆報名費已列印過發票，處理退費後系統會自動把它作廢（號碼不會重複使用），
+            但<strong>紙本仍在會員手上</strong>——請務必聯繫會員取回，避免流出已失效的發票。
+          </div>
+          <div style={{ marginTop:8, fontSize:16, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{existingInvoice.invoiceNo}</div>
         </div>
       )}
       {action === 'pay' && (
