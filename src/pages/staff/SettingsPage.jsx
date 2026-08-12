@@ -185,7 +185,7 @@ export default function SettingsPage() {
     if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
     if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
-    if (activeTab === 'invoiceNumbers' && canManageInvoiceNumbers) loadInvState(invNumGym);
+    if (activeTab === 'invoiceNumbers' && canManageInvoiceNumbers) { loadInvState(invNumGym); loadTodayInvoices(invNumGym); }
   }, [activeTab]);
 
   const openAddStation = () => {
@@ -576,6 +576,18 @@ export default function SettingsPage() {
   const [voidLookupBusy, setVoidLookupBusy] = useState(false);
   const [voidReasonInput, setVoidReasonInput] = useState('');
   const [voidBusy, setVoidBusy] = useState(false);
+
+  // 今日發票列表（直接顯示在「依發票號碼查詢／作廢」下方，不用一張一張查）
+  const [invTodayList, setInvTodayList] = useState([]);
+  const [invTodayLoading, setInvTodayLoading] = useState(false);
+  const loadTodayInvoices = async (gymId) => {
+    setInvTodayLoading(true);
+    try {
+      const res = await client.get('/invoices/today', { params: { gymId } });
+      setInvTodayList(res.data.invoices || []);
+    } catch (e) { setInvTodayList([]); }
+    finally { setInvTodayLoading(false); }
+  };
   const handleLookupInvoice = async () => {
     if (!voidLookupInput.trim()) return;
     setVoidLookupBusy(true); setVoidLookupResult(null);
@@ -593,6 +605,7 @@ export default function SettingsPage() {
       setVoidLookupResult(res.data.invoice);
       setVoidReasonInput('');
       showMsg('已作廢此發票');
+      loadTodayInvoices(invNumGym);
     } catch (err) { showMsg(err.response?.data?.message || '作廢失敗', 'red'); }
     finally { setVoidBusy(false); }
   };
@@ -945,7 +958,7 @@ export default function SettingsPage() {
             {isSuperAdmin ? (
               <div style={{ display:'flex', gap:8, marginBottom:16 }}>
                 {gyms.filter(g => g.name).map(g => (
-                  <button key={g.id} onClick={() => { setInvNumGym(g.id); loadInvState(g.id); setInvDupWarning(null); setVoidLookupResult(null); }}
+                  <button key={g.id} onClick={() => { setInvNumGym(g.id); loadInvState(g.id); loadTodayInvoices(g.id); setInvDupWarning(null); setVoidLookupResult(null); }}
                     style={{ flex:1, height:36, borderRadius:8,
                       border: invNumGym === g.id ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
                       background: invNumGym === g.id ? '#FBF5F5' : '#fff',
@@ -1122,12 +1135,52 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+
+            {/* 今日發票列表（不用一張一張查，直接看今天印過什麼） */}
+            <div style={{ borderTop:'0.5px solid #E8D5D5', paddingTop:16, marginTop:16 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+                <div style={{ fontSize:13, fontWeight:600 }}>今日發票列表{invTodayList.length > 0 ? `（${invTodayList.length}）` : ''}</div>
+                <button onClick={() => loadTodayInvoices(invNumGym)} disabled={invTodayLoading}
+                  style={{ fontSize:11, color:'#185FA5', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>
+                  {invTodayLoading ? '載入中...' : '重新整理'}
+                </button>
+              </div>
+              {invTodayLoading ? (
+                <div style={{ fontSize:13, color:'#999', textAlign:'center', padding:'16px 0' }}>載入中...</div>
+              ) : invTodayList.length === 0 ? (
+                <div style={{ fontSize:13, color:'#999', textAlign:'center', padding:'16px 0' }}>今日尚無發票紀錄</div>
+              ) : (
+                <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                  {invTodayList.map(inv => {
+                    const t = inv.issuedAt?._seconds ? new Date(inv.issuedAt._seconds * 1000) : null;
+                    const isVoid = inv.status === 'void';
+                    return (
+                      <div key={inv.id} style={{ background: isVoid ? '#FCEBEB' : '#FBF5F5', borderRadius:8, padding:'8px 12px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, opacity: isVoid ? 0.85 : 1 }}>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                            <span style={{ fontFamily:'monospace', fontWeight:700, color:'#8B1A1A', fontSize:13 }}>{inv.invoiceNo}</span>
+                            {isVoid && <span style={{ fontSize:10, fontWeight:700, color:'#A32D2D', border:'0.5px solid #A32D2D', borderRadius:4, padding:'1px 5px' }}>已作廢</span>}
+                            {t && <span style={{ fontSize:11, color:'#999' }}>{t.toLocaleTimeString('zh-TW', { hour:'2-digit', minute:'2-digit' })}</span>}
+                          </div>
+                          <div style={{ fontSize:12, color:'#666', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            {inv.itemName}{inv.memberName ? `・${inv.memberName}` : ''}
+                          </div>
+                        </div>
+                        <div style={{ fontSize:14, fontWeight:600, color: isVoid ? '#A32D2D' : '#1a1a1a', flexShrink:0, textDecoration: isVoid ? 'line-through' : 'none' }}>
+                          NT${(inv.amount || 0).toLocaleString()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {showAdhocInvoice && (
             <RealPrintPanel gymId={invNumGym} paymentMethod={adhocPayMethod}
               title="手動開立發票（無來源）" defaultItemName="費用" defaultAmount={0}
-              onClose={() => setShowAdhocInvoice(false)} />
+              onClose={() => { setShowAdhocInvoice(false); loadTodayInvoices(invNumGym); }} />
           )}
         </div>
       )}
