@@ -8,6 +8,7 @@ import CompetitionActionModal from '../../components/review/CompetitionActionMod
 import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice, updateCompetitionReceivedAmount } from '../../api/competitions';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
+import { InvoiceButtonView } from '../../components/InvoiceButton';
 
 // 「實收金額」就地編修（管理員；扣除保費，供開發票/結帳共用）——比照課程學員頁的實收金額編輯器
 const RegReceivedAmountEditor = ({ reg, onSaved }) => {
@@ -117,6 +118,21 @@ export default function CompetitionsPage() {
   const [formSaving, setFormSaving] = useState(false);
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
+
+  // 開立發票 modal 關閉時重查一次狀態並同步畫面上的按鍵（不論剛才有沒有真的印，都查一次最保險）
+  const closeInvoiceTarget = () => {
+    const target = invoiceTarget;
+    setInvoiceTarget(null);
+    if (target?.id) {
+      client.get('/invoices/status', { params: { sourceType: 'competition', refId: target.id } })
+        .then(r => {
+          const invoiceNo = r.data.invoiceNo || null, invoicedAmount = r.data.amount ?? null;
+          setRegistrations(list => list.map(x => x.id === target.id ? { ...x, invoiceNo, invoicedAmount } : x));
+          setRegDetail(d => d && d.id === target.id ? { ...d, invoiceNo, invoicedAmount } : d);
+        })
+        .catch(() => {});
+    }
+  };
   const copyCompLink = (c) => {
     const url = `https://app.redrocktaiwan.com/member/competitions?comp=${c.id}`;
     if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(() => showMsg('報名連結已複製，可貼到 LINE 分享：\n' + url), () => window.prompt('複製此報名連結：', url));
@@ -574,10 +590,8 @@ export default function CompetitionsPage() {
                       </div>
                     </div>
                     {isManagerOnly && (
-                      <button onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }}
-                        style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
-                        🧾 開立發票
-                      </button>
+                      <InvoiceButtonView invoiceNo={r.invoiceNo}
+                        onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }} />
                     )}
                     <span style={{ fontSize:11, color:'#185FA5', flexShrink:0, whiteSpace:'nowrap' }}>詳細 ›</span>
                   </div>
@@ -707,7 +721,7 @@ export default function CompetitionsPage() {
               + (r.paidAmount != null ? `　店員核對 NT$${r.paidAmount}` : '')}
             defaultItemName={`${r.competitionName || '比賽'}報名費`}
             defaultAmount={r.receivedAmount ?? Math.max(0, (r.paidAmount ?? r.memberPaidAmount ?? r.registrationFee ?? 0) - (r.insuranceFee || 0))}
-            onClose={() => setInvoiceTarget(null)}
+            onClose={closeInvoiceTarget}
             listInvoices={() => getRegistrationInvoices(r.id).then(res => res.data.invoices || [])}
             createInvoice={(payload) => createRegistrationInvoice(r.id, payload).then(res => res.data.invoice)}
             voidInvoiceFn={(id) => voidCompetitionInvoice(id)}

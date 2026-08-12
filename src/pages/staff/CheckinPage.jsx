@@ -11,6 +11,7 @@ import { entryLabelOf, invoiceEntryItemName, invoiceRentalItemName } from '../..
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
+import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 import Modal from '../../components/Modal';
 import { getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
 
@@ -135,11 +136,13 @@ export default function CheckinPage() {
   const [scanResult, setScanResult] = useState(null);
   const [compScan, setCompScan] = useState(null); // 比賽報到掃描結果（compchk: QR）
   const [compInvoiceTarget, setCompInvoiceTarget] = useState(null); // 比賽報到「開立發票」modal 目標
+  const [compInvRefresh, setCompInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   const [staffScan, setStaffScan] = useState(null); // 員工入館掃描結果（staffentry: QR）
   const [rentalAddonScan, setRentalAddonScan] = useState(null); // 會員自助補租器材掃描結果（rentaladd: QR）
   const [confirmingRentalAddon, setConfirmingRentalAddon] = useState(false);
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [checkinInvoiceTarget, setCheckinInvoiceTarget] = useState(null); // 入場「開立發票」modal 目標（checkIn 物件）
+  const [checkinInvRefresh, setCheckinInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneMember, setPhoneMember] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
@@ -665,10 +668,9 @@ export default function CheckinPage() {
                       </button>
                     )}
                     {isManagerOnly && (
-                      <button onClick={() => setCompInvoiceTarget(compScan)}
-                        style={{ marginTop:8, width:'100%', height:38, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-                        🧾 開立發票
-                      </button>
+                      <InvoiceButtonAuto sourceType="competition" refId={compScan.registrationId} refreshToken={compInvRefresh}
+                        onClick={() => setCompInvoiceTarget(compScan)}
+                        style={{ marginTop:8, width:'100%', height:38, borderRadius:9, fontSize:13 }} />
                     )}
                   </>
                 )}
@@ -689,7 +691,7 @@ export default function CheckinPage() {
                 feeInfo={`報名費用 NT$${compInvoiceTarget.registrationFee ?? 0}` + (compInvoiceTarget.insuranceFee != null ? `　保費 NT$${compInvoiceTarget.insuranceFee}` : '')}
                 defaultItemName={`${compInvoiceTarget.competitionName || '比賽'}報名費`}
                 defaultAmount={compInvoiceTarget.receivedAmount ?? compInvoiceTarget.registrationFee ?? 0}
-                onClose={() => setCompInvoiceTarget(null)}
+                onClose={() => { setCompInvoiceTarget(null); setCompInvRefresh(v => v + 1); }}
                 listInvoices={() => getRegistrationInvoices(compInvoiceTarget.registrationId).then(r => r.data.invoices || [])}
                 createInvoice={(payload) => createRegistrationInvoice(compInvoiceTarget.registrationId, payload).then(r => r.data.invoice)}
                 voidInvoiceFn={(id) => voidCompetitionInvoice(id)}
@@ -881,10 +883,9 @@ export default function CheckinPage() {
                     </button>
                     {/* 定期票/課程學員/VIP 等免費入場（沒有實際收款）不需要開發票 */}
                     {confirmedCheckIn.amountPaid > 0 && (
-                      <button onClick={() => setCheckinInvoiceTarget(confirmedCheckIn)}
-                        style={{ fontSize:12, color:'#8B1A1A', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
-                        🧾 開立發票
-                      </button>
+                      <InvoiceButtonAuto sourceType="checkin" refId={confirmedCheckIn.id} refreshToken={checkinInvRefresh}
+                        onClick={() => setCheckinInvoiceTarget(confirmedCheckIn)}
+                        style={{ height:'auto', padding:'4px 10px' }} />
                     )}
                   </div>
                 )}
@@ -915,7 +916,7 @@ export default function CheckinPage() {
                   defaultItemName={rentalName ? `${entryName}＋${rentalName}` : entryName}
                   defaultAmount={checkinInvoiceTarget.amountPaid ?? 0}
                   itemBreakdown={rentalName ? [{ name: entryName, amount: entryFee }, { name: rentalName, amount: rentalAmount }] : null}
-                  onClose={() => setCheckinInvoiceTarget(null)}
+                  onClose={() => { setCheckinInvoiceTarget(null); setCheckinInvRefresh(v => v + 1); }}
                   listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
                   createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
                   voidInvoiceFn={(id) => voidCheckinInvoice(id)}
@@ -1167,10 +1168,9 @@ export default function CheckinPage() {
                       style={{ fontSize:12, color:'#999', background:'none', border:'none', cursor:'pointer' }}>關閉</button>
                     {/* 定期票/課程學員/VIP 等免費入場（沒有實際收款）不需要開發票 */}
                     {phoneCheckedIn.amountPaid > 0 && (
-                      <button onClick={() => setCheckinInvoiceTarget(phoneCheckedIn)}
-                        style={{ fontSize:12, color:'#8B1A1A', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
-                        🧾 開立發票
-                      </button>
+                      <InvoiceButtonAuto sourceType="checkin" refId={phoneCheckedIn.id} refreshToken={checkinInvRefresh}
+                        onClick={() => setCheckinInvoiceTarget(phoneCheckedIn)}
+                        style={{ height:'auto', padding:'4px 10px' }} />
                     )}
                   </div>
                 </div>

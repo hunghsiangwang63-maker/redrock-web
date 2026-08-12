@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
+import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -56,6 +57,7 @@ export default function RentalsPage({ embedded = false }) {
   const [depositTarget, setDepositTarget] = useState(null); // 退回押金確認
   const [rowSaving, setRowSaving] = useState(false); // { type:'confirm'|'return', rental }
   const [returnedRental, setReturnedRental] = useState(null); // 剛歸還成功的租借，供帶出「開立發票」入口
+  const [rentalInvRefresh, setRentalInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   const [rentalInvoiceTarget, setRentalInvoiceTarget] = useState(null);
   const [settingsModal, setSettingsModal] = useState(false);
   const [rentalSettings, setRentalSettings] = useState(null);
@@ -358,10 +360,9 @@ export default function RentalsPage({ embedded = false }) {
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setReturnedRental(null)}
               style={{ flex:1, height:32, borderRadius:6, background:'none', border:'0.5px solid #ccc', color:'#666', fontSize:12, cursor:'pointer' }}>關閉</button>
-            <button onClick={() => setRentalInvoiceTarget(returnedRental)}
-              style={{ flex:1, height:32, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-              🧾 開立發票
-            </button>
+            <InvoiceButtonAuto sourceType="rental" refId={returnedRental.id} refreshToken={rentalInvRefresh}
+              onClick={() => setRentalInvoiceTarget(returnedRental)}
+              style={{ flex:1, height:32, fontSize:12 }} />
           </div>
         </div>
       )}
@@ -380,7 +381,7 @@ export default function RentalsPage({ embedded = false }) {
           feeInfo={`租金 NT$${rentalInvoiceTarget.totalRentalFee}（不含押金）`}
           defaultItemName="器材租借費"
           defaultAmount={rentalInvoiceTarget.totalRentalFee ?? 0}
-          onClose={() => setRentalInvoiceTarget(null)}
+          onClose={() => { setRentalInvoiceTarget(null); setRentalInvRefresh(v => v + 1); }}
           listInvoices={() => getRentalInvoices(rentalInvoiceTarget.id).then(r => r.data.invoices || [])}
           createInvoice={(payload) => createRentalInvoice(rentalInvoiceTarget.id, payload).then(r => r.data.invoice)}
           voidInvoiceFn={(id) => voidRentalInvoice(id)}

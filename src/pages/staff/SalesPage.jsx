@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory } from '../../api/products';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
+import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
@@ -87,6 +88,7 @@ export default function SalesPage({ embedded = false }) {
   const [confirmClear, setConfirmClear] = useState(false); // 清空購物車二次確認
   const [lastSale, setLastSale] = useState(null); // 剛完成的銷售（供「🧾 開立發票」按鈕使用）
   const [saleInvoiceTarget, setSaleInvoiceTarget] = useState(null); // 銷售「開立發票」modal 目標（sale 物件）
+  const [saleInvRefresh, setSaleInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [memberQuery, setMemberQuery] = useState('');
   const [memberResults, setMemberResults] = useState([]);
@@ -673,10 +675,9 @@ export default function SalesPage({ embedded = false }) {
             {lastSale && (
               <div style={{ marginTop:12, background:'#E6F4EB', borderRadius:10, border:'0.5px solid #2D7D4633', padding:12, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
                 <div style={{ fontSize:12, color:'#2D7D46' }}>✓ 銷售完成 NT${lastSale.totalAmount?.toLocaleString()}</div>
-                <button onClick={() => setSaleInvoiceTarget(lastSale)}
-                  style={{ fontSize:12, color:'#8B1A1A', background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
-                  🧾 開立發票
-                </button>
+                <InvoiceButtonAuto sourceType="product" refId={lastSale.id} refreshToken={saleInvRefresh}
+                  onClick={() => setSaleInvoiceTarget(lastSale)}
+                  style={{ height:'auto', padding:'4px 10px' }} />
               </div>
             )}
           </div>
@@ -697,7 +698,7 @@ export default function SalesPage({ embedded = false }) {
           feeInfo={`銷售總額 NT$${saleInvoiceTarget.totalAmount ?? 0}`}
           defaultItemName={(saleInvoiceTarget.items || []).map(i => i.productName).join('、') || '商品銷售'}
           defaultAmount={saleInvoiceTarget.totalAmount ?? 0}
-          onClose={() => setSaleInvoiceTarget(null)}
+          onClose={() => { setSaleInvoiceTarget(null); setSaleInvRefresh(v => v + 1); }}
           listInvoices={() => getSaleInvoices(saleInvoiceTarget.id).then(r => r.data.invoices || [])}
           createInvoice={(payload) => createSaleInvoice(saleInvoiceTarget.id, payload).then(r => r.data.invoice)}
           voidInvoiceFn={(id) => voidSaleInvoice(id)}

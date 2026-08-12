@@ -10,6 +10,7 @@ import dayjs from 'dayjs';
 import VipPage from './VipPage';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
+import { InvoiceButtonView } from '../../components/InvoiceButton';
 import CourseRegDetailModal from '../../components/CourseRegDetailModal';
 
 const Modal = ({ title, onClose, children }) => (
@@ -413,6 +414,31 @@ export default function MembersPage() {
       ...c,
       members: c.members.map(m => m.enrollmentId === enrollmentId ? { ...m, receivedAmount: amount, receivedAmountOverride: amount } : m),
     })));
+  };
+
+  // 「開立發票」modal 關閉後同步更新畫面上的按鍵狀態（不用重新整理整個列表）——比照上面
+  // applyReceivedAmountEdit 同一套「三個列表各自 patch 對應 enrollmentId」寫法。
+  const applyInvoiceIssued = (enrollmentId, invoiceNo, amount) => {
+    setCourseList(list => (list || []).map(c => ({
+      ...c,
+      members: c.members.map(m => m.enrollmentId === enrollmentId ? { ...m, invoiceNo, invoicedAmount: amount } : m),
+    })));
+    setHistoryDetail(d => d ? { ...d, members: d.members.map(m => m.enrollmentId === enrollmentId ? { ...m, invoiceNo, invoicedAmount: amount } : m) } : d);
+    setFutureList(list => (list || []).map(c => ({
+      ...c,
+      members: c.members.map(m => m.enrollmentId === enrollmentId ? { ...m, invoiceNo, invoicedAmount: amount } : m),
+    })));
+  };
+
+  // 開立發票 modal 關閉時重查一次狀態並同步畫面（不論剛才有沒有真的印，都查一次最保險）
+  const closeInvoiceTarget = () => {
+    const target = invoiceTarget;
+    setInvoiceTarget(null);
+    if (target?.enrollmentId) {
+      client.get('/invoices/status', { params: { sourceType: 'course', refId: target.enrollmentId } })
+        .then(r => applyInvoiceIssued(target.enrollmentId, r.data.invoiceNo || null, r.data.amount ?? null))
+        .catch(() => {});
+    }
   };
 
   const toggleHistory = () => {
@@ -831,10 +857,8 @@ export default function MembersPage() {
                 )}
                 {/* 開立發票：站台/值班比照後端 requireManagerOrStation 一併開放（原本只有管理員看得到） */}
                 {(isManagerRole || isStationContext) && (
-                  <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
-                    style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                    🧾 開立發票
-                  </button>
+                  <InvoiceButtonView invoiceNo={m.invoiceNo}
+                    onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })} />
                 )}
               </>
             )}
@@ -856,7 +880,7 @@ export default function MembersPage() {
                 : null}
               defaultItemName={invoiceTarget.courseName || '課程費用'}
               defaultAmount={invoiceTarget.receivedAmount ?? invoiceTarget.confirmedAmount ?? invoiceTarget.memberPaidAmount ?? invoiceTarget.fee ?? 0}
-              onClose={() => setInvoiceTarget(null)}
+              onClose={closeInvoiceTarget}
               listInvoices={() => getCourseInvoices(invoiceTarget.enrollmentId ? { enrollmentId: invoiceTarget.enrollmentId } : { memberId: invoiceTarget.memberId, courseId: invoiceTarget.courseId }).then(r => r.data.invoices || [])}
               createInvoice={(payload) => createCourseInvoice({
                 enrollmentId: invoiceTarget.enrollmentId, memberId: invoiceTarget.memberId, memberName: invoiceTarget.memberName,
@@ -916,10 +940,8 @@ export default function MembersPage() {
                                 </button>
                               )}
                               {(isManagerRole || isStationContext) && (
-                                <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
-                                  style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                                  🧾 開立發票
-                                </button>
+                                <InvoiceButtonView invoiceNo={m.invoiceNo}
+                                  onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })} />
                               )}
                             </>
                           )}
@@ -968,10 +990,8 @@ export default function MembersPage() {
                           </button>
                         )}
                         {(isManagerRole || isStationContext) && (
-                          <button onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })}
-                            style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-                            🧾 開立發票
-                          </button>
+                          <InvoiceButtonView invoiceNo={m.invoiceNo}
+                            onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })} />
                         )}
                       </>
                     )}
