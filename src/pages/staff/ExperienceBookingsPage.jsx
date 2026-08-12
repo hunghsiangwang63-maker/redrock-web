@@ -5,6 +5,8 @@ import SaveButton from '../../components/SaveButton';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import CoachSelect from '../../components/CoachSelect';
+import InvoiceIssuer from '../../components/InvoiceIssuer';
+import { InvoiceButtonView } from '../../components/InvoiceButton';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 
@@ -23,13 +25,15 @@ const inp = { height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'
 const tinp = { width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
 
 export default function ExperienceBookingsPage() {
-  const { staff, token } = useAuth();
+  const { staff, token, operator } = useAuth();
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
+  const canInvoice = isAdmin || !!operator; // 開立發票比照後端 requireManagerOrStation（管理員或值班）
   const [tab, setTab] = useState('bookings');
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [linkQr, setLinkQr] = useState('');
   const PUBLIC_BOOK_URL = 'https://app.redrocktaiwan.com/book/experience';
   const [bookings, setBookings] = useState([]);
+  const [invoiceTarget, setInvoiceTarget] = useState(null); // 開立發票 modal 目標（booking 物件）
   const [showPast, setShowPast] = useState(false); // 已完成（過期）預約收合
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
@@ -205,6 +209,20 @@ export default function ExperienceBookingsPage() {
   };
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
+
+  // 開立發票 modal 關閉時重查一次狀態並同步畫面上的按鍵（不論剛才有沒有真的印，都查一次最保險）
+  const closeInvoiceTarget = () => {
+    const target = invoiceTarget;
+    setInvoiceTarget(null);
+    if (target?.id) {
+      client.get('/invoices/status', { params: { sourceType: 'experience', refId: target.id } })
+        .then(r => {
+          const invoiceNo = r.data.invoiceNo || null, invoicedAmount = r.data.amount ?? null;
+          setBookings(list => list.map(x => x.id === target.id ? { ...x, invoiceNo, invoicedAmount } : x));
+        })
+        .catch(() => {});
+    }
+  };
 
   // ⚠️ 由館別篩選與多個備註/教練/指派/編輯/狀態動作觸發，序號防過期回應覆蓋。
   const loadSeqRef = useRef(0);
@@ -398,6 +416,12 @@ export default function ExperienceBookingsPage() {
                       {b.status==='confirmed' && (
                         <button onClick={()=>openCoach(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:12, cursor:'pointer' }}>{b.coachName?'👟 改教練':'👟 指定教練'}</button>
                       )}
+                      {b.status==='confirmed' && canInvoice && (() => {
+                        const defaultAmount = b.kind==='trial' ? (b.totalFee||0) : (b.invoiceAmount!=null ? b.invoiceAmount : Math.max(0,(b.totalFee||0)-(b.numParticipants||0)*175));
+                        return defaultAmount > 0 ? (
+                          <InvoiceButtonView invoiceNo={b.invoiceNo} style={{ height:28 }} onClick={()=>setInvoiceTarget(b)} />
+                        ) : null;
+                      })()}
                       {b.status==='confirmed' && (
                         <button onClick={()=>{ setCancelBooking(b); setCancelReason(''); }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>🗑 取消預約</button>
                       )}
@@ -749,6 +773,32 @@ export default function ExperienceBookingsPage() {
           </div>
         </div>
       )}
+
+      {/* 開立發票（共用元件，與課程/比賽/入場/POS/租借同一套；依開關自動切換真列印／手動記帳版） */}
+      {invoiceTarget && (() => {
+        const b = invoiceTarget;
+        const n = Number(b.numParticipants) || 0;
+        const defaultAmount = b.kind==='trial' ? (b.totalFee||0) : (b.invoiceAmount!=null ? b.invoiceAmount : Math.max(0,(b.totalFee||0)-n*175));
+        return (
+          <InvoiceIssuer
+            gymId={b.gymId}
+            sourceType="experience"
+            refId={b.id}
+            memberId={b.memberId}
+            memberName={b.memberName || b.contactName}
+            paymentMethod={b.paymentMethod}
+            title={b.memberName || b.contactName || ''}
+            subtitle={b.kind==='trial' ? `課程試上・${b.courseName||''}` : `${b.bookingDate} ${b.bookingTime}・${n} 人`}
+            feeInfo={`總費用 NT$${b.totalFee||0}` + (b.kind!=='trial' ? `　發票金額 NT$${defaultAmount}（已扣保費代收）` : '')}
+            defaultItemName={b.kind==='trial' ? '課程試上費' : '體驗課程費用'}
+            defaultAmount={defaultAmount}
+            onClose={closeInvoiceTarget}
+            listInvoices={() => client.get(`/experience-bookings/${b.id}/invoices`).then(r => r.data.invoices || [])}
+            createInvoice={(payload) => client.post(`/experience-bookings/${b.id}/invoices`, payload).then(r => r.data.invoice)}
+            voidInvoiceFn={(id) => client.post(`/experience-bookings/invoices/${id}/void`)}
+          />
+        );
+      })()}
 
       {/* 指定 / 改教練 Modal */}
       {coachBooking && (
