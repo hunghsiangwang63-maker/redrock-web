@@ -32,6 +32,7 @@ import ShopPage from './pages/staff/ShopPage';
 import PendingTasksPage from './pages/staff/PendingTasksPage';
 import ExperienceBookingsPage from './pages/staff/ExperienceBookingsPage';
 import StaffLayout from './components/StaffLayout';
+import UpdateChecker from './components/UpdateChecker';
 
 // Member imports
 import MemberLoginPage from './pages/member/MemberLoginPage';
@@ -142,6 +143,7 @@ export default function App() {
         <BrowserRouter>
           {BUILD_TARGET === 'member' ? <MemberRoutes /> : <StaffRoutes />}
         </BrowserRouter>
+        <UpdateChecker />
       </MemberProvider>
     </AuthProvider>
   );
