@@ -507,7 +507,7 @@ export default function MemberRentalPage() {
 
             <PaymentSection
               value={paymentData}
-              methods={['cash','transfer','linepay','jkopay','taiwanpay']}
+              methods={['cash','transfer']}
               onChange={setPaymentData}
               bankInfo={{ bankName:'台新銀行(812)', branch:'關東橋分行', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
             />

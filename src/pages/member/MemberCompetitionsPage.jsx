@@ -844,7 +844,7 @@ export default function MemberCompetitionsPage() {
                 </div>
                 <PaymentSection
                   value={paymentData}
-                  methods={['cash','transfer','linepay','jkopay','taiwanpay']}
+                  methods={['cash','transfer']}
                   onChange={setPaymentData}
                   dateMin={dayjs().format('YYYY-MM-DD')}
                   dateMax={dayjs().add(3,'day').format('YYYY-MM-DD')}

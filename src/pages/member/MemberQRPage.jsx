@@ -872,17 +872,20 @@ export default function MemberQRPage() {
               )}</span>
             </div>
           )}
-          {/* LinePay / 台灣Pay：無線上金流，需至櫃檯掃描實體立牌付款 */}
-          {(selectedPayment === 'linepay' || selectedPayment === 'taiwanpay') && (
-            <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:10, padding:'12px 14px', marginTop:14, fontSize:13, color:'#8A5A00', fontWeight:600, display:'flex', gap:8, textAlign:'left', alignItems:'flex-start' }}>
-              <span style={{ flexShrink:0 }}>📷</span>
-              <span>{tt(
-                `請至櫃檯以${selectedPayment === 'linepay' ? 'LINE App' : '台灣Pay App'}掃描店內立牌 QR 碼完成付款，再出示此入場 QR 供工作人員掃描確認入場。`,
-                `Please scan the counter's standee QR code with your ${selectedPayment === 'linepay' ? 'LINE App' : 'Taiwan Pay App'} to pay, then show this entry QR code to staff to confirm entry.`,
-                `カウンターの立て看板QRコードを${selectedPayment === 'linepay' ? 'LINEアプリ' : 'Taiwan Payアプリ'}でスキャンしてお支払いいただき、その後スタッフにこの入場QRコードをご提示ください。`
-              )}</span>
-            </div>
-          )}
+          {/* LinePay / 街口 / 台灣Pay：目前皆無線上金流（街口在真正串接 API 前也走此路徑），需至櫃檯掃描實體立牌付款 */}
+          {(selectedPayment === 'linepay' || selectedPayment === 'jkopay' || selectedPayment === 'taiwanpay') && (() => {
+            const appName = { linepay: ['LINE App', 'LINE App', 'LINEアプリ'], jkopay: ['街口 App', 'JKOPay App', 'ジェイコペイアプリ'], taiwanpay: ['台灣Pay App', 'Taiwan Pay App', 'Taiwan Payアプリ'] }[selectedPayment];
+            return (
+              <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:10, padding:'12px 14px', marginTop:14, fontSize:13, color:'#8A5A00', fontWeight:600, display:'flex', gap:8, textAlign:'left', alignItems:'flex-start' }}>
+                <span style={{ flexShrink:0 }}>📷</span>
+                <span>{tt(
+                  `請至櫃檯以${appName[0]}掃描店內立牌 QR 碼完成付款，再出示此入場 QR 供工作人員掃描確認入場。`,
+                  `Please scan the counter's standee QR code with your ${appName[1]} to pay, then show this entry QR code to staff to confirm entry.`,
+                  `カウンターの立て看板QRコードを${appName[2]}でスキャンしてお支払いいただき、その後スタッフにこの入場QRコードをご提示ください。`
+                )}</span>
+              </div>
+            );
+          })()}
           {qrClosedReason === 'expired' ? (
             <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginTop:14, fontSize:12, color:'#A32D2D', display:'flex', gap:8 }}>
               <span>⏱</span><span>{t('此 QR Code 已逾時，請按下方「重新產生」。')}</span>

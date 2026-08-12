@@ -115,7 +115,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       });
       // ② 印成功才配號 + 寫入正式發票紀錄
       const res = await client.post('/invoices/print-record', {
-        gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note,
+        gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note, paymentMethod,
       });
       setIssued(res.data.invoice);
       setRollStatus(res.data.rollStatus || null);
