@@ -519,7 +519,6 @@ export default function SettingsPage() {
   const [invStateLoading, setInvStateLoading] = useState(false);
   const [invTrackInput, setInvTrackInput] = useState('');
   const [invStartNumInput, setInvStartNumInput] = useState('');
-  const [invRollSizeInput, setInvRollSizeInput] = useState('');
   const [invReasonInput, setInvReasonInput] = useState('');
   const [invDupWarning, setInvDupWarning] = useState(null); // {message, existing} 待強制覆寫確認
   const ownGymId = operator?.gymId || staff?.gymId || '';
@@ -547,26 +546,29 @@ export default function SettingsPage() {
     try {
       const res = await client.put('/invoices/state', {
         gymId: invNumGym, track: invTrackInput.trim().toUpperCase(),
-        startNumber: invStartNumInput.trim(), reason: invReasonInput.trim(),
-        rollSize: invRollSizeInput.trim() || undefined, force,
+        startNumber: invStartNumInput.trim(), reason: invReasonInput.trim(), force,
       });
       setInvState(res.data.invoiceState);
-      setInvTrackInput(''); setInvStartNumInput(''); setInvRollSizeInput(''); setInvReasonInput('');
+      setInvTrackInput(''); setInvStartNumInput(''); setInvReasonInput('');
       showMsg('已設定發票號碼');
     } catch (err) {
       if (err.response?.status === 409 && err.response?.data?.warning) { setInvDupWarning(err.response.data); return; }
       showMsg(err.response?.data?.message || '設定失敗', 'red');
     }
   };
-  // 財政部二聯式收銀機發票每捲末三碼固定為 249／499／749／999（每捲 250 張，跨越四分位邊界）——
-  // 依起始號＋張數即時算出這捲最後一張，供店員對照紙捲包裝上的號碼；末三碼不符時僅提示、不阻擋
-  // 送出（可能是特殊裁切捲，非典型情況）。
-  const invRollEndPreview = (invStartNumInput.trim() && invRollSizeInput.trim())
-    ? String(Number(invStartNumInput) + Number(invRollSizeInput) - 1).padStart(8, '0')
+  // 財政部二聯式收銀機發票固定編號規律：每 1000 號分四等分各 250 張，末三碼固定落在這四組——
+  // 不需要店員輸入「這捲共幾張」，直接依起始號反推這捲會印到哪個號碼結束（與後端
+  // invoiceNumberService.computeRollEndNumber 同一套算法，純前端預覽用）。
+  const ROLL_END_SUFFIXES = [249, 499, 749, 999];
+  const invRollEndPreview = invStartNumInput.trim()
+    ? (() => {
+        const n = Number(invStartNumInput);
+        const base = Math.floor(n / 1000) * 1000;
+        const rem = n - base;
+        const boundary = ROLL_END_SUFFIXES.find(b => rem <= b) ?? 999;
+        return String(base + boundary).padStart(8, '0');
+      })()
     : null;
-  const invRollEndPreviewSuffixOk = invRollEndPreview
-    ? ['249', '499', '749', '999'].includes(invRollEndPreview.slice(-3))
-    : true;
 
   const [showAdhocInvoice, setShowAdhocInvoice] = useState(false);
   const [adhocPayMethod, setAdhocPayMethod] = useState('cash');
@@ -999,7 +1001,7 @@ export default function SettingsPage() {
                   <div style={{ fontSize:11, color:'#999', marginTop:4 }}>下一張將配發此號碼（本捲起始 {invState.track}{invState.rollStart}）</div>
                   {invState.remaining != null && (
                     <div style={{ fontSize:12, color: invState.rollDepleted ? '#A32D2D' : (invState.rollLow ? '#A66A00' : '#666'), marginTop:6, fontWeight: (invState.rollDepleted || invState.rollLow) ? 700 : 400 }}>
-                      本捲剩餘 {Math.max(invState.remaining, 0)} 張（共 {invState.rollSize} 張，至 {invState.track}{invState.rollEndNumber}）
+                      本捲剩餘 {Math.max(invState.remaining, 0)} 張（共 {Number(invState.rollEndNumber) - Number(invState.rollStart) + 1} 張，至 {invState.track}{invState.rollEndNumber}）
                     </div>
                   )}
                   {invState.lastChange && (
@@ -1034,18 +1036,11 @@ export default function SettingsPage() {
                   style={s.input} placeholder="如 00000001" />
               </div>
             </div>
-            <div style={{ marginBottom:10 }}>
-              <label style={s.label}>這捲共幾張（選填，填了才會提醒即將用完）</label>
-              <input value={invRollSizeInput} maxLength={4}
-                onChange={e => setInvRollSizeInput(e.target.value.replace(/\D/g, ''))}
-                style={s.input} placeholder="如 250（財政部紙捲通常每捲 250 張）" />
-              {invRollEndPreview && (
-                <div style={{ fontSize:12, marginTop:6, color: invRollEndPreviewSuffixOk ? '#666' : '#A66A00', fontWeight: invRollEndPreviewSuffixOk ? 400 : 600 }}>
-                  本捲最後一張預計為 {invTrackInput.trim().toUpperCase() || '__'}{invRollEndPreview}
-                  {!invRollEndPreviewSuffixOk && '　⚠️ 末三碼非 249/499/749/999，請對照紙捲確認張數是否正確'}
-                </div>
-              )}
-            </div>
+            {invRollEndPreview && (
+              <div style={{ marginBottom:10, fontSize:12, color:'#666', background:'#FBF5F5', borderRadius:6, padding:'8px 10px' }}>
+                這捲會印到 {invTrackInput.trim().toUpperCase() || '__'}{invRollEndPreview} 結束（依財政部固定編號規律直接算出，不需另外輸入張數）——剩最後 5 張時會自動提醒，印完自動鎖住須換捲重設。
+              </div>
+            )}
             <div style={{ marginBottom:10 }}>
               <label style={s.label}>原因（選填）</label>
               <input value={invReasonInput} onChange={e => setInvReasonInput(e.target.value)} style={s.input} placeholder="如：換新捲、中途號碼校正" />
