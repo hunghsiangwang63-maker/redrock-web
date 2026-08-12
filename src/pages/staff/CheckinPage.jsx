@@ -11,6 +11,7 @@ import { entryLabelOf, invoiceEntryItemName, invoiceRentalItemName } from '../..
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
+import Modal from '../../components/Modal';
 import { getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
 
 const ENTRY_TYPE_LABEL = {
@@ -118,6 +119,7 @@ export default function CheckinPage() {
   const [todayCheckIns, setTodayCheckIns] = useState([]);
   const [todayLoading, setTodayLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
+  const [cancelConfirm, setCancelConfirm] = useState(null); // {checkInId, force, invoice, checking}——取消入場前的確認彈窗（含發票查詢）
   const [qrInput, setQrInput] = useState('');
   const [showCamera, setShowCamera] = useState(false);   // 相機掃碼視窗
   const [cameraError, setCameraError] = useState('');
@@ -266,8 +268,6 @@ export default function CheckinPage() {
   };
 
   const handleCancelCheckin = async (checkInId, force = false) => {
-    const msg = force ? '確定要強制取消這筆入場紀錄？（超管限定）' : '確定要取消這筆入場紀錄？';
-    if (!window.confirm(msg)) return;
     setCancellingId(checkInId);
     try {
       await client.post('/checkin/cancel', { checkInId, force });
@@ -277,6 +277,16 @@ export default function CheckinPage() {
     } catch(err) {
       alert(err.response?.data?.message || '取消失敗');
     } finally { setCancellingId(null); }
+  };
+
+  // 按下取消入場前先開確認彈窗，並查這筆有沒有已列印、作用中的發票——
+  // 有的話彈窗要醒目警示店員「務必取回原紙本」並附發票號碼/品名/金額；
+  // 沒有（未列印過，或該館尚未開啟真列印）則只顯示一般確認文字。
+  const openCancelConfirm = (checkInId, force = false) => {
+    setCancelConfirm({ checkInId, force, invoice: null, checking: true });
+    client.get('/invoices/active', { params: { sourceType: 'checkin', refId: checkInId } })
+      .then(r => setCancelConfirm(prev => (prev && prev.checkInId === checkInId) ? { ...prev, invoice: r.data.invoice || null, checking: false } : prev))
+      .catch(() => setCancelConfirm(prev => (prev && prev.checkInId === checkInId) ? { ...prev, invoice: null, checking: false } : prev));
   };
 
   // 共用掃描邏輯（掃描槍輸入框 / 相機掃碼皆走此）
@@ -1258,13 +1268,13 @@ export default function CheckinPage() {
                     </div>
                   </div>
                   {canCancel && (
-                    <button onClick={() => handleCancelCheckin(c.id)} disabled={cancellingId === c.id}
+                    <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
                       style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
                       {cancellingId === c.id ? '取消中...' : '取消入場'}
                     </button>
                   )}
                   {!canCancel && isSuperAdmin && (
-                    <button onClick={() => handleCancelCheckin(c.id, true)} disabled={cancellingId === c.id}
+                    <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
                       style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
                       {cancellingId === c.id ? '取消中...' : '強制取消'}
                     </button>
@@ -1315,7 +1325,7 @@ export default function CheckinPage() {
                     </div>
                   </div>
                   {isSuperAdmin && (
-                    <button onClick={() => handleCancelCheckin(c.id, true)} disabled={cancellingId === c.id}
+                    <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
                       style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
                       {cancellingId === c.id ? '取消中...' : '強制取消'}
                     </button>
@@ -1440,6 +1450,45 @@ export default function CheckinPage() {
           )}
         </div>
       </div>
+
+      {/* 取消入場確認彈窗——先查這筆有沒有已列印/作用中的發票，有的話醒目警示務必取回原紙本 */}
+      {cancelConfirm && (
+        <Modal title={cancelConfirm.force ? '強制取消入場' : '取消入場'} onClose={() => setCancelConfirm(null)}>
+          {cancelConfirm.checking ? (
+            <div style={{ fontSize:13, color:'#999', textAlign:'center', padding:'20px 0' }}>查詢發票中...</div>
+          ) : (
+            <>
+              {cancelConfirm.invoice ? (
+                <div style={{ background:'#FCEBEB', border:'1px solid #A32D2D33', borderRadius:8, padding:14, marginBottom:16 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:'#A32D2D', marginBottom:8 }}>⚠️ 務必取回原列印發票</div>
+                  <div style={{ fontSize:12, color:'#444', lineHeight:1.7 }}>
+                    這筆入場已列印過發票，取消後系統會自動把它作廢（號碼不會重複使用），
+                    但<strong>紙本仍在客人手上</strong>——請務必當面取回，避免流出已失效的發票。
+                  </div>
+                  <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid #A32D2D22' }}>
+                    <div style={{ fontSize:16, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{cancelConfirm.invoice.invoiceNo}</div>
+                    <div style={{ fontSize:13, marginTop:2 }}>{cancelConfirm.invoice.itemName}　NT${cancelConfirm.invoice.amount}</div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize:13, color:'#444', marginBottom:16, lineHeight:1.6 }}>
+                  {cancelConfirm.force ? '確定要強制取消這筆入場紀錄？（超管限定，可超過10分鐘時限）' : '確定要取消這筆入場紀錄？'}
+                </div>
+              )}
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={() => setCancelConfirm(null)}
+                  style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>
+                  取消
+                </button>
+                <button onClick={() => { const { checkInId, force } = cancelConfirm; setCancelConfirm(null); handleCancelCheckin(checkInId, force); }}
+                  style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                  確定{cancelConfirm.force ? '強制取消' : '取消'}入場
+                </button>
+              </div>
+            </>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
