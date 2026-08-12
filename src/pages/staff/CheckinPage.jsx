@@ -897,37 +897,6 @@ export default function CheckinPage() {
               </div>
             )}
 
-            {/* 開立發票（共用元件，與比賽報到頁/課程學員頁同一套；依開關自動切換真列印／手動記帳版）——
-                品項名稱比照「今日結帳」的入場分類（成人/學生/兒童＋優惠券/隊員/特約商店），租借岩鞋/粉袋
-                另列一行，不是原始 entryType 英文對照的「入場費」籠統帶過。 */}
-            {checkinInvoiceTarget && (() => {
-              const entryName = invoiceEntryItemName(checkinInvoiceTarget);
-              const rentalName = invoiceRentalItemName(checkinInvoiceTarget);
-              const rentalAmount = (Number(checkinInvoiceTarget.shoesPrice) || 0) + (Number(checkinInvoiceTarget.chalkPrice) || 0);
-              const entryFee = checkinInvoiceTarget.entryFee != null
-                ? Number(checkinInvoiceTarget.entryFee)
-                : (Number(checkinInvoiceTarget.amountPaid) || 0) - rentalAmount; // 舊資料無 entryFee 欄位時反推
-              return (
-                <InvoiceIssuer
-                  gymId={checkinInvoiceTarget.gymId}
-                  sourceType="checkin"
-                  refId={checkinInvoiceTarget.id}
-                  memberId={checkinInvoiceTarget.memberId}
-                  memberName={checkinInvoiceTarget.memberName}
-                  paymentMethod={checkinInvoiceTarget.paymentMethod}
-                  title={checkinInvoiceTarget.memberName || ''}
-                  subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
-                  feeInfo={checkinInvoiceTarget.amountPaid > 0 ? `實收金額 NT$${checkinInvoiceTarget.amountPaid}` : ''}
-                  defaultItemName={rentalName ? `${entryName}＋${rentalName}` : entryName}
-                  defaultAmount={checkinInvoiceTarget.amountPaid ?? 0}
-                  itemBreakdown={rentalName ? [{ name: entryName, amount: entryFee }, { name: rentalName, amount: rentalAmount }] : null}
-                  onClose={() => { setCheckinInvoiceTarget(null); setCheckinInvRefresh(v => v + 1); }}
-                  listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
-                  createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
-                  voidInvoiceFn={(id) => voidCheckinInvoice(id)}
-                />
-              );
-            })()}
             </div>
 
             {/* 下：手機號碼查詢 */}
@@ -1467,6 +1436,41 @@ export default function CheckinPage() {
           )}
         </div>
       </div>
+
+      {/* 開立發票（共用元件，與比賽報到頁/課程學員頁同一套；依開關自動切換真列印／手動記帳版）——
+          品項名稱比照「今日結帳」的入場分類（成人/學生/兒童＋優惠券/隊員/特約商店），租借岩鞋/粉袋
+          另列一行，不是原始 entryType 英文對照的「入場費」籠統帶過。
+          ⚠ 放在 tab 切換範圍之外（與下方 cancelConfirm 同層）——曾經誤放在 tab==='scan' 區塊內，
+          導致「今日入場」「歷史入場」分頁按鍵能設定 checkinInvoiceTarget、但沒有對應的渲染路徑會
+          真的顯示視窗（切到掃描分頁才會突然跳出來），點下去像完全沒反應。*/}
+      {checkinInvoiceTarget && (() => {
+        const entryName = invoiceEntryItemName(checkinInvoiceTarget);
+        const rentalName = invoiceRentalItemName(checkinInvoiceTarget);
+        const rentalAmount = (Number(checkinInvoiceTarget.shoesPrice) || 0) + (Number(checkinInvoiceTarget.chalkPrice) || 0);
+        const entryFee = checkinInvoiceTarget.entryFee != null
+          ? Number(checkinInvoiceTarget.entryFee)
+          : (Number(checkinInvoiceTarget.amountPaid) || 0) - rentalAmount; // 舊資料無 entryFee 欄位時反推
+        return (
+          <InvoiceIssuer
+            gymId={checkinInvoiceTarget.gymId}
+            sourceType="checkin"
+            refId={checkinInvoiceTarget.id}
+            memberId={checkinInvoiceTarget.memberId}
+            memberName={checkinInvoiceTarget.memberName}
+            paymentMethod={checkinInvoiceTarget.paymentMethod}
+            title={checkinInvoiceTarget.memberName || ''}
+            subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
+            feeInfo={checkinInvoiceTarget.amountPaid > 0 ? `實收金額 NT$${checkinInvoiceTarget.amountPaid}` : ''}
+            defaultItemName={rentalName ? `${entryName}＋${rentalName}` : entryName}
+            defaultAmount={checkinInvoiceTarget.amountPaid ?? 0}
+            itemBreakdown={rentalName ? [{ name: entryName, amount: entryFee }, { name: rentalName, amount: rentalAmount }] : null}
+            onClose={() => { setCheckinInvoiceTarget(null); setCheckinInvRefresh(v => v + 1); }}
+            listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
+            createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
+            voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+          />
+        );
+      })()}
 
       {/* 取消入場確認彈窗——先查這筆有沒有已列印/作用中的發票，有的話醒目警示務必取回原紙本 */}
       {cancelConfirm && (

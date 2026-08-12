@@ -355,8 +355,9 @@ export default function MemberCompetitionsPage() {
       if (!emergencyContact.trim() || !emergencyPhone.trim()) { showMsg('請填寫緊急聯絡人資訊', 'red'); return; }
     }
     if (step === 2) {
+      const { method: paymentMethod, paymentDate, bankLastFive } = paymentData;
       if (paymentMethod === 'cash' && !paymentDate) { showMsg('請填寫臨櫃繳款日期', 'red'); return; }
-      if (paymentMethod === 'transfer' && (!bankLastFive.trim() || !paymentDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
+      if (paymentMethod === 'transfer' && (!(bankLastFive || '').trim() || !paymentDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
     }
     if (step === 3) {
       if (!agreedWaiver || !agreedPhoto) { showMsg('請確認同意所有事項', 'red'); return; }
