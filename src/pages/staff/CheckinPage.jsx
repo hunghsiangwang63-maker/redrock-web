@@ -1272,18 +1272,24 @@ export default function CheckinPage() {
                       {canCancel ? <span style={{ color:'#2D7D46', marginLeft:6 }}>({minutesAgo}分鐘前)</span> : <span style={{ color:'#ccc', marginLeft:6 }}>(已超過10分鐘)</span>}
                     </div>
                   </div>
-                  {canCancel && (
-                    <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
-                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
-                      {cancellingId === c.id ? '取消中...' : '取消入場'}
-                    </button>
-                  )}
-                  {!canCancel && isSuperAdmin && (
-                    <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
-                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
-                      {cancellingId === c.id ? '取消中...' : '強制取消'}
-                    </button>
-                  )}
+                  <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                    {c.amountPaid > 0 && (
+                      <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
+                        onClick={() => setCheckinInvoiceTarget(c)} />
+                    )}
+                    {canCancel && (
+                      <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
+                        style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                        {cancellingId === c.id ? '取消中...' : '取消入場'}
+                      </button>
+                    )}
+                    {!canCancel && isSuperAdmin && (
+                      <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
+                        style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                        {cancellingId === c.id ? '取消中...' : '強制取消'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -1329,12 +1335,18 @@ export default function CheckinPage() {
                       {dayjs(t).format('YYYY-MM-DD HH:mm')}{c.amountPaid > 0 ? ` · NT$${c.amountPaid}` : ''}
                     </div>
                   </div>
-                  {isSuperAdmin && (
-                    <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
-                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
-                      {cancellingId === c.id ? '取消中...' : '強制取消'}
-                    </button>
-                  )}
+                  <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                    {c.amountPaid > 0 && (
+                      <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
+                        onClick={() => setCheckinInvoiceTarget(c)} />
+                    )}
+                    {isSuperAdmin && (
+                      <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
+                        style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                        {cancellingId === c.id ? '取消中...' : '強制取消'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
