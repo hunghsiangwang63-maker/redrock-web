@@ -74,6 +74,17 @@ export default function ExperienceBookingsPage() {
   };
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [cancelExistingInvoice, setCancelExistingInvoice] = useState(null); // {invoiceNo, amount} | null——取消預約若已開過發票，要警示取回
+
+  // 開啟取消預約彈窗時查一次這筆有沒有已開票（比照課程/比賽退費彈窗同一套）
+  useEffect(() => {
+    if (!cancelBooking?.id) { setCancelExistingInvoice(null); return; }
+    let alive = true;
+    client.get('/invoices/status', { params: { sourceType: 'experience', refId: cancelBooking.id } })
+      .then(r => { if (alive) setCancelExistingInvoice(r.data.invoiceNo ? r.data : null); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [cancelBooking?.id]);
 
   const doCancel = async () => {
     setCancelling(true);
@@ -856,6 +867,16 @@ export default function ExperienceBookingsPage() {
             <div style={{ fontSize:11, color:'#999', margin:'8px 0 16px' }}>
               取消後將作廢未使用的體驗入場券；若已指定教練，會一併取消體驗課程並移除教練當日排班。
             </div>
+            {cancelExistingInvoice && (
+              <div style={{ background:'#FCEBEB', border:'1px solid #A32D2D33', borderRadius:8, padding:14, marginBottom:16 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:'#A32D2D', marginBottom:6 }}>⚠️ 務必取回原列印發票</div>
+                <div style={{ fontSize:12, color:'#444', lineHeight:1.7 }}>
+                  這筆預約已列印過發票，取消後系統會自動把它作廢（號碼不會重複使用），
+                  但<strong>紙本仍在會員手上</strong>——請務必聯繫會員取回，避免流出已失效的發票。
+                </div>
+                <div style={{ marginTop:8, fontSize:16, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>{cancelExistingInvoice.invoiceNo}</div>
+              </div>
+            )}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>setCancelBooking(null)} disabled={cancelling} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>返回</button>
               <button onClick={doCancel} disabled={cancelling} style={{ flex:2, height:44, borderRadius:10, background:cancelling?'#C99':'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{cancelling?'取消中…':'確認取消預約'}</button>
