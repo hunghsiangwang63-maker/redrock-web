@@ -841,6 +841,11 @@ export default function CheckinPage() {
                     🎓 學生入場：請查驗學生證後再放行
                   </div>
                 )}
+                {(scanResult.paymentMethod === 'linepay' || scanResult.paymentMethod === 'taiwanpay') && (
+                  <div style={{ background:'#FCEBEB', border:'1.5px solid #E8A0A0', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#A32D2D', fontWeight:700 }}>
+                    📷 {scanResult.paymentMethod === 'linepay' ? 'LINE Pay' : '台灣Pay'}為現場立牌掃碼付款、系統無法自動確認收款，請務必確認會員已完成付款（可查看店家 App 交易紀錄）後再放行入場
+                  </div>
+                )}
 
                 {scanResult.confirmError && (
                   <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', marginBottom:8, fontSize:12, color:'#A32D2D' }}>

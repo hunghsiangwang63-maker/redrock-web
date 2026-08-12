@@ -613,6 +613,11 @@ export default function MemberQRPage() {
         <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
           {selectedEntry?.type === 'buy_pass' && buyPassPlan === 'installment' ? t('請選擇「頭款（第一期）」付款方式') : t('請選擇付款方式')}
         </div>
+        <div style={{ fontSize:12, color:'#999', marginBottom:10, textAlign:'left' }}>
+          {onlinePayable
+            ? t('選擇「街口支付」可直接完成線上付款、付款後立即開通入場券；選擇 LinePay／台灣Pay 需至櫃檯掃描店內立牌條碼付款。')
+            : t('選擇 LinePay／台灣Pay／街口支付皆需至櫃檯掃描店內立牌條碼付款。')}
+        </div>
         <PaymentSection
           value={{ method: selectedPayment }}
           methods={['cash','linepay','jkopay','taiwanpay']}
@@ -621,26 +626,14 @@ export default function MemberQRPage() {
           disabled={loading}
           t={t}
           onChange={v => setSelectedPayment(v.method)}
-          onSelect={key => handleGenerateQR(rentShoes, rentChalk, key)}
+          onSelect={key => {
+            if (key === 'jkopay' && onlinePayable) {
+              setOnlinePayFor({ entryType: selectedEntry.type, amount: basePayPrice, gymId });
+            } else {
+              handleGenerateQR(rentShoes, rentChalk, key);
+            }
+          }}
         />
-        {onlinePayable && (
-          <>
-            <div style={{ display:'flex', alignItems:'center', gap:10, margin:'16px 0' }}>
-              <div style={{ flex:1, height:1, background:'#E8D5D5' }} />
-              <span style={{ fontSize:11, color:'#999' }}>{t('或')}</span>
-              <div style={{ flex:1, height:1, background:'#E8D5D5' }} />
-            </div>
-            <button
-              onClick={() => setOnlinePayFor({ entryType: selectedEntry.type, amount: basePayPrice, gymId })}
-              style={{ width:'100%', padding:'14px 16px', borderRadius:12, border:'1.5px solid #185FA5', background:'#E6F1FB', color:'#185FA5', fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <span>{t('🌐 線上支付（付款後立即開通入場券）')}</span>
-              <span>NT${basePayPrice}</span>
-            </button>
-            <div style={{ fontSize:11, color:'#999', marginTop:6, textAlign:'left' }}>
-              {t('線上完成付款後將開通一張 30 天效期的入場券，回首頁選擇「使用單次入場券」即可產生入場 QR，不需在此立即入場。')}
-            </div>
-          </>
-        )}
         {error && <div style={{ marginTop:10, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
       </div>
     </>
@@ -876,6 +869,17 @@ export default function MemberQRPage() {
                 `入場時請於櫃檯出示${[selectedEntry?.type === 'student_free' && '學生證', pvActive && '特約廠商證件', pgmActive && '友館隊員證明'].filter(Boolean).join('、')}供核對，未出示或不符將以原價計。`,
                 `Please show your ${[selectedEntry?.type === 'student_free' && 'student ID', pvActive && 'partner-company ID', pgmActive && 'partner-gym athlete proof'].filter(Boolean).join(' and ')} at the front desk; full price applies if not presented.`,
                 `入場時にフロントで${[selectedEntry?.type === 'student_free' && '学生証', pvActive && '提携業者証明', pgmActive && '提携ジーム会員証明'].filter(Boolean).join('・')}をご提示ください。提示がない場合は通常料金となります。`
+              )}</span>
+            </div>
+          )}
+          {/* LinePay / 台灣Pay：無線上金流，需至櫃檯掃描實體立牌付款 */}
+          {(selectedPayment === 'linepay' || selectedPayment === 'taiwanpay') && (
+            <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:10, padding:'12px 14px', marginTop:14, fontSize:13, color:'#8A5A00', fontWeight:600, display:'flex', gap:8, textAlign:'left', alignItems:'flex-start' }}>
+              <span style={{ flexShrink:0 }}>📷</span>
+              <span>{tt(
+                `請至櫃檯以${selectedPayment === 'linepay' ? 'LINE App' : '台灣Pay App'}掃描店內立牌 QR 碼完成付款，再出示此入場 QR 供工作人員掃描確認入場。`,
+                `Please scan the counter's standee QR code with your ${selectedPayment === 'linepay' ? 'LINE App' : 'Taiwan Pay App'} to pay, then show this entry QR code to staff to confirm entry.`,
+                `カウンターの立て看板QRコードを${selectedPayment === 'linepay' ? 'LINEアプリ' : 'Taiwan Payアプリ'}でスキャンしてお支払いいただき、その後スタッフにこの入場QRコードをご提示ください。`
               )}</span>
             </div>
           )}
