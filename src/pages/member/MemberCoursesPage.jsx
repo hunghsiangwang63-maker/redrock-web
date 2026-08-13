@@ -590,7 +590,10 @@ export default function MemberCoursesPage() {
       });
       const futureSessions = (sres.data.sessions || []).filter(s => s.date >= today && s.status !== 'cancelled');
       for (const c of sameCategoryCourses) {
-        futureSessions.filter(s => s.courseId === c.id).forEach(s => allSessions.push({ ...s, courseName: c.name, categoryName: c.categoryName }));
+        // courseFirstDate：該梯次首堂真實日期（unlimitedPracticeStart，缺則退回 startDate）——
+        // 補課申請須等目標梯次第一堂課正式開始才開放（後端權威，這裡只是提前顯示原因，非唯一把關）
+        const courseFirstDate = c.unlimitedPracticeStart || c.startDate || null;
+        futureSessions.filter(s => s.courseId === c.id).forEach(s => allSessions.push({ ...s, courseName: c.name, categoryName: c.categoryName, courseFirstDate }));
       }
       setMakeupSessions(allSessions.sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||'')));
     } catch (e) {}
@@ -2402,6 +2405,7 @@ export default function MemberCoursesPage() {
                 const names = [...new Set(makeupSessions.map(s => s.categoryName).filter(Boolean))];
                 return names.length ? <div style={{ marginTop:4, color:'#8B1A1A' }}>可補課班別：{names.join('、')}</div> : null;
               })()}
+              <div style={{ marginTop:6, color:'#999' }}>⚠️ 目標梯次須等<b>第一堂課正式開始後</b>才開放補課申請，避免佔用該梯次尚在報名中的正式名額；尚未開課的場次會標示「尚未開課」。</div>
             </div>
             {(() => {
               const targetMid = selectedMakeup?.memberId || member?.id;
@@ -2429,8 +2433,12 @@ export default function MemberCoursesPage() {
             )}
             {availList.length === 0 ? (
               appliedList.length === 0 ? <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>目前沒有可補課的場次</div> : null
-            ) : availList.map(s => (
-              <div key={s.id} style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            ) : availList.map(s => {
+              // 目標梯次尚未開課（首堂日晚於今天）——後端權威擋，這裡提前顯示原因、鈕直接鎖住
+              const notStarted = s.courseFirstDate && s.courseFirstDate > dayjs().format('YYYY-MM-DD');
+              const full = s.enrolledCount >= s.maxStudents;
+              return (
+              <div key={s.id} style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', opacity: notStarted ? 0.6 : 1 }}>
                 <div>
                   <div style={{ fontWeight:500, fontSize:14 }}>
                     {dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）
@@ -2438,13 +2446,15 @@ export default function MemberCoursesPage() {
                   <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                     {s.startTime}～{s.endTime} · {s.courseName}
                   </div>
+                  {notStarted && <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>尚未開課（首堂 {dayjs(s.courseFirstDate).format('MM/DD')}），開課後才能申請</div>}
                 </div>
-                <button onClick={() => handleMakeup(s.id)} disabled={loading || s.enrolledCount >= s.maxStudents}
-                  style={{ height:34, padding:'0 14px', borderRadius:8, background: s.enrolledCount >= s.maxStudents ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor: s.enrolledCount >= s.maxStudents ? 'not-allowed' : 'pointer' }}>
-                  {s.enrolledCount >= s.maxStudents ? '額滿' : '補課'}
+                <button onClick={() => handleMakeup(s.id)} disabled={loading || full || notStarted}
+                  style={{ height:34, padding:'0 14px', borderRadius:8, background: (full || notStarted) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor: (full || notStarted) ? 'not-allowed' : 'pointer' }}>
+                  {notStarted ? '尚未開課' : (full ? '額滿' : '補課')}
                 </button>
               </div>
-            ))}
+              );
+            })}
               </>);
             })()}
           </div>
