@@ -10,7 +10,7 @@ import jsQR from 'jsqr';
 import { entryLabelOf, invoiceEntryItemName, invoiceRentalItemName } from '../../utils/entryLabel';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer } from 'recharts';
-import InvoiceIssuer from '../../components/InvoiceIssuer';
+import InvoiceIssuer, { RealPrintPanel } from '../../components/InvoiceIssuer';
 import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 import Modal from '../../components/Modal';
 import { getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
@@ -93,6 +93,17 @@ export default function CheckinPage() {
 
   useEffect(() => { loadCourseStudents(); }, [targetGymId]);
 
+  // 合併列印發票：查該館是否已開真列印（僅真列印館別提供此功能，見上方 mergeMode 註解）
+  useEffect(() => {
+    if (!targetGymId) { setPrintingEnabled(false); return; }
+    let alive = true;
+    client.get('/invoices/printing-status', { params: { gymId: targetGymId } })
+      .then(r => { if (alive) setPrintingEnabled(!!r.data.enabled); })
+      .catch(() => { if (alive) setPrintingEnabled(false); });
+    setMergeMode(false); setMergeSelected(new Set()); // 切館別重置選取，避免跨館混選
+    return () => { alive = false; };
+  }, [targetGymId]);
+
   const handleQuickCourseCheckin = async (student) => {
     if (student.alreadyCheckedIn || quickCheckinLoading) return;
     setQuickCheckinLoading(student.memberId);
@@ -144,6 +155,12 @@ export default function CheckinPage() {
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [checkinInvoiceTarget, setCheckinInvoiceTarget] = useState(null); // 入場「開立發票」modal 目標（checkIn 物件）
   const [checkinInvRefresh, setCheckinInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
+  // 合併列印發票（多筆入場合開一張，如同行三人一起付款）——僅真列印館別開放（見下方 printingEnabled 查詢），
+  // 手動記帳版沒有自然的「多筆合一」記錄方式，不提供此功能。
+  const [printingEnabled, setPrintingEnabled] = useState(false);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSelected, setMergeSelected] = useState(() => new Set());
+  const [mergedInvoiceList, setMergedInvoiceList] = useState(null); // 開啟合併發票 modal 時，鎖定當下選取的清單快照
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneMember, setPhoneMember] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
@@ -1216,20 +1233,36 @@ export default function CheckinPage() {
 
         {/* ── 今日入場 tab ── */}
         {tab === 'today' && (
-          <div style={{ padding:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+          <div style={{ padding:16, paddingBottom: mergeMode && mergeSelected.size > 0 ? 76 : 16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, gap:8, flexWrap:'wrap' }}>
               <div style={{ fontSize:14, fontWeight:600 }}>今日入場紀錄</div>
-              <button onClick={loadTodayCheckIns} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color:'#8B1A1A' }}>重新整理</button>
+              <div style={{ display:'flex', gap:8 }}>
+                {printingEnabled && (
+                  <button onClick={() => { setMergeMode(m => !m); setMergeSelected(new Set()); }}
+                    style={{ height:30, padding:'0 12px', borderRadius:6, background: mergeMode ? '#FCEBEB' : '#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color: mergeMode ? '#A32D2D' : '#8B1A1A' }}>
+                    {mergeMode ? '✕ 取消合併列印' : '🧾 合併列印發票'}
+                  </button>
+                )}
+                <button onClick={loadTodayCheckIns} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color:'#8B1A1A' }}>重新整理</button>
+              </div>
             </div>
+            {mergeMode && <div style={{ fontSize:12, color:'#854F0B', background:'#FCEBD6', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>勾選要合併成同一張發票的多筆入場（如同行多人一起付款），下方會出現「合併列印發票」按鈕。</div>}
             {todayLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
             {!todayLoading && todayCheckIns.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:24 }}>今日尚無入場紀錄</div>}
             {!todayLoading && todayCheckIns.map(c => {
               const checkedInAt = c.checkedInAt?._seconds ? new Date(c.checkedInAt._seconds * 1000) : new Date(c.checkedInAt);
               const minutesAgo = Math.floor((Date.now() - checkedInAt.getTime()) / 60000);
               const canCancel = minutesAgo <= 10;
+              const selectable = mergeMode && c.amountPaid > 0;
+              const checked = mergeSelected.has(c.id);
               return (
-                <div key={c.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div>
+                <div key={c.id} style={{ background: checked ? '#FBF5F5' : '#fff', borderRadius:10, border: checked ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                  {mergeMode && (
+                    <input type="checkbox" checked={checked} disabled={!selectable}
+                      onChange={e => setMergeSelected(prev => { const next = new Set(prev); e.target.checked ? next.add(c.id) : next.delete(c.id); return next; })}
+                      style={{ width:18, height:18, flexShrink:0, opacity: selectable ? 1 : 0.3 }} />
+                  )}
+                  <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                       {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {entryLabelOf(c)}
@@ -1242,27 +1275,42 @@ export default function CheckinPage() {
                       {canCancel ? <span style={{ color:'#2D7D46', marginLeft:6 }}>({minutesAgo}分鐘前)</span> : <span style={{ color:'#ccc', marginLeft:6 }}>(已超過10分鐘)</span>}
                     </div>
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
-                    {c.amountPaid > 0 && (
-                      <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
-                        onClick={() => setCheckinInvoiceTarget(c)} />
-                    )}
-                    {canCancel && (
-                      <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
-                        style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
-                        {cancellingId === c.id ? '取消中...' : '取消入場'}
-                      </button>
-                    )}
-                    {!canCancel && isSuperAdmin && (
-                      <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
-                        style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
-                        {cancellingId === c.id ? '取消中...' : '強制取消'}
-                      </button>
-                    )}
-                  </div>
+                  {!mergeMode && (
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
+                      {c.amountPaid > 0 && (
+                        <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
+                          onClick={() => setCheckinInvoiceTarget(c)} />
+                      )}
+                      {canCancel && (
+                        <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
+                          style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                          {cancellingId === c.id ? '取消中...' : '取消入場'}
+                        </button>
+                      )}
+                      {!canCancel && isSuperAdmin && (
+                        <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
+                          style={{ height:32, padding:'0 12px', borderRadius:8, background:'#F0EDED', color:'#854F0B', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                          {cancellingId === c.id ? '取消中...' : '強制取消'}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
+            {mergeMode && mergeSelected.size > 0 && (
+              <div style={{ position:'fixed', left:0, right:0, bottom:0, background:'#fff', borderTop:'1px solid #E8D5D5', padding:'10px 16px', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, boxShadow:'0 -2px 8px rgba(0,0,0,0.06)', zIndex:20 }}>
+                <span style={{ fontSize:13, color:'#666' }}>
+                  已選 {mergeSelected.size} 筆　合計 NT${todayCheckIns.filter(c => mergeSelected.has(c.id)).reduce((s, c) => s + (Number(c.amountPaid) || 0), 0).toLocaleString()}
+                </span>
+                <button
+                  onClick={() => setMergedInvoiceList(todayCheckIns.filter(c => mergeSelected.has(c.id)))}
+                  disabled={mergeSelected.size < 2}
+                  style={{ height:40, padding:'0 18px', borderRadius:9, background: mergeSelected.size < 2 ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor: mergeSelected.size < 2 ? 'not-allowed' : 'pointer' }}>
+                  🧾 合併列印發票{mergeSelected.size < 2 ? '（至少選 2 筆）' : ''}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1469,6 +1517,33 @@ export default function CheckinPage() {
             listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
             createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
             voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+          />
+        );
+      })()}
+
+      {/* 合併列印發票（多筆入場合開一張，如同行多人一起付款）——僅真列印館別提供（見 mergeMode 按鈕本身
+          就只在 printingEnabled 時顯示），直接用 RealPrintPanel（不經 InvoiceIssuer 的開關判斷，反正只有
+          真列印時才會走到這裡）；每人一行明細（itemBreakdown），付款方式沒有單一來源可回寫，改用
+          alwaysShowPaymentSelector 讓值班人員自行選一個合併付款方式（僅供決定要不要開錢櫃/找零計算）。*/}
+      {mergedInvoiceList && (() => {
+        const list = mergedInvoiceList;
+        const total = list.reduce((s, c) => s + (Number(c.amountPaid) || 0), 0);
+        return (
+          <RealPrintPanel
+            gymId={list[0]?.gymId}
+            sourceType="checkin_merged"
+            refId={null}
+            memberId={null}
+            memberName={list.map(c => c.memberName).join('、')}
+            paymentMethod={list[0]?.paymentMethod || 'cash'}
+            title={`合併列印發票（${list.length} 人）`}
+            subtitle={list.map(c => c.memberName).join('、')}
+            defaultItemName="入場費（合併）"
+            defaultAmount={total}
+            itemBreakdown={list.map(c => ({ name: `${c.memberName}・${entryLabelOf(c)}`, amount: Number(c.amountPaid) || 0 }))}
+            mergedCheckinIds={list.map(c => c.id)}
+            alwaysShowPaymentSelector
+            onClose={() => { setMergedInvoiceList(null); setMergeMode(false); setMergeSelected(new Set()); loadTodayCheckIns(); }}
           />
         );
       })()}

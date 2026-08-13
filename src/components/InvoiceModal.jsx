@@ -22,7 +22,10 @@ export const PM_LABEL = PM_METHODS.reduce((m, x) => ({ ...m, [x.key]: x.label })
 // （真列印版）共用同一套 UI/邏輯，故抽成獨立元件，兩邊各自 import 使用。
 // 修正付款方式是獨立於「開立/列印發票」的動作（有自己的送出鍵），不論訂單是否已開過發票都能用；
 // 收現/找零純前端計算，不受此限制，選了「現金」就一律顯示（含尚未提供 sourceType/refId 的情境）。
-export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, payMethod, setPayMethod }) {
+// alwaysShowSelector：沒有單一來源可回寫時（如合併列印多筆入場成一張發票，refId 為 null）
+// 仍要能「選擇」付款方式（供決定要不要開錢櫃/供對帳參考），只是沒有「更新並回寫系統」這個動作
+// （沒有單一來源記錄可寫）——選擇器一樣顯示，只是底下不會出現回寫按鈕。
+export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, payMethod, setPayMethod, alwaysShowSelector }) {
   const [cashReceived, setCashReceived] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -31,6 +34,7 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
     ? Number(cashReceived) - (Number(amount) || 0) : null;
 
   const canFix = sourceType && refId; // 沒有來源訂單（如手動開立無來源發票）就不能回寫，只留計算機
+  const showSelector = canFix || alwaysShowSelector;
   const changed = canFix && payMethod !== paymentMethod;
 
   const submitFix = async () => {
@@ -43,14 +47,14 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
     } finally { setSaving(false); }
   };
 
-  if (!canFix && payMethod !== 'cash') return null; // 無來源且非現金時整區塊沒東西可顯示，不佔版面
+  if (!showSelector && payMethod !== 'cash') return null; // 無來源且非現金時整區塊沒東西可顯示，不佔版面
 
   return (
     <div style={{ background:'#FBF5F5', border:'1px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:14 }}>
-      {canFix && (
+      {showSelector && (
         <>
           <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:8 }}>
-            付款方式{paymentMethod ? `（原選：${PM_LABEL[paymentMethod] || paymentMethod}）` : ''}
+            付款方式{canFix && paymentMethod ? `（原選：${PM_LABEL[paymentMethod] || paymentMethod}）` : ''}
           </div>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: payMethod === 'cash' ? 10 : 0 }}>
             {PM_METHODS.map(m => (
