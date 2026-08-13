@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import dayjs from 'dayjs';
 import PasswordInput from '../../components/PasswordInput';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
@@ -590,6 +591,22 @@ export default function SettingsPage() {
     } catch (e) { setInvTodayList([]); }
     finally { setInvTodayLoading(false); }
   };
+
+  // 歷史發票號碼詳細資料下載（僅管理員；今日發票列表只看得到當天，這裡供任意區間稽核用）
+  const [invDlFrom, setInvDlFrom] = useState(() => dayjs().startOf('month').format('YYYY-MM-DD'));
+  const [invDlTo, setInvDlTo] = useState(() => dayjs().format('YYYY-MM-DD'));
+  const [invDlBusy, setInvDlBusy] = useState(false);
+  const downloadInvoiceHistory = async () => {
+    setInvDlBusy(true);
+    try {
+      const res = await client.get('/invoices/download', { params: { gymId: invNumGym, from: invDlFrom, to: invDlTo }, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a'); a.href = url;
+      a.download = `發票明細_${invNumGym}_${invDlFrom}_${invDlTo}.xlsx`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+    } catch (e) { alert('下載失敗：' + (e.response?.data?.message || e.message)); }
+    finally { setInvDlBusy(false); }
+  };
   const handleLookupInvoice = async () => {
     if (!voidLookupInput.trim()) return;
     setVoidLookupBusy(true); setVoidLookupResult(null);
@@ -1170,6 +1187,25 @@ export default function SettingsPage() {
                 </div>
               )}
             </div>
+
+            {/* 歷史發票號碼詳細資料下載（僅管理員；任意區間逐筆明細，供稽核/對帳） */}
+            {isManagerPlus && (
+              <div style={{ borderTop:'0.5px solid #E8D5D5', paddingTop:16, marginTop:16 }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>歷史發票號碼詳細資料下載</div>
+                <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                  <input type="date" value={invDlFrom} onChange={e => setInvDlFrom(e.target.value)}
+                    style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12 }} />
+                  <span style={{ fontSize:12, color:'#999' }}>～</span>
+                  <input type="date" value={invDlTo} onChange={e => setInvDlTo(e.target.value)}
+                    style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12 }} />
+                  <button onClick={downloadInvoiceHistory} disabled={invDlBusy}
+                    style={{ height:34, padding:'0 14px', borderRadius:8, border:'none', background:'#8B1A1A', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                    {invDlBusy ? '產生中...' : '⬇ 下載明細（XLSX）'}
+                  </button>
+                </div>
+                <div style={{ fontSize:11, color:'#999', marginTop:6 }}>逐筆列出區間內全部發票（含已作廢），權限僅系統管理員／館別管理員可下載。</div>
+              </div>
+            )}
           </div>
 
           {showAdhocInvoice && (
