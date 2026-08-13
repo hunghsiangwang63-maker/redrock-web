@@ -161,6 +161,22 @@ export default function CheckinPage() {
   const [mergeMode, setMergeMode] = useState(false);
   const [mergeSelected, setMergeSelected] = useState(() => new Set());
   const [mergedInvoiceList, setMergedInvoiceList] = useState(null); // 開啟合併發票 modal 時，鎖定當下選取的清單快照
+  const [invoicedTodayIds, setInvoicedTodayIds] = useState(() => new Set()); // 今天已開過發票（個別或已被合併涵蓋）的入場 id，合併選取時要排除避免重複開票
+
+  // 進入合併選取模式時查一次今日已開立的發票（含個別＋合併），排除已開過票的人不給再勾選
+  const loadInvoicedTodayIds = async () => {
+    if (!targetGymId) { setInvoicedTodayIds(new Set()); return; }
+    try {
+      const res = await client.get('/invoices/today', { params: { gymId: targetGymId } });
+      const ids = new Set();
+      (res.data.invoices || []).forEach(inv => {
+        if (inv.status !== 'issued') return;
+        if (inv.sourceType === 'checkin' && inv.refId) ids.add(inv.refId);
+        if (inv.sourceType === 'checkin_merged' && Array.isArray(inv.mergedCheckinIds)) inv.mergedCheckinIds.forEach(id => ids.add(id));
+      });
+      setInvoicedTodayIds(ids);
+    } catch (e) { setInvoicedTodayIds(new Set()); }
+  };
   const [phoneInput, setPhoneInput] = useState('');
   const [phoneMember, setPhoneMember] = useState(null);
   const [phoneLoading, setPhoneLoading] = useState(false);
@@ -1238,7 +1254,7 @@ export default function CheckinPage() {
               <div style={{ fontSize:14, fontWeight:600 }}>今日入場紀錄</div>
               <div style={{ display:'flex', gap:8 }}>
                 {printingEnabled && (
-                  <button onClick={() => { setMergeMode(m => !m); setMergeSelected(new Set()); }}
+                  <button onClick={() => { setMergeMode(m => !m); setMergeSelected(new Set()); if (!mergeMode) loadInvoicedTodayIds(); }}
                     style={{ height:30, padding:'0 12px', borderRadius:6, background: mergeMode ? '#FCEBEB' : '#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color: mergeMode ? '#A32D2D' : '#8B1A1A' }}>
                     {mergeMode ? '✕ 取消合併列印' : '🧾 合併列印發票'}
                   </button>
@@ -1253,7 +1269,8 @@ export default function CheckinPage() {
               const checkedInAt = c.checkedInAt?._seconds ? new Date(c.checkedInAt._seconds * 1000) : new Date(c.checkedInAt);
               const minutesAgo = Math.floor((Date.now() - checkedInAt.getTime()) / 60000);
               const canCancel = minutesAgo <= 10;
-              const selectable = mergeMode && c.amountPaid > 0;
+              const alreadyInvoiced = invoicedTodayIds.has(c.id);
+              const selectable = mergeMode && c.amountPaid > 0 && !alreadyInvoiced;
               const checked = mergeSelected.has(c.id);
               return (
                 <div key={c.id} style={{ background: checked ? '#FBF5F5' : '#fff', borderRadius:10, border: checked ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
@@ -1263,7 +1280,10 @@ export default function CheckinPage() {
                       style={{ width:18, height:18, flexShrink:0, opacity: selectable ? 1 : 0.3 }} />
                   )}
                   <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:600, fontSize:14 }}>{c.memberName}</div>
+                    <div style={{ fontWeight:600, fontSize:14 }}>
+                      {c.memberName}
+                      {mergeMode && alreadyInvoiced && <span style={{ fontSize:10, fontWeight:600, color:'#777', background:'#F0EDED', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>已開票</span>}
+                    </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                       {c.gymId === 'gym-hsinchu' ? '新竹館' : '士林館'} · {entryLabelOf(c)}
                       {c.rentShoes ? ' · 岩鞋' : ''}{c.rentChalk ? ' · 粉袋' : ''}
