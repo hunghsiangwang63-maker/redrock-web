@@ -4,7 +4,6 @@ import PasswordInput from '../../components/PasswordInput';
 import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount, getCourseStudentsHistoryList, getCourseStudentsHistoryDetail, getFutureCourseStudents, downloadFutureCourseStudents } from '../../api/members';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
-import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import VipPage from './VipPage';
@@ -326,10 +325,9 @@ const ReceivedAmountEditor = ({ member, editable, stationVisible, onSaved }) => 
 };
 
 export default function MembersPage() {
-  const enabledPay = useEnabledPayments();
   const { staff, activeGymId, station, operator, viewGym } = useAuth();
   // super_admin 不綁館、也無 activeGymId（未打卡值班）；沿用其在畫面上選的檢視館別（viewGym）
-  // 作為操作館別，與 CheckinPage 一致，否則快速入場會誤報「無法判斷操作館別」。
+  // 作為報表類的預設操作館別。
   const targetGymId = activeGymId || staff?.gymId || (staff?.role === 'super_admin' ? viewGym : undefined);
   // 報表類：super_admin 依頂部場館選擇（'全館'→undefined=全部）
   const reportGymId = staff?.role === 'super_admin' ? (viewGym || undefined) : targetGymId;
@@ -574,75 +572,6 @@ export default function MembersPage() {
     setShowEdit(true);
   };
 
-  const [checkinEligibility, setCheckinEligibility] = useState(null);
-  // 轉換期設定（已付費放行 / 舊折扣卡8折）
-  const [checkinTransition, setCheckinTransition] = useState({ checkinAlreadyPaid: false, checkinLegacyDiscountCard: false });
-  const [useLegacyDiscount, setUseLegacyDiscount] = useState(false); // 本次入場是否套舊折扣卡8折
-
-  const openCheckin = async () => {
-    setCheckinMsg('');
-    setCheckinEligibility(null);
-    setUseLegacyDiscount(false);
-    setShowCheckin(true);
-    // 查詢入場資格（有無定期票）
-    try {
-      const res = await client.get(`/checkin/eligibility/${selected.id}`);
-      setCheckinEligibility(res.data);
-    } catch (e) {}
-    // 載入入場類型
-    if (entryTypes.length === 0) {
-      try {
-        const res = await client.get('/settings/entry-types');
-        setEntryTypes((res.data || []).filter(t => t.active));
-      } catch (e) {}
-    }
-    // 轉換期設定
-    try {
-      const res = await client.get('/settings/transition');
-      setCheckinTransition({ checkinAlreadyPaid: !!res.data.checkinAlreadyPaid, checkinLegacyDiscountCard: !!res.data.checkinLegacyDiscountCard });
-    } catch (e) {}
-  };
-
-  // 轉換期「已付費」放行：入場費記 NT$0（MembersPage 快速入場無加購，故純放行）。仍須 Waiver/墜測（後端硬擋）。
-  const handleAlreadyPaidCheckin = async () => {
-    if (!targetGymId) { setCheckinMsg('無法判斷操作館別，請確認登入狀態'); setCheckinMsgType('red'); return; }
-    setCheckinSaving(true);
-    setCheckinMsg('');
-    try {
-      await client.post('/checkin/phone', { memberId: selected.id, gymId: targetGymId, alreadyPaid: true });
-      setCheckinMsg(`${selected.name} 入場成功（已付費）`);
-      setCheckinMsgType('ok');
-      setTimeout(() => setShowCheckin(false), 1200);
-    } catch (err) {
-      setCheckinMsg(err.response?.data?.message || '入場失敗');
-      setCheckinMsgType('red');
-    } finally { setCheckinSaving(false); }
-  };
-
-  const handleQuickCheckin = async () => {
-    if (!checkinEntryType) { setCheckinMsg('請選擇入場類型'); setCheckinMsgType('red'); return; }
-    if (!targetGymId) { setCheckinMsg('無法判斷操作館別，請確認登入狀態'); setCheckinMsgType('red'); return; }
-    setCheckinSaving(true);
-    setCheckinMsg('');
-    try {
-      await client.post('/checkin/phone', {
-        memberId: selected.id,
-        gymId: targetGymId,
-        entryType: checkinEligibility?.isVip ? 'vip' : checkinEligibility?.hasValidPass ? 'pass' : checkinEligibility?.hasCourseAccess ? 'course_access' : checkinEntryType,
-        paymentMethod: checkinPayment,
-        legacyDiscountCard: useLegacyDiscount, // 轉換期舊折扣卡8折（僅折入場費）
-      });
-      setCheckinMsg(`${selected.name} 入場成功`);
-      setCheckinMsgType('ok');
-      setTimeout(() => setShowCheckin(false), 1200);
-    } catch (err) {
-      setCheckinMsg(err.response?.data?.message || '入場失敗');
-      setCheckinMsgType('red');
-    } finally {
-      setCheckinSaving(false);
-    }
-  };
-
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
     let timer;
@@ -659,9 +588,6 @@ export default function MembersPage() {
   const [editForm, setEditForm] = useState({ name:'', email:'', emergencyContact:'', notes:'', gender:'' });
   const [editSaving, setEditSaving] = useState(false);
   const [editMsg, setEditMsg] = useState('');
-
-  // 入場登記
-  const [showCheckin, setShowCheckin] = useState(false);
 
   // Waiver / 墜落測驗
   const [waiverModal, setWaiverModal] = useState(null);
@@ -802,13 +728,6 @@ export default function MembersPage() {
     } catch (err) { setModalMsg(err.response?.data?.message || '操作失敗'); }
     finally { setModalLoading(false); }
   };
-  const [entryTypes, setEntryTypes] = useState([]);
-  const [checkinEntryType, setCheckinEntryType] = useState('');
-  const [checkinPayment, setCheckinPayment] = useState('cash');
-  const [checkinSaving, setCheckinSaving] = useState(false);
-  const [checkinMsg, setCheckinMsg] = useState('');
-  const [checkinMsgType, setCheckinMsgType] = useState('ok');
-
   const isMinor = (birthday) => {
     return dayjs().diff(dayjs(birthday), 'year') < 18;
   };
@@ -1305,9 +1224,6 @@ export default function MembersPage() {
               <button onClick={openEdit} style={{ flex:1, height:36, borderRadius:8, border:'1px solid #E8D5D5', background:'none', fontSize:12, color:'#6b6b6b', cursor:'pointer' }}>
                 編輯資料
               </button>
-              <button onClick={openCheckin} style={{ flex:1, height:36, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer' }}>
-                入場登記
-              </button>
             </div>
             {/* 刪除會員：僅系統管理員 */}
             {staff?.role === 'super_admin' && (
@@ -1393,92 +1309,6 @@ export default function MembersPage() {
               {editSaving ? '儲存中...' : '儲存備註'}
             </button>
           </div>
-        </Modal>
-      )}
-
-      {/* 入場登記 Modal */}
-      {showCheckin && (
-        <Modal title={`入場登記 — ${selected?.name}`} onClose={() => setShowCheckin(false)}>
-          {checkinEligibility && !checkinEligibility.waiverSigned && (
-            <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#A32D2D', fontWeight:500 }}>
-              ⚠ 此會員尚未簽署 Waiver，無法完成入場
-            </div>
-          )}
-          {checkinEligibility?.isVip ? (
-            <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13, color:'#8B6914', fontWeight:500 }}>
-              👑 VIP 會員，免費入場{checkinEligibility.vipNote ? `（${checkinEligibility.vipNote}）` : ''}
-            </div>
-          ) : checkinEligibility?.hasValidPass ? (
-            <div style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13, color:'#2D7D46', fontWeight:500 }}>
-              ✓ 持有效定期票，將以定期票免費入場
-            </div>
-          ) : checkinEligibility?.hasCourseAccess ? (
-            <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'12px 14px', marginBottom:16, fontSize:13, color:'#185FA5', fontWeight:500 }}>
-              📚 課程學員有效期間內，將以課程入場（免費）
-            </div>
-          ) : (
-            <div style={{ marginBottom:16 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8 }}>入場類型</label>
-              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                {entryTypes.map(t => (
-                  <button key={t.id} onClick={() => setCheckinEntryType(t.id)}
-                    style={{ height:34, padding:'0 12px', borderRadius:8, border: checkinEntryType===t.id?'none':'0.5px solid #E8D5D5', background: checkinEntryType===t.id?'#185FA5':'#fff', color: checkinEntryType===t.id?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
-                    {t.name} {t.price > 0 ? `NT$${t.price}` : ''}
-                  </button>
-                ))}
-                {entryTypes.length === 0 && <div style={{ fontSize:12, color:'#999' }}>載入中...</div>}
-              </div>
-            </div>
-          )}
-          {!checkinEligibility?.isVip && !checkinEligibility?.hasValidPass && !checkinEligibility?.hasCourseAccess && (
-            <div style={{ marginBottom:20 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8 }}>付款方式</label>
-              <div style={{ display:'flex', gap:6 }}>
-                {filterPayments([{key:'cash',label:'現金'},{key:'linepay',label:'Line Pay'},{key:'jkopay',label:'街口'},{key:'taiwanpay',label:'台灣Pay'}], enabledPay).map(pm => (
-                  <button key={pm.key} onClick={() => setCheckinPayment(pm.key)}
-                    style={{ flex:1, height:34, borderRadius:8, border: checkinPayment===pm.key?'none':'0.5px solid #E8D5D5', background: checkinPayment===pm.key?'#185FA5':'#fff', color: checkinPayment===pm.key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
-                    {pm.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-          {/* 轉換期：舊折扣卡8折（僅折入場費；持實體舊卡未轉入新優惠卡者）。僅一般付費身分適用、兒童不適用。 */}
-          {checkinTransition.checkinLegacyDiscountCard && !checkinEligibility?.isVip && !checkinEligibility?.hasValidPass && !checkinEligibility?.hasCourseAccess && checkinEntryType !== 'child_free' && (() => {
-            const base = entryTypes.find(t => t.id === checkinEntryType)?.price || 0;
-            if (base <= 0) return null;
-            const teamStacked = !!checkinEligibility?.instruments?.discountCard?.teamStacked;
-            const rate = checkinEligibility?.instruments?.discountCard?.rate || 0.8;
-            return (
-              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'10px 12px', borderRadius:8, border:`0.5px solid ${useLegacyDiscount?'#8B1A1A':'#E8D5D5'}`, background: useLegacyDiscount?'#FBF0F0':'#fff', marginBottom:16 }}>
-                <input type="checkbox" checked={useLegacyDiscount} onChange={e => setUseLegacyDiscount(e.target.checked)} style={{ width:16, height:16 }} />
-                <span style={{ fontSize:13, color: useLegacyDiscount?'#8B1A1A':'#444', fontWeight: useLegacyDiscount?600:400 }}>
-                  套用舊折扣卡{teamStacked ? '8折+隊員9折' : '8折'}（入場費 NT${Math.round(base*rate)}，加購不折）
-                </span>
-              </label>
-            );
-          })()}
-          {checkinMsg && (
-            <div style={{ background: checkinMsgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${checkinMsgType==='ok'?'#B3DEC0':'#F5C4C4'}`, borderRadius:8, padding:'8px 12px', fontSize:12, color: checkinMsgType==='ok'?'#2D7D46':'#A32D2D', marginBottom:14 }}>
-              {checkinMsg}
-            </div>
-          )}
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => setShowCheckin(false)}
-              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
-            <button onClick={handleQuickCheckin} disabled={checkinSaving}
-              style={{ flex:2, height:40, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {checkinSaving ? '處理中...' : '確認入場'}
-            </button>
-          </div>
-          {/* 轉換期：已付費放行（入場費 NT$0）。仍須 Waiver／墜測（後端硬擋）。 */}
-          {checkinTransition.checkinAlreadyPaid && checkinEligibility?.waiverSigned && checkinEligibility?.fallTestPassed !== false && (
-            <button onClick={handleAlreadyPaidCheckin} disabled={checkinSaving}
-              title="會員於舊系統已付『入場費』，入場費記 NT$0"
-              style={{ width:'100%', height:40, borderRadius:9, background:'#fff', color:'#854F0B', border:'0.5px solid #E0C067', fontSize:13, fontWeight:600, cursor:'pointer', marginTop:8 }}>
-              💳 已付費入場（入場費 NT$0）
-            </button>
-          )}
         </Modal>
       )}
 
