@@ -446,6 +446,7 @@ export default function DailySettlementPage() {
                     segments={(h.invoiceSegments && h.invoiceSegments.length) ? h.invoiceSegments : [{ track: '', start: h.invoiceStartNumber || '', last: h.invoiceLastNumber || '' }]}
                     voids={h.invoiceVoidNumbers ? String(h.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
                     voidAmount={h.voidInvoiceAmount || 0}
+                    printingEnabled={!!h.printingEnabled}
                     denominations={h.denominations} />
                 </div>
               )}
@@ -475,6 +476,7 @@ export default function DailySettlementPage() {
               segments={(settlement?.invoiceSegments && settlement.invoiceSegments.length) ? settlement.invoiceSegments : [{ track: '', start: settlement?.invoiceStartNumber || '', last: settlement?.invoiceLastNumber || '' }]}
               voids={settlement?.invoiceVoidNumbers ? String(settlement.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
               voidAmount={settlement?.voidInvoiceAmount || 0}
+              printingEnabled={!!settlement?.printingEnabled}
               denominations={settlement?.denominations} />
           </div>
           <button onClick={startResettle}
@@ -818,7 +820,7 @@ export default function DailySettlementPage() {
             deductions={deductions} netAdjust={netAdjust}
             actualCash={actualCash} difference={difference}
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
-            voidAmount={Number(voidInvoiceAmount) || 0} denominations={denominations} />
+            voidAmount={Number(voidInvoiceAmount) || 0} printingEnabled={printingEnabled} denominations={denominations} />
           {resettleMode && (
             <div style={{ marginTop:12 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
@@ -841,7 +843,7 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations }) {
+function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const denom = denominations || {};
@@ -852,11 +854,16 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
   const actualCashShown = denomList.length ? denomTotal : (Number(actualCash) || 0);
   const bigDiff = Math.abs(difference) > 200;
   const voidN = Number(voidAmount) || 0;
-  // 發票總金額扣除作廢票號碼金額（打錯發票金額作廢，不算實收）；手計/系統兩者比較基準相同，皆扣除
-  const netInvoiceTotal = (Number(invoiceTotal) || 0) - voidN;
-  const sysTotal = (income?.total ?? invoiceTotal ?? 0) - voidN;
+  // 發票總金額扣除作廢票號碼金額（打錯發票金額作廢，不算實收）；手計/系統兩者比較基準相同，皆扣除。
+  // ⚠️ 2026-08-14 修：真列印館別（printingEnabled）傳入的 invoiceTotal 本身已經是「已開立、未作廢
+  // 發票」的加總（見 DailySettlementPage 三處呼叫端 invoiceActualTotal），從未把作廢那筆算進去過——
+  // 這裡若再扣一次 voidN 會重複扣除（真實案例：8/13 新竹館 14446 被再扣 251 變成錯誤的 14195）。
+  // 真列印館別不再扣；未開真列印（舊制，voidInvoiceAmount 是店員手動輸入、原本就沒被算進 invoiceTotal
+  // 裡）維持既有行為扣除。
+  const netInvoiceTotal = printingEnabled ? (Number(invoiceTotal) || 0) : ((Number(invoiceTotal) || 0) - voidN);
+  const sysTotal = printingEnabled ? (income?.total ?? invoiceTotal ?? 0) : ((income?.total ?? invoiceTotal ?? 0) - voidN);
   const hasManual = manualTotal !== null && manualTotal !== undefined;
-  const netManualTotal = hasManual ? (Number(manualTotal) || 0) - voidN : null;
+  const netManualTotal = hasManual ? (printingEnabled ? (Number(manualTotal) || 0) : ((Number(manualTotal) || 0) - voidN)) : null;
   const showManualCol = !!incomeManual; // 分項是否並列手動輸入
   const manVal = (k, sysV) => (incomeManual && incomeManual[k] !== '' && incomeManual[k] != null) ? (Number(incomeManual[k]) || 0) : sysV; // 缺項回退系統
   // 總金額分項：入場（含細項）/ 課程 / 裝備銷售 / 出租 / 定期票
@@ -873,14 +880,18 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
       {/* 發票總金額：手計 + 系統紀錄並列 */}
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
         <div style={{ display:'flex', justifyContent:'space-between' }}>
-          <span style={{ color:'#666' }}>發票總金額{voidN > 0 ? '（已扣除作廢）' : ''}</span>
+          <span style={{ color:'#666' }}>發票總金額{voidN > 0 ? (printingEnabled ? '（不含作廢）' : '（已扣除作廢）') : ''}</span>
           <span style={{ fontWeight:700, color:'#8B1A1A' }}>{money(netInvoiceTotal)}</span>
         </div>
-        {voidN > 0 && (
+        {voidN > 0 && (printingEnabled ? (
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4, color:'#888' }}>
+            <span>另有作廢發票 {money(voidN)}（印錯金額作廢重印，未計入上方總額）</span>
+          </div>
+        ) : (
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4, color:'#888' }}>
             <span>合計 {money(invoiceTotal)}　－　作廢 {money(voidN)}</span>
           </div>
-        )}
+        ))}
         {hasManual && (
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4, color:'#888' }}>
             <span>{compareLabel} {money(netManualTotal)}　·　系統 {money(sysTotal)}</span>
@@ -985,7 +996,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
             <span key={i} style={{ fontFamily:'monospace', fontSize:12.5 }}>{segments.length > 1 ? `第${i+1}段：` : ''}{sg.track ? `${sg.track} ` : ''}{sg.start || '—'} ～ {sg.last || '—'}</span>
           ))}
           {voids && voids.length > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢：{voids.join('、')}</span>}
-          {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}（已從發票總金額扣除）</span>}
+          {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}{printingEnabled ? '（未計入發票總金額）' : '（已從發票總金額扣除）'}</span>}
         </div>
       </div>
     </div>
