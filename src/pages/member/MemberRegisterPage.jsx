@@ -10,6 +10,7 @@ const labelStyle = { fontSize:12, color:'#6b6b6b', display:'block', marginBottom
 
 export default function MemberRegisterPage() {
   const [form, setForm] = useState({ name:'', phone:'', email:'', password:'', birthday:'', parentName:'', parentPhone:'', parentRelation:'' });
+  const [confirmPassword, setConfirmPassword] = useState('');
   const minor = isMinor(form.birthday);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,10 @@ export default function MemberRegisterPage() {
     // 前端友善提示（後端仍為權威）：未滿 5 歲無法成為會員
     if (isUnder5(form.birthday)) {
       setError('未滿 5 歲無法成為會員');
+      return;
+    }
+    if (form.password !== confirmPassword) {
+      setError('兩次密碼不一致');
       return;
     }
     // 未滿 18 歲：家長姓名/電話/關係皆必填
@@ -85,6 +90,10 @@ export default function MemberRegisterPage() {
               <div style={{ marginBottom:14 }}>
                 <label style={labelStyle}>{t('密碼（至少8碼）')}</label>
                 <PasswordInput value={form.password} onChange={set('password')} placeholder="••••••••" required minLength={8} style={inputStyle} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label style={labelStyle}>{t('確認密碼')}</label>
+                <PasswordInput value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="••••••••" required minLength={8} style={inputStyle} />
               </div>
               <div style={{ marginBottom: minor ? 14 : 20 }}>
                 <label style={labelStyle}>{t('生日')}</label>
