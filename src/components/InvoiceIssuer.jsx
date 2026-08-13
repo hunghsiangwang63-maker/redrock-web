@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Modal from './Modal';
 import client from '../api/client';
-import InvoiceModal from './InvoiceModal';
+import InvoiceModal, { PaymentMethodFixBox } from './InvoiceModal';
 import { checkPrinterAgent, printReceipt } from '../utils/invoicePrinter';
 import { isValidTaiwanTaxId } from '../utils/taiwanTaxId';
 
@@ -33,7 +33,9 @@ export default function InvoiceIssuer(props) {
   }, [gymId]);
 
   if (enabled === null) return null;
-  if (!enabled) return <InvoiceModal {...rest} />;
+  // ⚠️ sourceType/refId/gymId/paymentMethod 一併透傳給手動記帳版（原本被排除、導致該版本
+  // 的「開立發票」modal 一直沒有付款方式修正/找零計算機可用，2026-08-14 補上）。
+  if (!enabled) return <InvoiceModal {...rest} sourceType={sourceType} refId={refId} paymentMethod={paymentMethod} />;
   return (
     <RealPrintPanel gymId={gymId} sourceType={sourceType} refId={refId} memberId={memberId}
       memberName={memberName} paymentMethod={paymentMethod} {...rest} />
@@ -59,6 +61,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
   const [rollState, setRollState] = useState(null); // 開啟面板當下的紙捲狀態（供列印前預先擋下已用完的情況）
   const [checkingExisting, setCheckingExisting] = useState(true); // 開面板時先查有沒有已開立過，查完前不顯示表單/按鈕
   const [printedItems, setPrintedItems] = useState(null); // 這次實際送去列印的明細（供成功彈窗逐行顯示；重開既有發票/競態情況下沒有值，退回顯示單一品項）
+  const [payMethod, setPayMethod] = useState(paymentMethod || 'cash'); // 供付款方式修正區塊；列印時實際開錢櫃與否也改看這個（會員選錯、店員改成現金時要跟著開櫃）
 
   const refreshAgent = async () => {
     const s = await checkPrinterAgent();
@@ -111,11 +114,11 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
         gymId,
         items: printItems,
         buyerTaxId: taxId.trim() || undefined,
-        openDrawer: paymentMethod === 'cash',
+        openDrawer: payMethod === 'cash',
       });
-      // ② 印成功才配號 + 寫入正式發票紀錄
+      // ② 印成功才配號 + 寫入正式發票紀錄（付款方式若已由值班人員改正，記錄用改正後的值）
       const res = await client.post('/invoices/print-record', {
-        gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note, paymentMethod,
+        gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note, paymentMethod: payMethod,
       });
       setIssued(res.data.invoice);
       setRollStatus(res.data.rollStatus || null);
@@ -182,6 +185,9 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
             ⚠️ 發票紙捲即將用完！剩餘 {rollStatus.remaining} 張，請盡快準備下一捲。
           </div>
         )}
+        {/* 已列印後才發現付款方式記錯，仍可在此更正——只回寫來源訂單記錄，不影響已印出的紙本發票本身 */}
+        <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
+          amount={issued.amount} payMethod={payMethod} setPayMethod={setPayMethod} />
         <button onClick={onClose} style={{ width:'100%', height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>關閉</button>
       </Modal>
     );
@@ -226,6 +232,8 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
           <button onClick={refreshAgent} style={{ fontSize:11, color:'#185FA5', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>重新檢查</button>
         </div>
       </div>
+      <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
+        amount={amount} payMethod={payMethod} setPayMethod={setPayMethod} />
       <div style={{ marginBottom:12 }}>
         <label style={lab}>品項</label>
         <input style={inp} value={itemName} onChange={e => setItemName(e.target.value)} placeholder="如：課程費用" />

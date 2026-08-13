@@ -1,10 +1,95 @@
 import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import Modal from './Modal';
+import client from '../api/client';
 import { isValidTaiwanTaxId } from '../utils/taiwanTaxId';
 
 const inpS = { width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const labS = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
+
+// 與 PaymentSection.jsx 的 METHODS 同一組 key/label/icon（該處是會員自助付款用的完整表單元件，
+// 這裡只需要一排小按鈕讓值班人員快速改正付款方式，故不重用整個元件、直接維護一份小常數）。
+export const PM_METHODS = [
+  { key:'cash',      label:'現金',    icon:'💵' },
+  { key:'transfer',  label:'轉帳',    icon:'🏦' },
+  { key:'linepay',   label:'LinePay', icon:'💚' },
+  { key:'jkopay',    label:'街口',    icon:'🔵' },
+  { key:'taiwanpay', label:'台灣Pay', icon:'🇹🇼' },
+];
+export const PM_LABEL = PM_METHODS.reduce((m, x) => ({ ...m, [x.key]: x.label }), {});
+
+// 「付款方式修正 + 收現找零」小區塊——供 InvoiceModal（手動記帳版）與 InvoiceIssuer 的 RealPrintPanel
+// （真列印版）共用同一套 UI/邏輯，故抽成獨立元件，兩邊各自 import 使用。
+// 修正付款方式是獨立於「開立/列印發票」的動作（有自己的送出鍵），不論訂單是否已開過發票都能用；
+// 收現/找零純前端計算，不受此限制，選了「現金」就一律顯示（含尚未提供 sourceType/refId 的情境）。
+export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, payMethod, setPayMethod }) {
+  const [cashReceived, setCashReceived] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const changeAmount = (payMethod === 'cash' && cashReceived !== '' && !isNaN(Number(cashReceived)))
+    ? Number(cashReceived) - (Number(amount) || 0) : null;
+
+  const canFix = sourceType && refId; // 沒有來源訂單（如手動開立無來源發票）就不能回寫，只留計算機
+  const changed = canFix && payMethod !== paymentMethod;
+
+  const submitFix = async () => {
+    setSaving(true); setMsg('');
+    try {
+      await client.put('/invoices/source-payment-method', { sourceType, refId, paymentMethod: payMethod });
+      setMsg(`✅ 已更新為「${PM_LABEL[payMethod] || payMethod}」並回寫系統`);
+    } catch (err) {
+      setMsg(err.response?.data?.message || '更新付款方式失敗');
+    } finally { setSaving(false); }
+  };
+
+  if (!canFix && payMethod !== 'cash') return null; // 無來源且非現金時整區塊沒東西可顯示，不佔版面
+
+  return (
+    <div style={{ background:'#FBF5F5', border:'1px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:14 }}>
+      {canFix && (
+        <>
+          <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:8 }}>
+            付款方式{paymentMethod ? `（原選：${PM_LABEL[paymentMethod] || paymentMethod}）` : ''}
+          </div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: payMethod === 'cash' ? 10 : 0 }}>
+            {PM_METHODS.map(m => (
+              <button key={m.key} onClick={() => setPayMethod(m.key)}
+                style={{ padding:'6px 10px', borderRadius:8, cursor:'pointer', fontSize:12,
+                  border: payMethod === m.key ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
+                  background: payMethod === m.key ? '#FCEBEB' : '#fff',
+                  color: payMethod === m.key ? '#8B1A1A' : '#444',
+                  fontWeight: payMethod === m.key ? 700 : 400 }}>
+                {m.icon} {m.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {payMethod === 'cash' && (
+        <div style={{ display:'flex', alignItems:'flex-end', gap:12, marginBottom: changed ? 10 : 0 }}>
+          <div style={{ flex:1 }}>
+            <label style={{ ...labS, marginBottom:3 }}>收現</label>
+            <input type="number" style={inpS} value={cashReceived} onChange={e => setCashReceived(e.target.value)} placeholder="輸入實收現金金額" />
+          </div>
+          <div style={{ flex:1, textAlign:'right' }}>
+            <div style={{ fontSize:11, color:'#999' }}>找零（應收 NT${Number(amount) || 0}）</div>
+            <div style={{ fontSize:20, fontWeight:700, color: changeAmount != null && changeAmount < 0 ? '#A32D2D' : '#2D7D46' }}>
+              {changeAmount != null ? `NT$${changeAmount.toLocaleString()}` : '—'}
+            </div>
+          </div>
+        </div>
+      )}
+      {changed && (
+        <button onClick={submitFix} disabled={saving}
+          style={{ width:'100%', height:34, borderRadius:8, border:'none', background:'#185FA5', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+          {saving ? '更新中...' : `更新為「${PM_LABEL[payMethod] || payMethod}」並回寫系統`}
+        </button>
+      )}
+      {msg && <div style={{ fontSize:11, marginTop:6, color: msg.startsWith('✅') ? '#2D7D46' : '#A32D2D' }}>{msg}</div>}
+    </div>
+  );
+}
 
 // 通用「開立發票」modal（預先建立，待日後發票機串接）——課程學員/比賽報名共用同一套邏輯與畫面：
 // 同一筆訂單（報名/課程報名）同時最多一張「已開立」發票；開立後只顯示摘要＋「作廢發票」鍵（二次確認），
@@ -16,11 +101,13 @@ const labS = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 //   feeInfo      - 選填，顯示於頂部提示框的費用參考文字（如「報名費用 NT$X」）
 //   defaultAmount - 金額欄預填值（呼叫端已算好優先序）
 //   defaultItemName - 品項欄預填值
+//   sourceType, refId, gymId, paymentMethod - 選填，供上方「付款方式修正」區塊回寫來源記錄用
+//     （values 皆由 InvoiceIssuer 透傳；若呼叫端沒帶，此區塊只保留現金找零計算機功能）
 //   onClose()
 //   listInvoices()          - async () => invoice[]
 //   createInvoice(payload)  - async ({itemName,amount,taxId,note,issuedAt}) => invoice
 //   voidInvoiceFn(id, voidReason) - async () => void
-export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, defaultItemName, onClose, listInvoices, createInvoice, voidInvoiceFn }) {
+export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, defaultItemName, sourceType, refId, paymentMethod, onClose, listInvoices, createInvoice, voidInvoiceFn }) {
   const [form, setForm] = useState({
     issuedAt: dayjs().format('YYYY-MM-DDTHH:mm'),
     itemName: defaultItemName || '費用',
@@ -33,6 +120,7 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
   const [msg, setMsg] = useState('');
   const [confirmVoidId, setConfirmVoidId] = useState(null); // 二次確認：待作廢的發票 id
   const [voiding, setVoiding] = useState(false);
+  const [payMethod, setPayMethod] = useState(paymentMethod || 'cash');
 
   const loadHistory = () => listInvoices().then(setHistory).catch(() => setHistory([]));
   useEffect(() => { loadHistory(); }, []);
@@ -79,6 +167,9 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
         {feeInfo && <div style={{ marginTop:4 }}>{feeInfo}</div>}
         <div style={{ marginTop:6, color:'#A66A00' }}>⚠️ 預先建立，尚未串接實體發票機；開立後金額將寫入當日結帳「加減項」，不影響原本已認列之營收。</div>
       </div>
+
+      <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
+        amount={form.amount} payMethod={payMethod} setPayMethod={setPayMethod} />
 
       {history === null ? (
         <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>載入中...</div>
