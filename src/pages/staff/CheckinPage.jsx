@@ -33,8 +33,9 @@ export default function CheckinPage() {
   const isManagerOnly = ['super_admin', 'gym_manager'].includes(staff?.role); // 下載明細限管理員
   // 入場動作限值班(operator)/管理員（與後端 requireManagerOrStation 一致）；報表 tab 不限
   const canCheckin = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator;
-  // 個人帳號（兼職／正職，未打卡值班）權限收斂（2026-08-08 拍板，同日再擴及正職）：隱藏「歷史入場」查詢分頁
-  const isRestrictedPartTime = ['part_time', 'full_time'].includes(staff?.role) && !operator;
+  // 歷史入場查詢限管理員「個人帳號」使用（2026-08-08 先擋個人正職/兼職未值班；2026-08-13 再拍板
+  // 擴大擋「值班 operator」——含館長/系統管理員值班身分時也一併擋，與後端 checkin.js /history 對齊）
+  const canViewHistory = ['super_admin', 'gym_manager'].includes(staff?.role) && !operator;
   const [gyms, setGyms] = useState([]);
   // 場館由頂部全域選擇器控制；入場屬操作類，super_admin 個人登入時「全館」退回第一個館
   const targetGymId = activeGymId || staff?.gymId || (isSuperAdmin ? (viewGym || gyms[0]?.id || '') : '');
@@ -576,7 +577,7 @@ export default function CheckinPage() {
               { key:'scan', label:'掃描入場' },
               { key:'courseStudents', label:`今日課程學員 ${courseStudents.length > 0 ? `(${courseStudents.length})` : ''}` },
               { key:'today', label:'今日入場' },
-              ...(isRestrictedPartTime ? [] : [{ key:'history', label:'歷史入場' }]),
+              ...(canViewHistory ? [{ key:'history', label:'歷史入場' }] : []),
             ]}
             value={tab}
             onChange={setTab}
