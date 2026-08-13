@@ -155,6 +155,9 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
             {autoVoided ? '⚠️ 紙本已印出，但對應交易已失效，此號碼已自動作廢' : '✅ 已列印'}
           </div>
           <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:4 }}>{issued.invoiceNo}</div>
+          {issued.sourceType === 'checkin_merged' && (
+            <div style={{ fontSize:11, color:'#A66A00', fontWeight:600, marginBottom:4 }}>🧾 合併列印發票（涵蓋多筆入場，金額為合併總額）</div>
+          )}
           {Array.isArray(printedItems) && printedItems.length > 1 ? (
             <div style={{ fontSize:13 }}>
               {printedItems.map((it, i) => (
