@@ -447,7 +447,8 @@ export default function DailySettlementPage() {
                     voids={h.invoiceVoidNumbers ? String(h.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
                     voidAmount={h.voidInvoiceAmount || 0}
                     printingEnabled={!!h.printingEnabled}
-                    denominations={h.denominations} />
+                    denominations={h.denominations}
+                    notes={h.notes || ''} />
                 </div>
               )}
             </div>
@@ -477,7 +478,8 @@ export default function DailySettlementPage() {
               voids={settlement?.invoiceVoidNumbers ? String(settlement.invoiceVoidNumbers).split(/[,、\s]+/).map(x => x.trim()).filter(Boolean) : []}
               voidAmount={settlement?.voidInvoiceAmount || 0}
               printingEnabled={!!settlement?.printingEnabled}
-              denominations={settlement?.denominations} />
+              denominations={settlement?.denominations}
+              notes={settlement?.notes || ''} />
           </div>
           <button onClick={startResettle}
             style={{ width:'100%', height:46, borderRadius:12, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:20 }}>
@@ -820,7 +822,8 @@ export default function DailySettlementPage() {
             deductions={deductions} netAdjust={netAdjust}
             actualCash={actualCash} difference={difference}
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
-            voidAmount={Number(voidInvoiceAmount) || 0} printingEnabled={printingEnabled} denominations={denominations} />
+            voidAmount={Number(voidInvoiceAmount) || 0} printingEnabled={printingEnabled} denominations={denominations}
+            notes={notes} />
           {resettleMode && (
             <div style={{ marginTop:12 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
@@ -843,7 +846,7 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled }) {
+function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled, notes }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const denom = denominations || {};
@@ -989,7 +992,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
           {difference >= 0 ? '+' : ''}{money(difference)}{bigDiff ? '　⚠ 將通知管理員' : ''}
         </span>
       </div>
-      <div style={{ ...row, flexDirection:'column', alignItems:'stretch', borderBottom:'none' }}>
+      <div style={{ ...row, flexDirection:'column', alignItems:'stretch', borderBottom: notes ? undefined : 'none' }}>
         <span style={{ color:'#666', marginBottom:4 }}>發票起末號碼</span>
         <div style={{ display:'flex', flexDirection:'column', gap:2, textAlign:'left' }}>
           {(segments && segments.length ? segments : [{ track:'', start:'', last:'' }]).map((sg, i) => (
@@ -999,6 +1002,12 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
           {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}{printingEnabled ? '（未計入發票總金額）' : '（已從發票總金額扣除）'}</span>}
         </div>
       </div>
+      {notes && (
+        <div style={{ ...row, flexDirection:'column', alignItems:'stretch', borderBottom:'none' }}>
+          <span style={{ color:'#666', marginBottom:4 }}>結帳備註</span>
+          <div style={{ fontSize:12.5, color:'#444', textAlign:'left', whiteSpace:'pre-wrap', lineHeight:1.6 }}>{notes}</div>
+        </div>
+      )}
     </div>
   );
 }
