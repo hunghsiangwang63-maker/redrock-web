@@ -449,7 +449,9 @@ export default function DailySettlementPage() {
                     printingEnabled={!!h.printingEnabled}
                     denominations={h.denominations}
                     notes={h.notes || ''}
-                    payment={h.payment || null} paymentManual={h.paymentManual || null} />
+                    payment={h.payment || null} paymentManual={h.paymentManual || null}
+                    prevCashBalance={h.prevCashBalance ?? null} expectedCash={h.expectedCashBalance ?? null}
+                    checkinCount={h.checkinCount ?? null} />
                 </div>
               )}
             </div>
@@ -481,7 +483,9 @@ export default function DailySettlementPage() {
               printingEnabled={!!settlement?.printingEnabled}
               denominations={settlement?.denominations}
               notes={settlement?.notes || ''}
-              payment={settlement?.payment || null} paymentManual={settlement?.paymentManual || null} />
+              payment={settlement?.payment || null} paymentManual={settlement?.paymentManual || null}
+              prevCashBalance={settlement?.prevCashBalance ?? null} expectedCash={settlement?.expectedCashBalance ?? null}
+              checkinCount={settlement?.checkinCount ?? null} />
           </div>
           <button onClick={startResettle}
             style={{ width:'100%', height:46, borderRadius:12, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:20 }}>
@@ -826,7 +830,9 @@ export default function DailySettlementPage() {
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
             voidAmount={Number(voidInvoiceAmount) || 0} printingEnabled={printingEnabled} denominations={denominations}
             notes={notes}
-            payment={settlement?.payment || null} paymentManual={transition.settlementManualInput ? paymentManual : null} />
+            payment={settlement?.payment || null} paymentManual={transition.settlementManualInput ? paymentManual : null}
+            prevCashBalance={settlement?.prevCashBalance ?? null} expectedCash={expectedCash}
+            checkinCount={settlement?.checkinCount ?? null} />
           {resettleMode && (
             <div style={{ marginTop:12 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
@@ -848,8 +854,21 @@ export default function DailySettlementPage() {
   );
 }
 
+// 財政部二聯式收銀機發票固定編號規律：每 1000 號分四等分各 250 張，末三碼固定落在這四組——
+// 與後端 invoiceNumberService.computeRollEndNumber、SettingsPage.jsx 換捲預覽同一套算法，
+// 不需要店員輸入「這捲共幾張」，直接依號碼反推這捲會印到哪個號碼結束（純前端顯示用）。
+const ROLL_END_SUFFIXES = [249, 499, 749, 999];
+const computeRollEndNumber = (numberStr) => {
+  const n = Number(numberStr);
+  if (!n) return null;
+  const base = Math.floor(n / 1000) * 1000;
+  const rem = n - base;
+  const boundary = ROLL_END_SUFFIXES.find(b => rem <= b) ?? 999;
+  return String(base + boundary).padStart(8, '0');
+};
+
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled, notes, payment, paymentManual }) {
+function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled, notes, payment, paymentManual, prevCashBalance, expectedCash, checkinCount }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const denom = denominations || {};
@@ -1006,6 +1025,27 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
           </div>
         )}
       </div>
+      {/* 收銀機餘額（前日餘額/今日現金收入/應有餘額）*/}
+      {prevCashBalance != null && expectedCash != null && (
+        <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
+          <span style={{ color:'#666', marginBottom:4 }}>收銀機餘額</span>
+          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
+              <span style={{ textAlign:'left' }}>前日餘額</span><span>{money(prevCashBalance)}</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
+              <span style={{ textAlign:'left' }}>今日現金收入</span><span>{money(Number(expectedCash) - Number(prevCashBalance) - netAdjust)}</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontWeight:600, marginTop:2 }}>
+              <span style={{ textAlign:'left' }}>應有餘額</span><span style={{ color:'#185FA5' }}>{money(expectedCash)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* 今日人數（check-in，系統自動統計） */}
+      {checkinCount != null && (
+        <div style={row}><span style={{ color:'#666' }}>今日人數</span><span style={{ fontWeight:600 }}>{checkinCount} 人</span></div>
+      )}
       {/* 現金清點（點鈔明細）*/}
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom: denomList.length ? 4 : 0 }}>
@@ -1038,6 +1078,20 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
           ))}
           {voids && voids.length > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢：{voids.join('、')}</span>}
           {Number(voidAmount) > 0 && <span style={{ fontSize:12, color:'#A32D2D' }}>作廢票號碼總金額：{money(voidAmount)}{printingEnabled ? '（未計入發票總金額）' : '（已從發票總金額扣除）'}</span>}
+          {(() => {
+            // 依財政部固定編號規律，用「最後一段最後一個號碼」反推該捲會印到哪結束、剩幾張
+            // （同一套算法見 invoiceNumberService.computeRollEndNumber / SettingsPage.jsx 換捲預覽）。
+            const lastSeg = segments && segments.length ? segments[segments.length - 1] : null;
+            if (!lastSeg?.track || !lastSeg?.last) return null;
+            const rollEnd = computeRollEndNumber(lastSeg.last);
+            if (!rollEnd) return null;
+            const remaining = Number(rollEnd) - Number(lastSeg.last);
+            return (
+              <span style={{ fontSize:12, color: remaining <= 5 ? '#A32D2D' : '#185FA5' }}>
+                本捲尚餘 <strong>{remaining}</strong> 張（至 {lastSeg.track}{rollEnd}）{remaining <= 5 ? '　⚠ 即將用完' : ''}
+              </span>
+            );
+          })()}
         </div>
       </div>
       {notes && (
