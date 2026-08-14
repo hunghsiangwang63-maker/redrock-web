@@ -448,7 +448,8 @@ export default function DailySettlementPage() {
                     voidAmount={h.voidInvoiceAmount || 0}
                     printingEnabled={!!h.printingEnabled}
                     denominations={h.denominations}
-                    notes={h.notes || ''} />
+                    notes={h.notes || ''}
+                    payment={h.payment || null} paymentManual={h.paymentManual || null} />
                 </div>
               )}
             </div>
@@ -479,7 +480,8 @@ export default function DailySettlementPage() {
               voidAmount={settlement?.voidInvoiceAmount || 0}
               printingEnabled={!!settlement?.printingEnabled}
               denominations={settlement?.denominations}
-              notes={settlement?.notes || ''} />
+              notes={settlement?.notes || ''}
+              payment={settlement?.payment || null} paymentManual={settlement?.paymentManual || null} />
           </div>
           <button onClick={startResettle}
             style={{ width:'100%', height:46, borderRadius:12, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:20 }}>
@@ -823,7 +825,8 @@ export default function DailySettlementPage() {
             actualCash={actualCash} difference={difference}
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
             voidAmount={Number(voidInvoiceAmount) || 0} printingEnabled={printingEnabled} denominations={denominations}
-            notes={notes} />
+            notes={notes}
+            payment={settlement?.payment || null} paymentManual={transition.settlementManualInput ? paymentManual : null} />
           {resettleMode && (
             <div style={{ marginTop:12 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
@@ -846,7 +849,7 @@ export default function DailySettlementPage() {
 }
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled, notes }) {
+function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled, notes, payment, paymentManual }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const denom = denominations || {};
@@ -878,6 +881,16 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
     { key:'equipmentRental', label:'器材租借', value: income.equipmentRental || 0 },
     { key:'pass', label:'定期票', value: income.pass || 0, sub: income.passItems },
   ] : [];
+  // 付款方式統計：系統值一律顯示；有 paymentManual（線上支付手動輸入）才並列手動/系統（現金無手動欄位、恆單一值）
+  const payMethods = payment ? [
+    { key:'cash', label:'現金', value: payment.cash || 0 },
+    { key:'linePay', label:'Line Pay', value: payment.linePay || 0 },
+    { key:'jko', label:'街口支付', value: payment.jko || 0 },
+    { key:'taiwanPay', label:'台灣Pay', value: payment.taiwanPay || 0 },
+    { key:'transfer', label:'轉帳', value: payment.transfer || 0 },
+  ] : [];
+  const showPayManualCol = !!paymentManual;
+  const payManVal = (k, sysV) => (paymentManual && paymentManual[k] !== '' && paymentManual[k] != null) ? (Number(paymentManual[k]) || 0) : sysV;
   return (
     <div>
       {/* 發票總金額：手計 + 系統紀錄並列 */}
@@ -942,6 +955,31 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
                   </div>
                 ))}
               </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {/* 付款方式統計 */}
+      {payMethods.length > 0 && (
+        <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+            <span style={{ color:'#666' }}>付款方式統計{showPayManualCol ? '（手動 · 系統）' : ''}</span>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
+            {payMethods.map((m, i) => {
+              const showSplit = showPayManualCol && m.key !== 'cash';
+              const man = payManVal(m.key, m.value);
+              const diff = showSplit && Number(man) !== Number(m.value);
+              return (
+                <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
+                  <span style={{ textAlign:'left' }}>{m.label}</span>
+                  {showSplit ? (
+                    <span style={{ color: diff ? '#A32D2D' : undefined }}>手動 {money(man)}　·　系統 {money(m.value)}</span>
+                  ) : (
+                    <span>{money(m.value)}</span>
+                  )}
+                </div>
               );
             })}
           </div>
