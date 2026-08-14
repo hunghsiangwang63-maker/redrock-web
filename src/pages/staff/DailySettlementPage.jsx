@@ -1036,6 +1036,10 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
               <span style={{ textAlign:'left' }}>今日現金收入</span><span>{money(Number(expectedCash) - Number(prevCashBalance) - netAdjust)}</span>
             </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
+              <span style={{ textAlign:'left' }}>加減項淨額</span>
+              <span style={{ color: netAdjust >= 0 ? '#2D7D46' : '#A32D2D' }}>{netAdjust >= 0 ? '+' : '−'}{money(Math.abs(netAdjust))}</span>
+            </div>
             <div style={{ display:'flex', justifyContent:'space-between', fontWeight:600, marginTop:2 }}>
               <span style={{ textAlign:'left' }}>應有餘額</span><span style={{ color:'#185FA5' }}>{money(expectedCash)}</span>
             </div>
