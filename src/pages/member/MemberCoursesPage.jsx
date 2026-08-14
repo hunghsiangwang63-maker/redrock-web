@@ -19,6 +19,7 @@ function LeaveMakeupRulesBox({ course }) {
       <strong>1. 請假次數限制</strong><br/>
       ・每期課程最多可請假 <strong>{_n}</strong> 次，超過次數則不予補課。<br/>
       ・若遇特殊狀況（如受傷等不可抗因素），得另行申請展延。<br/>
+      ・若為中途插班，可請假補課次數則另行計算。<br/>
       <strong>2. 請假時限</strong><br/>
       ・請假最晚須於課前 <strong>{_h}</strong> 小時送出請假申請，否則視為自行放棄，不予補課。<br/>
       <strong>3. 取消請假規則</strong><br/>
