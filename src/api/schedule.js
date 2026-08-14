@@ -15,5 +15,7 @@ export const copyPreviousMonthSchedule = (gymId, month) => client.post('/schedul
 export const getScheduleEvents = (gymId, month) => client.get('/schedule/events', { params: { gymId, month } });
 export const createScheduleEvent = (data) => client.post('/schedule/events', data);
 export const createRecurringScheduleEvent = (data) => client.post('/schedule/events/recurring', data);
-export const updateScheduleEvent = (eventId, data) => client.put(`/schedule/events/${eventId}`, data);
-export const deleteScheduleEvent = (eventId) => client.delete(`/schedule/events/${eventId}`);
+// scope（'single'｜'following'｜'all'）：只在該筆屬於循環系列時才有意義，套用到「這筆及之後」
+// 或「整個系列」；非系列的一次性事項後端會自動視同 single。
+export const updateScheduleEvent = (eventId, data, scope = 'single') => client.put(`/schedule/events/${eventId}`, { ...data, scope });
+export const deleteScheduleEvent = (eventId, scope = 'single') => client.delete(`/schedule/events/${eventId}`, { params: { scope } });

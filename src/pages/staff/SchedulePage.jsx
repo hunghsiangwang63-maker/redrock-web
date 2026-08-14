@@ -62,8 +62,12 @@ export default function SchedulePage() {
   const [events, setEvents] = useState([]);
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
-  const [eventForm, setEventForm] = useState({ gymId:'', date:'', allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'', recurType:'none' });
+  const [eventForm, setEventForm] = useState({ gymId:'', date:'', endDate:'', allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'', recurType:'none' });
   const [eventSaving, setEventSaving] = useState(false);
+  // 循環系列編輯/刪除範圍：single(只改這一筆)｜following(這筆及之後)｜all(整個系列)——
+  // 只有 editingEvent 本身是循環系列的一部分（有 recurrenceGroupId）時才會顯示選擇器，
+  // 一次性事項恆為 single。每次開啟 modal（新增或編輯）都要重置回預設值。
+  const [eventScope, setEventScope] = useState('single');
 
   const monthLabel = () => dayjs(`${month}-01`).format('YYYY年MM月');
   const handleCopyPrevious = async () => {
@@ -184,15 +188,17 @@ export default function SchedulePage() {
   const openAddEvent = (date) => {
     if (!canManageEvents) return;
     setEditingEvent(null);
-    setEventForm({ gymId: targetGymId, date, allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'', recurType:'none' });
+    setEventScope('single');
+    setEventForm({ gymId: targetGymId, date, endDate:'', allDay:true, startTime:'10:00', endTime:'18:00', category:'closure', title:'', note:'', recurType:'none' });
     setShowEventModal(true);
   };
 
   const openEditEvent = (ev) => {
     if (!canManageEvents) return;
     setEditingEvent(ev);
+    setEventScope('single');
     setEventForm({
-      gymId: ev.gymId || '', date: ev.date, allDay: ev.allDay,
+      gymId: ev.gymId || '', date: ev.date, endDate:'', allDay: ev.allDay,
       startTime: ev.startTime || '10:00', endTime: ev.endTime || '18:00',
       category: ev.category, title: ev.title || '', note: ev.note || '', recurType: 'none',
     });
@@ -203,9 +209,12 @@ export default function SchedulePage() {
     if (!eventForm.date) { showMsg('請選擇日期', 'red'); return; }
     setEventSaving(true);
     try {
+      // 套用到「這筆及之後」或「整個系列」時，日期是各筆各自的、不能一起改，故不送出這欄
+      // （後端對多筆異動本來就會忽略 date，這裡前端一併不送，避免混淆）。
+      const includeDate = !editingEvent || eventScope === 'single';
       const payload = {
         gymId: eventForm.gymId || null,
-        date: eventForm.date,
+        ...(includeDate ? { date: eventForm.date } : {}),
         allDay: eventForm.allDay,
         category: eventForm.category,
         title: eventForm.title,
@@ -213,10 +222,10 @@ export default function SchedulePage() {
         ...(eventForm.allDay ? {} : { startTime: eventForm.startTime, endTime: eventForm.endTime }),
       };
       if (editingEvent) {
-        await updateScheduleEvent(editingEvent.id, payload);
-        showMsg('重要事項已更新');
+        const res = await updateScheduleEvent(editingEvent.id, payload, eventScope);
+        showMsg(res.data.message || '重要事項已更新');
       } else if (eventForm.recurType && eventForm.recurType !== 'none') {
-        const res = await createRecurringScheduleEvent({ ...payload, startDate: eventForm.date, recurType: eventForm.recurType });
+        const res = await createRecurringScheduleEvent({ ...payload, startDate: eventForm.date, endDate: eventForm.endDate || undefined, recurType: eventForm.recurType });
         showMsg(`已建立 ${res.data.count} 筆循環重要事項`);
       } else {
         await createScheduleEvent(payload);
@@ -231,14 +240,15 @@ export default function SchedulePage() {
 
   const handleDeleteEvent = async () => {
     if (!editingEvent) return;
-    if (!window.confirm('確定要刪除這筆重要事項？')) return;
+    const scopeLabel = { single:'這一筆', following:'這筆及之後的所有', all:'整個系列' }[eventScope];
+    if (!window.confirm(`確定要刪除「${scopeLabel}」重要事項？`)) return;
     try {
-      await deleteScheduleEvent(editingEvent.id);
-      showMsg('重要事項已刪除');
+      const res = await deleteScheduleEvent(editingEvent.id, eventScope);
+      showMsg(res.data.message || '重要事項已刪除');
       setShowEventModal(false);
       await loadData();
     } catch (err) {
-      showMsg('刪除失敗', 'red');
+      showMsg(err.response?.data?.message || '刪除失敗', 'red');
     }
   };
 
@@ -644,11 +654,26 @@ export default function SchedulePage() {
               </select>
             </div>
           )}
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{!editingEvent && eventForm.recurType !== 'none' ? '起始日期' : '日期'}</label>
-            <input type="date" value={eventForm.date} onChange={e => setEventForm({...eventForm, date:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
-          </div>
+          {editingEvent && editingEvent.recurrenceGroupId && (
+            <div style={{ marginBottom:14, background:'#FBF5F5', borderRadius:8, padding:10 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>此事項為循環系列的一部分，套用範圍</label>
+              <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                {[{key:'single',label:'只改這一筆'},{key:'following',label:'這筆及之後'},{key:'all',label:'整個系列'}].map(o => (
+                  <button key={o.key} onClick={() => setEventScope(o.key)}
+                    style={{ flex:'1 1 auto', minWidth:76, height:36, borderRadius:8, border: eventScope===o.key?'none':'0.5px solid #E8D5D5', background: eventScope===o.key?'#6B3FA0':'#fff', color: eventScope===o.key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {(!editingEvent || eventScope === 'single') && (
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{!editingEvent && eventForm.recurType !== 'none' ? '起始日期' : '日期'}</label>
+              <input type="date" value={eventForm.date} onChange={e => setEventForm({...eventForm, date:e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+          )}
           {!editingEvent && (
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>循環安排</label>
@@ -661,9 +686,16 @@ export default function SchedulePage() {
                 ))}
               </div>
               {eventForm.recurType !== 'none' && (
-                <div style={{ fontSize:11, color:'#999', marginTop:6 }}>
-                  將從起始日期起，依「{{weekly:'每週',biweekly:'每兩週',monthly:'每月固定日期'}[eventForm.recurType]}」重複建立，最長 1 年（12 個月）內的所有日期。
-                </div>
+                <>
+                  <div style={{ fontSize:11, color:'#999', marginTop:6, marginBottom:8 }}>
+                    將從起始日期起，依「{{weekly:'每週',biweekly:'每兩週',monthly:'每月固定日期'}[eventForm.recurType]}」重複建立，最長 6 個月內的所有日期。
+                  </div>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>結束日期（選填，留空＝直接建滿 6 個月）</label>
+                  <input type="date" value={eventForm.endDate} min={eventForm.date || undefined}
+                    max={eventForm.date ? dayjs(eventForm.date).add(6,'month').format('YYYY-MM-DD') : undefined}
+                    onChange={e => setEventForm({...eventForm, endDate:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </>
               )}
             </div>
           )}
