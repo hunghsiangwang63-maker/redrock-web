@@ -751,7 +751,7 @@ export default function MemberCoursesPage() {
       if (reuploadData.bankName) fd.append('bankName', reuploadData.bankName);
       if (reuploadData.paymentDate) fd.append('paymentDate', reuploadData.paymentDate);
       await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showMsg(reuploadTarget.mode === 'promoted' ? '已提交轉帳資訊，等待工作人員確認收款' : '已重新提交轉帳，等待工作人員確認收款');
+      showMsg(reuploadTarget.mode === 'promoted' || reuploadTarget.mode === 'initial' ? '已提交轉帳資訊，等待工作人員確認收款' : '已重新提交轉帳，等待工作人員確認收款');
       setReuploadTarget(null); setReuploadFile(null);
       setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
       await loadMyEnrollments();
@@ -983,11 +983,13 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!reuploadLoading) setReuploadTarget(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>{reuploadTarget.mode === 'promoted' ? '選擇付款方式' : '重新上傳轉帳'}</div>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>{reuploadTarget.mode === 'promoted' ? '選擇付款方式' : reuploadTarget.mode === 'initial' ? '填寫轉帳資訊' : '重新上傳轉帳'}</div>
             <div style={{ fontSize:12.5, color:'#666', marginBottom:14, textAlign:'left', lineHeight:1.7 }}>
               {reuploadTarget.courseName}　應付 NT${(reuploadTarget.amount || 0).toLocaleString()}<br/>
               {reuploadTarget.mode === 'promoted'
                 ? <span style={{ color:'#B5651D' }}>候補已遞補為正取，請選擇付款方式完成報名。</span>
+                : reuploadTarget.mode === 'initial'
+                ? <span style={{ color:'#B5651D' }}>請填寫您的匯款資料，我們將盡快為您確認收款。</span>
                 : <span style={{ color:'#B5651D' }}>重新上傳不會延長付款期限（沿用原報名期限）。</span>}
             </div>
             {reuploadTarget.mode === 'promoted' && (
@@ -1902,6 +1904,11 @@ export default function MemberCoursesPage() {
               const isPromoted = !!primary?.promotedAt && !pConfirmed && (primary?.enrollmentFee || 0) > 0;
               const promotedNeedsMethod = isPromoted && !primary?.paymentMethod;
               const promotedAwaitingConfirm = isPromoted && !!primary?.paymentMethod;
+              // 選轉帳報名後系統應自動送出匯款資訊，若當下失敗（如網路異常）會卡在 paymentStatus:'pending'
+              // 永遠不變、且完全沒有 transferRecords（管理員待收款清單看不到、也無從補正）。
+              // 提供自行補填入口，避免無限期卡住（見 2026-08-14 周詠弈案例）。
+              const needsInitialTransferInfo = !isWaitlistGroup && !isRejected && !isPromoted &&
+                primary?.paymentMethod === 'transfer' && primary?.paymentStatus === 'pending' && (primary?.enrollmentFee || 0) > 0;
               return (
                 <div key={groupKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
@@ -1963,6 +1970,19 @@ export default function MemberCoursesPage() {
                       <div style={{ fontSize:12, color:'#8B6914', lineHeight:1.6 }}>
                         ⏳ 候補已遞補為正取，應繳 NT${(primary.enrollmentFee || 0).toLocaleString()}，{primary.paymentMethod === 'cash' ? '請至櫃檯繳費' : '轉帳資訊已提交'}，待工作人員確認。
                       </div>
+                    </div>
+                  )}
+                  {/* 選轉帳報名後尚未收到匯款資訊（如報名當下自動提交失敗）：可自行補填，避免卡住無法被館方確認 */}
+                  {needsInitialTransferInfo && (
+                    <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'10px 12px', marginBottom:8, textAlign:'left' }}>
+                      <div style={{ fontSize:12.5, color:'#8B6914', fontWeight:600 }}>⚠️ 尚未收到您的匯款資訊</div>
+                      <div style={{ fontSize:11.5, color:'#8B6914', marginTop:3, lineHeight:1.6 }}>
+                        應繳 NT${(primary.enrollmentFee || 0).toLocaleString()}，您選擇的付款方式為轉帳，但系統尚未收到匯款資料，請填寫後我們將盡快為您確認收款。
+                      </div>
+                      <button onClick={() => { setReuploadTarget({ mode:'initial', enrollmentId: primary.id, courseName: group.courseName, amount: primary.enrollmentFee || 0, memberId: group.memberId, gymId: primary.gymId }); setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' }); setReuploadFile(null); }}
+                        style={{ marginTop:8, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                        填寫轉帳資訊
+                      </button>
                     </div>
                   )}
 
