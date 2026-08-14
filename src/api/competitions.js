@@ -23,6 +23,8 @@ export const returnCompetitionForm = (regId, data) => client.post(`/competitions
 export const rejectCompetitionForm = (regId, data) => client.post(`/competitions/registrations/${regId}/reject-form`, data);
 // 會員修改報名資料後重送（被退回後）
 export const updateCompetitionForm = (regId, data) => memberClient.post(`/competitions/registrations/${regId}/update-form`, data);
+// 館方人工更正報名資料（目前支援組別/榮譽參賽），不影響費用/收款狀態，異動後系統自動寄信通知會員
+export const adminUpdateCompetitionRegistration = (regId, data) => client.post(`/competitions/registrations/${regId}/admin-update`, data);
 
 export const cancelRegistration = (regId, data) => memberClient.post(`/competitions/registrations/${regId}/cancel`, data);
 // 逾期取消後用原資料重新報名（免重填、免重簽）

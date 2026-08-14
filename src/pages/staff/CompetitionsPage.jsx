@@ -5,7 +5,7 @@ import SimulateRegistrationButton from '../../components/SimulateRegistrationBut
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import CompetitionActionModal from '../../components/review/CompetitionActionModal';
-import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice, updateCompetitionReceivedAmount } from '../../api/competitions';
+import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice, updateCompetitionReceivedAmount, adminUpdateCompetitionRegistration } from '../../api/competitions';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonView } from '../../components/InvoiceButton';
@@ -38,6 +38,37 @@ const RegReceivedAmountEditor = ({ reg, onSaved }) => {
         onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
         style={{ width:80, height:26, fontSize:12, borderRadius:6, border:'1px solid #E8D5D5', padding:'0 6px', boxSizing:'border-box' }} />
       {justSaved && <span style={{ color:'#2D7D46', fontSize:11 }}>✓</span>}
+    </span>
+  );
+};
+
+// 館方人工更正組別／榮譽參賽——不影響費用/收款狀態，異動後系統自動寄信通知會員（見 admin-update 端點）
+const RegDivisionHonoraryEditor = ({ reg, divisions, onSaved }) => {
+  const [saving, setSaving] = useState(false);
+  const [justSaved, setJustSaved] = useState(false);
+  const commit = async (patch) => {
+    setSaving(true);
+    try {
+      await adminUpdateCompetitionRegistration(reg.id, patch);
+      onSaved?.(reg.id, patch);
+      setJustSaved(true); setTimeout(() => setJustSaved(false), 1500);
+    } catch (err) {
+      alert(err.response?.data?.message || '更新失敗');
+    } finally { setSaving(false); }
+  };
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+      <select value={reg.divisionId || ''} disabled={saving}
+        onChange={e => { if (e.target.value && e.target.value !== reg.divisionId) commit({ divisionId: e.target.value }); }}
+        style={{ height:26, fontSize:12, borderRadius:6, border:'1px solid #E8D5D5', padding:'0 4px' }}>
+        {(divisions || []).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+      </select>
+      <label style={{ display:'inline-flex', alignItems:'center', gap:3, fontSize:12, color:'#666', cursor:'pointer' }}>
+        <input type="checkbox" checked={!!reg.isHonorary} disabled={saving}
+          onChange={e => commit({ isHonorary: e.target.checked })} />
+        榮譽參賽
+      </label>
+      {justSaved && <span style={{ color:'#2D7D46', fontSize:11 }}>✓ 已更新並寄信通知</span>}
     </span>
   );
 };
@@ -632,9 +663,25 @@ export default function CompetitionsPage() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                 <div>
                   <div style={{ fontSize:16, fontWeight:700 }}>{r.memberName} {r.isHonorary && <span style={{ fontSize:10, background:'#FAEEDA', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>榮譽</span>}</div>
-                  <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{r.divisionName} · {r.gender==='male'?'男':r.gender==='female'?'女':'—'} · NT${r.registrationFee}</div>
+                  <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{r.gender==='male'?'男':r.gender==='female'?'女':'—'} · NT${r.registrationFee}</div>
                 </div>
                 <span style={{ fontSize:12, fontWeight:600, color:stl.c, whiteSpace:'nowrap' }}>{stl.t}</span>
+              </div>
+              <div style={{ marginBottom:8 }}>
+                {canManage ? (
+                  <RegDivisionHonoraryEditor reg={r} divisions={showRegistrations?.divisions}
+                    onSaved={(id, patch) => {
+                      const resolved = { ...patch };
+                      if (patch.divisionId) {
+                        const dv = (showRegistrations?.divisions || []).find(d => d.id === patch.divisionId);
+                        if (dv) resolved.divisionName = dv.name;
+                      }
+                      setRegDetail(d => d && d.id === id ? { ...d, ...resolved } : d);
+                      setRegistrations(list => list.map(x => x.id === id ? { ...x, ...resolved } : x));
+                    }} />
+                ) : (
+                  <span style={{ fontSize:12, color:'#666' }}>{r.divisionName}</span>
+                )}
               </div>
               <div style={{ borderTop:'0.5px solid #F0E4E4', paddingTop:8 }}>
                 {Row('報名日期', sec?dayjs(sec*1000).format('YYYY-MM-DD HH:mm'):'—')}
