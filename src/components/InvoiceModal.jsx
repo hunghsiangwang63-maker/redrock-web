@@ -50,7 +50,21 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
   if (!showSelector && payMethod !== 'cash') return null; // 無來源且非現金時整區塊沒東西可顯示，不佔版面
 
   return (
-    <div style={{ background:'#FBF5F5', border:'1px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:14 }}>
+    <>
+      {/* 收現欄拿掉瀏覽器原生上下鍵（2026-08-15 使用者要求）——inline style 碰不到
+          ::-webkit-inner/outer-spin-button 這類偽元素，只能用一個獨立 <style> 標籤，
+          用 class 名稱限定範圍只影響這個輸入框，不影響全站其他 number 輸入。 */}
+      <style>{`
+        .cash-received-input::-webkit-outer-spin-button,
+        .cash-received-input::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        .cash-received-input {
+          -moz-appearance: textfield;
+        }
+      `}</style>
+      <div style={{ background:'#FBF5F5', border:'1px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:14 }}>
       {showSelector && (
         <>
           <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:8 }}>
@@ -74,7 +88,7 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
         <div style={{ display:'flex', alignItems:'flex-end', gap:12, marginBottom: changed ? 10 : 0 }}>
           <div style={{ flex:1 }}>
             <label style={{ ...labS, marginBottom:3 }}>收現</label>
-            <input type="number" style={inpS} value={cashReceived} onChange={e => setCashReceived(e.target.value)} placeholder="輸入實收現金金額" />
+            <input type="number" className="cash-received-input" style={inpS} value={cashReceived} onChange={e => setCashReceived(e.target.value)} placeholder="輸入實收現金金額" />
           </div>
           <div style={{ flex:1, textAlign:'right' }}>
             <div style={{ fontSize:11, color:'#999' }}>找零（應收 NT${Number(amount) || 0}）</div>
@@ -91,7 +105,8 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
         </button>
       )}
       {msg && <div style={{ fontSize:11, marginTop:6, color: msg.startsWith('✅') ? '#2D7D46' : '#A32D2D' }}>{msg}</div>}
-    </div>
+      </div>
+    </>
   );
 }
 
