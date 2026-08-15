@@ -9,6 +9,7 @@ import { getStations, createStation, updateStation } from '../../api/stations';
 import SaveButton from '../../components/SaveButton';
 import GymsPage from './GymsPage';
 import { RealPrintPanel } from '../../components/InvoiceIssuer';
+import { PM_METHODS } from '../../components/InvoiceModal';
 
 const TAB_GROUPS = [
   {
@@ -572,7 +573,14 @@ export default function SettingsPage() {
     : null;
 
   const [showAdhocInvoice, setShowAdhocInvoice] = useState(false);
+  // 「其他」不再是最終寫入發票的值——2026-08-15 使用者要求選「其他」時再多跳一階選 LinePay/街口/
+  // 台灣Pay/轉帳，讓結帳的線上支付合計正確涵蓋這類無來源手動發票（否則會被結帳誤算成現金，見
+  // dailySettlements.js computeTodayInvoiceAuthority 的 noSourceByMethod 這頭的對應修正）。
+  // adhocPayGroup 只是 UI 上「現金／其他」的一級分類；adhocPayMethod 才是真正送出的具體付款方式，
+  // 選「其他」時故意重置成 null，逼使用者一定要再選一次才能開票（不會悄悄用某個預設方式蓋過去）。
+  const [adhocPayGroup, setAdhocPayGroup] = useState('cash'); // 'cash' | 'other'
   const [adhocPayMethod, setAdhocPayMethod] = useState('cash');
+  const ADHOC_ELECTRONIC_METHODS = PM_METHODS.filter(m => m.key !== 'cash');
 
   const [voidLookupInput, setVoidLookupInput] = useState('');
   const [voidLookupResult, setVoidLookupResult] = useState(null); // invoice物件 | 'not_found' | null
@@ -1084,20 +1092,37 @@ export default function SettingsPage() {
               <div style={{ fontSize:11, color:'#999', marginBottom:10, lineHeight:1.6 }}>
                 供不屬於 POS／入場／課程／比賽／租借任何一種既有流程的臨時交易開立發票。
               </div>
-              <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+              <div style={{ display:'flex', gap:8, marginBottom: adhocPayGroup === 'other' ? 8 : 10 }}>
                 {[{ k:'cash', l:'現金' }, { k:'other', l:'其他（不開錢櫃）' }].map(p => (
-                  <button key={p.k} onClick={() => setAdhocPayMethod(p.k)}
+                  <button key={p.k} onClick={() => { setAdhocPayGroup(p.k); setAdhocPayMethod(p.k === 'cash' ? 'cash' : null); }}
                     style={{ flex:1, height:34, borderRadius:8,
-                      border: adhocPayMethod === p.k ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
-                      background: adhocPayMethod === p.k ? '#FBF5F5' : '#fff',
-                      color: adhocPayMethod === p.k ? '#8B1A1A' : '#666', fontSize:12, cursor:'pointer' }}>
+                      border: adhocPayGroup === p.k ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5',
+                      background: adhocPayGroup === p.k ? '#FBF5F5' : '#fff',
+                      color: adhocPayGroup === p.k ? '#8B1A1A' : '#666', fontSize:12, cursor:'pointer' }}>
                     {p.l}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setShowAdhocInvoice(true)}
-                style={{ width:'100%', height:40, borderRadius:9, background:'#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                🧾 開立發票
+              {/* 選「其他」要再指定具體是哪一種電子支付，結帳的線上支付合計（LinePay/街口/台灣Pay/轉帳）
+                  才能正確涵蓋這筆——否則會被結帳當成現金誤算（見上方 state 註解）。 */}
+              {adhocPayGroup === 'other' && (
+                <div style={{ display:'flex', gap:6, marginBottom:10, flexWrap:'wrap' }}>
+                  {ADHOC_ELECTRONIC_METHODS.map(p => (
+                    <button key={p.key} onClick={() => setAdhocPayMethod(p.key)}
+                      style={{ flex:'1 0 auto', minWidth:76, height:32, borderRadius:8,
+                        border: adhocPayMethod === p.key ? '1.5px solid #185FA5' : '0.5px solid #E8D5D5',
+                        background: adhocPayMethod === p.key ? '#EAF2FA' : '#fff',
+                        color: adhocPayMethod === p.key ? '#185FA5' : '#666', fontSize:11, cursor:'pointer' }}>
+                      {p.icon} {p.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button onClick={() => setShowAdhocInvoice(true)} disabled={!adhocPayMethod}
+                style={{ width:'100%', height:40, borderRadius:9,
+                  background: adhocPayMethod ? '#854F0B' : '#ccc', color:'#fff', border:'none', fontSize:13, fontWeight:500,
+                  cursor: adhocPayMethod ? 'pointer' : 'not-allowed' }}>
+                🧾 開立發票{!adhocPayMethod ? '（請先選擇付款方式）' : ''}
               </button>
             </div>
 
