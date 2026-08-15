@@ -62,6 +62,8 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
   const [checkingExisting, setCheckingExisting] = useState(true); // 開面板時先查有沒有已開立過，查完前不顯示表單/按鈕
   const [printedItems, setPrintedItems] = useState(null); // 這次實際送去列印的明細（供成功彈窗逐行顯示；重開既有發票/競態情況下沒有值，退回顯示單一品項）
   const [payMethod, setPayMethod] = useState(paymentMethod || 'cash'); // 供付款方式修正區塊；列印時實際開錢櫃與否也改看這個（會員選錯、店員改成現金時要跟著開櫃）
+  // 金額欄位跟一開始帶入的預設值不同 → 視為「人工改過金額」，備註強制必填（後端 print-record 亦擋，這裡是即時提示）。
+  const amountModified = Number(amount) !== Number(defaultAmount ?? 0);
 
   const refreshAgent = async () => {
     const s = await checkPrinterAgent();
@@ -100,6 +102,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
     if (positionOk === false) { setError('偵測到發票紙未正確定位（存根聯/收執聯黑點感應異常），請確認紙張裝妥後點「重新檢查」再試'); return; }
     if (!(Number(amount) > 0)) { setError('請輸入大於 0 的金額'); return; }
     if (taxId.trim() && !isValidTaiwanTaxId(taxId)) { setError('統一編號檢查碼錯誤，請確認號碼是否正確'); return; }
+    if (amountModified && !note.trim()) { setError('金額已修改，請填寫備註說明原因'); return; }
     setStatus('printing'); setError('');
     try {
       // 有提供明細、且加總仍等於目前金額欄位（店員沒手動改過總額）→ 紙本印成多行明細（如「成人入場」
@@ -120,6 +123,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       const res = await client.post('/invoices/print-record', {
         gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note, paymentMethod: payMethod,
         ...(mergedCheckinIds && mergedCheckinIds.length ? { mergedCheckinIds } : {}),
+        ...(amountModified ? { amountModified: true, originalAmount: Number(defaultAmount ?? 0) } : {}),
       });
       setIssued(res.data.invoice);
       setRollStatus(res.data.rollStatus || null);
@@ -245,6 +249,9 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       <div style={{ marginBottom:12 }}>
         <label style={lab}>金額</label>
         <input type="number" style={inp} value={amount} onChange={e => setAmount(e.target.value)} />
+        {amountModified && (
+          <div style={{ fontSize:11, color:'#A66A00', marginTop:4 }}>⚠️ 金額已由預設 NT${Number(defaultAmount ?? 0).toLocaleString()} 修改，請在下方備註說明原因</div>
+        )}
       </div>
       <div style={{ marginBottom:12 }}>
         <label style={lab}>統一編號（選填）</label>
@@ -255,9 +262,11 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
         )}
       </div>
       <div style={{ marginBottom:14 }}>
-        <label style={lab}>備註（選填）</label>
+        <label style={{ ...lab, color: amountModified ? '#A32D2D' : lab.color, fontWeight: amountModified ? 700 : undefined }}>
+          {amountModified ? '備註（金額已修改，必填說明原因）' : '備註（選填）'}
+        </label>
         <textarea rows={2} value={note} onChange={e => setNote(e.target.value)}
-          style={{ ...inp, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit' }} />
+          style={{ ...inp, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit', border: amountModified && !note.trim() ? '1px solid #A32D2D' : inp.border }} />
       </div>
       {error && (
         <div style={{ fontSize:12, color:'#A32D2D', marginBottom:10, lineHeight:1.6 }}>
@@ -267,7 +276,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       <div style={{ display:'flex', gap:8 }}>
         <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>關閉</button>
         {(() => {
-          const printDisabled = status === 'printing' || agentConnected === false || positionOk === false;
+          const printDisabled = status === 'printing' || agentConnected === false || positionOk === false || (amountModified && !note.trim());
           return (
             <button onClick={doPrint} disabled={printDisabled}
               style={{ flex:2, height:40, borderRadius:9, background: printDisabled ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: printDisabled ? 'not-allowed' : 'pointer' }}>

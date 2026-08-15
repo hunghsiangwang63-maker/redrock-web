@@ -451,7 +451,7 @@ export default function DailySettlementPage() {
                     notes={h.notes || ''}
                     payment={h.payment || null} paymentManual={h.paymentManual || null}
                     prevCashBalance={h.prevCashBalance ?? null} expectedCash={h.expectedCashBalance ?? null}
-                    checkinCount={h.checkinCount ?? null} />
+                    checkinCount={h.checkinCount ?? null} amountModifiedInvoices={h.amountModifiedInvoices || []} />
                 </div>
               )}
             </div>
@@ -485,7 +485,7 @@ export default function DailySettlementPage() {
               notes={settlement?.notes || ''}
               payment={settlement?.payment || null} paymentManual={settlement?.paymentManual || null}
               prevCashBalance={settlement?.prevCashBalance ?? null} expectedCash={settlement?.expectedCashBalance ?? null}
-              checkinCount={settlement?.checkinCount ?? null} />
+              checkinCount={settlement?.checkinCount ?? null} amountModifiedInvoices={settlement?.amountModifiedInvoices || []} />
           </div>
           <button onClick={startResettle}
             style={{ width:'100%', height:46, borderRadius:12, background:'#fff', color:'#8B1A1A', border:'1px solid #8B1A1A', fontSize:14, fontWeight:600, cursor:'pointer', marginBottom:20 }}>
@@ -832,7 +832,7 @@ export default function DailySettlementPage() {
             notes={notes}
             payment={settlement?.payment || null} paymentManual={transition.settlementManualInput ? paymentManual : null}
             prevCashBalance={settlement?.prevCashBalance ?? null} expectedCash={expectedCash}
-            checkinCount={settlement?.checkinCount ?? null} />
+            checkinCount={settlement?.checkinCount ?? null} amountModifiedInvoices={settlement?.amountModifiedInvoices || []} />
           {resettleMode && (
             <div style={{ marginTop:12 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>再次結帳原因（選填）</label>
@@ -868,7 +868,7 @@ const computeRollEndNumber = (numberStr) => {
 };
 
 // 結帳摘要（確認 modal 與已結帳畫面共用，五項一致順序）
-function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled, notes, payment, paymentManual, prevCashBalance, expectedCash, checkinCount }) {
+function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計', income, incomeManual, deductions, netAdjust, actualCash, difference, segments, voids, voidAmount, denominations, printingEnabled, notes, payment, paymentManual, prevCashBalance, expectedCash, checkinCount, amountModifiedInvoices }) {
   const row = { display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, gap:12 };
   const money = (n) => `NT$${(Number(n) || 0).toLocaleString()}`;
   const denom = denominations || {};
@@ -912,6 +912,24 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
   const payManVal = (k, sysV) => (paymentManual && paymentManual[k] !== '' && paymentManual[k] != null) ? (Number(paymentManual[k]) || 0) : sysV;
   return (
     <div>
+      {/* 發票金額異動：今日有發票列印時金額被人工改過（強制備註），自動列出供結帳核對 */}
+      {Array.isArray(amountModifiedInvoices) && amountModifiedInvoices.length > 0 && (
+        <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'10px 12px', marginBottom:10 }}>
+          <div style={{ fontSize:12.5, color:'#8B6914', fontWeight:700, marginBottom:6, textAlign:'left' }}>⚠️ 今日發票金額異動（{amountModifiedInvoices.length} 筆）</div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {amountModifiedInvoices.map((inv, i) => (
+              <div key={i} style={{ fontSize:12, textAlign:'left', lineHeight:1.6 }}>
+                <div style={{ fontFamily:'monospace', fontWeight:600 }}>{inv.invoiceNo}　{inv.itemName}</div>
+                <div style={{ color:'#8B6914' }}>
+                  原 {money(inv.originalAmount)} → 改為 <strong>{money(inv.amount)}</strong>
+                  {inv.staffName ? `（${inv.staffName}）` : ''}
+                </div>
+                {inv.note && <div style={{ color:'#444' }}>備註：{inv.note}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {/* 發票總金額：手計 + 系統紀錄並列 */}
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
         <div style={{ display:'flex', justifyContent:'space-between' }}>
