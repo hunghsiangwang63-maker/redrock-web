@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
-import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon } from '../../api/checkin';
+import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon, getRentalAddonInvoices, createRentalAddonInvoice } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -152,6 +152,7 @@ export default function CheckinPage() {
   const [staffScan, setStaffScan] = useState(null); // 員工入館掃描結果（staffentry: QR）
   const [rentalAddonScan, setRentalAddonScan] = useState(null); // 會員自助補租器材掃描結果（rentaladd: QR）
   const [confirmingRentalAddon, setConfirmingRentalAddon] = useState(false);
+  const [confirmedRentalAddon, setConfirmedRentalAddon] = useState(null); // 補租確認並收款成功後，供開立發票用（2026-08-15）
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [checkinInvoiceTarget, setCheckinInvoiceTarget] = useState(null); // 入場「開立發票」modal 目標（checkIn 物件）
   const [checkinInvRefresh, setCheckinInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
@@ -780,10 +781,12 @@ export default function CheckinPage() {
                     <button onClick={async () => {
                       setConfirmingRentalAddon(true);
                       try {
-                        await confirmRentalAddon(rentalAddonScan.token);
+                        const res = await confirmRentalAddon(rentalAddonScan.token);
                         setRentalAddonScan(null);
                         pendingScanTokenRef.current = null;
-                        alert('已確認補租，扣費完成');
+                        // 補租本身沒有對應的既有訂單發票（同一入場紀錄可能早就開過另一張了，見後端
+                        // 註解），確認並收款成功後緊接著開發票入口，取代原本的 alert（2026-08-15）。
+                        setConfirmedRentalAddon(res.data);
                       } catch (err) { setRentalAddonScan(prev => ({ ...prev, error: err.response?.data?.message || '確認失敗' })); }
                       finally { setConfirmingRentalAddon(false); }
                     }}
@@ -793,6 +796,34 @@ export default function CheckinPage() {
                     </button>
                   </>
                 )}
+              </div>
+            )}
+
+            {/* 補租器材確認並收款成功後開立發票（2026-08-15）——sourceType 用獨立的 'rental_addon'、
+                refId 用補租請求自己的 id（非原入場的 checkInId），避免跟原入場可能已開過的發票撞號
+                （同一組 sourceType+refId 只能有一張作用中發票，見 invoices.js getActiveRealInvoice）。 */}
+            {confirmedRentalAddon && (
+              <div style={{ background:'#F7F3F3', borderRadius:10, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
+                <div style={{ fontWeight:600, fontSize:15, marginBottom:10, color:'#2D7D46' }}>✓ 已確認補租，扣費完成</div>
+                <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
+                  {confirmedRentalAddon.memberName}・{invoiceRentalItemName({ shoesPrice: confirmedRentalAddon.addShoes ? 100 : 0, chalkPrice: confirmedRentalAddon.addChalk ? 50 : 0 })}・NT${confirmedRentalAddon.cost}
+                </div>
+                <InvoiceIssuer
+                  gymId={confirmedRentalAddon.gymId}
+                  sourceType="rental_addon"
+                  refId={confirmedRentalAddon.addonId}
+                  memberId={confirmedRentalAddon.memberId}
+                  memberName={confirmedRentalAddon.memberName}
+                  paymentMethod={confirmedRentalAddon.paymentMethod}
+                  title="補租器材"
+                  subtitle={confirmedRentalAddon.memberName}
+                  defaultItemName={invoiceRentalItemName({ shoesPrice: confirmedRentalAddon.addShoes ? 100 : 0, chalkPrice: confirmedRentalAddon.addChalk ? 50 : 0 })}
+                  defaultAmount={confirmedRentalAddon.cost}
+                  onClose={() => setConfirmedRentalAddon(null)}
+                  listInvoices={() => getRentalAddonInvoices(confirmedRentalAddon.addonId).then(r => r.data.invoices || [])}
+                  createInvoice={(payload) => createRentalAddonInvoice(confirmedRentalAddon.addonId, payload).then(r => r.data.invoice)}
+                  voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+                />
               </div>
             )}
 

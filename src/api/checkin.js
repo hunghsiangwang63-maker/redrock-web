@@ -32,6 +32,13 @@ export const createCheckinInvoice = (checkInId, data) =>
 export const voidCheckinInvoice = (id, voidReason) =>
   client.post(`/checkin/invoices/${id}/void`, { voidReason });
 
+// 補租器材開立發票（手動記帳版；作廢共用上面 voidCheckinInvoice，不分 sourceType）
+export const getRentalAddonInvoices = (addonId) =>
+  client.get(`/checkin/add-rental/${addonId}/invoices`);
+
+export const createRentalAddonInvoice = (addonId, data) =>
+  client.post(`/checkin/add-rental/${addonId}/invoices`, data);
+
 // 事後補加租借：店員掃碼確認（會員自助 QR 流程）
 export const scanRentalAddon = (token) =>
   client.post('/checkin/add-rental/scan', { token });
