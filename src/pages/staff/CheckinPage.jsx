@@ -1548,6 +1548,8 @@ export default function CheckinPage() {
       {mergedInvoiceList && (() => {
         const list = mergedInvoiceList;
         const total = list.reduce((s, c) => s + (Number(c.amountPaid) || 0), 0);
+        // 紙本不印會員姓名（2026-08-15 使用者要求）——只列入場類型，姓名僅供螢幕上 title/subtitle
+        // 讓值班人員核對是否選對人，不進印出的明細。
         return (
           <RealPrintPanel
             gymId={list[0]?.gymId}
@@ -1560,7 +1562,7 @@ export default function CheckinPage() {
             subtitle={list.map(c => c.memberName).join('、')}
             defaultItemName="入場費（合併）"
             defaultAmount={total}
-            itemBreakdown={list.map(c => ({ name: `${c.memberName}・${entryLabelOf(c)}`, amount: Number(c.amountPaid) || 0 }))}
+            itemBreakdown={list.map(c => ({ name: entryLabelOf(c), amount: Number(c.amountPaid) || 0 }))}
             mergedCheckinIds={list.map(c => c.id)}
             alwaysShowPaymentSelector
             onClose={() => { setMergedInvoiceList(null); setMergeMode(false); setMergeSelected(new Set()); loadTodayCheckIns(); }}
