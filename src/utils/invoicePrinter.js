@@ -11,15 +11,23 @@ const shortGymId = (gymId) => String(gymId || '').replace(/^gym-/, '');
 // （true/false/null，null＝查詢無回應，未知不代表異常）。兩者皆已於 2026-08-12 在真實 WP-560
 // 上實機驗證通過（含極性校正，見 local-print-agent/server.js 檔頭說明）。
 // 連不到本機服務時回全 false/null，不丟例外。
-// ⚠️ 2026-08-15 修：逾時原本設 3 秒，但 server.js 檔頭本就記錄過「部分機器（USB轉序列埠硬體/
-// 驅動較慢）直接查詢一次要 6 秒才有回應」，伺服器端自己的等待時間早就因此拉長到 15 秒——這裡
-// 卻還停在 3 秒，士林那台機器每次都在伺服器真的回應之前就被這裡的前端逾時打斷，UI 因此永遠顯示
-// 「無法連線」、列印鍵也跟著鎖死（agentConnected===false 會 disable 按鈕，見 InvoiceIssuer.jsx），
-// 跟印表機/CORS 都無關、純粹是這裡等太短。拉長到 15 秒對齊伺服器端；同時把原本完全安靜的失敗
-// 補上一行 console.warn（帶實際錯誤名稱/訊息），下次類似狀況不用再靠這樣一輪一輪排除法才找到。
+// ⚠️ 2026-08-15 修（第一輪）：逾時原本設 3 秒，但 server.js 檔頭本就記錄過「部分機器（USB轉
+// 序列埠硬體/驅動較慢）直接查詢一次要 6 秒才有回應」，伺服器端自己的等待時間早就因此拉長到
+// AGENT_TIMEOUT_MS 秒——這裡卻還停在 3 秒，士林那台機器每次都在伺服器真的回應之前就被這裡的
+// 前端逾時打斷，UI 因此永遠顯示「無法連線」、列印鍵也跟著鎖死（agentConnected===false 會
+// disable 按鈕，見 InvoiceIssuer.jsx），跟印表機/CORS 都無關、純粹是這裡等太短。同時把原本
+// 完全安靜的失敗補上一行 console.warn（帶實際錯誤名稱/訊息），下次類似狀況不用再靠這樣一輪
+// 一輪排除法才找到。
+// ⚠️ 2026-08-15 修（第二輪）：第一輪把這裡跟 printReceipt 都直接設成跟伺服器內部逾時一樣的
+// 15 秒，結果士林那邊還是回報逾時——兩邊時間打平等於互相賽跑：伺服器那次萬一真的逼近 15 秒
+// 才回應，前端反而會在回應送達的前一刻就先自己放棄，光是網路來回/瀏覽器處理的額外開銷就足以
+// 讓前端先輸。前端的逾時必須明顯長於伺服器內部上限、留出緩衝，不能只是「對齊」——這裡跟
+// printReceipt 都改成比伺服器內部逾時（15 秒）多留 5 秒緩衝的 20 秒，兩處共用同一個常數避免
+// 之後改一邊忘了改另一邊。
+const AGENT_TIMEOUT_MS = 20000; // 伺服器內部逾時 15 秒（見 local-print-agent/server.js TIMEOUT_MS）+ 5 秒緩衝
 export async function checkPrinterAgent() {
   try {
-    const res = await fetch(`${AGENT_BASE}/status`, { signal: AbortSignal.timeout(15000) });
+    const res = await fetch(`${AGENT_BASE}/status`, { signal: AbortSignal.timeout(AGENT_TIMEOUT_MS) });
     const data = await res.json();
     return { connected: !!data.connected, positionOk: data.positionOk ?? null };
   } catch (e) {
@@ -37,7 +45,7 @@ export async function printReceipt({ gymId, items, buyerTaxId, openDrawer }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gymId: shortGymId(gymId), items, buyerTaxId: buyerTaxId || undefined, openDrawer: !!openDrawer }),
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(AGENT_TIMEOUT_MS),
     });
   } catch (e) {
     throw new Error('無法連線到本機列印代理，請確認 local-print-agent 是否已在此電腦啟動');
