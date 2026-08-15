@@ -104,13 +104,14 @@ export default function DailySettlementPage() {
   };
   const removeVoid = (n) => setVoidList(prev => prev.filter(x => x !== n));
   // 系統轉換期：手動輸入並列
-  const [transition, setTransition] = useState({ settlementManualInput: false });
+  const [transition, setTransition] = useState({ settlementManualInput: false, settlementPaymentManualInput: false });
   const [incomeManual, setIncomeManual] = useState({});
   const [paymentManual, setPaymentManual] = useState({});
   const [exportMonth, setExportMonth] = useState(dayjs().format('YYYY-MM'));
   const [notes, setNotes] = useState('');
   // 該館是否已開啟「發票列印」（真列印上線）——今日收入/發票起訖/作廢一律由系統依實際列印紀錄權威決定，
-  // 不再手動輸入、也不可編輯（付款方式統計的手動輸入欄不受此影響，仍由 transition.settlementManualInput 控制）
+  // 不再手動輸入、也不可編輯（付款方式統計的手動輸入欄不受此影響，改由獨立開關
+  // transition.settlementPaymentManualInput 控制，2026-08-15 拆分自 settlementManualInput）
   const [printingEnabled, setPrintingEnabled] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
@@ -219,8 +220,9 @@ export default function DailySettlementPage() {
   // 加減項：sign '+' ＝加入抽屜（預期上升）、'-' ＝取出（預期下降）；舊資料無 sign 視為 '-'（減）
   const netAdjust = deductions.reduce((sum, d) => sum + ((d.sign === '+' ? 1 : -1) * (Number(d.amount)||0)), 0);
   // 線上支付合計（LinePay/街口/台灣Pay/轉帳，缺手動值回退系統）——真列印/轉換期手動模式皆用得到。
+  // 2026-08-15：付款方式手動輸入拆成獨立開關 settlementPaymentManualInput（預設關閉，一律用系統值）。
   const onlinePaymentManualTotal = ['linePay', 'jko', 'taiwanPay', 'transfer'].reduce((sum, k) => {
-    const v = paymentManual[k];
+    const v = transition.settlementPaymentManualInput ? paymentManual[k] : undefined;
     const has = v !== '' && v != null;
     return sum + (has ? (Number(v) || 0) : (settlement?.payment?.[k] || 0));
   }, 0);
@@ -253,9 +255,9 @@ export default function DailySettlementPage() {
     voidInvoiceAmount: Number(voidInvoiceAmount) || 0,
     checkinCount: settlement?.checkinCount ?? null,
     // 已開真列印的館別不再送 incomeManual（後端也不會信任、一律用系統權威值覆蓋）；
-    // 付款方式統計的手動輸入（paymentManual）不受真列印影響，維持原本邏輯
+    // 付款方式統計的手動輸入（paymentManual）改由獨立開關 settlementPaymentManualInput 控制（2026-08-15）
     ...(printingEnabled ? {} : (transition.settlementManualInput ? { incomeManual } : {})),
-    ...(transition.settlementManualInput ? { paymentManual } : {}),
+    ...(transition.settlementPaymentManualInput ? { paymentManual } : {}),
   });
 
   const saveDraft = async () => {
@@ -567,8 +569,8 @@ export default function DailySettlementPage() {
 
           {/* 付款方式 */}
           <div style={s.card}>
-            <div style={s.cardHead}>付款方式統計{transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : ''}</div>
-            {(transition.settlementManualInput || printingEnabled) && (
+            <div style={s.cardHead}>付款方式統計{transition.settlementPaymentManualInput ? '（左：手動輸入　右：系統值）' : ''}</div>
+            {(transition.settlementPaymentManualInput || printingEnabled) && (
               <div style={s.row}>
                 <span style={s.label}>現金（自動）</span>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -578,7 +580,7 @@ export default function DailySettlementPage() {
               </div>
             )}
             {[
-              ...((transition.settlementManualInput || printingEnabled) ? [] : [{ key:'cash', label:'現金', value: settlement?.payment?.cash || 0 }]),
+              ...((transition.settlementPaymentManualInput || printingEnabled) ? [] : [{ key:'cash', label:'現金', value: settlement?.payment?.cash || 0 }]),
               { key:'linePay', label:'Line Pay', value: settlement?.payment?.linePay || 0 },
               { key:'jko', label:'街口支付', value: settlement?.payment?.jko || 0 },
               { key:'taiwanPay', label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
@@ -587,12 +589,12 @@ export default function DailySettlementPage() {
               <div key={i} style={s.row}>
                 <span style={s.label}>{item.label}</span>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  {transition.settlementManualInput && (
+                  {transition.settlementPaymentManualInput && (
                     <input type="number" value={paymentManual[item.key] ?? ''} placeholder="手動"
                       onChange={e => setPaymentManual(p => ({ ...p, [item.key]: e.target.value }))}
                       style={{ width:88, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
                   )}
-                  <span style={{ ...s.value, color: transition.settlementManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>NT${item.value.toLocaleString()}</span>
+                  <span style={{ ...s.value, color: transition.settlementPaymentManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>NT${item.value.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -830,7 +832,7 @@ export default function DailySettlementPage() {
             segments={cleanSegments()} voids={[...voidList, voidInput.trim()].filter(Boolean)}
             voidAmount={Number(voidInvoiceAmount) || 0} printingEnabled={printingEnabled} denominations={denominations}
             notes={notes}
-            payment={settlement?.payment || null} paymentManual={transition.settlementManualInput ? paymentManual : null}
+            payment={settlement?.payment || null} paymentManual={transition.settlementPaymentManualInput ? paymentManual : null}
             prevCashBalance={settlement?.prevCashBalance ?? null} expectedCash={expectedCash}
             checkinCount={settlement?.checkinCount ?? null} amountModifiedInvoices={settlement?.amountModifiedInvoices || []} />
           {resettleMode && (

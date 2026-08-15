@@ -366,7 +366,7 @@ export default function SettingsPage() {
   };
 
   // ─── 系統轉換期設定 ─────────────────────────────────────────────
-  const [transition, setTransition] = useState({ settlementManualInput: false, checkinAlreadyPaid: false, checkinLegacyDiscountCard: false });
+  const [transition, setTransition] = useState({ settlementManualInput: false, settlementPaymentManualInput: false, checkinAlreadyPaid: false, checkinLegacyDiscountCard: false });
   const loadTransition = async () => {
     try { const res = await client.get('/settings/transition'); setTransition(res.data); } catch (e) {}
   };
@@ -1257,8 +1257,17 @@ export default function SettingsPage() {
                 onChange={e => setTransition(p => ({...p, settlementManualInput: e.target.checked}))}
                 style={{ width:16, height:16, marginTop:2 }} />
               <span>
-                <div style={{ fontWeight:600 }}>結帳：手動輸入與系統值並列</div>
-                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>結帳頁每個收入項與付款方式都多一欄手動輸入；系統值與手動值都會存檔。</div>
+                <div style={{ fontWeight:600 }}>結帳：收入手動輸入與系統值並列</div>
+                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>結帳頁每個收入項（入場/租借/商品/課程/定期票）多一欄手動輸入；系統值與手動值都會存檔。</div>
+              </span>
+            </label>
+            <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
+              <input type="checkbox" checked={!!transition.settlementPaymentManualInput}
+                onChange={e => setTransition(p => ({...p, settlementPaymentManualInput: e.target.checked}))}
+                style={{ width:16, height:16, marginTop:2 }} />
+              <span>
+                <div style={{ fontWeight:600 }}>結帳：付款方式手動輸入與系統值並列</div>
+                <div style={{ fontSize:12, color:'#888', marginTop:2 }}>結帳頁 LinePay／街口／台灣Pay／轉帳多一欄手動輸入。2026-08-15 拆分自上方選項並預設關閉——付款方式相關的計算已修過幾個 bug，確認可信後改為一律以系統值為準。</div>
               </span>
             </label>
             <label style={{ display:'flex', gap:10, alignItems:'flex-start', fontSize:14, cursor:'pointer' }}>
