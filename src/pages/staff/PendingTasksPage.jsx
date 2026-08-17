@@ -41,9 +41,9 @@ const NOTIF_CAT = {
   ticket_transfer_request:'ticket', ticket_transfer_accepted:'ticket', ticket_transfer_rejected:'ticket',
   legacy_pass_claimed:'ticket',
   discount_bind_disclosure:'ticket', black_bind_disclosure:'ticket', legacy_discount_bind_disclosure:'ticket',
-  // 取消入場（checkin_cancelled 為實際使用的直接取消通知；cancel_checkin_* 三型別對應的申請/審核
-  // 流程從未被前端呼叫過、正式環境 0 筆資料，保留對照僅供萬一之後接上時不必再改分類）
-  checkin_cancelled:'cancel', cancel_checkin_request:'cancel', cancel_checkin_approved:'cancel', cancel_checkin_rejected:'cancel',
+  // 取消入場（checkin_cancelled 為實際使用的直接取消通知；原本的申請/審核流程 2026-08-17
+  // 已確認全前端從未呼叫過，整條路徑與後端 cancelCheckin.js 一併移除，不再保留死型別）
+  checkin_cancelled:'cancel',
   // 排班
   shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
   // 會員（VIP 等舊系統資料認領）
