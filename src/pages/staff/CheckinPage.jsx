@@ -1370,6 +1370,17 @@ export default function CheckinPage() {
                         <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                           onClick={() => setCheckinInvoiceTarget(c)} />
                       )}
+                      {/* 課程學員剛好是最後一堂：先入場後也能在這裡開同一張課程發票（非入場費本身，
+                          與上面「入場」發票各自獨立），資料來源見 GET /checkin/today 的 courseInvoice */}
+                      {c.courseInvoice && canCheckin && (
+                        <InvoiceButtonAuto sourceType="course" refId={c.courseInvoice.enrollmentId} refreshToken={courseInvRefresh}
+                          onClick={() => setCourseInvoiceTarget({
+                            memberId: c.memberId, memberName: c.memberName,
+                            courseId: c.courseInvoice.courseId, courseName: c.courseInvoice.courseName,
+                            enrollmentId: c.courseInvoice.enrollmentId, paymentMethod: c.courseInvoice.paymentMethod,
+                            receivedAmount: c.courseInvoice.receivedAmount,
+                          })} />
+                      )}
                       {canCancel && (
                         <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
                           style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
