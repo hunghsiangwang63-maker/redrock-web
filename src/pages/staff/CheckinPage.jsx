@@ -14,6 +14,7 @@ import InvoiceIssuer, { RealPrintPanel } from '../../components/InvoiceIssuer';
 import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 import Modal from '../../components/Modal';
 import { getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
+import { getCourseInvoices, createCourseInvoice, voidCourseInvoice } from '../../api/members';
 
 const ENTRY_TYPE_LABEL = {
   pass: '定期票', vip: 'VIP', course_access: '課程學員',
@@ -156,6 +157,8 @@ export default function CheckinPage() {
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [checkinInvoiceTarget, setCheckinInvoiceTarget] = useState(null); // 入場「開立發票」modal 目標（checkIn 物件）
   const [checkinInvRefresh, setCheckinInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
+  const [courseInvoiceTarget, setCourseInvoiceTarget] = useState(null); // 今日課程學員「最後一堂」開立課程發票 modal 目標
+  const [courseInvRefresh, setCourseInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   // 合併列印發票（多筆入場合開一張，如同行三人一起付款）——僅真列印館別開放（見下方 printingEnabled 查詢），
   // 手動記帳版沒有自然的「多筆合一」記錄方式，不提供此功能。
   const [printingEnabled, setPrintingEnabled] = useState(false);
@@ -1240,15 +1243,16 @@ export default function CheckinPage() {
               <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>今日尚無課程報名者</div>
             ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:8 }}>
-                {courseStudents.map(s => (
-                  <button key={`${s.memberId || s.memberName}-${s.courseId}`}
-                    onClick={() => { if (!s.isCrossMakeup) handleQuickCourseCheckin(s); }}
-                    disabled={s.isCrossMakeup || s.alreadyCheckedIn || quickCheckinLoading === s.memberId}
+                {courseStudents.map(s => {
+                  const clickDisabled = s.isCrossMakeup || s.alreadyCheckedIn || quickCheckinLoading === s.memberId;
+                  return (
+                  <div key={`${s.memberId || s.memberName}-${s.courseId}`}
+                    onClick={() => { if (!clickDisabled) handleQuickCourseCheckin(s); }}
                     style={{
                       textAlign:'left', padding:'10px 12px', borderRadius:8,
                       border: s.alreadyCheckedIn ? '0.5px solid #E8D5D5' : '0.5px solid #B3DEC0',
                       background: s.alreadyCheckedIn ? '#F5F5F5' : '#F0F8F2',
-                      cursor: s.alreadyCheckedIn ? 'default' : 'pointer',
+                      cursor: clickDisabled ? 'default' : 'pointer',
                       opacity: s.alreadyCheckedIn ? 0.6 : 1,
                     }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -1258,6 +1262,7 @@ export default function CheckinPage() {
                         {s.isCrossMakeup && <span style={{ fontSize:9, fontWeight:600, color:'#5B2D8B', background:'#F3EEF9', padding:'1px 6px', borderRadius:6, marginLeft:6 }} title={s.crossNote||''}>跨期補課・櫃檯放行</span>}
                         {s.isTrial && <span style={{ fontSize:9, fontWeight:600, color:'#5B2D8B', background:'#F3EEF9', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>試上</span>}
                         {s.trialUnpaid && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>試上費未收</span>}
+                        {s.isLastSession && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>最後一堂，請開立發票</span>}
                       </span>
                       {s.isCrossMakeup ? (
                         <span style={{ fontSize:10, color:'#5B2D8B', fontWeight:600 }}>非會員名單</span>
@@ -1271,11 +1276,44 @@ export default function CheckinPage() {
                     </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:3 }}>{s.courseName}</div>
                     <div style={{ fontSize:11, color:'#999' }}>{s.startTime}～{s.endTime}</div>
-                  </button>
-                ))}
+                    {/* 課程發票（限管理員——後端 POST /members/course-invoices 為 requireManager，
+                        與比賽發票同一層級，非本頁其餘入場/補租的 requireManagerOrStation）；
+                        值班站台看得到「最後一堂」提醒但按鈕留給管理員按 */}
+                    {s.isLastSession && isManagerOnly && (
+                      <div onClick={(e) => e.stopPropagation()} style={{ marginTop:6 }}>
+                        <InvoiceButtonAuto sourceType="course" refId={s.enrollmentId} refreshToken={courseInvRefresh}
+                          onClick={() => setCourseInvoiceTarget(s)} style={{ width:'100%', textAlign:'center' }} />
+                      </div>
+                    )}
+                  </div>
+                  );
+                })}
               </div>
             )}
           </div>
+        )}
+        {courseInvoiceTarget && (
+          <InvoiceIssuer
+            gymId={targetGymId}
+            sourceType="course"
+            refId={courseInvoiceTarget.enrollmentId}
+            memberId={courseInvoiceTarget.memberId}
+            memberName={courseInvoiceTarget.memberName}
+            paymentMethod={courseInvoiceTarget.paymentMethod}
+            title={courseInvoiceTarget.memberName || ''}
+            subtitle={courseInvoiceTarget.courseName || ''}
+            feeInfo={courseInvoiceTarget.receivedAmount != null ? `實收金額 NT$${courseInvoiceTarget.receivedAmount}` : null}
+            defaultItemName={courseInvoiceTarget.courseName || '課程費用'}
+            defaultAmount={courseInvoiceTarget.receivedAmount ?? 0}
+            onClose={() => { setCourseInvoiceTarget(null); setCourseInvRefresh(v => v + 1); }}
+            listInvoices={() => getCourseInvoices({ enrollmentId: courseInvoiceTarget.enrollmentId }).then(r => r.data.invoices || [])}
+            createInvoice={(payload) => createCourseInvoice({
+              enrollmentId: courseInvoiceTarget.enrollmentId, memberId: courseInvoiceTarget.memberId,
+              memberName: courseInvoiceTarget.memberName, courseId: courseInvoiceTarget.courseId,
+              courseName: courseInvoiceTarget.courseName, gymId: targetGymId, ...payload,
+            }).then(r => r.data.invoice)}
+            voidInvoiceFn={(id) => voidCourseInvoice(id)}
+          />
         )}
 
         {/* ── 今日入場 tab ── */}
