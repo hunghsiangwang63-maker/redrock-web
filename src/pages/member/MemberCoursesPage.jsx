@@ -135,6 +135,8 @@ export default function MemberCoursesPage() {
   const [showMakeupModal, setShowMakeupModal] = useState(false);
   const [selectedMakeup, setSelectedMakeup] = useState(null);
   const [makeupSessions, setMakeupSessions] = useState([]);
+  const [makeupLoading, setMakeupLoading] = useState(false);
+  const [makeupError, setMakeupError] = useState(null);
   const [leavingId, setLeavingId] = useState(null);
   const [overLimitConfirm, setOverLimitConfirm] = useState(null); // 超過補課上限請假提醒：{ enrollmentId, memberId }
   const [cancelLeaveTarget, setCancelLeaveTarget] = useState(null); // 取消請假確認：{ enrollmentId, memberId, dateLabel }
@@ -565,40 +567,29 @@ export default function MemberCoursesPage() {
 
   const openMakeupModal = async (makeup) => {
     setSelectedMakeup(makeup);
-    try {
-      // 查詢可補課的未來場次（同班別 或 同補課類型，對齊後端 enrollMakeup；排除自己請假的那堂課）
-      const courseRes = await memberClient.get(`/courses`);
-      const allCourses = courseRes.data.courses || [];
-      // 補課券所屬班別的補課類型（由該班別任一梯次帶出，與後端 makeupTypeIds 交集判定）
-      // 單向：來源班(makeup.categoryId)的「可補課去類型」(makeupTypeIds) 含目標班的「本班別類型」(makeupSelfType) 才列出
-      const catTypeMap = {};
-      allCourses.forEach(c => { if (c.categoryId) catTypeMap[c.categoryId] = c.makeupTypeIds || []; });
-      const myDestTypes = new Set(catTypeMap[makeup.categoryId] || []);
-      const shareType = (c) => !!c.makeupSelfType && myDestTypes.has(c.makeupSelfType);
-      const sameCategoryCourses = allCourses.filter(c =>
-        // 補課額度未存 categoryId（舊資料）時不以類別過濾，交由後端核銷時驗證
-        (!makeup.categoryId || c.categoryId === makeup.categoryId || shareType(c)) &&
-        c.id !== makeup.courseId &&  // 排除自己請假的課程
-        (c.gymId === makeup.gymId || !c.gymId || !makeup.gymId) &&
-        c.makeupTargetOpen !== false  // 該梯次未開放作為補課場次（如密集班/常態報名未達2人）→ 不列入
-      );
-      const today = dayjs().format('YYYY-MM-DD');
-      // 查「今天～未來180天」全部場次再按課程過濾（不用課程起訖日當範圍——
-      // 課程結束後「加開」的未來場次也要即時出現在補課選單）
-      const allSessions = [];
-      const sres = await memberClient.get('/courses/sessions', {
-        params: { fromDate: today, toDate: dayjs().add(180, 'day').format('YYYY-MM-DD') },
-      });
-      const futureSessions = (sres.data.sessions || []).filter(s => s.date >= today && s.status !== 'cancelled');
-      for (const c of sameCategoryCourses) {
-        // courseFirstDate：該梯次首堂真實日期（unlimitedPracticeStart，缺則退回 startDate）——
-        // 補課申請須等目標梯次第一堂課正式開始才開放（後端權威，這裡只是提前顯示原因，非唯一把關）
-        const courseFirstDate = c.unlimitedPracticeStart || c.startDate || null;
-        futureSessions.filter(s => s.courseId === c.id).forEach(s => allSessions.push({ ...s, courseName: c.name, categoryName: c.categoryName, courseFirstDate }));
-      }
-      setMakeupSessions(allSessions.sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||'')));
-    } catch (e) {}
+    setMakeupSessions([]);
+    setMakeupError(null);
+    setMakeupLoading(true);
     setShowMakeupModal(true);
+    try {
+      // 補課候選場次：改走輕量後端端點（伺服器端就依補課類型相容性縮小查詢範圍，
+      // 不再抓全部課程/180天全館場次回來前端過濾——舊寫法在資料量成長後常逾時，
+      // 逾時被靜默吞掉會誤顯示成「目前沒有可補課的場次」，見 2026-08-17 案例）
+      const res = await memberClient.get('/courses/makeup-candidates', {
+        params: {
+          categoryId: makeup.categoryId || '',
+          gymId: makeup.gymId || '',
+          excludeCourseId: makeup.courseId || '',
+          fromDate: dayjs().format('YYYY-MM-DD'),
+          toDate: dayjs().add(180, 'day').format('YYYY-MM-DD'),
+        },
+      });
+      setMakeupSessions(res.data.sessions || []);
+    } catch (e) {
+      setMakeupError('載入補課場次失敗，請檢查網路連線後重試');
+    } finally {
+      setMakeupLoading(false);
+    }
   };
 
   const handleMakeup = async (targetSessionId) => {
@@ -2428,7 +2419,19 @@ export default function MemberCoursesPage() {
               })()}
               <div style={{ marginTop:6, color:'#999' }}>⚠️ 目標梯次須等<b>第一堂課正式開始後</b>才開放補課申請，避免佔用該梯次尚在報名中的正式名額；尚未開課的場次會標示「尚未開課」。</div>
             </div>
-            {(() => {
+            {makeupLoading && (
+              <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>載入中…</div>
+            )}
+            {!makeupLoading && makeupError && (
+              <div style={{ textAlign:'center', padding:32 }}>
+                <div style={{ color:'#A32D2D', fontSize:13, marginBottom:12 }}>{makeupError}</div>
+                <button onClick={() => openMakeupModal(selectedMakeup)}
+                  style={{ height:34, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
+                  重新載入
+                </button>
+              </div>
+            )}
+            {!makeupLoading && !makeupError && (() => {
               const targetMid = selectedMakeup?.memberId || member?.id;
               const appliedIds = new Set(myEnrollments.filter(e => e.isMakeup && e.status === 'confirmed' && e.memberId === targetMid).map(e => e.sessionId));
               const availList = makeupSessions.filter(s => !appliedIds.has(s.id));
