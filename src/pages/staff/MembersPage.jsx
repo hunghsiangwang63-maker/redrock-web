@@ -11,6 +11,7 @@ import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonView } from '../../components/InvoiceButton';
 import CourseRegDetailModal from '../../components/CourseRegDetailModal';
+import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(3px)' }}>
@@ -481,6 +482,22 @@ export default function MembersPage() {
         .then(r => setCourseList(r.data.courses || [])).catch(() => setCourseList([])).finally(() => setListLoading(false));
     }
   };
+
+  // 課程學員頁的發票狀態是進頁當下一次性查好帶進來（非即時），別的頁面（如入場頁「今日課程學員」／
+  // 「今日入場」）開立的發票不會自動反映在這裡——切回這個分頁/視窗取得焦點時重抓一次已載入過的清單
+  // （效期內／未開課總表／展開中的歷史梯次），不論目前停在哪個 view（可能已切去查別的會員），
+  // 三份清單各自「曾經載入過（非 null）才重抓」，避免無謂查詢。
+  useRefetchOnFocus(() => {
+    if (courseList !== null) {
+      getActiveCourseStudents(reportGymId).then(r => setCourseList(r.data.courses || [])).catch(() => {});
+    }
+    if (futureList !== null) {
+      getFutureCourseStudents(reportGymId).then(r => setFutureList(r.data.courses || [])).catch(() => {});
+    }
+    if (historyCourseId && historyDetail !== null) {
+      getCourseStudentsHistoryDetail(reportGymId, historyCourseId).then(r => setHistoryDetail(r.data.course)).catch(() => {});
+    }
+  });
 
   const handlePromote = async () => {
     setPromoteMsg(''); setPromoteLoading(true);
