@@ -429,9 +429,16 @@ export default function ExperienceBookingsPage() {
                       )}
                       {b.status==='confirmed' && canInvoice && (() => {
                         const defaultAmount = b.kind==='trial' ? (b.totalFee||0) : (b.invoiceAmount!=null ? b.invoiceAmount : Math.max(0,(b.totalFee||0)-(b.numParticipants||0)*175));
-                        return defaultAmount > 0 ? (
+                        if (defaultAmount <= 0) return null;
+                        // 後端 checkInvoiceIssuanceTiming 對 experience 擋「須等活動當天」（2026-08-12 定案）——
+                        // 原本按鈕不看日期、按下去才被後端擋，容易讓人以為壞掉；改成提前到期日之前直接顯示
+                        // 提示文字，不顯示可點按鈕（已開立過的仍要能看到號碼/作廢，不受此限制）。
+                        const notYet = b.bookingDate && dayjs().format('YYYY-MM-DD') < b.bookingDate && !b.invoiceNo;
+                        return notYet ? (
+                          <span style={{ fontSize:11, color:'#bbb' }}>須活動當天（{b.bookingDate}）起可開立發票</span>
+                        ) : (
                           <InvoiceButtonView invoiceNo={b.invoiceNo} style={{ height:28 }} onClick={()=>setInvoiceTarget(b)} />
-                        ) : null;
+                        );
                       })()}
                       {b.status==='confirmed' && (
                         <button onClick={()=>{ setCancelBooking(b); setCancelReason(''); }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>🗑 取消預約</button>
