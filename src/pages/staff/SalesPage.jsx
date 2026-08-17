@@ -769,10 +769,16 @@ export default function SalesPage({ embedded = false }) {
                   </div>
                   <div style={{ textAlign:'right', whiteSpace:'nowrap' }}>
                     <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color: sale.isReturn ? '#A32D2D' : '#8B1A1A' }}>{sale.isReturn ? '−' : ''}NT${Math.abs(sale.totalAmount||0).toLocaleString()}</div>
-                    {!sale.isReturn && !sale.returned && (
-                      <button onClick={() => { setConfirmReturn(sale); setReturnReason(''); }}
-                        style={{ marginTop:6, height:28, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>退貨</button>
-                    )}
+                    {!sale.isReturn && !sale.returned && (() => {
+                      // 退貨限銷售後 7 天內（與後端 RETURN_WINDOW_EXPIRED 一致）；超過期限隱藏按鈕
+                      const soldAtMs = sale.soldAt?.seconds ? sale.soldAt.seconds*1000 : sale.soldAt?._seconds ? sale.soldAt._seconds*1000 : sale.soldAt;
+                      const expired = soldAtMs && dayjs().diff(dayjs(soldAtMs), 'day') > 7;
+                      if (expired) return <div style={{ fontSize:10, color:'#999', marginTop:6 }}>已超過退貨期限</div>;
+                      return (
+                        <button onClick={() => { setConfirmReturn(sale); setReturnReason(''); }}
+                          style={{ marginTop:6, height:28, padding:'0 12px', borderRadius:7, background:'#fff', border:'0.5px solid #A32D2D', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>退貨</button>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
