@@ -705,7 +705,8 @@ export default function CheckinPage() {
                         ✓ 確認報到（不卡墜落測驗）
                       </button>
                     )}
-                    {isManagerOnly && (
+                    {/* 開立比賽發票：2026-08-17 放寬值班站台可開（原限管理員），與後端 requireManagerOrStation 對齊 */}
+                    {canCheckin && (
                       <InvoiceButtonAuto sourceType="competition" refId={compScan.registrationId} refreshToken={compInvRefresh}
                         onClick={() => setCompInvoiceTarget(compScan)}
                         style={{ marginTop:8, width:'100%', height:38, borderRadius:9, fontSize:13 }} />
@@ -1276,10 +1277,9 @@ export default function CheckinPage() {
                     </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:3 }}>{s.courseName}</div>
                     <div style={{ fontSize:11, color:'#999' }}>{s.startTime}～{s.endTime}</div>
-                    {/* 課程發票（限管理員——後端 POST /members/course-invoices 為 requireManager，
-                        與比賽發票同一層級，非本頁其餘入場/補租的 requireManagerOrStation）；
-                        值班站台看得到「最後一堂」提醒但按鈕留給管理員按 */}
-                    {s.isLastSession && isManagerOnly && (
+                    {/* 課程發票：2026-08-17 放寬值班站台可開（原限管理員，後端已改
+                        requireManagerOrStation，與本頁其餘入場/補租一致） */}
+                    {s.isLastSession && canCheckin && (
                       <div onClick={(e) => e.stopPropagation()} style={{ marginTop:6 }}>
                         <InvoiceButtonAuto sourceType="course" refId={s.enrollmentId} refreshToken={courseInvRefresh}
                           onClick={() => setCourseInvoiceTarget(s)} style={{ width:'100%', textAlign:'center' }} />

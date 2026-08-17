@@ -122,11 +122,14 @@ const emptyForm = () => ({
 });
 
 export default function CompetitionsPage() {
-  const { staff } = useAuth();
+  const { staff, operator } = useAuth();
   // 2026-08-08：後端 competitions.manage 早已開放 full_time 編輯，前端這裡漏更新（一直卡在只認管理員）
   const canManage = ['super_admin','gym_manager','full_time'].includes(staff?.role);
-  // 財務類動作（實收金額覆寫／開立發票）後端走 requireManager，維持僅管理員（full_time 不含）
+  // 實收金額覆寫（PUT /registrations/:regId/received-amount）後端走 requireManager，維持僅管理員（full_time 不含）
   const isManagerOnly = ['super_admin','gym_manager'].includes(staff?.role);
+  // 開立發票（POST /registrations/:regId/invoices、/invoices/:id/void）2026-08-17 放寬值班站台可開，
+  // 與入場/補租/租借/課程四個發票流程對齊；與上面 isManagerOnly 分開，不影響實收金額覆寫的權限
+  const canInvoice = isManagerOnly || !!operator;
   const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
@@ -620,7 +623,7 @@ export default function CompetitionsPage() {
                         {remark.map((rm,i)=><span key={i} style={{ fontSize:10, background:'#FFF8E6', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>{rm}</span>)}
                       </div>
                     </div>
-                    {isManagerOnly && (
+                    {canInvoice && (
                       <InvoiceButtonView invoiceNo={r.invoiceNo}
                         onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }} />
                     )}
