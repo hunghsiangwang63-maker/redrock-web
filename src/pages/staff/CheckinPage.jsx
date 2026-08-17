@@ -1055,6 +1055,10 @@ export default function CheckinPage() {
                       {id:'child_free', name:'兒童入場', price:100},
                       {id:'student_free', name:'學生入場', price:250},
                     ]).filter(t => {
+                      // 這個清單只會在 !memberEligibility.hasCourseAccess 時渲染（有課程學員資格時
+                      // 上層 banner 分支已直接帶入 course_access、不會走到這裡）→ 課程學員選項一律隱藏，
+                      // 不再讓店員手動覆寫（2026-08-17 起改為：無課程學員身份就不給選）
+                      if (t.id === 'course_access') return false;
                       if (!t.memberTypes || t.memberTypes.length === 0) return true;
                       if (!memberEligibility) return true;
                       const memberTypeMatch = t.memberTypes.includes(memberEligibility.memberType);
