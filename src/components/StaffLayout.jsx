@@ -151,7 +151,7 @@ export default function StaffLayout() {
             <select value={viewGym} onChange={e => setViewGym(e.target.value)} title="檢視場館（全站沿用）"
               style={{ height:isMobile?30:26, borderRadius:8, border:'0.5px solid #C9A9A9', background:'#FBF5F5', color:'#8B1A1A', fontSize:isMobile?13:12, fontWeight:600, padding:'0 6px', outline:'none', cursor:'pointer' }}>
               <option value="">🏛 全館</option>
-              {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
+              {gyms.filter(g => g.shortName || g.name).map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
             </select>
           )}
         </div>
