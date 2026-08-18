@@ -850,15 +850,15 @@ export default function SalesPage({ embedded = false }) {
               </div>
               {/* 變體列表 */}
               <div style={{ borderTop:'0.5px solid #F5EFEF', paddingTop:10 }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 60px 60px 55px 55px 60px 70px', gap:6, fontSize:10, color:'#999', fontWeight:600, marginBottom:6, padding:'0 4px' }}>
-                  <span>尺寸</span><span>顏色</span><span>原價</span><span>促銷價</span><span>新竹館</span><span>士林館</span><span>倉庫</span><span>促銷</span>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 55px 55px 42px 42px 48px', gap:6, fontSize:10, color:'#999', fontWeight:600, marginBottom:6, padding:'0 4px' }}>
+                  <span>尺寸</span><span>顏色</span><span>原價</span><span>促銷價</span><span>新竹館</span><span>士林館</span><span>倉庫</span>
                 </div>
                 {sortedVariants(p).map(v => {
                   const hsinchuStock = v.gymStock?.['gym-hsinchu'] ?? 0;
                   const shilinStock = v.gymStock?.['gym-shilin'] ?? 0;
                   const warehouseStock = v.warehouseStock ?? 0;
                   return (
-                  <div key={v.id} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 60px 60px 55px 55px 60px 70px', gap:6, fontSize:12, padding:'5px 4px', borderRadius:6, background: v.stock <= p.lowStockAlert ? '#FFF5F5' : 'none', marginBottom:2, alignItems:'center' }}>
+                  <div key={v.id} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 55px 55px 42px 42px 48px', gap:6, fontSize:12, padding:'5px 4px', borderRadius:6, background: v.stock <= p.lowStockAlert ? '#FFF5F5' : 'none', marginBottom:2, alignItems:'center' }}>
                     <span style={{ color: v.stock === 0 ? '#999' : '#1a1a1a' }}>{v.size || '—'}</span>
                     <span style={{ color: v.stock === 0 ? '#999' : '#1a1a1a' }}>{v.color || '—'}</span>
                     <span style={{ fontFamily:'monospace' }}>NT${v.price}</span>
@@ -886,11 +886,6 @@ export default function SalesPage({ embedded = false }) {
                         {warehouseStock}
                       </span>
                     )}
-                    <div>
-                      {v.promoPrice ? (
-                        <span style={{ display:'inline-block', height:22, lineHeight:'22px', padding:'0 8px', borderRadius:6, background:'#8B1A1A', color:'#fff', fontSize:10, fontWeight:500 }}>促銷中</span>
-                      ) : <span style={{ fontSize:10, color:'#ccc' }}>無促銷價</span>}
-                    </div>
                   </div>
                   );
                 })}
