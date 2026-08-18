@@ -642,8 +642,15 @@ export default function CompetitionsPage() {
         const sec = r.registeredAt?._seconds || r.registeredAt?.seconds || 0;
         const Row = (k, v) => <div key={k} style={{ display:'flex', fontSize:12, padding:'3px 0' }}><div style={{ width:84, color:'#999', flexShrink:0 }}>{k}</div><div style={{ color:'#333', wordBreak:'break-word' }}>{v || '—'}</div></div>;
         const act = () => {
-          if (st === 'cancelled') return null;
           const B = (label,color,onClick,key) => <button key={key} onClick={onClick} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#fff', color, border:`0.5px solid ${color}`, fontSize:13, cursor:'pointer' }}>{label}</button>;
+          // 已收款後取消（退費申請）：「已取消」中唯一還需要人工動作的情境——按下即開退費 modal
+          // （呼叫 /refund：標記已退費＋沖銷營收＋自動作廢已開發票；銀行匯款仍在系統外由店員自行處理）
+          if (st === 'cancelled') {
+            if (r.refundRequested && r.paymentStatus === 'confirmed') {
+              return <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:14 }}>{B('處理退費','#A32D2D',()=>{ setRegDetail(null); setActionModal({type:'refund',reg:r}); },'refund')}</div>;
+            }
+            return null;
+          }
           const btns = [];
           if (st==='awaitConfirm') {
             btns.push(B('確認收款','#2D7D46',()=>{ setRegDetail(null); setActionModal({type:'pay',reg:r}); },'pay'));

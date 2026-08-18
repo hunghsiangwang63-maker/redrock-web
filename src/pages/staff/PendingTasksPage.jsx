@@ -296,6 +296,8 @@ export default function PendingTasksPage() {
         return <>{task.record && <button onClick={() => setModal({ kind:'pass', record:task.record })} style={primaryBtn('#2D7D46')}>審核</button>}{goLink(task)}</>;
       case 'competition_payment':
         return <>{task.record && <button onClick={() => setModal({ kind:'competition', record:task.record })} style={primaryBtn('#2D7D46')}>確認收款</button>}{goLink(task)}</>;
+      case 'competition_refund':
+        return <>{task.record && <button onClick={() => setModal({ kind:'competition-refund', record:task.record })} style={primaryBtn('#A32D2D')}>處理退費</button>}{goLink(task)}</>;
       case 'transfer_confirm':
         return <>
           <button onClick={() => setModal({ kind:'transfer', record: task.record })} style={primaryBtn('#2D7D46')}>確認收款</button>
@@ -726,6 +728,7 @@ export default function PendingTasksPage() {
       {modal?.kind === 'course' && <CourseAdjustmentReviewModal request={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'pass' && <PassRequestReviewModal request={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'competition' && <CompetitionActionModal action="pay" reg={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'competition-refund' && <CompetitionActionModal action="refund" reg={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'rental' && <RentalActionModal action={modal.action} rental={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'reason' && <ReasonModal {...modal.props} onClose={() => setModal(null)} />}
       {modal?.kind === 'transfer' && <TransferConfirmModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}

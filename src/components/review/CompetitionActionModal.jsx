@@ -7,10 +7,12 @@ const inp = { width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5
 const lbl = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 
 // 比賽報名收款／退費（共用：賽事頁 + 待辦頁）
-// props: action 'pay'|'refund', reg {id,memberName,divisionName,paymentMethod,bankLastFive,paymentDate,registrationFee}
+// props: action 'pay'|'refund', reg {id,memberName,divisionName,paymentMethod,bankLastFive,paymentDate,registrationFee,
+//        paidAmount,refundBankCode,refundBankName,refundAccount,refundAccountName}
 //        onClose(), onDone(message)
 export default function CompetitionActionModal({ action, reg, onClose, onDone }) {
-  const [amount, setAmount] = useState(action === 'pay' ? (reg.registrationFee?.toString() || '') : '0');
+  // 退費預設帶入實際已收金額（多為全額退），可再手動改成部分退款
+  const [amount, setAmount] = useState(action === 'pay' ? (reg.registrationFee?.toString() || '') : ((reg.paidAmount || reg.registrationFee || '')?.toString() || '0'));
   const [reason, setReason] = useState('');
   const [staffNote, setStaffNote] = useState(reg.staffNote || ''); // 員工內部備註（報名者看不到）
   const [rejectReason, setRejectReason] = useState('');            // 退回原因（報名者看得到，必填）
@@ -76,6 +78,17 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
         <label style={lbl}>{action === 'pay' ? '收款金額' : '退款金額'} (NT$)</label>
         <input type="number" style={inp} value={amount} onChange={e => setAmount(e.target.value)}/>
       </div>
+      {action === 'refund' && (
+        <div style={{ background:'#FBF5F5', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
+          <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:8 }}>已收款資訊 / 退費帳號（請自行匯款後點下方確認）</div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, fontSize:12, color:'#444' }}>
+            <div><span style={{ color:'#999' }}>已收金額：</span>NT${reg.paidAmount || reg.registrationFee || '—'}</div>
+            <div><span style={{ color:'#999' }}>戶名：</span>{reg.refundAccountName || '—'}</div>
+            <div><span style={{ color:'#999' }}>銀行：</span>{reg.refundBankCode ? `(${reg.refundBankCode}) ` : ''}{reg.refundBankName || '—'}</div>
+            <div><span style={{ color:'#999' }}>帳號：</span>{reg.refundAccount || '—'}</div>
+          </div>
+        </div>
+      )}
       {action === 'refund' && (
         <div style={{ marginBottom:14 }}>
           <label style={lbl}>退費原因</label>
