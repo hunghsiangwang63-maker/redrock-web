@@ -40,6 +40,12 @@ const TAB_GROUPS = [
       { key: 'paymentMethods',icon: '💳', label: '付款方式', superAdminOnly: true },
     ],
   },
+  {
+    group: '攀岩隊',
+    items: [
+      { key: 'teamFees', icon: '🏔️', label: '年費設定', managerOnly: true },
+    ],
+  },
 ];
 const TAB_ITEMS = TAB_GROUPS.flatMap(g => g.items);
 
@@ -188,6 +194,7 @@ export default function SettingsPage() {
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
     if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
     if (activeTab === 'invoiceNumbers' && canManageInvoiceNumbers) { loadInvState(invNumGym); loadTodayInvoices(invNumGym); }
+    if (activeTab === 'teamFees' && isManagerPlus) loadTeamFees();
   }, [activeTab]);
 
   const openAddStation = () => {
@@ -679,6 +686,33 @@ export default function SettingsPage() {
       const res = await client.put('/settings/partner-gym-member', { enabled: !!partnerGymMember.enabled, rate: Number(partnerGymMember.rate) });
       setPartnerGymMember({ enabled: res.data.enabled, rate: res.data.rate }); setPartnerGymMemberDirty(false);
       showMsg('友館隊員優惠設定已儲存');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+
+  // ─── 攀岩隊年費設定（三級距+隊服減免；申請當下依日期落在哪一段自動套用）──
+  const [teamFees, setTeamFees] = useState({ fullYearFee: 3000, midYearFee: 2000, lateYearFee: 1000, midYearCutoff: '03-15', lateYearCutoff: '09-15', jerseyDiscount: 300 });
+  const [teamFeesDirty, setTeamFeesDirty] = useState(false);
+  const loadTeamFees = async () => {
+    try {
+      const res = await client.get('/settings/team-fees');
+      setTeamFees({
+        fullYearFee: res.data.fullYearFee ?? 3000,
+        midYearFee: res.data.midYearFee ?? 2000,
+        lateYearFee: res.data.lateYearFee ?? 1000,
+        midYearCutoff: res.data.midYearCutoff || '03-15',
+        lateYearCutoff: res.data.lateYearCutoff || '09-15',
+        jerseyDiscount: res.data.jerseyDiscount ?? 300,
+      });
+      setTeamFeesDirty(false);
+    } catch (e) {}
+  };
+  const handleSaveTeamFees = async () => {
+    setLoading(true);
+    try {
+      await client.put('/settings/team-fees', teamFees);
+      setTeamFeesDirty(false);
+      showMsg('年費設定已儲存');
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -1490,6 +1524,58 @@ export default function SettingsPage() {
             {partnerGyms.length === 0 && <div style={{ fontSize:13, color:'#999', padding:'8px 0' }}>尚無友館，點下方新增。</div>}
             <button onClick={() => { setPartnerGyms([...partnerGyms, { name:'' }]); setPartnerGymsDirty(true); }}
               style={{ marginTop:6, height:38, padding:'0 16px', borderRadius:8, border:'0.5px dashed #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>＋ 新增友館</button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'teamFees' && isManagerPlus && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🏔️ 攀岩隊年費設定</span>
+            <SaveButton onSave={handleSaveTeamFees} isDirty={teamFeesDirty} label='儲存年費設定' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16, textAlign:'left' }}>
+              會員申請加入紅石攀岩隊時，依申請當下日期落在哪個級距<strong>自動套用</strong>對應年費；不拿隊服可再折抵「隊服減免」金額。截止日期請填 <strong>MM-DD</strong> 格式（例：03-15）。
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, maxWidth:520 }}>
+              <div>
+                <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>全年隊費（年初～{teamFees.midYearCutoff} 前加入）</label>
+                <input type="number" value={teamFees.fullYearFee} min="0"
+                  onChange={e => { setTeamFees(p => ({ ...p, fullYearFee: e.target.value })); setTeamFeesDirty(true); }}
+                  style={{ ...s.input, width:'100%' }} />
+              </div>
+              <div>
+                <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>中期截止日（MM-DD）</label>
+                <input type="text" value={teamFees.midYearCutoff} placeholder="03-15"
+                  onChange={e => { setTeamFees(p => ({ ...p, midYearCutoff: e.target.value })); setTeamFeesDirty(true); }}
+                  style={{ ...s.input, width:'100%' }} />
+              </div>
+              <div>
+                <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>中期隊費（{teamFees.midYearCutoff}～{teamFees.lateYearCutoff} 前加入）</label>
+                <input type="number" value={teamFees.midYearFee} min="0"
+                  onChange={e => { setTeamFees(p => ({ ...p, midYearFee: e.target.value })); setTeamFeesDirty(true); }}
+                  style={{ ...s.input, width:'100%' }} />
+              </div>
+              <div>
+                <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>後期截止日（MM-DD）</label>
+                <input type="text" value={teamFees.lateYearCutoff} placeholder="09-15"
+                  onChange={e => { setTeamFees(p => ({ ...p, lateYearCutoff: e.target.value })); setTeamFeesDirty(true); }}
+                  style={{ ...s.input, width:'100%' }} />
+              </div>
+              <div>
+                <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>後期隊費（{teamFees.lateYearCutoff} 後加入）</label>
+                <input type="number" value={teamFees.lateYearFee} min="0"
+                  onChange={e => { setTeamFees(p => ({ ...p, lateYearFee: e.target.value })); setTeamFeesDirty(true); }}
+                  style={{ ...s.input, width:'100%' }} />
+              </div>
+              <div>
+                <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>隊服減免（不拿隊服折抵）</label>
+                <input type="number" value={teamFees.jerseyDiscount} min="0"
+                  onChange={e => { setTeamFees(p => ({ ...p, jerseyDiscount: e.target.value })); setTeamFeesDirty(true); }}
+                  style={{ ...s.input, width:'100%' }} />
+              </div>
+            </div>
           </div>
         </div>
       )}
