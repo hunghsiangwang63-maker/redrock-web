@@ -11,6 +11,9 @@ import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 
 const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
+// 日期補星期幾（格式對齊全站既有慣例，如 SchedulePage/RevenuePage 的 週X）
+const WD = ['日','一','二','三','四','五','六'];
+const dateWD = (dateStr) => dateStr ? `${dateStr}（週${WD[dayjs(dateStr).day()]}）` : dateStr;
 const STATUS = {
   pending:   { bg:'#FAEEDA', color:'#854F0B', label:'待確認' },
   confirmed: { bg:'#E6F4EB', color:'#2D7D46', label:'已確認' },
@@ -389,7 +392,7 @@ export default function ExperienceBookingsPage() {
                           {b.kind==='trial' && <span style={{ fontSize:11, fontWeight:600, padding:'1px 8px', borderRadius:6, background:'#F3EEF9', color:'#5B2D8B' }}>試上</span>}
                         </div>
                         {b.kind==='trial' && <div style={{ fontSize:12, color:'#5B2D8B', marginBottom:2 }}>🧗 {b.courseName}</div>}
-                        <div style={{ fontSize:13, color:'#444' }}>{b.bookingDate} {b.bookingTime} · {b.numParticipants} 人 · NT${b.totalFee}</div>
+                        <div style={{ fontSize:13, color:'#444' }}>{dateWD(b.bookingDate)} {b.bookingTime} · {b.numParticipants} 人 · NT${b.totalFee}</div>
                         <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
                           {b.contactPhone}{b.bankLastFive&&` · 末五碼：${b.bankLastFive}`}{b.paymentDate&&` · 匯款日：${b.paymentDate}`}
                         </div>
@@ -826,7 +829,7 @@ export default function ExperienceBookingsPage() {
               <div style={{ fontSize:16, fontWeight:600 }}>👟 {coachBooking.coachName?'改教練':'指定教練'}</div>
               <span onClick={()=>setCoachBooking(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
             </div>
-            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{coachBooking.contactName} · {coachBooking.bookingDate} {coachBooking.bookingTime} · {coachBooking.numParticipants} 人</div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{coachBooking.contactName} · {dateWD(coachBooking.bookingDate)} {coachBooking.bookingTime} · {coachBooking.numParticipants} 人</div>
             <CoachSelect gymId={coachBooking.gymId} value={coachVal} onChange={setCoachVal} style={tinp} />
             <div style={{ fontSize:11, color:'#999', margin:'8px 0 12px' }}>
               指定後會建立體驗課程與該教練當日排班；改教練會同步更新課程並將排班換成新教練。
@@ -868,7 +871,7 @@ export default function ExperienceBookingsPage() {
               <div style={{ fontSize:16, fontWeight:600, color:'#A32D2D' }}>🗑 取消體驗預約</div>
               <span onClick={()=>setCancelBooking(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
             </div>
-            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{cancelBooking.contactName} · {cancelBooking.bookingDate} {cancelBooking.bookingTime} · {cancelBooking.numParticipants} 人</div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{cancelBooking.contactName} · {dateWD(cancelBooking.bookingDate)} {cancelBooking.bookingTime} · {cancelBooking.numParticipants} 人</div>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>取消原因</label>
             <input value={cancelReason} onChange={e=>setCancelReason(e.target.value)} placeholder="預設「館方取消」" style={tinp} />
             <div style={{ fontSize:11, color:'#999', margin:'8px 0 16px' }}>
