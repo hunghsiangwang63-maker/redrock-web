@@ -56,7 +56,15 @@ export default function UpdateChecker() {
     }}>
       <span style={{ flex: 1 }}>發現新版本，重新整理即可更新</span>
       <button
-        onClick={() => window.location.reload()}
+        onClick={() => {
+          // 純 reload() 在部分行動瀏覽器（尤其 iOS Safari／已加到主畫面的 standalone PWA）
+          // 對「重新整理」這個導覽的快取判斷不完全可靠，曾發生按了卻仍載到舊版、
+          // 下次一開又被判定「有新版本」的迴圈。改成帶一個變動的查詢參數導去同一頁，
+          // 讓瀏覽器視為全新網址、無法沿用任何啟發式/磁碟快取比對，保證真的重新連網抓取。
+          const url = new URL(window.location.href);
+          url.searchParams.set('_v', Date.now());
+          window.location.href = url.toString();
+        }}
         style={{ height: 30, padding: '0 12px', borderRadius: 8, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
       >重新整理</button>
       <button
