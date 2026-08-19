@@ -438,9 +438,10 @@ export default function MemberCompetitionsPage() {
   };
 
   const payStatusBadge = (r) => {
+    // 退費完成優先於一般「已取消」（原本 status==='cancelled' 先攔截，'已退費' 分支永遠到不了）
+    if (r.paymentStatus === 'refunded') return { bg:'#F0EDED', color:'#666', text:'已退費' };
     if (r.status === 'cancelled') return { bg:'#F0EDED', color:'#999', text: r.formRejected ? '已駁回' : r.cancelReason==='payment_expired' ? '逾期取消' : '已取消' };
     if (r.paymentStatus === 'confirmed') return { bg:'#E6F4EB', color:'#2D7D46', text:'已確認付款' };
-    if (r.paymentStatus === 'refunded') return { bg:'#F0EDED', color:'#666', text:'已退費' };
     if (r.paymentStatus === 'transfer_rejected') return { bg:'#FCEBEB', color:'#A32D2D', text: r.paymentMethod==='cash'?'繳費被退回':'轉帳被退回' };
     if (r.paymentStatus === 'pending_confirm') return { bg:'#FAEEDA', color:'#854F0B', text: r.paymentMethod==='cash'?'繳費確認中':'轉帳確認中' };
     return { bg:'#FAEEDA', color:'#854F0B', text:'待確認付款' };
@@ -637,7 +638,9 @@ export default function MemberCompetitionsPage() {
                       )}
                       {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && !r.formRejected && (
                         <div style={{ marginTop:8, fontSize:11, color:'#999', textAlign:'left' }}>
-                          已取消 {r.refundRequested?'・退費申請中':''}
+                          已取消
+                          {r.refundRequested && '・退費申請中'}
+                          {r.paymentStatus === 'refunded' && `・已退費 NT$${r.refundAmount || 0}`}
                           {r.refundRequested && <div style={{ marginTop:3, color:'#A32D2D' }}>退費將於比賽結束後一週內統一匯款至留存帳號</div>}
                         </div>
                       )}

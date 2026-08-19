@@ -126,6 +126,16 @@ export default function MemberHomePage() {
     } catch (err) { /* 失敗保留原樣，可再按一次 */ }
   };
 
+  // 「知道了」關閉比賽退費已完成通知
+  const dismissRefundAlert = async (a, e) => {
+    e.stopPropagation();
+    if (!a.regId) return;
+    try {
+      await memberClient.post(`/competitions/registrations/${a.regId}/dismiss-refund-alert`);
+      setRejectAlerts(list => list.filter(x => x !== a));
+    } catch (err) { /* 失敗保留原樣，可再按一次 */ }
+  };
+
   useEffect(() => { loadHomeData(); }, [member?.id]);
   // 會員可能把 App 留在背景很久（切別的 App、鎖螢幕）：回到前景時重抓一次，
   // 今日入場/身份效期/退回通知才不會停在剛登入當下的舊資料。
@@ -490,29 +500,38 @@ export default function MemberHomePage() {
           <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>🔔 通知</div>
           {rejectAlerts.map((a, i) => (
             <div key={`ra${i}`} onClick={() => navigate(a.link)}
-              style={{ background: a.kind === 'action' ? '#FAEEDA' : '#FCEBEB', border: `0.5px solid ${a.kind === 'action' ? '#EAD3A0' : '#EEC1C1'}`, borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:8 }}>
-              <div style={{ fontSize:20 }}>{a.type === 'course_closure_makeup' ? '🧗' : a.kind === 'action' ? '✍️' : a.kind === 'reject' ? '⛔' : '⚠️'}</div>
+              style={{ background: a.kind === 'refund_done' ? '#E6F4EB' : a.kind === 'action' ? '#FAEEDA' : '#FCEBEB', border: `0.5px solid ${a.kind === 'refund_done' ? '#C3E6D0' : a.kind === 'action' ? '#EAD3A0' : '#EEC1C1'}`, borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:8 }}>
+              <div style={{ fontSize:20 }}>{a.type === 'course_closure_makeup' ? '🧗' : a.kind === 'refund_done' ? '✅' : a.kind === 'action' ? '✍️' : a.kind === 'reject' ? '⛔' : '⚠️'}</div>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:700, color: a.kind === 'action' ? '#854F0B' : '#A32D2D', textAlign:'left' }}>
+                <div style={{ fontSize:13, fontWeight:700, color: a.kind === 'refund_done' ? '#2D7D46' : a.kind === 'action' ? '#854F0B' : '#A32D2D', textAlign:'left' }}>
                   {a.type === 'course_closure_makeup'
                     ? `休館停課補課通知:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
                     : a.type === 'experience_cancelled'
                     ? `${a.label}因場次取消:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    : a.type === 'competition_refund_done'
+                    ? `${a.label}退費已完成：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
                     : a.kind === 'action'
                     ? `${a.label}待補文件:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
                     : a.kind === 'reject'
                     ? `${a.label}已被駁回：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
                     : `${a.label}${a.method === 'cash' ? '繳費資訊被退回' : '轉帳被退回'}：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`}
                 </div>
-                <div style={{ fontSize:11, color: a.kind === 'action' ? '#8A6A1F' : '#8A5A5A', marginTop:2, textAlign:'left' }}>
+                <div style={{ fontSize:11, color: a.kind === 'refund_done' ? '#2D7D46' : a.kind === 'action' ? '#8A6A1F' : '#8A5A5A', marginTop:2, textAlign:'left' }}>
                   {a.kind === 'reject'
                     ? `${(a.reason || '').replace('報名已被駁回：', '原因：')}　點此查看`
+                    : a.kind === 'refund_done'
+                    ? a.reason
                     : `${a.reason ? `${a.reason}，` : ''}請點此前往處理`}
                 </div>
               </div>
               {a.kind === 'reject' && a.regId ? (
                 <button onClick={(e) => dismissRejectAlert(a, e)}
                   style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#A32D2D', background:'#fff', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'6px 10px', cursor:'pointer' }}>
+                  {t('知道了')}
+                </button>
+              ) : a.kind === 'refund_done' && a.regId ? (
+                <button onClick={(e) => dismissRefundAlert(a, e)}
+                  style={{ flexShrink:0, fontSize:12, fontWeight:600, color:'#2D7D46', background:'#fff', border:'0.5px solid #C3E6D0', borderRadius:8, padding:'6px 10px', cursor:'pointer' }}>
                   {t('知道了')}
                 </button>
               ) : (
