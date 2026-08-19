@@ -636,7 +636,10 @@ export default function MemberCompetitionsPage() {
                         </div>
                       )}
                       {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && !r.formRejected && (
-                        <div style={{ marginTop:8, fontSize:11, color:'#999' }}>已取消 {r.refundRequested?'・退費申請中':''}</div>
+                        <div style={{ marginTop:8, fontSize:11, color:'#999', textAlign:'left' }}>
+                          已取消 {r.refundRequested?'・退費申請中':''}
+                          {r.refundRequested && <div style={{ marginTop:3, color:'#A32D2D' }}>退費將於比賽結束後一週內統一匯款至留存帳號</div>}
+                        </div>
                       )}
                     </div>
                   );

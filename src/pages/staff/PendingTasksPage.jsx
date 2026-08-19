@@ -546,9 +546,10 @@ export default function PendingTasksPage() {
         const notifItems = (notifs || [])
           .filter(n => !n.createdAt?._seconds || n.createdAt._seconds >= cutoff)
           .map(n => ({ key: 'n_' + n.id, notifId: n.id, cat: notifCatOf(n.type), title: n.title || '通知', message: n.message || n.body, ts: n.createdAt?._seconds || 0, link: resolveNotifLink(n), catLabel: NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統', canRead: true,
-            // 單次入場券審核：實際審核 UI 就在本頁「🔍 需審核」區塊（無其他頁可導），
-            // link 落回 /staff/pending-tasks 等於原地不動的死連結——改成直接開審核 modal。
-            ticketRef: n.type === 'single_entry_ticket_approval' ? n.referenceId : null }));
+            // 單次入場券審核／比賽退費：實際處理 UI 就在本頁「🔍 需審核」／「💰 待收款」區塊（無其他頁可導），
+            // link 落回 /staff/pending-tasks 等於原地不動的死連結——改成直接開對應的處理 modal。
+            ticketRef: n.type === 'single_entry_ticket_approval' ? n.referenceId : null,
+            compRefundRef: n.type === 'competition_refund_request' ? n.referenceId : null }));
         const regItems = (registrations || []).map(r => ({ key: 'r_' + r.id, cat: 'report', title: `${r.memberName} 報名 ${r.name}`, message: [r.detail, REG_CAT[r.regType]].filter(Boolean).join(' · ') + (r.gymId === 'gym-hsinchu' ? ' · 新竹館' : r.gymId === 'gym-shilin' ? ' · 士林館' : ''), ts: r.createdAt || 0, link: r.link, catLabel: '報名', canRead: false }));
         const feed = [...notifItems, ...regItems].filter(i => !notifCat || i.cat === notifCat).sort((a, b) => b.ts - a.ts);
         return (
@@ -591,6 +592,12 @@ export default function PendingTasksPage() {
                           const found = tasks.find(t => t.type === 'ticket_approval' && t.targetId === i.ticketRef);
                           if (found) setModal({ kind:'ticket', record: found.record });
                           else showToast('此票券已審核或找不到，可能已被處理');
+                        }} style={ghostBtn}>前往</button>
+                      ) : i.compRefundRef ? (
+                        <button onClick={() => {
+                          const found = tasks.find(t => t.type === 'competition_refund' && t.targetId === i.compRefundRef);
+                          if (found) setModal({ kind:'competition-refund', record: found.record });
+                          else showToast('此筆退費已處理或找不到');
                         }} style={ghostBtn}>前往</button>
                       ) : (i.link && <button onClick={() => navigate(i.link)} style={ghostBtn}>{i.canRead ? '前往' : '查看'}</button>)}
                       {i.canRead && <button onClick={async () => { await markAsRead(i.notifId); loadNotifs(); }} style={{ ...ghostBtn, color:'#854F0B' }}>已讀</button>}
