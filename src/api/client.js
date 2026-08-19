@@ -10,6 +10,7 @@ client.interceptors.request.use(config => {
     || localStorage.getItem('token')
     || localStorage.getItem('stationToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Client-App'] = 'staff'; // 供後端統計會員端/員工端流量拆分（2026-08-20）
   return config;
 });
 client.interceptors.response.use(res => res, err => {
@@ -44,6 +45,7 @@ export const memberClient = axios.create({ baseURL: BASE, timeout: 10000 });
 memberClient.interceptors.request.use(config => {
   const token = localStorage.getItem('member_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  config.headers['X-Client-App'] = 'member'; // 供後端統計會員端/員工端流量拆分（2026-08-20）
   return config;
 });
 memberClient.interceptors.response.use(res => res, err => {
