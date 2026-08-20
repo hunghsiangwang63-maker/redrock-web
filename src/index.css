@@ -63,6 +63,17 @@ input, textarea, select {
   background: #fff;
 }
 
+/* iOS Safari 有一個原生行為：點進 font-size < 16px 的輸入框，會自動把整頁放大讓字看得清楚，
+   且這個放大狀態是瀏覽器層級的視覺縮放（非版面溢出），SPA 換頁也不會自動恢復，需手動縮小
+   才能回到正常大小——這正是「開啟後畫面對齊正常、一點進輸入框（登入表單等）就整頁變寬、
+   換頁後也還是寬」的成因。全站大量表單輸入框用了 <16px 的字級（inline style，優先權比這裡
+   高，故用 !important 強制蓋過），只在手機寬度生效，桌機維持原本較密集的字級不受影響。 */
+@media (max-width: 1024px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
 #root {
   /* 原本是 Vite 預設範本殘留的置中窄欄版型（width:1126px + text-align:center +
      border-inline），跟 RedRock 實際的員工/會員版型完全無關——量測過正式站在寬
