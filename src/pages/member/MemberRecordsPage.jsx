@@ -125,7 +125,7 @@ export default function MemberRecordsPage() {
                       </div>
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryLabelOf(c)}</div>
                     </div>
-                    <div style={{ fontSize:12, color:'#999' }}>{c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : c.date}</div>
+                    <div style={{ fontSize:12, color:'#999' }}>{c.checkedInAt?._seconds ? dayjs(c.checkedInAt._seconds*1000).format('MM/DD HH:mm') : (c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : (c.date || '—'))}</div>
                   </div>
                 </Card>
               );
