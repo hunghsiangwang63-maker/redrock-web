@@ -50,8 +50,12 @@
   }
 }
 
-body {
+html, body {
   margin: 0;
+  /* 手機第一次載入需要縮放才會 fit：任何頁面深處未被自己容器包住的寬內容
+     (表格/月曆等，各自已有 overflow-x:auto) 溢出時，若整個頁面沒有這道防線，
+     溢出會一路頂開整個 body，逼手機瀏覽器把版面縮小顯示，需要使用者手動放大/縮小才能對齊。 */
+  overflow-x: hidden;
 }
 
 input, textarea, select {
@@ -60,11 +64,10 @@ input, textarea, select {
 }
 
 #root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
+  /* 原本是 Vite 預設範本殘留的置中窄欄版型（width:1126px + text-align:center +
+     border-inline），跟 RedRock 實際的員工/會員版型完全無關——量測過正式站在寬
+     螢幕會被硬擠進一個 1126px 置中欄位、左右留白＋細框線，非刻意設計。拿掉後讓
+     #root 隨頁面自然滿版；下面 min-height/flex 是實際版型會用到的，保留。 */
   min-height: 100svh;
   display: flex;
   flex-direction: column;
