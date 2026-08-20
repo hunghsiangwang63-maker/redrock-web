@@ -501,6 +501,15 @@ export default function DailySettlementPage() {
             📅 {dayjs().format('YYYY/MM/DD')} · {gymId === 'gym-hsinchu' ? '新竹館' : '士林館'}
           </div>
 
+          {/* 今日人數（月銷售紀錄用） */}
+          <div style={s.card}>
+            <div style={s.cardHead}>今日人數</div>
+            <div style={s.row}>
+              <span style={s.label}>今日 check-in 人數</span>
+              <span style={s.value}>{settlement?.checkinCount ?? '—'} 人（自動）</span>
+            </div>
+          </div>
+
           {/* 五大類收入 */}
           <div style={s.card}>
             <div style={s.cardHead}>今日收入{printingEnabled ? '（依實際列印發票金額計算，不可手動修改）' : transition.settlementManualInput ? '（左：手動輸入　右：系統值）' : '（系統自動帶入）'}</div>
@@ -779,15 +788,6 @@ export default function DailySettlementPage() {
             )}
           </div>
 
-          {/* 今日人數（月銷售紀錄用） */}
-          <div style={s.card}>
-            <div style={s.cardHead}>今日人數</div>
-            <div style={s.row}>
-              <span style={s.label}>今日 check-in 人數</span>
-              <span style={s.value}>{settlement?.checkinCount ?? '—'} 人（自動）</span>
-            </div>
-          </div>
-
           {/* 備註 */}
           <div style={s.card}>
             <div style={s.cardHead}>結帳備註（選填）</div>
@@ -914,6 +914,10 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
   const payManVal = (k, sysV) => (paymentManual && paymentManual[k] !== '' && paymentManual[k] != null) ? (Number(paymentManual[k]) || 0) : sysV;
   return (
     <div>
+      {/* 今日人數（check-in，系統自動統計） */}
+      {checkinCount != null && (
+        <div style={row}><span style={{ color:'#666' }}>今日人數</span><span style={{ fontWeight:600 }}>{checkinCount} 人</span></div>
+      )}
       {/* 發票金額異動：今日有發票列印時金額被人工改過（強制備註），自動列出供結帳核對 */}
       {Array.isArray(amountModifiedInvoices) && amountModifiedInvoices.length > 0 && (
         <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'10px 12px', marginBottom:10 }}>
@@ -1065,10 +1069,6 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
             </div>
           </div>
         </div>
-      )}
-      {/* 今日人數（check-in，系統自動統計） */}
-      {checkinCount != null && (
-        <div style={row}><span style={{ color:'#666' }}>今日人數</span><span style={{ fontWeight:600 }}>{checkinCount} 人</span></div>
       )}
       {/* 現金清點（點鈔明細）*/}
       <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
