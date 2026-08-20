@@ -28,7 +28,11 @@ export default function CourseActivitiesPage() {
       </div>
 
       {/* 內容 */}
-      {tab === 'courses'      && <CoursesPage embedded />}
+      {tab === 'courses' && (
+        <div style={{ padding:'16px 20px' }}>
+          <CoursesPage embedded />
+        </div>
+      )}
       {tab === 'experience'   && <ExperienceBookingsPage />}
       {tab === 'competitions' && <CompetitionsPage />}
     </div>
