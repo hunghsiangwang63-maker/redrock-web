@@ -243,39 +243,41 @@ export default function RevenuePage({ embedded = false }) {
                 {adjustments.length === 0 ? (
                   <div style={{ padding:32, textAlign:'center', color:'#999', fontSize:13 }}>此期間無加減項</div>
                 ) : (
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                  <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13, minWidth:460 }}>
                     <thead>
                       <tr style={{ background:'#FBF5F5' }}>
                         {[['日期','left'],['館別','left'],['類型','left'],['金額','right'],['備註','left']].map(([h, al], i) => (
-                          <th key={i} style={{ padding:'8px 14px', textAlign:al, fontSize:10, color:'#999', fontWeight:500 }}>{h}</th>
+                          <th key={i} style={{ padding:'8px 14px', textAlign:al, fontSize:10, color:'#999', fontWeight:500, whiteSpace:'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {adjustments.map((a, i) => (
                         <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
-                          <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12, fontWeight:500 }}>
+                          <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12, fontWeight:500, whiteSpace:'nowrap' }}>
                             {dayjs(a.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(a.date).day()]}）
                           </td>
-                          <td style={{ padding:'10px 14px', fontSize:12, color:'#666' }}>{GYM_LABEL[a.gymId] || a.gymId || '—'}</td>
-                          <td style={{ padding:'10px 14px', fontSize:12 }}>{a.type || '—'}</td>
-                          <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontSize:13, fontWeight:600, color: a.sign === '+' ? '#2D7D46' : '#B3261E' }}>
+                          <td style={{ padding:'10px 14px', fontSize:12, color:'#666', whiteSpace:'nowrap' }}>{GYM_LABEL[a.gymId] || a.gymId || '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:12, whiteSpace:'nowrap' }}>{a.type || '—'}</td>
+                          <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontSize:13, fontWeight:600, whiteSpace:'nowrap', color: a.sign === '+' ? '#2D7D46' : '#B3261E' }}>
                             {a.sign === '+' ? '+' : '−'}{NT(a.amount)}
                           </td>
-                          <td style={{ padding:'10px 14px', fontSize:12, color:'#666' }}>{a.note || '—'}</td>
+                          <td style={{ padding:'10px 14px', fontSize:12, color:'#666', whiteSpace:'nowrap' }}>{a.note || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop:'2px solid #E8D5D5', background:'#FBF5F5' }}>
-                        <td style={{ padding:'10px 14px', fontWeight:600 }} colSpan={3}>淨額小計</td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:700, fontSize:14, color: adjNet >= 0 ? '#2D7D46' : '#B3261E' }}>
+                        <td style={{ padding:'10px 14px', fontWeight:600, whiteSpace:'nowrap' }} colSpan={3}>淨額小計</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:700, fontSize:14, whiteSpace:'nowrap', color: adjNet >= 0 ? '#2D7D46' : '#B3261E' }}>
                           {adjNet >= 0 ? '+' : '−'}{NT(Math.abs(adjNet))}
                         </td>
                         <td></td>
                       </tr>
                     </tfoot>
                   </table>
+                  </div>
                 )}
               </div>
             </>
@@ -308,47 +310,49 @@ export default function RevenuePage({ embedded = false }) {
                     ↓ 匯出 CSV
                   </button>
                 </div>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                <div style={{ overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13, minWidth:520 }}>
                   <thead>
                     <tr style={{ background:'#FBF5F5' }}>
                       {['日期', '入場人數', '定期票', '優惠卡', '黑卡', '單次', '免費', '收費'].map((h, i) => (
-                        <th key={i} style={{ padding:'8px 14px', textAlign: i===0?'left':'right', fontSize:10, color:'#999', fontWeight:500 }}>{h}</th>
+                        <th key={i} style={{ padding:'8px 14px', textAlign: i===0?'left':'right', fontSize:10, color:'#999', fontWeight:500, whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {checkinDaily.map((d, i) => (
                       <tr key={i} style={{ borderTop:'0.5px solid #F5EFEF' }}>
-                        <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12, fontWeight:500 }}>
+                        <td style={{ padding:'10px 14px', fontFamily:'monospace', fontSize:12, fontWeight:500, whiteSpace:'nowrap' }}>
                           {dayjs(d.date).format('MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(d.date).day()]}）
                         </td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, color:'#8B1A1A' }}>{d.count}</td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', color: d.byType?.pass > 0 ? '#2D7D46' : '#ccc' }}>{d.byType?.pass || 0}</td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', color: d.byType?.discount_card > 0 ? '#185FA5' : '#ccc' }}>{d.byType?.discount_card || 0}</td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', color: d.byType?.black_card > 0 ? '#854F0B' : '#ccc' }}>{d.byType?.black_card || 0}</td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', color: (d.byType?.single_ticket || 0) + (d.byType?.single_entry_ticket || 0) > 0 ? '#533AB7' : '#ccc' }}>
+                        <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:600, color:'#8B1A1A', whiteSpace:'nowrap' }}>{d.count}</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', whiteSpace:'nowrap', color: d.byType?.pass > 0 ? '#2D7D46' : '#ccc' }}>{d.byType?.pass || 0}</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', whiteSpace:'nowrap', color: d.byType?.discount_card > 0 ? '#185FA5' : '#ccc' }}>{d.byType?.discount_card || 0}</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', whiteSpace:'nowrap', color: d.byType?.black_card > 0 ? '#854F0B' : '#ccc' }}>{d.byType?.black_card || 0}</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', whiteSpace:'nowrap', color: (d.byType?.single_ticket || 0) + (d.byType?.single_entry_ticket || 0) > 0 ? '#533AB7' : '#ccc' }}>
                           {(d.byType?.single_ticket || 0) + (d.byType?.single_entry_ticket || 0)}
                         </td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', color: (d.byType?.child_free || 0) + (d.byType?.student_free || 0) + (d.byType?.vip || 0) > 0 ? '#0F6E56' : '#ccc' }}>
+                        <td style={{ padding:'10px 14px', textAlign:'right', whiteSpace:'nowrap', color: (d.byType?.child_free || 0) + (d.byType?.student_free || 0) + (d.byType?.vip || 0) > 0 ? '#0F6E56' : '#ccc' }}>
                           {(d.byType?.child_free || 0) + (d.byType?.student_free || 0) + (d.byType?.vip || 0)}
                         </td>
-                        <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:600, color:'#8B1A1A' }}>{NT(d.revenue)}</td>
+                        <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:600, color:'#8B1A1A', whiteSpace:'nowrap' }}>{NT(d.revenue)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E8D5D5', background:'#FBF5F5' }}>
-                      <td style={{ padding:'10px 14px', fontWeight:600 }}>{days}天合計</td>
-                      <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, color:'#8B1A1A' }}>
+                      <td style={{ padding:'10px 14px', fontWeight:600, whiteSpace:'nowrap' }}>{days}天合計</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, color:'#8B1A1A', whiteSpace:'nowrap' }}>
                         {checkinDaily.reduce((a,b) => a+b.count, 0)}
                       </td>
                       <td colSpan={5}></td>
-                      <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#8B1A1A' }}>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontFamily:'monospace', fontWeight:700, color:'#8B1A1A', whiteSpace:'nowrap' }}>
                         {NT(checkinDaily.reduce((a,b) => a+(b.revenue||0), 0))}
                       </td>
                     </tr>
                   </tfoot>
                 </table>
+                </div>
               </div>
             </>
           )}
