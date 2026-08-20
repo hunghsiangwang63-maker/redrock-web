@@ -30,6 +30,14 @@ const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 export default function RevenuePage({ embedded = false }) {
   const { staff, viewGym } = useAuth();
   const [tab, setTab] = useState('overview');
+  // 手機上統計卡片改 2 欄（原本固定 3/4 欄，較長的金額如「NT$1,234,567」是不可斷行的
+  // monospace 數字，欄位擠太窄會直接撐寬溢出）；桌機維持原本欄數不變。
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   // 場館由頂部全域選擇器控制；營收屬報表類，「全館」(viewGym='') → undefined → 後端彙整所有館
   const gymFilter = staff?.role === 'super_admin' ? (viewGym || undefined) : (staff?.gymId || undefined);
   const [summary, setSummary] = useState(null);
@@ -130,15 +138,15 @@ export default function RevenuePage({ embedded = false }) {
           {tab === 'overview' && (
             <>
               {/* 統計卡片 */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
+              <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(3,minmax(0,1fr))', gap:12, marginBottom:16 }}>
                 {[
                   { label:'今日營收',   val: NT(summary?.today?.total), sub: `${summary?.today?.count || 0} 筆交易`, color:'#8B1A1A' },
                   { label:'本週營收',   val: NT(summary?.week?.total),  sub: `${summary?.week?.count || 0} 筆交易`,  color:'#2D7D46' },
                   { label:'本月累計',   val: NT(summary?.month?.total), sub: `${summary?.month?.count || 0} 筆交易`, color:'#185FA5' },
                 ].map((s, i) => (
-                  <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', borderTop:`3px solid ${s.color}` }}>
+                  <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', borderTop:`3px solid ${s.color}`, minWidth:0, overflow:'hidden' }}>
                     <div style={{ fontSize:10, color:'#999', textTransform:'uppercase', letterSpacing:.8, fontWeight:600 }}>{s.label}</div>
-                    <div style={{ fontSize:22, fontWeight:700, color:s.color, marginTop:5, fontFamily:'monospace' }}>{s.val}</div>
+                    <div style={{ fontSize: isMobile ? 17 : 22, fontWeight:700, color:s.color, marginTop:5, fontFamily:'monospace' }}>{s.val}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:3 }}>{s.sub}</div>
                   </div>
                 ))}
@@ -146,8 +154,8 @@ export default function RevenuePage({ embedded = false }) {
 
               {/* 預收貨款（課程/比賽已收款但尚未認列營收） */}
               {summary?.deferred > 0 && (
-                <div style={{ background:'#FFF8E6', border:'0.5px solid #F0D68A', borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
-                  <div>
+                <div style={{ background:'#FFF8E6', border:'0.5px solid #F0D68A', borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                  <div style={{ minWidth:0 }}>
                     <div style={{ fontSize:13, fontWeight:700, color:'#854F0B' }}>📦 預收貨款（已收未認列）</div>
                     <div style={{ fontSize:11, color:'#9A7B3A', marginTop:2 }}>課程／比賽已收款，營收於完成日（最後一堂課／比賽前一天）才認列</div>
                   </div>
@@ -287,16 +295,16 @@ export default function RevenuePage({ embedded = false }) {
           {tab === 'checkin' && (
             <>
               {/* 統計卡片 */}
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:16 }}>
+              <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(4,minmax(0,1fr))', gap:12, marginBottom:16 }}>
                 {[
                   { label:'今日入場', val: checkinDaily[0]?.count || 0, color:'#8B1A1A' },
                   { label:'今日收費', val: NT(checkinDaily[0]?.revenue), color:'#2D7D46' },
                   { label:`${days}天入場`, val: checkinDaily.reduce((a,b) => a+b.count, 0), color:'#185FA5' },
                   { label:`${days}天收費`, val: NT(checkinDaily.reduce((a,b) => a+(b.revenue||0), 0)), color:'#854F0B' },
                 ].map((s, i) => (
-                  <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', borderTop:`3px solid ${s.color}` }}>
+                  <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', borderTop:`3px solid ${s.color}`, minWidth:0, overflow:'hidden' }}>
                     <div style={{ fontSize:10, color:'#999', textTransform:'uppercase', letterSpacing:.8, fontWeight:600 }}>{s.label}</div>
-                    <div style={{ fontSize:22, fontWeight:700, color:s.color, marginTop:5, fontFamily:'monospace' }}>{s.val}</div>
+                    <div style={{ fontSize: isMobile ? 17 : 22, fontWeight:700, color:s.color, marginTop:5, fontFamily:'monospace' }}>{s.val}</div>
                   </div>
                 ))}
               </div>

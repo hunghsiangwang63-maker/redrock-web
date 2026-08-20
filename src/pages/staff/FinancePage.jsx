@@ -72,7 +72,11 @@ export default function FinancePage() {
         <SegmentedTabs tabs={TABS} value={tab} onChange={handleTab} />
       </div>
       {tab === 'revenue'      && <RevenuePage embedded />}
-      {tab === 'installments' && <InstallmentsPage embedded />}
+      {tab === 'installments' && (
+        <div style={{ padding:'16px 20px' }}>
+          <InstallmentsPage embedded />
+        </div>
+      )}
       {tab === 'monthly' && (
         <div style={{ padding:24, maxWidth:600 }}>
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:20 }}>
