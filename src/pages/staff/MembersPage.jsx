@@ -945,11 +945,11 @@ export default function MembersPage() {
       {/* 左側：搜尋 + 列表 */}
       <div>
         <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16, marginBottom:14 }}>
-          <form onSubmit={handleSearch} style={{ display:'flex', gap:8 }}>
+          <form onSubmit={handleSearch} style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             <input
               value={query} onChange={e => setQuery(e.target.value)}
               placeholder="搜尋姓名或電話號碼..."
-              style={{ flex:1, height:40, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 14px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}
+              style={{ flex:'1 1 160px', minWidth:0, height:40, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 14px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}
             />
             <button type="submit"
               style={{ height:40, padding:'0 18px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
