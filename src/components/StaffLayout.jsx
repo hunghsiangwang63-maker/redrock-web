@@ -64,7 +64,12 @@ export default function StaffLayout() {
   const [tooltip, setTooltip] = useState(null); // { label, top }
   const [pendingCount, setPendingCount] = useState(0);
 
-  // 每 30 秒自動抓取待辦數量（需已打卡值班或個人登入；純站台模式不打 staff 端點，避免 401 把站台登出）
+  // 自動抓取待辦數量徽章（需已打卡值班或個人登入；純站台模式不打 staff 端點，避免 401 把站台登出）
+  // ⚠ 2026-08-21 由 30 秒拉長為 3 分鐘：查 Firestore 查詢洞察資料發現這支 timer（每個員工端頁面
+  // 都掛著、分頁開著不動也照跑）打的是完整版 GET /pending-tasks（內含 courseRegistrations/
+  // experienceBookings/fallTestBookings 等多個近7天報名查詢），單日光這兩個集合就吃掉近20萬次
+  // 讀取——但畫面其實只用到 r.data.total 這個數字。徽章本就非即時必要（員工不會盯著數字跳動），
+  // 拉長間隔對體感幾乎無影響、讀取量可降到約 1/6。
   useEffect(() => {
     if (!isOperational) { setPendingCount(0); return; }
     const fetchCount = () => {
@@ -73,7 +78,7 @@ export default function StaffLayout() {
       }).catch(() => {});
     };
     fetchCount(); // 立即執行一次
-    const timer = setInterval(fetchCount, 30000);
+    const timer = setInterval(fetchCount, 180000);
     return () => clearInterval(timer);
   }, [isOperational]);
 
