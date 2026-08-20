@@ -365,10 +365,10 @@ export default function PendingTasksPage() {
             <span style={{ background:'#A32D2D', color:'#fff', borderRadius:12, padding:'2px 10px', fontSize:12, fontWeight:700 }}>{total}</span>
           )}
         </div>
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           {isAdmin && (
             <select value={gymFilter} onChange={e => setGymFilter(e.target.value)}
-              style={{ height:32, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', cursor:'pointer' }}>
+              style={{ height:32, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', cursor:'pointer', flexShrink:0 }}>
               <option value="">全部館別</option>
               <option value="gym-hsinchu">新竹館</option>
               <option value="gym-shilin">士林館</option>
@@ -376,29 +376,29 @@ export default function PendingTasksPage() {
           )}
           {perm.course_adjustment && (
             <button onClick={() => openTrack('course')}
-              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='course' ? '#8B1A1A' : '#fff', color: trackView==='course' ? '#fff' : '#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='course' ? '#8B1A1A' : '#fff', color: trackView==='course' ? '#fff' : '#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               課程相關
             </button>
           )}
           {perm.pass_adjustment && (
             <button onClick={() => openTrack('pass')}
-              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='pass' ? '#5B2D8B' : '#fff', color: trackView==='pass' ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer' }}>
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='pass' ? '#5B2D8B' : '#fff', color: trackView==='pass' ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               🎫 定期票相關
             </button>
           )}
           {!isRestrictedPartTime && (
             <button onClick={() => openTrack('notif')}
-              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='notif' ? '#854F0B' : '#fff', color: trackView==='notif' ? '#fff' : '#854F0B', border:'0.5px solid #854F0B', fontSize:12, cursor:'pointer' }}>
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='notif' ? '#854F0B' : '#fff', color: trackView==='notif' ? '#fff' : '#854F0B', border:'0.5px solid #854F0B', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               🔔 通知
             </button>
           )}
           {!isRestrictedPartTime && (
             <button onClick={() => openTrack('returned')}
-              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='returned' ? '#A32D2D' : '#fff', color: trackView==='returned' ? '#fff' : '#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='returned' ? '#A32D2D' : '#fff', color: trackView==='returned' ? '#fff' : '#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               ↩️ 退回追蹤{returnedItems.length ? `（${returnedItems.length}）` : ''}
             </button>
           )}
-          <button onClick={load} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+          <button onClick={load} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
             重新整理
           </button>
         </div>

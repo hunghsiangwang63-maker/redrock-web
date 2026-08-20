@@ -373,24 +373,24 @@ export default function SchedulePage() {
                 : '僅供查詢，如需異動請聯絡館別管理員'}
           </div>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
           {canManageEvents && (
             <button onClick={() => openAddEvent(dayjs().format('YYYY-MM-DD'))}
-              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #6B3FA0', color:'#6B3FA0', fontSize:13, cursor:'pointer' }}>
+              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #6B3FA0', color:'#6B3FA0', fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               🏷️ 新增重要事項
             </button>
           )}
           {canManage && (<>
             <button onClick={openRecurringModal}
-              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>
+              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               🔁 設定固定週班
             </button>
             <button onClick={loadHoursSummary}
-              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:13, cursor:'pointer' }}>
+              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               📊 本月工時統計
             </button>
             <button onClick={() => setShowSettings(true)}
-              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #854F0B', color:'#854F0B', fontSize:13, cursor:'pointer' }}>
+              style={{ height:38, padding:'0 16px', borderRadius:8, background:'#fff', border:'0.5px solid #854F0B', color:'#854F0B', fontSize:13, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               ⚙️ 標準工時設定
             </button>
           </>)}
