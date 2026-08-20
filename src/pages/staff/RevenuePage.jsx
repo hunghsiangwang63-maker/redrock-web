@@ -112,13 +112,8 @@ export default function RevenuePage({ embedded = false }) {
   return (
     <div style={{ padding: embedded?0:20, background:'#F7F3F3' }}>
 
-      {/* Tab + 天數選擇 */}
+      {/* Tab + 天數選擇（場館已由頂部全域選擇器標示，這裡不重複顯示） */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-        {staff?.role === 'super_admin' && (
-          <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginRight:8, whiteSpace:'nowrap' }}>
-            {viewGym === 'gym-hsinchu' ? '新竹館' : viewGym === 'gym-shilin' ? '士林館' : '🏛 全館彙整'}
-          </span>
-        )}
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           {[7, 14, 30].map(d => (
@@ -137,12 +132,13 @@ export default function RevenuePage({ embedded = false }) {
           {/* ── 營收總覽 ── */}
           {tab === 'overview' && (
             <>
-              {/* 統計卡片 */}
-              <div style={{ display:'grid', gridTemplateColumns: isMobile ? 'repeat(2,minmax(0,1fr))' : 'repeat(3,minmax(0,1fr))', gap:12, marginBottom:16 }}>
+              {/* 統計卡片：今日/本週/本月累計 + 預收貨款（有值才顯示第4格），統一 2 欄排列 */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(2,minmax(0,1fr))', gap:12, marginBottom:16 }}>
                 {[
                   { label:'今日營收',   val: NT(summary?.today?.total), sub: `${summary?.today?.count || 0} 筆交易`, color:'#8B1A1A' },
                   { label:'本週營收',   val: NT(summary?.week?.total),  sub: `${summary?.week?.count || 0} 筆交易`,  color:'#2D7D46' },
                   { label:'本月累計',   val: NT(summary?.month?.total), sub: `${summary?.month?.count || 0} 筆交易`, color:'#185FA5' },
+                  ...(summary?.deferred > 0 ? [{ label:'預收貨款', val: NT(summary.deferred), sub:'已收未認列，完成日才算', color:'#B08A3E' }] : []),
                 ].map((s, i) => (
                   <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', borderTop:`3px solid ${s.color}`, minWidth:0, overflow:'hidden' }}>
                     <div style={{ fontSize:10, color:'#999', textTransform:'uppercase', letterSpacing:.8, fontWeight:600 }}>{s.label}</div>
@@ -151,17 +147,6 @@ export default function RevenuePage({ embedded = false }) {
                   </div>
                 ))}
               </div>
-
-              {/* 預收貨款（課程/比賽已收款但尚未認列營收） */}
-              {summary?.deferred > 0 && (
-                <div style={{ background:'#FFF8E6', border:'0.5px solid #F0D68A', borderRadius:12, padding:'12px 16px', marginBottom:16, display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:10 }}>
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:700, color:'#854F0B' }}>📦 預收貨款（已收未認列）</div>
-                    <div style={{ fontSize:11, color:'#9A7B3A', marginTop:2 }}>課程／比賽已收款，營收於完成日（最後一堂課／比賽前一天）才認列</div>
-                  </div>
-                  <div style={{ fontSize:20, fontWeight:700, color:'#854F0B', fontFamily:'monospace', flexShrink:0 }}>{NT(summary.deferred)}</div>
-                </div>
-              )}
 
               {/* 付款方式分佈 */}
               {summary?.today?.byPayment && Object.keys(summary.today.byPayment).length > 0 && (
