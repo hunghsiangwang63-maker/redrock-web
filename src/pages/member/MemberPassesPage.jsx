@@ -779,7 +779,7 @@ export default function MemberPassesPage() {
       </div>
 
       {/* Tab 列 */}
-      <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto' }}>
+      <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto', padding:'0 12px' }}>
         {TABS.map(t => (
           <div key={t.key} onClick={() => setTab(t.key)}
             style={{ flexShrink:0, height:44, padding:'0 16px', display:'flex', alignItems:'center', justifyContent:'center', gap:5, cursor:'pointer', fontSize:13, fontWeight: tab===t.key ? 600 : 400, color: tab===t.key ? '#8B1A1A' : '#999', borderBottom: tab===t.key ? '2px solid #8B1A1A' : '2px solid transparent' }}>

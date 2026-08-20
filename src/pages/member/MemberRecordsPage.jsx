@@ -91,7 +91,7 @@ export default function MemberRecordsPage() {
       )}
 
       {/* Tab */}
-      <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto', gap:0 }}>
+      <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto', gap:0, padding:'0 12px' }}>
         {TABS.map(t => {
           const active = tab===t.key;
           const count = records?.[t.key]?.length || 0;
