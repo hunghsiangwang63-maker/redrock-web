@@ -1404,6 +1404,36 @@ export default function MemberCoursesPage() {
                 );
               })()}
 
+              {/* 週課：列出此梯次全部上課場次供報名前參考確認（唯讀，非個別報名） */}
+              {selectedCourse.type === 'weekly' && (() => {
+                const cohortSessions = sessions
+                  .filter(s => s.courseId === selectedCourse.id && s.status !== 'cancelled')
+                  .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+                if (cohortSessions.length === 0) return null;
+                const todayStr = dayjs().format('YYYY-MM-DD');
+                return (
+                  <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginTop:12 }}>
+                    <div style={{ fontSize:13, fontWeight:600, color:'#666', marginBottom:10, textAlign:'left' }}>
+                      📅 此梯次上課場次（共 {cohortSessions.length} 堂）
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {cohortSessions.map(s => {
+                        const isPast = s.date < todayStr;
+                        return (
+                          <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:8, background: isPast ? '#F5F5F5' : '#FBF5F5', opacity: isPast ? 0.6 : 1 }}>
+                            <div style={{ fontSize:13, color:'#1a1a1a', textAlign:'left' }}>
+                              {dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}） {s.startTime}～{s.endTime}
+                              {s.instructor && <span style={{ color:'#999', marginLeft:6 }}>· {s.instructor}</span>}
+                            </div>
+                            {isPast && <span style={{ fontSize:11, color:'#999', flexShrink:0 }}>已上課</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* 工作坊：選場次報名（分階段報名＋隊員分級定價；依登入者隊員身份顯示價格與開放狀態，後端權威） */}
               {selectedCourse.type === 'workshop' && sessions.filter(s => s.status !== 'cancelled').map(s => {
                 const enrolled = isEnrolled(s.id);
