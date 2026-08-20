@@ -648,39 +648,38 @@ export default function PassesPage() {
                   )}
                 </div>
 
-                {/* 優惠卡 + 黑卡 */}
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                  {[
-                    { title:'🎫 優惠卡', stats: discountStats, type:'discounts', total: discountStats.total, active: discountStats.active, fullyUsed: discountStats.fullyUsed, expired: discountStats.expired, creditsIssued: discountStats.totalCreditsIssued, creditsUsed: discountStats.totalCreditsUsed, creditsLeft: discountStats.totalCreditsRemaining },
-                    { title:'⬛ 黑卡', stats: blackStats, type:'blacks', total: blackStats.total, active: blackStats.active, fullyUsed: blackStats.fullyUsed, expired: blackStats.expired, creditsIssued: blackStats.totalCreditsIssued, creditsUsed: blackStats.totalCreditsUsed, creditsLeft: blackStats.totalCreditsRemaining },
-                  ].map(s => (
-                    <div key={s.type} style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-                        <div style={{ fontSize:14, fontWeight:700 }}>{s.title}</div>
-                        <DlBtn type={s.type} label="下載"/>
-                      </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:10 }}>
-                        <Stat label="總張數" value={s.total}/>
-                        <Stat label="有效" value={s.active} color={COLORS_MAP.active}/>
-                        <Stat label="已用完" value={s.fullyUsed} color={COLORS_MAP.fullyUsed}/>
-                        <Stat label="過期" value={s.expired} color={COLORS_MAP.expired}/>
-                      </div>
-                      <ResponsiveContainer width="100%" height={120}>
-                        <PieChart>
-                          <Pie data={[{name:'已用',value:s.creditsUsed},{name:'剩餘',value:s.creditsLeft}].filter(d=>d.value>0)}
-                            dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={45}
-                            label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={10}>
-                            <Cell fill={COLORS_MAP.used}/><Cell fill={COLORS_MAP.active}/>
-                          </Pie>
-                          <Tooltip content={<Tip/>}/>
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div style={{ fontSize:11, color:'#666', textAlign:'center' }}>
-                        總次數 {(s.creditsIssued||0).toLocaleString()}　已用 {(s.creditsUsed||0).toLocaleString()}　剩餘 {(s.creditsLeft||0).toLocaleString()}
-                      </div>
+                {/* 優惠卡、黑卡（上下排列，版面規格與定期票/單日券/紅利一致） */}
+                {[
+                  { title:'🎫 優惠卡', stats: discountStats, type:'discounts', total: discountStats.total, active: discountStats.active, fullyUsed: discountStats.fullyUsed, expired: discountStats.expired, creditsIssued: discountStats.totalCreditsIssued, creditsUsed: discountStats.totalCreditsUsed, creditsLeft: discountStats.totalCreditsRemaining },
+                  { title:'⬛ 黑卡', stats: blackStats, type:'blacks', total: blackStats.total, active: blackStats.active, fullyUsed: blackStats.fullyUsed, expired: blackStats.expired, creditsIssued: blackStats.totalCreditsIssued, creditsUsed: blackStats.totalCreditsUsed, creditsLeft: blackStats.totalCreditsRemaining },
+                ].map(s => (
+                  <div key={s.type} style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                      <div style={{ fontSize:14, fontWeight:700 }}>{s.title}</div>
+                      <DlBtn type={s.type} label="下載明細"/>
                     </div>
-                  ))}
-                </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
+                      <Stat label="總張數" value={s.total}/>
+                      <Stat label="有效" value={s.active} color={COLORS_MAP.active}/>
+                      <Stat label="已用完" value={s.fullyUsed} color={COLORS_MAP.fullyUsed}/>
+                      <Stat label="過期" value={s.expired} color={COLORS_MAP.expired}/>
+                    </div>
+                    <ResponsiveContainer width="100%" height={160}>
+                      <PieChart margin={{ top:24, right:10, left:10, bottom:4 }}>
+                        <Pie data={[{name:'已用',value:s.creditsUsed},{name:'剩餘',value:s.creditsLeft}].filter(d=>d.value>0)}
+                          dataKey="value" nameKey="name" cx="50%" cy="48%" outerRadius={45}
+                          label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={11}>
+                          <Cell fill={COLORS_MAP.used}/><Cell fill={COLORS_MAP.active}/>
+                        </Pie>
+                        <Tooltip content={<Tip/>}/>
+                        <Legend wrapperStyle={{fontSize:11}}/>
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div style={{ fontSize:11, color:'#666', textAlign:'center', marginTop:4 }}>
+                      總次數 {(s.creditsIssued||0).toLocaleString()}　已用 {(s.creditsUsed||0).toLocaleString()}　剩餘 {(s.creditsLeft||0).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
 
                 {/* 單日券 */}
                 <div style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
