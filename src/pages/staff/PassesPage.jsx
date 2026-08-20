@@ -687,18 +687,19 @@ export default function PassesPage() {
                     <div style={{ fontSize:14, fontWeight:700 }}>🎟 單日券</div>
                     <DlBtn type="tickets" label="下載明細"/>
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:12 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8, marginBottom:12 }}>
                     <Stat label="總張數" value={ticketStats.total}/>
                     <Stat label="有效" value={ticketStats.valid} color={COLORS_MAP.active}/>
                     <Stat label="已使用" value={ticketStats.used} color={COLORS_MAP.used}/>
                     <Stat label="已過期" value={ticketStats.expired} color={COLORS_MAP.expired}/>
+                    <Stat label="已取消" value={ticketStats.cancelled} color={COLORS_MAP.cancelled}/>
                   </div>
                   <ResponsiveContainer width="100%" height={120}>
                     <PieChart>
-                      <Pie data={[{name:'有效',value:ticketStats.valid},{name:'已用',value:ticketStats.used},{name:'過期',value:ticketStats.expired}].filter(d=>d.value>0)}
+                      <Pie data={[{name:'有效',value:ticketStats.valid},{name:'已用',value:ticketStats.used},{name:'過期',value:ticketStats.expired},{name:'取消',value:ticketStats.cancelled}].filter(d=>d.value>0)}
                         dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={45}
                         label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={10}>
-                        <Cell fill={COLORS_MAP.active}/><Cell fill={COLORS_MAP.used}/><Cell fill={COLORS_MAP.expired}/>
+                        <Cell fill={COLORS_MAP.active}/><Cell fill={COLORS_MAP.used}/><Cell fill={COLORS_MAP.expired}/><Cell fill={COLORS_MAP.cancelled}/>
                       </Pie>
                       <Tooltip content={<Tip/>}/>
                     </PieChart>
