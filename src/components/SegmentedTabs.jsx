@@ -21,7 +21,9 @@ export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md
             title={typeof t.label === 'string' ? t.label : undefined}
             style={{
               // 單行模式 flex:1 平均分佈；wrap(grid) 模式按鈕自動填滿格子
-              flex: wrap ? undefined : 1, width: wrap ? '100%' : undefined,
+              // minWidth:0：flex 子項預設 min-width:auto 會被文字內容撐開、拒絕縮小，
+              // 分頁多或標籤長（如「歷史入場」）在窄螢幕會把整條分頁列撐出卡片邊界、原始裁切無省略號。
+              flex: wrap ? undefined : 1, width: wrap ? '100%' : undefined, minWidth: wrap ? undefined : 0,
               height: h, borderRadius: 6, padding: '0 14px',
               border: active ? '0.5px solid #E8D5D5' : 'none',
               background: active ? '#fff' : 'transparent',
@@ -32,7 +34,7 @@ export default function SegmentedTabs({ tabs, value, onChange, style, size = 'md
               boxShadow: active ? '0 1px 2px rgba(0,0,0,.04)' : 'none', transition: 'all .12s',
             }}>
             {t.icon && <span style={{ flexShrink: 0 }}>{t.icon}</span>}
-            <span>{t.label}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{t.label}</span>
           </button>
         );
       })}
