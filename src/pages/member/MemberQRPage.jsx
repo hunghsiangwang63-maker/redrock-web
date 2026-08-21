@@ -110,25 +110,35 @@ export default function MemberQRPage() {
   // 切換入場人員 / 場館（或初次進入）時重新驗票
   useEffect(() => { if (member) doVerify(); /* eslint-disable-next-line */ }, [member, targetId, gymId]);
 
-  // 產生 QR 後每 3 秒輪詢入場狀態：confirmed→自動跳首頁（首頁橫幅顯示已入場）；
-  // cancelled/expired→停止並提示；元件卸載/QR 變更時清除 interval（不無限輪詢）。
+  // 產生 QR 後輪詢入場狀態：confirmed→自動跳首頁（首頁橫幅顯示已入場）；
+  // cancelled/expired→停止並提示；元件卸載/QR 變更時清除 timer（不無限輪詢）。
+  // ⚠️ 間隔隨等待時間拉長（多數幾秒內就被掃描確認，維持 3 秒近即時體感；久未確認代表
+  // 會員可能沒馬上去給店員掃、放著頁面不管，此時放慢查詢頻率——QR 效期 30 分鐘，
+  // 最壞情況（放著整段效期沒掃）從 ~600 次查詢降到 ~140 次）。
   useEffect(() => {
     if (!qrToken) return;
     setQrClosedReason(null);
-    const iv = setInterval(async () => {
+    let cancelled = false;
+    let timer = null;
+    const startedAt = Date.now();
+    const nextDelay = () => {
+      const elapsed = Date.now() - startedAt;
+      if (elapsed < 30000) return 3000;   // 前 30 秒：3 秒一次
+      if (elapsed < 180000) return 8000;  // 30 秒~3 分鐘：8 秒一次
+      return 15000;                        // 3 分鐘後：15 秒一次
+    };
+    const poll = async () => {
       try {
         const r = await memberClient.get(`/checkin/qr/status/${qrToken}`);
+        if (cancelled) return;
         const st = r.data?.status;
-        if (st === 'confirmed') {
-          clearInterval(iv);
-          navigate('/member/home');
-        } else if (st === 'cancelled' || st === 'expired') {
-          clearInterval(iv);
-          setQrClosedReason(st);
-        }
+        if (st === 'confirmed') { navigate('/member/home'); return; }
+        if (st === 'cancelled' || st === 'expired') { setQrClosedReason(st); return; }
       } catch (e) { /* 網路暫時錯誤：忽略，下次再試 */ }
-    }, 3000);
-    return () => clearInterval(iv);
+      if (!cancelled) timer = setTimeout(poll, nextDelay());
+    };
+    timer = setTimeout(poll, nextDelay());
+    return () => { cancelled = true; if (timer) clearTimeout(timer); };
   }, [qrToken]); // eslint-disable-line
 
   // ⚠️ 由「切換入場人員/場館」的 effect 觸發，快速連續切換（如連點場館按鈕、快速切換家庭成員）
