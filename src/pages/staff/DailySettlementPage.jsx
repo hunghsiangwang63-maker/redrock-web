@@ -355,24 +355,36 @@ export default function DailySettlementPage() {
     );
   }
 
+  // 系統管理員選「全館」：結帳必為單一場館（現金點鈔/發票號碼/收入分類皆各館獨立），
+  // 不渲染 tabs/收入卡/歷史清單這些空殼，直接請切館（2026-08-21，取代原本小警語+全空頁面）
+  if (!isOperatorMode && isSuperAdmin && !gymId) {
+    return (
+      <div style={{ padding:16, background:'#F7F3F3', minHeight:'100vh' }}>
+        <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:32, textAlign:'center', maxWidth:480, margin:'40px auto' }}>
+          <div style={{ fontSize:36, marginBottom:12 }}>🏛</div>
+          <div style={{ fontWeight:600, fontSize:16, marginBottom:10 }}>請選擇具體場館</div>
+          <div style={{ fontSize:13, color:'#888', lineHeight:1.7, textAlign:'left' }}>
+            每日結帳以單一場館為單位（現金點鈔、發票號碼、收入分類皆各館獨立），
+            目前上方選的是「🏛 全館」，無法顯示結帳資料。<br />
+            請於上方場館選擇器切換到「新竹館」或「士林館」。
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding:16, background:'#F7F3F3', minHeight:'100vh' }}>
       {msg && (
         <div style={{ background: msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F09595'}`, borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, color: msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>
       )}
 
-      {/* 系統管理員非站台：依頂部場館選擇遠端結算（結帳須為具體某館） */}
+      {/* 系統管理員非站台：依頂部場館選擇遠端結算（走到這裡 gymId 必為具體館別，「全館」已在上方提早返回） */}
       {!isOperatorMode && isSuperAdmin && (
         <div style={{ background:'#FFF8E6', border:'0.5px solid #F0D98C', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
           <span style={{ color:'#854F0B', fontWeight:600 }}>🖥️ 系統管理員遠端結算</span>
-          {gymId ? (
-            <>
-              <span style={{ color:'#854F0B' }}>操作館別：<b style={{ color:'#8B1A1A' }}>{gyms.find(g => g.id === gymId)?.name || (gymId==='gym-hsinchu'?'新竹館':gymId==='gym-shilin'?'士林館':gymId)}</b></span>
-              <span style={{ fontSize:11, color:'#A98B3B' }}>依上方場館選擇，不需在本館電腦登入即可結算</span>
-            </>
-          ) : (
-            <span style={{ color:'#A32D2D' }}>⚠ 目前為「🏛 全館」，結帳需針對單一場館，請於上方切換到具體場館。</span>
-          )}
+          <span style={{ color:'#854F0B' }}>操作館別：<b style={{ color:'#8B1A1A' }}>{gyms.find(g => g.id === gymId)?.name || (gymId==='gym-hsinchu'?'新竹館':gymId==='gym-shilin'?'士林館':gymId)}</b></span>
+          <span style={{ fontSize:11, color:'#A98B3B' }}>依上方場館選擇，不需在本館電腦登入即可結算</span>
         </div>
       )}
 
