@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import { publicClient } from '../../api/client';
 
-const BASE = 'https://api.redrocktaiwan.com';
 const RED = '#8B1A1A';
 
 // 公開體驗預約（免登入、訪客、先轉帳）。非會員也能預約；不建帳號，之後註冊用電話認領。
@@ -27,7 +26,7 @@ export default function PublicExperienceBookingPage() {
   const [done, setDone] = useState(null); // { totalFee }
 
   useEffect(() => {
-    axios.get(`${BASE}/experience-bookings/public-settings`)
+    publicClient.get('/experience-bookings/public-settings')
       .then(r => {
         setSettings(r.data);
         if (r.data.gyms?.length) setGymId(r.data.gyms[0].id);
@@ -66,7 +65,7 @@ export default function PublicExperienceBookingPage() {
     if (!agreedTerms) return setErr('請閱讀並勾選同意注意事項');
     setSubmitting(true);
     try {
-      const res = await axios.post(`${BASE}/experience-bookings/public`, {
+      const res = await publicClient.post('/experience-bookings/public', {
         gymId, courseType, bookingDate, bookingTime,
         contactName, contactPhone, contactEmail, facebookName,
         participants, bankLastFive, paymentDate,

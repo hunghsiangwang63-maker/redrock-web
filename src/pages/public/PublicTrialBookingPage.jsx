@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { publicClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
 
-const BASE = 'https://api.redrocktaiwan.com';
 const RED = '#8B1A1A';
 
 const under18 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 18; };
@@ -31,10 +30,10 @@ export default function PublicTrialBookingPage() {
 
   useEffect(() => {
     if (!sessionId) { setLoadErr('連結缺少場次資訊，請聯繫櫃檯'); return; }
-    axios.get(`${BASE}/courses/public/session/${sessionId}`)
+    publicClient.get(`/courses/public/session/${sessionId}`)
       .then(r => setInfo(r.data))
       .catch(() => setLoadErr('找不到此試上場次，可能已被移除或連結錯誤'));
-    axios.get(`${BASE}/settings/bank-accounts/member`).then(r => setBankAccounts(r.data.bankAccounts || {})).catch(() => {});
+    publicClient.get('/settings/bank-accounts/member').then(r => setBankAccounts(r.data.bankAccounts || {})).catch(() => {});
   }, [sessionId]);
 
   const isMinor = under18(guestBirthday);
@@ -52,7 +51,7 @@ export default function PublicTrialBookingPage() {
     if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
     setSubmitting(true);
     try {
-      const res = await axios.post(`${BASE}/experience-bookings/public`, {
+      const res = await publicClient.post('/experience-bookings/public', {
         trialSessionId: sessionId,
         guestName, guestPhone, guestEmail, guestBirthday,
         signatureData: sigRef.current.toDataURL(),

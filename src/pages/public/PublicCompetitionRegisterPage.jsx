@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { publicClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
 
-const BASE = 'https://api.redrocktaiwan.com';
 const RED = '#8B1A1A';
 
 // 與 competitionService.computeCompetitionAgeInfo 邏輯一致：以「比賽當天」為基準算年齡
@@ -51,14 +50,14 @@ export default function PublicCompetitionRegisterPage() {
 
   useEffect(() => {
     if (!compId) { setLoadErr('連結缺少賽事資訊，請聯繫櫃檯'); return; }
-    axios.get(`${BASE}/competitions/public/${compId}`)
+    publicClient.get(`/competitions/public/${compId}`)
       .then(r => {
         setComp(r.data.competition);
         setPartnerGyms(r.data.partnerGyms || []);
         if (r.data.competition.divisions?.length) setDivisionId(r.data.competition.divisions[0].id);
       })
       .catch(() => setLoadErr('找不到此賽事，或此賽事目前未開放報名'));
-    axios.get(`${BASE}/settings/bank-accounts/member`).then(r => setBankAccounts(r.data.bankAccounts || {})).catch(() => {});
+    publicClient.get('/settings/bank-accounts/member').then(r => setBankAccounts(r.data.bankAccounts || {})).catch(() => {});
   }, [compId]);
 
   const age = comp ? ageAt(birthday, comp.eventDate) : null;
@@ -88,7 +87,7 @@ export default function PublicCompetitionRegisterPage() {
     if (!paymentDate) return setErr('請填寫轉帳日期');
     setSubmitting(true);
     try {
-      const res = await axios.post(`${BASE}/competitions/public/${compId}/register`, {
+      const res = await publicClient.post(`/competitions/public/${compId}/register`, {
         divisionId, guestName, gender, birthday, phone, email,
         customFieldValues,
         signatureData: sigRef.current.toDataURL(),

@@ -57,4 +57,14 @@ memberClient.interceptors.response.use(res => res, err => {
   return Promise.reject(err);
 });
 
+// 訪客公開報名頁 client（免登入：課程/工作坊/試上/比賽/體驗的公開連結報名頁）——
+// 無 token、無 401 導轉，純粹補上 X-Client-App 標頭供流量拆分統計辨識
+// （原本這 6 個頁面各自直接 import axios、從未帶標頭，永遠落在 unknown 桶，
+// 不是快取問題、是結構性缺口，2026-08-21 補上）
+export const publicClient = axios.create({ baseURL: BASE, timeout: 10000 });
+publicClient.interceptors.request.use(config => {
+  config.headers['X-Client-App'] = 'member';
+  return config;
+});
+
 export default client;

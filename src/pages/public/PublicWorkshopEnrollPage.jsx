@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { publicClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
 
-const BASE = 'https://api.redrocktaiwan.com';
 const RED = '#8B1A1A';
 
 const under18 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 18; };
@@ -33,7 +32,7 @@ export default function PublicWorkshopEnrollPage() {
 
   useEffect(() => {
     if (!courseId || !sessionId) { setLoadErr('連結缺少課程/場次資訊，請聯繫櫃檯'); return; }
-    axios.get(`${BASE}/courses/public/${courseId}`)
+    publicClient.get(`/courses/public/${courseId}`)
       .then(r => {
         setCourse(r.data.course);
         const s = (r.data.sessions || []).find(x => x.id === sessionId);
@@ -41,7 +40,7 @@ export default function PublicWorkshopEnrollPage() {
         setSession(s);
       })
       .catch(() => setLoadErr('找不到此課程，可能已下架或連結錯誤'));
-    axios.get(`${BASE}/settings/bank-accounts/member`).then(r => setBankAccounts(r.data.bankAccounts || {})).catch(() => {});
+    publicClient.get('/settings/bank-accounts/member').then(r => setBankAccounts(r.data.bankAccounts || {})).catch(() => {});
   }, [courseId, sessionId]);
 
   const isMinor = under18(guestBirthday);
@@ -59,7 +58,7 @@ export default function PublicWorkshopEnrollPage() {
     if (!paymentDate) return setErr('請填寫匯款日期');
     setSubmitting(true);
     try {
-      const res = await axios.post(`${BASE}/courses/public/sessions/${sessionId}/enroll`, {
+      const res = await publicClient.post(`/courses/public/sessions/${sessionId}/enroll`, {
         guestName, guestPhone, guestEmail, guestBirthday,
         portraitSignature: sigRef.current.toDataURL(),
         guardianSignature: isMinor ? guardianSigRef.current.toDataURL() : null,

@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import { publicClient } from '../../api/client';
 
-const BASE = 'https://api.redrocktaiwan.com';
 const RED = '#8B1A1A';
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
@@ -20,7 +19,7 @@ export default function PublicCourseCategoryPage() {
 
   useEffect(() => {
     if (!categoryId) { setLoadErr('連結缺少班別資訊，請聯繫櫃檯'); return; }
-    axios.get(`${BASE}/courses/public/category/${categoryId}`)
+    publicClient.get(`/courses/public/category/${categoryId}`)
       .then(r => setData(r.data))
       .catch(() => setLoadErr('找不到此班別，可能已下架或連結錯誤'));
   }, [categoryId]);
