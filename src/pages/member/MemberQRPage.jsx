@@ -105,6 +105,17 @@ export default function MemberQRPage() {
       .catch(() => {});
   }, [member]);
 
+  // 線上付款（真實 gateway）整頁導轉回來：全新的頁面載入，PaymentFlow 內原本的輪詢/onPaid
+  // 早已隨舊頁面銷毀不會被呼叫（見 returnUrls 傳入處註解）——改用 URL 帶的 ?paid=1 標記判斷
+  // 「剛從付款頁回來」，顯示成功提示（下方既有 doVerify 本就會在 mount 時重新驗票，帶出新開通的
+  // 票券，不需要額外處理）；顯示後清掉網址參數，避免使用者重新整理又跳出同一則提示。
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('paid') === '1') {
+      setOnlinePaySuccess(true);
+      navigate('/member/qr', { replace: true });
+    }
+  }, []); // eslint-disable-line
+
   // 本人不入場：入場對象預設落在第一個家庭成員（不驗本人）
   useEffect(() => { if (member?.selfEntrySkipped && !targetId && children.length) setTargetId(children[0].id); }, [member, children]); // eslint-disable-line
   // 切換入場人員 / 場館（或初次進入）時重新驗票
@@ -302,6 +313,7 @@ export default function MemberQRPage() {
               gymId={onlinePayFor.gymId}
               onPaid={handleOnlinePaid}
               onCancel={() => setOnlinePayFor(null)}
+              returnUrls={{ cancelUrl: `${window.location.origin}/member/qr?paid=1` }}
             />
           </div>
         </div>

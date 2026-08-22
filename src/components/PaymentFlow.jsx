@@ -40,7 +40,7 @@ const btn = (...parts) => Object.assign({}, styles.base, ...parts);
  * 付款狀態機（select → creating → awaiting → paid/error）。
  * 把資料載入、建立付款、輪詢與取消集中於此，元件只負責呈現。
  */
-function usePaymentFlow({ client, orderType, orderRef, amount, gymId, onPaid, onCancel }) {
+function usePaymentFlow({ client, orderType, orderRef, amount, gymId, onPaid, onCancel, returnUrls }) {
   const [stage, setStage] = useState('select'); // select | creating | awaiting | paid | error
   const [methods, setMethods] = useState(null);  // null=載入中, []=無, [...]=可用
   const [payment, setPayment] = useState(null);
@@ -75,7 +75,16 @@ function usePaymentFlow({ client, orderType, orderRef, amount, gymId, onPaid, on
   const startPayment = useCallback(async (provider) => {
     setStage('creating'); setMsg('');
     try {
-      const { data } = await client.post('/payments', { provider, orderType, orderRef, gymId, amount });
+      // ⚠️ 真實 gateway（jkopay/linepay/taiwanpay）用整頁導轉付款，回來時是全新的頁面載入——
+      // 這個元件實例（含下方 poll 輪詢）早已被銷毀，onPaid 永遠不會被呼叫。真正的付款結果一律
+      // 由後端 result_url/confirmUrl webhook（server-to-server，與此處無關）權威判定；這裡的
+      // returnUrls 純粹是「使用者付完款後瀏覽器要導去哪個真實存在的頁面」，預設回到目前這一頁
+      // （呼叫端若需要導到別的網址/帶查詢參數，可自行傳入 returnUrls 覆寫）。之前未帶此欄位時，
+      // 後端 adapter 會 fallback 到一個前端根本沒有對應路由的網址（如 /payment/cancel），導致
+      // 使用者付完款後被導到空白頁、卡住看不到任何後續步驟（2026-08-22 街口正式上線首次真人
+      // 測試發現）。
+      const rUrls = returnUrls || { cancelUrl: window.location.href };
+      const { data } = await client.post('/payments', { provider, orderType, orderRef, gymId, amount, returnUrls: rUrls });
       setPayment(data);
       setStage('awaiting');
       if (provider !== 'mock' && data.paymentUrl) {
@@ -85,7 +94,7 @@ function usePaymentFlow({ client, orderType, orderRef, amount, gymId, onPaid, on
     } catch (err) {
       setMsg(err.response?.data?.message || '建立付款失敗'); setStage('error');
     }
-  }, [client, orderType, orderRef, gymId, amount, poll]);
+  }, [client, orderType, orderRef, gymId, amount, poll, returnUrls]);
 
   const simulatePay = useCallback(async () => {
     try {
