@@ -63,6 +63,7 @@ export default function MemberQRPage() {
   const [qrClosedReason, setQrClosedReason] = useState(null); // 'cancelled' | 'expired' → 停止輪詢並提示
   const [onlinePayFor, setOnlinePayFor] = useState(null); // 線上支付（pay-first）Modal：{ entryType, amount, gymId } | null
   const [onlinePaySuccess, setOnlinePaySuccess] = useState(false); // 付款完成提示（導回選身分，改選「使用單次入場券」領取）
+  const [autoGenQR, setAutoGenQR] = useState(false); // 線上付款導回：selectedEntry 就緒後自動產生 QR（跳過租借器材/選付款方式，直接出現可掃碼 QR）
 
   // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
   const [children, setChildren] = useState([]);
@@ -180,11 +181,14 @@ export default function MemberQRPage() {
         setSelectedEntry({ type: data.entryType, freeEntry: true, passId: data.pass?.id });
         setStep('shoes');
       } else if (justPaidAutoSelectRef.current && data.instruments?.singleEntryTicket?.available && justPaidTickets.length) {
-        // 剛從線上付款導回：不用回頭選身分/選方式，直接選定新開通的票券進租借器材步驟
+        // 剛從線上付款導回：不用回頭選身分/選方式/租借器材，直接用新開通的票券產生可掃碼 QR
+        // （見下方 autoGenQR 的 effect：等 selectedEntry 這次 setState 真的提交後才呼叫
+        // handleGenerateQR，避免在同一個函式呼叫裡讀到尚未更新的舊 state）。
         justPaidAutoSelectRef.current = false;
         setSelectedEntry({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true,
           instrumentKind:'singleEntryTicket', baseEntryType:'single_entry_ticket', cards:justPaidTickets, cardId:justPaidTickets[0].id });
         setStep('shoes');
+        setAutoGenQR(true);
       } else {
         justPaidAutoSelectRef.current = false;
         setStep('select_entry');
@@ -264,11 +268,23 @@ export default function MemberQRPage() {
     }
   };
 
-  // 線上支付（pay-first）完成：後端已開通一張單次入場券 → 重新驗票，回到選身分（該券會出現在
-  // 「使用單次入場券」選項供領取產生可掃碼 QR；不特別跳過此步，沿用既有、已測試過的票券兌換流程。
+  // autoGenQR 只在 doVerify() 判定「剛付款且票券可用」時被設 true；等 selectedEntry 的
+  // setState 真的提交、下一次 render 完成後才呼叫 handleGenerateQR（此時讀到的 selectedEntry
+  // 才是剛設好的新值，不是呼叫當下 closure 捕捉到的舊值）——用過即清，不會重複觸發。
+  useEffect(() => {
+    if (autoGenQR && selectedEntry) {
+      setAutoGenQR(false);
+      handleGenerateQR(false, false);
+    }
+  }, [autoGenQR, selectedEntry]); // eslint-disable-line
+
+  // 線上支付（pay-first）完成：僅 mock（本機測試）用得到——真實 gateway 整頁導轉會直接銷毀
+  // 這個元件實例，onPaid 永遠不會被呼叫（見 returnUrls 傳入處註解），改由 ?paid=1 網址標記處理。
+  // mock 測試比照同一套自動流程（standAlone 標記 + 重新驗票 + 自動產生 QR），行為與正式一致。
   const handleOnlinePaid = () => {
     setOnlinePayFor(null);
     setOnlinePaySuccess(true);
+    justPaidAutoSelectRef.current = true;
     doVerify();
   };
 
