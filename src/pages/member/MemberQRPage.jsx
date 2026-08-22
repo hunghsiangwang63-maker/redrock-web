@@ -112,6 +112,7 @@ export default function MemberQRPage() {
   useEffect(() => {
     if (new URLSearchParams(location.search).get('paid') === '1') {
       setOnlinePaySuccess(true);
+      justPaidAutoSelectRef.current = true; // doVerify() 下一次跑完後自動選定剛開通的票券、跳過選身分/選方式兩步
       navigate('/member/qr', { replace: true });
     }
   }, []); // eslint-disable-line
@@ -157,6 +158,7 @@ export default function MemberQRPage() {
   // 蓋掉畫面（可能顯示錯誤的入場資格/金額）。序號只採用最新一次回應——上方清空選取狀態是同步、
   // 每次呼叫都該立即生效，只有 await 之後的結果套用需要防過期。
   const verifySeqRef = useRef(0);
+  const justPaidAutoSelectRef = useRef(false); // 剛從線上付款導回：驗票完成後自動選定新開通的單次入場券、直接跳到租借器材步驟（見下方 doVerify）
   const doVerify = async () => {
     const seq = ++verifySeqRef.current;
     setStep('loading');
@@ -171,12 +173,20 @@ export default function MemberQRPage() {
       if (seq !== verifySeqRef.current) return;
       const data = res.data;
       setVerifyResult(data);
+      const justPaidTickets = data.instruments?.singleEntryTicket?.tickets || [];
       if (!data.allowed) {
         setStep('blocked');
       } else if (data.freeEntry) {
         setSelectedEntry({ type: data.entryType, freeEntry: true, passId: data.pass?.id });
         setStep('shoes');
+      } else if (justPaidAutoSelectRef.current && data.instruments?.singleEntryTicket?.available && justPaidTickets.length) {
+        // 剛從線上付款導回：不用回頭選身分/選方式，直接選定新開通的票券進租借器材步驟
+        justPaidAutoSelectRef.current = false;
+        setSelectedEntry({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true,
+          instrumentKind:'singleEntryTicket', baseEntryType:'single_entry_ticket', cards:justPaidTickets, cardId:justPaidTickets[0].id });
+        setStep('shoes');
       } else {
+        justPaidAutoSelectRef.current = false;
         setStep('select_entry');
       }
     } catch (err) {
