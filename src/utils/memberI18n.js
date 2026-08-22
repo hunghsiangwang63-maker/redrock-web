@@ -21,6 +21,7 @@ const DICT_EN = {
   // ── 入場 QR：共用 ──
   '入場 QR Code': 'Entry QR Code',
   '選擇身分': 'Select Entry Type',
+  '選擇入場方案': 'Select Entry Plan',
   '選擇付款方式': 'Select Payment',
   '租借器材': 'Rental Gear',
   '選擇入場場館': 'Select gym',
@@ -60,7 +61,7 @@ const DICT_EN = {
   '兒童單次入場': 'Child Single Entry',
   '課程學員': 'Course Student',
   '身分：': 'Type: ',
-  '請選擇付款方式或使用票券': 'Choose payment or use a ticket',
+  '請選擇入場方案或使用票券': 'Choose an entry plan or use a ticket',
   '一般付款': 'Standard Payment',
   '使用優惠折扣券（原價 8 折）': 'Use Discount Card (20% off)',
   '使用黑卡（免費）': 'Use Black Card (Free)',
@@ -202,6 +203,7 @@ const DICT_JA = {
   // ── 入場 QR：共用 ──
   '入場 QR Code': '入場QRコード',
   '選擇身分': '入場タイプを選択',
+  '選擇入場方案': '入場プランを選択',
   '選擇付款方式': 'お支払い方法を選択',
   '租借器材': 'レンタル器材',
   '選擇入場場館': 'ジムを選択',
@@ -241,7 +243,7 @@ const DICT_JA = {
   '兒童單次入場': '子供 都度利用',
   '課程學員': 'レッスン受講生',
   '身分：': '入場タイプ：',
-  '請選擇付款方式或使用票券': 'お支払い方法またはチケットをご利用ください',
+  '請選擇入場方案或使用票券': '入場プランを選択するか、チケットをご利用ください',
   '一般付款': '通常のお支払い',
   '使用優惠折扣券（原價 8 折）': '割引カードを使う（20%オフ）',
   '使用黑卡（免費）': 'ブラックカードを使う（無料）',

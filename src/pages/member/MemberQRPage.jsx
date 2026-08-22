@@ -544,11 +544,11 @@ export default function MemberQRPage() {
     };
     return wrap(
       <>
-        <Header title={t('選擇付款方式')} onBack={() => setStep('select_entry')} />
+        <Header title={t('選擇入場方案')} onBack={() => setStep('select_entry')} />
         <GymSelector /><MemberSelector />
         <div style={{ padding:20 }}>
           <div style={{ fontSize:13, color:'#666', marginBottom:4 }}>{t('身分：')}<b>{t(st.label)}</b></div>
-          <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{t('請選擇付款方式或使用票券')}</div>
+          <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{t('請選擇入場方案或使用票券')}</div>
           {methods.map(m => (
             <div key={m.kind}
               onClick={() => {
