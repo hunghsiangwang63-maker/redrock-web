@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { entryLabelOf } from '../../utils/entryLabel';
 import PasswordInput from '../../components/PasswordInput';
 import { searchMembers, getMember, promoteChild, getMemberWaiver, resetMemberWaiver, getActivePasses, getActiveCourseStudents, downloadActiveCourseStudents, getCourseInvoices, createCourseInvoice, voidCourseInvoice, updateReceivedAmount, getCourseStudentsHistoryList, getCourseStudentsHistoryDetail, getFutureCourseStudents, downloadFutureCourseStudents } from '../../api/members';
+import { refundTicketOnline } from '../../api/passes';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
@@ -350,6 +351,9 @@ export default function MembersPage() {
   const [deleteMsg, setDeleteMsg] = useState('');
   const [promoteForm, setPromoteForm] = useState({ phone:'', email:'', password:'' });
   const [promoteMsg, setPromoteMsg] = useState('');
+  const [refundTicketModal, setRefundTicketModal] = useState(null); // 待確認退款的票券物件
+  const [refundLoading, setRefundLoading] = useState(false);
+  const [refundMsg, setRefundMsg] = useState('');
   const [promoteLoading, setPromoteLoading] = useState(false);
   // 分頁：search=會員查詢 | vipteam=VIP/攀岩隊員 | passes=定期票有效 | courses=課程效期
   const [view, setView] = useState('search');
@@ -514,6 +518,17 @@ export default function MembersPage() {
     } catch (err) {
       setPromoteMsg(err.response?.data?.message || '升級失敗，請確認資料是否正確');
     } finally { setPromoteLoading(false); }
+  };
+
+  const handleRefundTicket = async () => {
+    setRefundMsg(''); setRefundLoading(true);
+    try {
+      await refundTicketOnline(refundTicketModal.id);
+      setRefundTicketModal(null);
+      await reloadDetail();
+    } catch (err) {
+      setRefundMsg(err.response?.data?.message || '退款失敗，請稍後再試');
+    } finally { setRefundLoading(false); }
   };
 
   const loadMemberRecords = async (memberId) => {
@@ -1198,12 +1213,24 @@ export default function MembersPage() {
                       <div style={{ color:'#6b6b6b', marginTop:2 }}>剩 {c.remainingCredits} {c.kind==='legacy'?'次':'格'} · 到期 {c.expiresAt || '無期限'}</div>
                     </div>
                   ))}
-                  {tickets.map(t => (
+                  {tickets.map(t => {
+                    const providerLabel = { linepay:'LinePay', jkopay:'街口', taiwanpay:'台灣Pay' }[t.paymentMethod] || t.paymentMethod;
+                    return (
                     <div key={t.id} style={box('#E6F1FB','#B5D4F4')}>
                       <div style={{ fontWeight:500, color:'#185FA5' }}>🎟️ {ticketLabel[t.ticketType] || '單次入場券'}</div>
                       <div style={{ color:'#6b6b6b', marginTop:2 }}>{t.validDate ? '限當日 '+t.validDate : (t.expiresAt ? '有效至 '+t.expiresAt : '有效')}</div>
+                      {t.paymentId && (
+                        <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:8 }}>
+                          <span style={{ fontSize:11, color:'#888' }}>{providerLabel} 線上付款 NT${t.amount}</span>
+                          <button onClick={() => { setRefundTicketModal(t); setRefundMsg(''); }}
+                            style={{ height:22, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:10, cursor:'pointer' }}>
+                            線上退款
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                   {bonuses.map(b => (
                     <div key={b.id} style={box('#FFF8E6','#F0D890')}>
                       <div style={{ fontWeight:500, color:'#8A5A00' }}>🎁 紅利（免費入場一次）</div>
@@ -1310,6 +1337,31 @@ export default function MembersPage() {
           </div>
         </Modal>
       )}
+
+      {/* 單次入場券線上退款確認 Modal */}
+      {refundTicketModal && (() => {
+        const providerLabel = { linepay:'LinePay', jkopay:'街口', taiwanpay:'台灣Pay' }[refundTicketModal.paymentMethod] || refundTicketModal.paymentMethod;
+        return (
+        <Modal title="線上退款確認" onClose={() => setRefundTicketModal(null)}>
+          <div style={{ fontSize:13, color:'#444', lineHeight:1.7, marginBottom:16, textAlign:'left' }}>
+            將透過 {providerLabel} 退款 API 把 <b>NT${refundTicketModal.amount}</b> 直接退回會員的 {providerLabel} 帳戶，此票券會同步作廢，此動作無法復原。
+          </div>
+          {refundMsg && (
+            <div style={{ background:'#FCEBEB', border:'0.5px solid #F5C4C4', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#A32D2D', marginBottom:14 }}>
+              {refundMsg}
+            </div>
+          )}
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setRefundTicketModal(null)}
+              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <button onClick={handleRefundTicket} disabled={refundLoading}
+              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+              {refundLoading ? '處理中...' : '確認退款'}
+            </button>
+          </div>
+        </Modal>
+        );
+      })()}
 
       {/* 編輯資料 Modal */}
       {showEdit && (

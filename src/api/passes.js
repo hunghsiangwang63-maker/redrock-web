@@ -33,3 +33,7 @@ export const rejectTicketBatch = (batchId, reason) =>
   client.post(`/passes/single-entry/batch/${batchId}/reject`, { reason });
 export const transferTicket = (id, toMemberId) =>
   client.post(`/passes/single-entry/${id}/transfer`, { toMemberId });
+// 線上付款預購入場票券真實退款（真的呼叫原付款 provider 的退款 API 把錢退回會員帳戶，
+// 非既有 rejectTicket 那種內部帳務沖銷；僅限尚未使用、有 paymentId 的票）
+export const refundTicketOnline = (id, reason) =>
+  client.post(`/passes/single-entry/${id}/refund`, { reason });
