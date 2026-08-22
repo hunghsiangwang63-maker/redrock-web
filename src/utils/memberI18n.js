@@ -29,6 +29,7 @@ const DICT_EN = {
   '士林館': 'Shilin',
   '選擇入場人員': 'Who is entering?',
   '驗票中...': 'Verifying...',
+  '確認付款中，請稍候...': 'Confirming your payment...',
   '驗票失敗': 'Verification failed',
   '產生 QR Code 失敗': 'Failed to generate QR code',
 
@@ -211,6 +212,7 @@ const DICT_JA = {
   '士林館': '士林店',
   '選擇入場人員': '入場する方を選択',
   '驗票中...': '確認中...',
+  '確認付款中，請稍候...': 'お支払いを確認しています...',
   '驗票失敗': '確認に失敗しました',
   '產生 QR Code 失敗': 'QRコードの生成に失敗しました',
 

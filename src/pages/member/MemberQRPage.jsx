@@ -64,6 +64,7 @@ export default function MemberQRPage() {
   const [onlinePayFor, setOnlinePayFor] = useState(null); // 線上支付（pay-first）Modal：{ entryType, amount, gymId } | null
   const [onlinePaySuccess, setOnlinePaySuccess] = useState(false); // 付款完成提示（導回選身分，改選「使用單次入場券」領取）
   const [autoGenQR, setAutoGenQR] = useState(false); // 線上付款導回：selectedEntry 就緒後自動產生 QR（跳過租借器材/選付款方式，直接出現可掃碼 QR）
+  const [confirmingPayment, setConfirmingPayment] = useState(false); // loading 畫面文案用：是否正在等待剛付款的票券開通（見 doVerify 的重試邏輯）
 
   // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
   const [children, setChildren] = useState([]);
@@ -113,6 +114,7 @@ export default function MemberQRPage() {
   useEffect(() => {
     if (new URLSearchParams(location.search).get('paid') === '1') {
       setOnlinePaySuccess(true);
+      setConfirmingPayment(true);
       justPaidAutoSelectRef.current = true; // doVerify() 下一次跑完後自動選定剛開通的票券、跳過選身分/選方式兩步
       navigate('/member/qr', { replace: true });
     }
@@ -160,6 +162,8 @@ export default function MemberQRPage() {
   // 每次呼叫都該立即生效，只有 await 之後的結果套用需要防過期。
   const verifySeqRef = useRef(0);
   const justPaidAutoSelectRef = useRef(false); // 剛從線上付款導回：驗票完成後自動選定新開通的單次入場券、直接跳到租借器材步驟（見下方 doVerify）
+  const justPaidRetryRef = useRef(0); // 街口 result_url webhook 與瀏覽器導轉是兩條獨立管道，無法保證先後順序——票券還沒開通時短暫重試幾次
+  const JUST_PAID_MAX_RETRY = 4;
   const doVerify = async () => {
     const seq = ++verifySeqRef.current;
     setStep('loading');
@@ -169,6 +173,7 @@ export default function MemberQRPage() {
     setRenewOptIn(false); setRenewPlan('full');
     setRentShoes(false); setRentChalk(false);
     setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
+    const clearJustPaid = () => { justPaidAutoSelectRef.current = false; justPaidRetryRef.current = 0; setConfirmingPayment(false); };
     try {
       const res = await memberClient.post('/checkin/verify', { identifier: member.phone, gymId, targetMemberId: entrant.id });
       if (seq !== verifySeqRef.current) return;
@@ -176,25 +181,33 @@ export default function MemberQRPage() {
       setVerifyResult(data);
       const justPaidTickets = data.instruments?.singleEntryTicket?.tickets || [];
       if (!data.allowed) {
+        clearJustPaid();
         setStep('blocked');
       } else if (data.freeEntry) {
+        clearJustPaid();
         setSelectedEntry({ type: data.entryType, freeEntry: true, passId: data.pass?.id });
         setStep('shoes');
       } else if (justPaidAutoSelectRef.current && data.instruments?.singleEntryTicket?.available && justPaidTickets.length) {
         // 剛從線上付款導回：不用回頭選身分/選方式/租借器材，直接用新開通的票券產生可掃碼 QR
         // （見下方 autoGenQR 的 effect：等 selectedEntry 這次 setState 真的提交後才呼叫
         // handleGenerateQR，避免在同一個函式呼叫裡讀到尚未更新的舊 state）。
-        justPaidAutoSelectRef.current = false;
+        clearJustPaid();
         setSelectedEntry({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true,
           instrumentKind:'singleEntryTicket', baseEntryType:'single_entry_ticket', cards:justPaidTickets, cardId:justPaidTickets[0].id });
         setStep('shoes');
         setAutoGenQR(true);
+      } else if (justPaidAutoSelectRef.current && justPaidRetryRef.current < JUST_PAID_MAX_RETRY) {
+        // 票券可能還沒開通（webhook 尚未跑完）——短暫重試，畫面停在 loading（見下方 confirmingPayment 顯示專用文案）
+        justPaidRetryRef.current += 1;
+        setTimeout(() => { doVerify(); }, 1500);
+        return;
       } else {
-        justPaidAutoSelectRef.current = false;
+        clearJustPaid();
         setStep('select_entry');
       }
     } catch (err) {
       if (seq !== verifySeqRef.current) return;
+      clearJustPaid();
       setError(err.response?.data?.message || t('驗票失敗'));
       setStep('blocked');
     }
@@ -284,6 +297,7 @@ export default function MemberQRPage() {
   const handleOnlinePaid = () => {
     setOnlinePayFor(null);
     setOnlinePaySuccess(true);
+    setConfirmingPayment(true);
     justPaidAutoSelectRef.current = true;
     doVerify();
   };
@@ -400,7 +414,7 @@ export default function MemberQRPage() {
       <GymSelector /><MemberSelector />
       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:60, gap:16 }}>
         <div style={{ fontSize:32 }}>⏳</div>
-        <div style={{ fontSize:14, color:'#999' }}>{t('驗票中...')}</div>
+        <div style={{ fontSize:14, color:'#999' }}>{confirmingPayment ? t('確認付款中，請稍候...') : t('驗票中...')}</div>
       </div>
     </>
   );
