@@ -803,31 +803,49 @@ export default function CheckinPage() {
               </div>
             )}
 
-            {/* 補租器材確認並收款成功後開立發票（2026-08-15）——sourceType 用獨立的 'rental_addon'、
-                refId 用補租請求自己的 id（非原入場的 checkInId），避免跟原入場可能已開過的發票撞號
-                （同一組 sourceType+refId 只能有一張作用中發票，見 invoices.js getActiveRealInvoice）。 */}
+            {/* 補租器材確認並收款成功後開立發票（2026-08-15；2026-08-23 修正重複開發票）——
+                sourceType 用獨立的 'rental_addon'、refId 用補租請求自己的 id（非原入場的 checkInId）
+                避免跟原入場可能已開過的發票撞號（同一組 sourceType+refId 只能有一張作用中發票，見
+                invoices.js getActiveRealInvoice）。⚠️ 只有「原入場此刻已經開過發票」才顯示這個獨立
+                開票入口（真實案例：同一筆補租金額被開了兩張紙本——一張走這裡、一張是店員後來從
+                「今日入場」清單另外幫同一筆入場開票，因為 addRentalToCheckIn 早已把補租費用併進
+                checkIn.amountPaid，兩邊各開一張等於重複）。原入場還沒開過發票時，改提示店員改用
+                入場自己的發票鍵（金額已自動包含這次補租）。見 flow.js confirmRentalAddon 的
+                checkinAlreadyInvoiced 判斷。 */}
             {confirmedRentalAddon && (
               <div style={{ background:'#F7F3F3', borderRadius:10, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
                 <div style={{ fontWeight:600, fontSize:15, marginBottom:10, color:'#2D7D46' }}>✓ 已確認補租，扣費完成</div>
                 <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
                   {confirmedRentalAddon.memberName}・{invoiceRentalItemName({ shoesPrice: confirmedRentalAddon.addShoes ? 100 : 0, chalkPrice: confirmedRentalAddon.addChalk ? 50 : 0 })}・NT${confirmedRentalAddon.cost}
                 </div>
-                <InvoiceIssuer
-                  gymId={confirmedRentalAddon.gymId}
-                  sourceType="rental_addon"
-                  refId={confirmedRentalAddon.addonId}
-                  memberId={confirmedRentalAddon.memberId}
-                  memberName={confirmedRentalAddon.memberName}
-                  paymentMethod={confirmedRentalAddon.paymentMethod}
-                  title="補租器材"
-                  subtitle={confirmedRentalAddon.memberName}
-                  defaultItemName={invoiceRentalItemName({ shoesPrice: confirmedRentalAddon.addShoes ? 100 : 0, chalkPrice: confirmedRentalAddon.addChalk ? 50 : 0 })}
-                  defaultAmount={confirmedRentalAddon.cost}
-                  onClose={() => setConfirmedRentalAddon(null)}
-                  listInvoices={() => getRentalAddonInvoices(confirmedRentalAddon.addonId).then(r => r.data.invoices || [])}
-                  createInvoice={(payload) => createRentalAddonInvoice(confirmedRentalAddon.addonId, payload).then(r => r.data.invoice)}
-                  voidInvoiceFn={(id) => voidCheckinInvoice(id)}
-                />
+                {confirmedRentalAddon.checkinAlreadyInvoiced ? (
+                  <InvoiceIssuer
+                    gymId={confirmedRentalAddon.gymId}
+                    sourceType="rental_addon"
+                    refId={confirmedRentalAddon.addonId}
+                    memberId={confirmedRentalAddon.memberId}
+                    memberName={confirmedRentalAddon.memberName}
+                    paymentMethod={confirmedRentalAddon.paymentMethod}
+                    title="補租器材"
+                    subtitle={confirmedRentalAddon.memberName}
+                    defaultItemName={invoiceRentalItemName({ shoesPrice: confirmedRentalAddon.addShoes ? 100 : 0, chalkPrice: confirmedRentalAddon.addChalk ? 50 : 0 })}
+                    defaultAmount={confirmedRentalAddon.cost}
+                    onClose={() => setConfirmedRentalAddon(null)}
+                    listInvoices={() => getRentalAddonInvoices(confirmedRentalAddon.addonId).then(r => r.data.invoices || [])}
+                    createInvoice={(payload) => createRentalAddonInvoice(confirmedRentalAddon.addonId, payload).then(r => r.data.invoice)}
+                    voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+                  />
+                ) : (
+                  <div style={{ background:'#FFF7E6', border:'1px solid #F0D28A', borderRadius:8, padding:'10px 12px', fontSize:13, color:'#8A6D1D' }}>
+                    ℹ️ 此筆補租金額已併入原入場總額，請至「今日入場」清單開立<b>該筆入場</b>的發票（金額將自動包含本次補租費用），避免重複開立。
+                    <button
+                      onClick={() => setConfirmedRentalAddon(null)}
+                      style={{ display:'block', marginTop:8, background:'transparent', border:'none', color:'#8A6D1D', textDecoration:'underline', cursor:'pointer', fontSize:13, padding:0 }}
+                    >
+                      知道了，關閉
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
