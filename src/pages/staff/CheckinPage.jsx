@@ -916,6 +916,8 @@ export default function CheckinPage() {
                 {scanResult.onlineTicket && (
                   <div style={{ background:'#E6F4EB', border:'1px solid #B3DEC0', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#2D7D46', fontWeight:600 }}>
                     ✅ 此券已透過{PAYMENT_LABEL[scanResult.onlineTicket.paymentMethod] || scanResult.onlineTicket.paymentMethod}線上付款 NT${scanResult.onlineTicket.amount}，免再收費
+                    {scanResult.onlineTicket.grantsDiscountCard && '（確認入場後將自動開通一張優惠折扣券）'}
+                    {scanResult.onlineTicket.grantsPassTypeName && `（確認入場後將自動開通定期票：${scanResult.onlineTicket.grantsPassTypeName}）`}
                   </div>
                 )}
                 {scanResult.partnerVendor && (
@@ -969,7 +971,11 @@ export default function CheckinPage() {
               <div style={{ background:'#E6F4EB', borderRadius:10, border:'0.5px solid #2D7D4633', padding:16, marginBottom:12 }}>
                 <div style={{ fontWeight:600, color:'#2D7D46', fontSize:15, marginBottom:8 }}>✓ 入場成功</div>
                 <div style={{ fontSize:13, color:'#2D7D46', marginBottom:12 }}>
-                  {confirmedCheckIn.memberName} — {ENTRY_TYPE_LABEL[confirmedCheckIn.entryType] || confirmedCheckIn.entryType}
+                  {confirmedCheckIn.memberName} — {
+                    confirmedCheckIn.onlineTicket?.grantsDiscountCard ? '購買優惠折扣券（已開通）'
+                    : confirmedCheckIn.onlineTicket?.grantsPassTypeName ? `定期票（${confirmedCheckIn.onlineTicket.grantsPassTypeName}，已開通）`
+                    : (ENTRY_TYPE_LABEL[confirmedCheckIn.entryType] || confirmedCheckIn.entryType)
+                  }
                   {confirmedCheckIn.amountPaid > 0 && ` — NT$${confirmedCheckIn.amountPaid}`}
                   {/* 此券線上付款當下已含租借費用，本次入場 amountPaid 為 0（無需再收）——另外標示已付總額 */}
                   {!confirmedCheckIn.amountPaid && confirmedCheckIn.onlineTicket?.amount > 0 &&
@@ -1624,12 +1630,17 @@ export default function CheckinPage() {
           導致「今日入場」「歷史入場」分頁按鍵能設定 checkinInvoiceTarget、但沒有對應的渲染路徑會
           真的顯示視窗（切到掃描分頁才會突然跳出來），點下去像完全沒反應。*/}
       {checkinInvoiceTarget && (() => {
-        const entryName = invoiceEntryItemName(checkinInvoiceTarget);
         // 2026-08-23：線上付款（街口等）已含租借費用時，checkIn.amountPaid/shoesPrice 皆為 0
         // （租借已於付款當下收取，見 checkin/flow.js createPendingCheckIn 的權威覆寫）——改用
         // onlineTicket.amount（真正實收總額）＋ rentShoes/rentChalk 反推品項金額，讓開立發票時
         // 正確顯示「已線上付款」的全部品項，而非誤顯示成 0 元。
         const ot = checkinInvoiceTarget.onlineTicket;
+        // 2026-08-24：此券線上購買的其實是優惠折扣券/定期票時，checkIn.entryType 恆為
+        // 'single_entry_ticket'（redeem 統一走這個入場類型），invoiceEntryItemName 只認 entryType
+        // 會誤標成「單次入場券」——用票券自帶的 grantsDiscountCard/grantsPassTypeName 覆寫正確品項名稱。
+        const entryName = ot?.grantsDiscountCard ? '購買優惠折扣券'
+          : ot?.grantsPassTypeName ? `定期票（${ot.grantsPassTypeName}）`
+          : invoiceEntryItemName(checkinInvoiceTarget);
         const rentalName = ot ? invoiceRentalItemName({ shoesPrice: ot.rentShoes ? 100 : 0, chalkPrice: ot.rentChalk ? 50 : 0 })
           : invoiceRentalItemName(checkinInvoiceTarget);
         const rentalAmount = ot ? (ot.rentShoes ? 100 : 0) + (ot.rentChalk ? 50 : 0)
@@ -1647,7 +1658,7 @@ export default function CheckinPage() {
             memberName={checkinInvoiceTarget.memberName}
             paymentMethod={ot?.paymentMethod || checkinInvoiceTarget.paymentMethod}
             title={checkinInvoiceTarget.memberName || ''}
-            subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
+            subtitle={ot?.grantsDiscountCard ? '購買優惠折扣券' : ot?.grantsPassTypeName ? `定期票（${ot.grantsPassTypeName}）` : (ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || '')}
             feeInfo={totalAmount > 0 ? `實收金額 NT$${totalAmount}${ot ? '（已線上付款）' : ''}` : ''}
             defaultItemName={rentalName ? `${entryName}＋${rentalName}` : entryName}
             defaultAmount={totalAmount}
