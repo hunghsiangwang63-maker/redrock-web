@@ -354,7 +354,7 @@ export default function MemberQRPage() {
             <PaymentFlow
               client={memberClient}
               orderType="entry"
-              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk, partnerVendor: onlinePayFor.partnerVendor, partnerGymMember: onlinePayFor.partnerGymMember }}
+              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk, partnerVendor: onlinePayFor.partnerVendor, partnerGymMember: onlinePayFor.partnerGymMember, buyPassTypeId: onlinePayFor.buyPassTypeId }}
               amount={onlinePayFor.amount}
               gymId={onlinePayFor.gymId}
               autoProvider="jkopay"
@@ -629,14 +629,18 @@ export default function MemberQRPage() {
    const _pgmOn = pgmEligible && partnerGymMember;
    const _pvOn = !_pgmOn && pvEligible && partnerVendor;
    const pvShownPrice = _pgmOn ? Math.round(basePayPrice * pgmRate) : (basePayPrice - (_pvOn ? pvDiscount : 0));
-   // 真線上付款（pay-first，街口等）：僅限單純付費身份。
+   // 真線上付款（pay-first，街口等）：涵蓋三種——①單純付費身份 ②購買優惠折扣券入場
+   // ③購買定期票入場（2026-08-24 拍板：僅一次付清，選了分期則不提供線上付款、維持走櫃檯既有流程）。
    // ⚠️ 租借器材（rentShoes/rentChalk）金額已於 2026-08-23、友館隊員/特約廠商優惠已於 2026-08-24
    // 併入線上付款總額（見下方 onlinePayFor.amount 與 orderRef、後端 orderResolvers.entry）——優惠
    // 由會員自行申報，核對證件延後到櫃檯掃碼確認才做（與現金/標籤方式的既有信任模型一致），故不再
    // 需要因為勾了這些優惠就關閉線上即付。流程本就是「選完入場方案/租借/優惠資格 → 最後一步才是
    // 付款方式」，串接線上金流只是在「產生 QR」前多插入一步「先完成線上付款」，其餘步驟與資訊完全不變。
-   const onlinePayable = onlineEntryPayEnabled && selectedEntry?.kind === 'pay'
-     && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type);
+   const onlinePayable = onlineEntryPayEnabled && (
+     (selectedEntry?.kind === 'pay' && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type)) ||
+     (selectedEntry?.kind === 'buy' && selectedEntry?.type === 'buy_discount_card') ||
+     (selectedEntry?.kind === 'buyPass' && selectedEntry?.type === 'buy_pass' && buyPassPlan === 'full')
+   );
    // 目前唯一接了線上金流的方式是街口——若系統層「付款方式開關」把街口關了（如金鑰尚未到位），
    // 即使 onlinePayable 為 true 也不該顯示線上付款文案/觸發線上金流，否則會指向一個根本不存在的選項。
    const jkopayOnlineLive = onlinePayable && enabledPay.jkopay !== false;
@@ -710,11 +714,15 @@ export default function MemberQRPage() {
               // 重新計算總額 + orderHandlers.entry 記到票券上（redeem 時才知道租借已預繳、不用再收一次）。
               // 2026-08-24：友館隊員/特約廠商優惠比照辦理——amount 改用 pvShownPrice（已含這兩項折扣
               // 的顯示金額，與後端 computePaidEntryAmount 用同一組 opts 算出的權威金額一致）。
+              // 購買優惠折扣券/定期票入場（kind: buy/buyPass）此時 _pvOn/_pgmOn 恆 false，pvShownPrice
+              // 即 selectedEntry.discountedPrice（已含隊員折扣，見 verify.js withTeam）；buyPassTypeId
+              // 一併帶入供後端 orderResolvers.entry 權威計價/orderHandlers.entry 記在票上供 redeem 開票。
               setOnlinePayFor({
                 entryType: selectedEntry.type,
                 amount: pvShownPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0),
                 gymId, rentShoes, rentChalk,
                 partnerVendor: _pvOn, partnerGymMember: _pgmOn,
+                buyPassTypeId: selectedEntry.buyPassTypeId || null,
               });
             } else {
               handleGenerateQR(rentShoes, rentChalk, key);
