@@ -354,7 +354,7 @@ export default function MemberQRPage() {
             <PaymentFlow
               client={memberClient}
               orderType="entry"
-              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk }}
+              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk, partnerVendor: onlinePayFor.partnerVendor, partnerGymMember: onlinePayFor.partnerGymMember }}
               amount={onlinePayFor.amount}
               gymId={onlinePayFor.gymId}
               autoProvider="jkopay"
@@ -533,7 +533,7 @@ export default function MemberQRPage() {
     const inst = verifyResult?.instruments || {};
     const basePrice = st.discountedPrice ?? st.price ?? 0;       // 一般付款（含隊員折扣）
     const methods = [
-      { kind:'pay', type:st.type, baseEntryType:st.type, label:t('一般付款'), price:st.price, discountedPrice:basePrice,
+      { kind:'pay', type:st.type, baseEntryType:st.type, label:t('單次入場'), price:st.price, discountedPrice:basePrice,
         teamDiscount:st.teamDiscount, partnerVendorEligible:st.partnerVendorEligible === true, partnerGymMemberEligible:st.partnerGymMemberEligible === true, freeEntry:false, requiresPayment:true },
     ];
     if (inst.discountCard?.available) {
@@ -629,14 +629,14 @@ export default function MemberQRPage() {
    const _pgmOn = pgmEligible && partnerGymMember;
    const _pvOn = !_pgmOn && pvEligible && partnerVendor;
    const pvShownPrice = _pgmOn ? Math.round(basePayPrice * pgmRate) : (basePayPrice - (_pvOn ? pvDiscount : 0));
-   // 真線上付款（pay-first，街口等）：僅限單純付費身份、且未勾選需現場核對的友館隊員/特約廠商優惠
-   // （那兩項後端 entry orderType 不支援，勾了會跟顯示金額不符，故此時隱藏線上付款改走原有現金/標籤方式）。
-   // ⚠️ 租借器材（rentShoes/rentChalk）金額已於 2026-08-23 併入線上付款總額（見下方 onlinePayFor.amount
-   // 與 orderRef、後端 orderResolvers.entry），故不再需要因為勾了租借就關閉線上即付——流程本就是
-   // 「選完入場方案/租借/優惠資格 → 最後一步才是付款方式」，串接線上金流只是在「產生 QR」前多插入
-   // 一步「先完成線上付款」，其餘步驟與資訊完全不變。
+   // 真線上付款（pay-first，街口等）：僅限單純付費身份。
+   // ⚠️ 租借器材（rentShoes/rentChalk）金額已於 2026-08-23、友館隊員/特約廠商優惠已於 2026-08-24
+   // 併入線上付款總額（見下方 onlinePayFor.amount 與 orderRef、後端 orderResolvers.entry）——優惠
+   // 由會員自行申報，核對證件延後到櫃檯掃碼確認才做（與現金/標籤方式的既有信任模型一致），故不再
+   // 需要因為勾了這些優惠就關閉線上即付。流程本就是「選完入場方案/租借/優惠資格 → 最後一步才是
+   // 付款方式」，串接線上金流只是在「產生 QR」前多插入一步「先完成線上付款」，其餘步驟與資訊完全不變。
    const onlinePayable = onlineEntryPayEnabled && selectedEntry?.kind === 'pay'
-     && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type) && !_pgmOn && !_pvOn;
+     && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type);
    // 目前唯一接了線上金流的方式是街口——若系統層「付款方式開關」把街口關了（如金鑰尚未到位），
    // 即使 onlinePayable 為 true 也不該顯示線上付款文案/觸發線上金流，否則會指向一個根本不存在的選項。
    const jkopayOnlineLive = onlinePayable && enabledPay.jkopay !== false;
@@ -708,10 +708,13 @@ export default function MemberQRPage() {
               // 2026-08-23：線上付款總額併入租借器材（basePayPrice 只有入場費，需另加岩鞋/粉袋）；
               // rentShoes/rentChalk 一併帶進 orderRef，供後端 orderResolvers.entry authoritative
               // 重新計算總額 + orderHandlers.entry 記到票券上（redeem 時才知道租借已預繳、不用再收一次）。
+              // 2026-08-24：友館隊員/特約廠商優惠比照辦理——amount 改用 pvShownPrice（已含這兩項折扣
+              // 的顯示金額，與後端 computePaidEntryAmount 用同一組 opts 算出的權威金額一致）。
               setOnlinePayFor({
                 entryType: selectedEntry.type,
-                amount: basePayPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0),
+                amount: pvShownPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0),
                 gymId, rentShoes, rentChalk,
+                partnerVendor: _pvOn, partnerGymMember: _pgmOn,
               });
             } else {
               handleGenerateQR(rentShoes, rentChalk, key);
