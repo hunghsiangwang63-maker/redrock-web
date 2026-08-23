@@ -163,6 +163,11 @@ export default function MemberQRPage() {
   const verifySeqRef = useRef(0);
   const justPaidAutoSelectRef = useRef(false); // 剛從線上付款導回：驗票完成後自動選定新開通的單次入場券、直接跳到租借器材步驟（見下方 doVerify）
   const justPaidRetryRef = useRef(0); // 街口 result_url webhook 與瀏覽器導轉是兩條獨立管道，無法保證先後順序——票券還沒開通時短暫重試幾次
+  // 2026-08-23：線上付款當下若一併勾了租借器材，金額已併入付款總額（見 onSelect 的 onlinePayFor.amount）
+  // 且票券本身記著 rentShoes/rentChalk（見 orderHandlers.entry）——但付款導轉會整頁重載、rentShoes/
+  // rentChalk 的 useState 早已被重置成 false，故用這個 ref 把票券記的租借狀態帶進自動產生 QR 那一步
+  // （後端 createPendingCheckIn 對這張票會權威覆寫租借金額為 0，此處純粹是讓畫面/QR 正確反映「有租借」）。
+  const justPaidRentalRef = useRef({ shoes: false, chalk: false });
   const JUST_PAID_MAX_RETRY = 4;
   const doVerify = async () => {
     const seq = ++verifySeqRef.current;
@@ -192,6 +197,7 @@ export default function MemberQRPage() {
         // （見下方 autoGenQR 的 effect：等 selectedEntry 這次 setState 真的提交後才呼叫
         // handleGenerateQR，避免在同一個函式呼叫裡讀到尚未更新的舊 state）。
         clearJustPaid();
+        justPaidRentalRef.current = { shoes: !!justPaidTickets[0].rentShoes, chalk: !!justPaidTickets[0].rentChalk };
         setSelectedEntry({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true,
           instrumentKind:'singleEntryTicket', baseEntryType:'single_entry_ticket', cards:justPaidTickets, cardId:justPaidTickets[0].id });
         setStep('shoes');
@@ -287,7 +293,7 @@ export default function MemberQRPage() {
   useEffect(() => {
     if (autoGenQR && selectedEntry) {
       setAutoGenQR(false);
-      handleGenerateQR(false, false);
+      handleGenerateQR(justPaidRentalRef.current.shoes, justPaidRentalRef.current.chalk);
     }
   }, [autoGenQR, selectedEntry]); // eslint-disable-line
 
@@ -348,7 +354,7 @@ export default function MemberQRPage() {
             <PaymentFlow
               client={memberClient}
               orderType="entry"
-              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType }}
+              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk }}
               amount={onlinePayFor.amount}
               gymId={onlinePayFor.gymId}
               onPaid={handleOnlinePaid}
@@ -623,16 +629,13 @@ export default function MemberQRPage() {
    const _pvOn = !_pgmOn && pvEligible && partnerVendor;
    const pvShownPrice = _pgmOn ? Math.round(basePayPrice * pgmRate) : (basePayPrice - (_pvOn ? pvDiscount : 0));
    // 真線上付款（pay-first，街口等）：僅限單純付費身份、且未勾選需現場核對的友館隊員/特約廠商優惠
-   // （那兩項後端 entry orderType 不支援，勾了會跟顯示金額不符，故此時隱藏線上付款改走原有現金/標籤方式）
-   // ⚠️ 2026-08-23 加：有租借器材（rentShoes/rentChalk）也不給線上即付——這裡的 basePayPrice 只有
-   // 入場費、線上付款金額（onlinePayFor.amount）沒有加租借費用，後端 entry orderType 的權威計價
-   // （orderResolvers.entry）同樣只算入場費，兩邊都不知道要收租借的錢，會造成真實漏收（曾發生：
-   // 會員在「租借器材」步驟勾了岩鞋、卻選街口線上即付，結果只收了入場費、租借金額整個沒收到）。
-   // 有勾租借時導回原本「產生 QR、至櫃檯/店內立牌用標籤付款方式」的流程（該流程本就正確把租借費用
-   // 一併算進去，見 handleGenerateQR 的 shoesPrice/chalkPrice）。
+   // （那兩項後端 entry orderType 不支援，勾了會跟顯示金額不符，故此時隱藏線上付款改走原有現金/標籤方式）。
+   // ⚠️ 租借器材（rentShoes/rentChalk）金額已於 2026-08-23 併入線上付款總額（見下方 onlinePayFor.amount
+   // 與 orderRef、後端 orderResolvers.entry），故不再需要因為勾了租借就關閉線上即付——流程本就是
+   // 「選完入場方案/租借/優惠資格 → 最後一步才是付款方式」，串接線上金流只是在「產生 QR」前多插入
+   // 一步「先完成線上付款」，其餘步驟與資訊完全不變。
    const onlinePayable = onlineEntryPayEnabled && selectedEntry?.kind === 'pay'
-     && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type) && !_pgmOn && !_pvOn
-     && !rentShoes && !rentChalk;
+     && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type) && !_pgmOn && !_pvOn;
    // 目前唯一接了線上金流的方式是街口——若系統層「付款方式開關」把街口關了（如金鑰尚未到位），
    // 即使 onlinePayable 為 true 也不該顯示線上付款文案/觸發線上金流，否則會指向一個根本不存在的選項。
    const jkopayOnlineLive = onlinePayable && enabledPay.jkopay !== false;
@@ -650,11 +653,6 @@ export default function MemberQRPage() {
           {(rentShoes || rentChalk) && (
             <div style={{ fontSize:12, color:'#666', marginTop:6 }}>
               {tt('＋租借器材 NT$', '+ Rental gear NT$', '＋レンタル器材 NT$')}{(rentShoes?100:0)+(rentChalk?50:0)}（{[rentShoes&&tt('岩鞋','shoes','シューズ'),rentChalk&&tt('粉袋','chalk bag','チョークバッグ')].filter(Boolean).join(tt('、', ' and ', '・'))}）
-            </div>
-          )}
-          {(rentShoes || rentChalk) && onlineEntryPayEnabled && (
-            <div style={{ fontSize:11.5, color:'#B8860B', marginTop:6 }}>
-              {tt('有加租器材，此次需至櫃檯/店內立牌完成付款（不提供線上即付）', 'Since gear rental is included, please pay in person at the front desk (online instant pay unavailable for this order)', 'レンタル器材を含むため、フロントでのお支払いとなります（オンライン即時決済はご利用いただけません）')}
             </div>
           )}
         </div>
@@ -706,7 +704,14 @@ export default function MemberQRPage() {
           onChange={v => setSelectedPayment(v.method)}
           onSelect={key => {
             if (key === 'jkopay' && jkopayOnlineLive) {
-              setOnlinePayFor({ entryType: selectedEntry.type, amount: basePayPrice, gymId });
+              // 2026-08-23：線上付款總額併入租借器材（basePayPrice 只有入場費，需另加岩鞋/粉袋）；
+              // rentShoes/rentChalk 一併帶進 orderRef，供後端 orderResolvers.entry authoritative
+              // 重新計算總額 + orderHandlers.entry 記到票券上（redeem 時才知道租借已預繳、不用再收一次）。
+              setOnlinePayFor({
+                entryType: selectedEntry.type,
+                amount: basePayPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0),
+                gymId, rentShoes, rentChalk,
+              });
             } else {
               handleGenerateQR(rentShoes, rentChalk, key);
             }

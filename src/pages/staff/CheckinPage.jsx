@@ -971,6 +971,9 @@ export default function CheckinPage() {
                 <div style={{ fontSize:13, color:'#2D7D46', marginBottom:12 }}>
                   {confirmedCheckIn.memberName} — {ENTRY_TYPE_LABEL[confirmedCheckIn.entryType] || confirmedCheckIn.entryType}
                   {confirmedCheckIn.amountPaid > 0 && ` — NT$${confirmedCheckIn.amountPaid}`}
+                  {/* 此券線上付款當下已含租借費用，本次入場 amountPaid 為 0（無需再收）——另外標示已付總額 */}
+                  {!confirmedCheckIn.amountPaid && confirmedCheckIn.onlineTicket?.amount > 0 &&
+                    ` — 已線上付款 NT$${confirmedCheckIn.onlineTicket.amount}`}
                 </div>
                 {confirmedCheckIn.id && (
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -978,8 +981,9 @@ export default function CheckinPage() {
                       style={{ fontSize:12, color:'#A32D2D', background:'none', border:'0.5px solid #A32D2D', borderRadius:6, padding:'4px 10px', cursor:'pointer' }}>
                       取消入場（10分鐘內）
                     </button>
-                    {/* 定期票/課程學員/VIP 等免費入場（沒有實際收款）不需要開發票 */}
-                    {confirmedCheckIn.amountPaid > 0 && (
+                    {/* 定期票/課程學員/VIP 等免費入場（沒有實際收款）不需要開發票；線上付款已含租借的
+                        免費入場（amountPaid=0 但 onlineTicket 有金額）仍需要開票，見下方判斷 */}
+                    {(confirmedCheckIn.amountPaid > 0 || confirmedCheckIn.onlineTicket?.amount > 0) && (
                       <InvoiceButtonAuto sourceType="checkin" refId={confirmedCheckIn.id} refreshToken={checkinInvRefresh}
                         onClick={() => setCheckinInvoiceTarget(confirmedCheckIn)}
                         style={{ height:'auto', padding:'4px 10px' }} />
@@ -1621,11 +1625,19 @@ export default function CheckinPage() {
           真的顯示視窗（切到掃描分頁才會突然跳出來），點下去像完全沒反應。*/}
       {checkinInvoiceTarget && (() => {
         const entryName = invoiceEntryItemName(checkinInvoiceTarget);
-        const rentalName = invoiceRentalItemName(checkinInvoiceTarget);
-        const rentalAmount = (Number(checkinInvoiceTarget.shoesPrice) || 0) + (Number(checkinInvoiceTarget.chalkPrice) || 0);
-        const entryFee = checkinInvoiceTarget.entryFee != null
-          ? Number(checkinInvoiceTarget.entryFee)
-          : (Number(checkinInvoiceTarget.amountPaid) || 0) - rentalAmount; // 舊資料無 entryFee 欄位時反推
+        // 2026-08-23：線上付款（街口等）已含租借費用時，checkIn.amountPaid/shoesPrice 皆為 0
+        // （租借已於付款當下收取，見 checkin/flow.js createPendingCheckIn 的權威覆寫）——改用
+        // onlineTicket.amount（真正實收總額）＋ rentShoes/rentChalk 反推品項金額，讓開立發票時
+        // 正確顯示「已線上付款」的全部品項，而非誤顯示成 0 元。
+        const ot = checkinInvoiceTarget.onlineTicket;
+        const rentalName = ot ? invoiceRentalItemName({ shoesPrice: ot.rentShoes ? 100 : 0, chalkPrice: ot.rentChalk ? 50 : 0 })
+          : invoiceRentalItemName(checkinInvoiceTarget);
+        const rentalAmount = ot ? (ot.rentShoes ? 100 : 0) + (ot.rentChalk ? 50 : 0)
+          : (Number(checkinInvoiceTarget.shoesPrice) || 0) + (Number(checkinInvoiceTarget.chalkPrice) || 0);
+        const totalAmount = ot?.amount > 0 ? ot.amount : (Number(checkinInvoiceTarget.amountPaid) || 0);
+        const entryFee = ot?.amount > 0
+          ? totalAmount - rentalAmount
+          : (checkinInvoiceTarget.entryFee != null ? Number(checkinInvoiceTarget.entryFee) : totalAmount - rentalAmount); // 舊資料無 entryFee 欄位時反推
         return (
           <InvoiceIssuer
             gymId={checkinInvoiceTarget.gymId}
@@ -1633,12 +1645,12 @@ export default function CheckinPage() {
             refId={checkinInvoiceTarget.id}
             memberId={checkinInvoiceTarget.memberId}
             memberName={checkinInvoiceTarget.memberName}
-            paymentMethod={checkinInvoiceTarget.paymentMethod}
+            paymentMethod={ot?.paymentMethod || checkinInvoiceTarget.paymentMethod}
             title={checkinInvoiceTarget.memberName || ''}
             subtitle={ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || ''}
-            feeInfo={checkinInvoiceTarget.amountPaid > 0 ? `實收金額 NT$${checkinInvoiceTarget.amountPaid}` : ''}
+            feeInfo={totalAmount > 0 ? `實收金額 NT$${totalAmount}${ot ? '（已線上付款）' : ''}` : ''}
             defaultItemName={rentalName ? `${entryName}＋${rentalName}` : entryName}
-            defaultAmount={checkinInvoiceTarget.amountPaid ?? 0}
+            defaultAmount={totalAmount}
             itemBreakdown={rentalName ? [{ name: entryName, amount: entryFee }, { name: rentalName, amount: rentalAmount }] : null}
             onClose={() => { setCheckinInvoiceTarget(null); setCheckinInvRefresh(v => v + 1); }}
             listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
