@@ -357,6 +357,7 @@ export default function MemberQRPage() {
               orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk }}
               amount={onlinePayFor.amount}
               gymId={onlinePayFor.gymId}
+              autoProvider="jkopay"
               onPaid={handleOnlinePaid}
               onCancel={() => setOnlinePayFor(null)}
               returnUrls={{ cancelUrl: `${window.location.origin}/member/qr?paid=1` }}

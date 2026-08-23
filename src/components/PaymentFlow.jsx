@@ -39,13 +39,22 @@ const btn = (...parts) => Object.assign({}, styles.base, ...parts);
 /**
  * 付款狀態機（select → creating → awaiting → paid/error）。
  * 把資料載入、建立付款、輪詢與取消集中於此，元件只負責呈現。
+ *
+ * autoProvider（選填）：呼叫端在打開這個元件「之前」就已經讓使用者選過付款方式時帶入
+ * （目前僅入場 QR 流程用到——「選擇入場方案」那一步的付款方式清單本身就含 jkopay，選了才
+ * 開這個 Modal，若這裡又要求使用者從一個只有一個選項的清單裡再點一次，等於選兩次才會真的
+ * 導轉付款頁，體感是「選了街口卻沒反應」。帶入 autoProvider 時，methods 載入完成且清單裡
+ * 確實有這個 provider，就跳過 SelectStage 直接呼叫 startPayment，不需要使用者手動再點一次；
+ * 若清單裡沒有這個 provider（如尚未設定金鑰），維持原本的手動選擇畫面，不會卡住。其餘 4 個
+ * 呼叫端（課程/體驗/租借/比賽）本來就是先開這個 Modal 才選付款方式，不受影響、不用改。
  */
-function usePaymentFlow({ client, orderType, orderRef, amount, gymId, onPaid, onCancel, returnUrls }) {
+function usePaymentFlow({ client, orderType, orderRef, amount, gymId, onPaid, onCancel, returnUrls, autoProvider }) {
   const [stage, setStage] = useState('select'); // select | creating | awaiting | paid | error
   const [methods, setMethods] = useState(null);  // null=載入中, []=無, [...]=可用
   const [payment, setPayment] = useState(null);
   const [msg, setMsg] = useState('');
   const pollRef = useRef(null);
+  const autoTriedRef = useRef(false);
 
   useEffect(() => {
     let alive = true;
@@ -95,6 +104,17 @@ function usePaymentFlow({ client, orderType, orderRef, amount, gymId, onPaid, on
       setMsg(err.response?.data?.message || '建立付款失敗'); setStage('error');
     }
   }, [client, orderType, orderRef, gymId, amount, poll, returnUrls]);
+
+  // methods 載入完成、清單裡確實有 autoProvider 這個選項、且還沒自動觸發過 → 直接呼叫
+  // startPayment，跳過 SelectStage 手動再點一次（見上方 autoProvider 說明）。只在 stage 仍是
+  // 'select' 時觸發，避免使用者已經取消/已在進行中時被重複觸發。
+  useEffect(() => {
+    if (!autoProvider || autoTriedRef.current) return;
+    if (!methods || stage !== 'select') return;
+    if (!methods.some(m => m.key === autoProvider)) return;
+    autoTriedRef.current = true;
+    startPayment(autoProvider);
+  }, [autoProvider, methods, stage, startPayment]);
 
   const simulatePay = useCallback(async () => {
     try {
