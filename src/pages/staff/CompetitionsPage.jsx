@@ -594,7 +594,7 @@ export default function CompetitionsPage() {
             {' · '}已取消 <strong style={{ color:'#999' }}>{registrations.filter(r=>r.status==='cancelled'&&!r.refundRequested).length}</strong>
           </div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
-            <SegmentedTabs value={regTab} onChange={setRegTab} tabs={[
+            <SegmentedTabs wrap minTabWidth={130} value={regTab} onChange={setRegTab} style={{ flex:'1 1 280px', minWidth:0 }} tabs={[
               { key:'all',       label:`全部 (${registrations.filter(r=>r.status!=='cancelled').length})` },
               // 各組別分頁：點了直接看該組名單
               ...(showRegistrations.divisions||[]).map(dv => ({ key:`div_${dv.id}`, label:`${dv.name} (${registrations.filter(r=>r.divisionId===dv.id && r.status!=='cancelled').length})` })),
