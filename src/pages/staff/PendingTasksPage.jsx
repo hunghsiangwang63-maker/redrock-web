@@ -155,7 +155,12 @@ export default function PendingTasksPage() {
   // 對應後端 pendingTasks.js 同步收斂（GET / 只回 remind 類型任務、GET /returned 回空）。
   // ⚠ 不直接用下方才宣告的 isRealStaff（避免 TDZ），改就地重算同一條件。
   // 2026-08-08 同日再擴及正職（非值班）：兼職／正職個人帳號皆收斂，值班(operator)/館別電腦/管理員不受影響。
-  const isRestrictedPartTime = !!staff?.id && !operator && !station && ['part_time', 'full_time'].includes(staff?.role);
+  // 2026-08-24 改用「非管理員且非值班」的補集判斷（而非各自獨立比對 role 是否在 part_time/full_time
+  // 白名單內）——原寫法在 staff.role 出現非預期值時（例如瀏覽器快取到舊/壞掉的登入資料），
+  // isManager 與 isRestrictedPartTime 會各自獨立判斷成 false，導致「通知／退回追蹤」顯示、
+  // 「課程相關／定期票相關」卻消失的不一致中間狀態（實際發生過：super_admin 帳號待辦頁「課程相關」
+  // 按鈕消失、僅「退回追蹤」可見）。改成明確補集後，四顆按鈕保證同進同出，不會再分裂。
+  const isRestrictedPartTime = !!staff?.id && !isManager && !isOpStation;
   const perm = {
     rental:              true,                         // 全部員工（後端僅 authenticate）
     rental_return:       true,
