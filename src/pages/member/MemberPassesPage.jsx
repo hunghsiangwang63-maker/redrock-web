@@ -5,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { getMemberReasons, uploadEvidence, createPassRequest, getMyPassRequests } from '../../api/passAdjustments';
+import PaymentFlow from '../../components/PaymentFlow';
+import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import dayjs from 'dayjs';
 
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
@@ -316,6 +318,8 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
 export default function MemberPassesPage() {
   const { member } = useMember();
   const navigate = useNavigate();
+  const onlineRenewEnabled = useOnlineFlowEnabled('pass'); // 定期票線上續約（見 docs/payment-integration-plan.md §11 pass_renewal）
+  const [renewFor, setRenewFor] = useState(null); // { passId, amount, gymId, passTypeName, newEndDate } | null（開啟續約付款 Modal）
   const [passes, setPasses] = useState([]);
   const [discountCards, setDiscountCards] = useState([]);
   const [blackCards, setBlackCards] = useState([]);
@@ -672,6 +676,31 @@ export default function MemberPassesPage() {
           </div>
         )}
         {p.credits !== null && <div style={{ marginTop:10, fontSize:13, display:'flex', justifyContent:'space-between' }}><span style={{ color:'#6b6b6b' }}>剩餘次數</span><span style={{ fontWeight:600, fontFamily:'monospace', fontSize:16, color:'#8B1A1A' }}>{p.credits} 次</span></div>}
+        {/* 線上續約（到期前 14 天內，getRenewalInfo 才有值）——本人與家庭成員票券皆可（家長可代
+            子女續約，見後端 orderResolvers.pass_renewal 說明）；只支援一次付清，分期仍走既有
+            「產生入場 QR」流程順便續約。 */}
+        {!dim && p.status === 'active' && p.renewalInfo && (
+          <div onClick={(e) => e.stopPropagation()} style={{ marginTop:10, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:10, padding:12 }}>
+            <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginBottom:4 }}>
+              🔔 剩 {p.renewalInfo.daysLeft} 天到期，可線上續約延長至 {p.renewalInfo.newEndDate}
+            </div>
+            <div style={{ fontSize:13, marginBottom:8 }}>
+              {p.renewalInfo.renewalPrice < p.renewalInfo.fullPrice && (
+                <span style={{ color:'#bbb', textDecoration:'line-through', marginRight:6 }}>NT${p.renewalInfo.fullPrice.toLocaleString()}</span>
+              )}
+              <span style={{ color:'#8B1A1A', fontWeight:700 }}>NT${p.renewalInfo.renewalPrice.toLocaleString()}</span>
+              {p.renewalInfo.renewalDiscount && <span style={{ fontSize:11, color:'#A32D2D', marginLeft:6 }}>續約優惠</span>}
+            </div>
+            {onlineRenewEnabled ? (
+              <button onClick={() => setRenewFor({ passId: p.id, amount: p.renewalInfo.renewalPrice, gymId: p.gymId || p.targetGymId || null, passTypeName: p.passTypeName, newEndDate: p.renewalInfo.newEndDate })}
+                style={{ width:'100%', height:36, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                線上續約（NT${p.renewalInfo.renewalPrice.toLocaleString()}）
+              </button>
+            ) : (
+              <div style={{ fontSize:11, color:'#999' }}>如需續約，請於下次到館入場、產生入場 QR 時一併辦理</div>
+            )}
+          </div>
+        )}
         {!dim && p.status === 'active' && (
           p._isSelf === false ? (
             <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>家庭成員持有 · 僅供檢視</div>
@@ -772,6 +801,26 @@ export default function MemberPassesPage() {
 
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+      {/* 定期票線上續約付款 Modal（見 renderPassCard 續約區塊；成功後刷新票券列表帶回新到期日）*/}
+      {renewFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontWeight:600, fontSize:15 }}>續約付款 — {renewFor.passTypeName}</div>
+              <button onClick={() => setRenewFor(null)} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <PaymentFlow
+              client={memberClient}
+              orderType="pass_renewal"
+              orderRef={{ passId: renewFor.passId }}
+              amount={renewFor.amount}
+              gymId={renewFor.gymId}
+              onPaid={() => { setRenewFor(null); setMsg(`續約成功！效期已延長至 ${renewFor.newEndDate}`); reloadCards(); }}
+              onCancel={() => setRenewFor(null)}
+            />
+          </div>
+        </div>
+      )}
       {/* 頂部 */}
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>

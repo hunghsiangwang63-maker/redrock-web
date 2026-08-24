@@ -157,6 +157,8 @@ export default function CheckinPage() {
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [checkinInvoiceTarget, setCheckinInvoiceTarget] = useState(null); // 入場「開立發票」modal 目標（checkIn 物件）
   const [checkinInvRefresh, setCheckinInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
+  const [renewalInvoiceTarget, setRenewalInvoiceTarget] = useState(null); // 定期票線上續約待開發票 modal 目標
+  const [renewalInvRefresh, setRenewalInvRefresh] = useState(0);
   const [courseInvoiceTarget, setCourseInvoiceTarget] = useState(null); // 今日課程學員「最後一堂」開立課程發票 modal 目標
   const [courseInvRefresh, setCourseInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   // 合併列印發票（多筆入場合開一張，如同行三人一起付款）——僅真列印館別開放（見下方 printingEnabled 查詢），
@@ -920,6 +922,17 @@ export default function CheckinPage() {
                     {scanResult.onlineTicket.grantsPassTypeName && `（確認入場後將自動開通定期票：${scanResult.onlineTicket.grantsPassTypeName}）`}
                   </div>
                 )}
+                {/* 定期票在家線上續約後尚未開發票——與本次入場類型完全無關（只是剛好命中同一位會員），
+                    獨立於上方 onlineTicket 顯示；點擊即開發票 modal，不需先確認入場。*/}
+                {scanResult.pendingRenewalInvoice && (
+                  <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#8A5A00' }}>
+                    <div style={{ fontWeight:600, marginBottom:6 }}>
+                      🧾 此會員的定期票（{scanResult.pendingRenewalInvoice.passTypeName}）已於線上續約付款 NT${scanResult.pendingRenewalInvoice.amount}，尚未開立發票
+                    </div>
+                    <InvoiceButtonAuto sourceType="pass_renewal" refId={scanResult.pendingRenewalInvoice.paymentId} refreshToken={renewalInvRefresh}
+                      onClick={() => setRenewalInvoiceTarget(scanResult.pendingRenewalInvoice)} style={{ height:'auto', padding:'4px 10px' }} />
+                  </div>
+                )}
                 {scanResult.partnerVendor && (
                   <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#8A5A00', fontWeight:600 }}>
                     ⚠ 特約廠商優惠（−20）：請會員出示特約廠商證件確認後再放行
@@ -981,6 +994,15 @@ export default function CheckinPage() {
                   {!confirmedCheckIn.amountPaid && confirmedCheckIn.onlineTicket?.amount > 0 &&
                     ` — 已線上付款 NT$${confirmedCheckIn.onlineTicket.amount}`}
                 </div>
+                {confirmedCheckIn.pendingRenewalInvoice && (
+                  <div style={{ background:'#FEF3E2', border:'1px solid #F0C889', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#8A5A00' }}>
+                    <div style={{ fontWeight:600, marginBottom:6 }}>
+                      🧾 此會員的定期票（{confirmedCheckIn.pendingRenewalInvoice.passTypeName}）已於線上續約付款 NT${confirmedCheckIn.pendingRenewalInvoice.amount}，尚未開立發票
+                    </div>
+                    <InvoiceButtonAuto sourceType="pass_renewal" refId={confirmedCheckIn.pendingRenewalInvoice.paymentId} refreshToken={renewalInvRefresh}
+                      onClick={() => setRenewalInvoiceTarget(confirmedCheckIn.pendingRenewalInvoice)} style={{ height:'auto', padding:'4px 10px' }} />
+                  </div>
+                )}
                 {confirmedCheckIn.id && (
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     <button onClick={() => handleCancel(confirmedCheckIn.id)}

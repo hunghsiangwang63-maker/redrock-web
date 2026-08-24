@@ -468,7 +468,7 @@ export default function SettingsPage() {
     { key:'experience', label:'體驗預約', note:'體驗預約／試上報名', status:'live' },
     { key:'competition', label:'比賽報名', note:'賽事報名費', status:'live' },
     { key:'rental', label:'器材租借', note:'器材租借費用', status:'live' },
-    { key:'pass', label:'定期票', note:'定期票購買／續約', status:'pending' },
+    { key:'pass', label:'定期票', note:'僅「在家線上續約」（我的票券頁，到期前14天，一次付清）；新購定期票走「入場」開關（入場當下購買），續約分期仍限現場辦理', status:'live' },
     { key:'installment', label:'分期', note:'分期各期繳款', status:'pending' },
     { key:'entry', label:'入場', note:'會員自助入場，限單純付費身份（成人/學生/兒童單次購票，見 §10/§12 設計）', status:'live' },
   ];
