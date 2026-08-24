@@ -124,7 +124,11 @@ const emptyForm = () => ({
 export default function CompetitionsPage() {
   const { staff, operator } = useAuth();
   // 2026-08-08：後端 competitions.manage 早已開放 full_time 編輯，前端這裡漏更新（一直卡在只認管理員）
-  const canManage = ['super_admin','gym_manager','full_time'].includes(staff?.role);
+  // 2026-08-24：competitions.manage 在後端 COUNTER_PERMS 內，值班 operator 不論本人角色一律放行
+  // （checkPermission 對 type==='operator' 是無條件通過，跟角色無關）——原本這裡漏加 operator 判斷，
+  // 導致館別電腦（值班中）完全看不到「賽前通知」等管理按鈕，即使後端其實允許。比照下面 canInvoice
+  // 已有的 isManagerOnly || !!operator 寫法補上。
+  const canManage = ['super_admin','gym_manager','full_time'].includes(staff?.role) || !!operator;
   // 實收金額覆寫（PUT /registrations/:regId/received-amount）後端走 requireManager，維持僅管理員（full_time 不含）
   const isManagerOnly = ['super_admin','gym_manager'].includes(staff?.role);
   // 開立發票（POST /registrations/:regId/invoices、/invoices/:id/void）2026-08-17 放寬值班站台可開，
