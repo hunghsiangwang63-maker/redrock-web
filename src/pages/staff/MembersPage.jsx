@@ -161,7 +161,7 @@ function MemberRecords({ records }) {
             <div style={{ display:'flex', justifyContent:'space-between' }}>
               <div style={{ fontSize:12, fontWeight:500 }}>{a.courseName||'申請'}</div>
               <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:a.status==='approved'?'#E6F4EB':a.status==='rejected'?'#FCEBEB':'#FAEEDA', color:a.status==='approved'?'#2D7D46':a.status==='rejected'?'#A32D2D':'#854F0B' }}>
-                {a.status==='pending'?'待審核':a.status==='approved'?'已核准':a.status==='rejected'?'已拒絕':a.status}
+                {a.status==='pending'?'待審核':a.status==='approved'?(a.type==='refund'?'完成退款':'已核准'):a.status==='rejected'?'已拒絕':a.status}
               </span>
             </div>
             <div style={{ fontSize:11, color:'#999', marginTop:2 }}>

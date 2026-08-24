@@ -462,7 +462,8 @@ export default function PendingTasksPage() {
               {completed.map(r => {
                 const typeLabel = { refund:'退費', pause:'暫停' }[r.type] || r.type;
                 const approved = r.status === 'approved';
-                const badge = approved ? { bg:'#E6F4EB', color:'#2D7D46', label:'已核准' } : { bg:'#FCEBEB', color:'#A32D2D', label:'已拒絕' };
+                const approvedLabel = r.type === 'refund' ? '完成退款' : '已核准';
+                const badge = approved ? { bg:'#E6F4EB', color:'#2D7D46', label:approvedLabel } : { bg:'#FCEBEB', color:'#A32D2D', label:'已拒絕' };
                 const ts = (approved ? r.approvedAt : r.rejectedAt) || r.createdAt;
                 const dateStr = ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD') : '';
                 return (
