@@ -151,6 +151,13 @@ export default function CompetitionsPage() {
   const [formReason, setFormReason] = useState('');
   const [formSaving, setFormSaving] = useState(false);
 
+  // 賽前通知：櫃檯編輯草稿後直接發送給該賽事目前有效（非取消）報名者
+  const [noticeModal, setNoticeModal] = useState(null); // 目前開啟通知 Modal 的賽事物件
+  const [noticeSubject, setNoticeSubject] = useState('');
+  const [noticeBody, setNoticeBody] = useState('');
+  const [noticeRecipients, setNoticeRecipients] = useState(null); // null=載入中 | {recipients,count} | {error:true}
+  const [noticeSending, setNoticeSending] = useState(false);
+
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
 
   // 開立發票 modal 關閉時重查一次狀態並同步畫面上的按鍵（不論剛才有沒有真的印，都查一次最保險）
@@ -332,6 +339,31 @@ export default function CompetitionsPage() {
     } catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
 
+  // 賽前通知：開啟 Modal 時預帶一份可編輯草稿 + 併行載入收件人數量
+  const openNotice = async (c) => {
+    setNoticeModal(c);
+    setNoticeSubject(`【紅石攀岩】${c.name} 賽前提醒`);
+    setNoticeBody(`您好，\n\n「${c.name}」即將於 ${c.eventDate} 舉行，提醒您：\n\n・請提前 30 分鐘完成報到\n・攜帶身分證件供現場核對確認\n・如有任何問題請聯繫櫃檯\n\n紅石攀岩館 敬上`);
+    setNoticeRecipients(null);
+    try {
+      const r = await client.get(`/competitions/${c.id}/participant-emails`);
+      setNoticeRecipients(r.data);
+    } catch (e) { setNoticeRecipients({ recipients: [], count: 0, error: true }); }
+  };
+  const sendNotice = async () => {
+    if (!noticeSubject.trim() || !noticeBody.trim()) { showMsg('請填寫主旨與內容', 'red'); return; }
+    setNoticeSending(true);
+    try {
+      // 純文字草稿轉簡易 HTML（escape 防注入 + 換行轉段落）
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const html = noticeBody.split('\n').map(line => line.trim() ? `<p style="margin:0 0 8px">${esc(line)}</p>` : '<br/>').join('');
+      const r = await client.post(`/competitions/${noticeModal.id}/send-notice`, { subject: noticeSubject, body: html });
+      showMsg(r.data.message || '已發送');
+      setNoticeModal(null);
+    } catch (e) { showMsg(e.response?.data?.message || '發送失敗', 'red'); }
+    finally { setNoticeSending(false); }
+  };
+
   const updateDivision = (idx, patch) => setForm(f=>({ ...f, divisions: f.divisions.map((d,i)=>i===idx?{...d,...patch}:d) }));
   const addDivision = () => setForm(f=>({ ...f, divisions:[...f.divisions,{ id:`d${Date.now()}`, name:'', maxParticipants:40, waitlistMax:5 }] }));
   const removeDivision = (idx) => { if(form.divisions.length<=1) return; setForm(f=>({ ...f, divisions:f.divisions.filter((_,i)=>i!==idx) })); };
@@ -435,6 +467,7 @@ export default function CompetitionsPage() {
                         {syncingId===c.id ? '對接中…' : c.scoringSyncEnabled ? '✅ 已對接·重新推送' : '🔗 開始與計分系統對接'}
                       </button>
                     )}
+                    <button onClick={()=>openNotice(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B4513', border:'0.5px solid #D4B896', fontSize:12, cursor:'pointer' }}>📧 賽前通知</button>
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
                     <button onClick={()=>handleDownloadInsuranceRoster(c,'xlsx')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#2D7D46', border:'0.5px solid #B5E4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(xlsx)</button>
                     <button onClick={()=>handleDownloadInsuranceRoster(c,'pdf')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#A32D2D', border:'0.5px solid #F0C4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(PDF)</button>
@@ -747,6 +780,39 @@ export default function CompetitionsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* 賽前通知 Modal：編輯草稿 → 發送給該賽事目前有效（非取消）報名者（BCC，彼此不見信箱） */}
+      {noticeModal && (
+        <Modal title={`賽前通知 — ${noticeModal.name}`} onClose={()=>setNoticeModal(null)} width={640}>
+          <div style={{ fontSize:12, color:'#666', marginBottom:12, background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+            {noticeRecipients === null ? '載入收件人中…' :
+              noticeRecipients.error ? <span style={{ color:'#A32D2D' }}>載入收件人清單失敗，請關閉重試</span> :
+              noticeRecipients.count === 0 ? <span style={{ color:'#A32D2D' }}>目前沒有可寄送的參賽者信箱（報名可能都還未填 email 或皆已取消）</span> :
+              `將以密件副本(BCC)寄給 ${noticeRecipients.count} 位有效報名者，彼此不會看到對方信箱`}
+          </div>
+          {noticeRecipients?.count > 0 && (
+            <details style={{ marginBottom:14, fontSize:12, color:'#999' }}>
+              <summary style={{ cursor:'pointer' }}>查看收件人清單（{noticeRecipients.count}）</summary>
+              <div style={{ maxHeight:120, overflowY:'auto', marginTop:6, lineHeight:1.9, borderTop:'0.5px solid #eee', paddingTop:6 }}>
+                {noticeRecipients.recipients.map((r,i) => <div key={i}>{r.name || '（無姓名）'} — {r.email}</div>)}
+              </div>
+            </details>
+          )}
+          <label style={lbl}>主旨</label>
+          <input style={{ ...inp, marginBottom:12 }} value={noticeSubject} onChange={e=>setNoticeSubject(e.target.value)} />
+          <label style={lbl}>內容</label>
+          <textarea rows={10} style={{ ...inp, height:'auto', padding:10, fontFamily:'inherit', lineHeight:1.7, resize:'vertical' }}
+            value={noticeBody} onChange={e=>setNoticeBody(e.target.value)} />
+          <div style={{ display:'flex', gap:8, marginTop:16, justifyContent:'flex-end' }}>
+            <button onClick={()=>setNoticeModal(null)} disabled={noticeSending}
+              style={{ height:40, padding:'0 18px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+            <button onClick={sendNotice} disabled={noticeSending || !noticeRecipients?.count}
+              style={{ height:40, padding:'0 18px', borderRadius:8, background: (noticeSending || !noticeRecipients?.count) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (noticeSending || !noticeRecipients?.count) ? 'not-allowed' : 'pointer' }}>
+              {noticeSending ? '發送中…' : `📧 發送給 ${noticeRecipients?.count || 0} 人`}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {/* 收款/退費 Modal（共用元件） */}
