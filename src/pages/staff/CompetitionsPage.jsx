@@ -253,8 +253,10 @@ export default function CompetitionsPage() {
     setSaving(true);
     try {
       const payload = { ...form, scoringSystem:'competition_management_v2', webhookUrl:null };
-      editingId ? await updateCompetition(editingId, payload) : await createCompetition(payload);
-      showMsg(editingId ? '賽事已更新' : '賽事已建立');
+      let promotedCount = 0;
+      if (editingId) { const r = await updateCompetition(editingId, payload); promotedCount = r.data?.competition?.promotedCount || 0; }
+      else await createCompetition(payload);
+      showMsg(editingId ? (promotedCount > 0 ? `賽事已更新，並自動遞補 ${promotedCount} 位候補為正取` : '賽事已更新') : '賽事已建立');
       setShowForm(false); await loadCompetitions();
     } catch(err) { showMsg(err.response?.data?.message||'儲存失敗','red'); }
     finally { setSaving(false); }
@@ -320,7 +322,7 @@ export default function CompetitionsPage() {
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
-      a.download = `${c.name}_報名名單_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+      a.download = `${c.name}_報名名單_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 3000);
     } catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
@@ -656,7 +658,7 @@ export default function CompetitionsPage() {
                         {remark.map((rm,i)=><span key={i} style={{ fontSize:10, background:'#FFF8E6', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>{rm}</span>)}
                       </div>
                     </div>
-                    {canInvoice && (
+                    {canInvoice && r.status !== 'cancelled' && !r.refundRequested && (
                       <InvoiceButtonView invoiceNo={r.invoiceNo}
                         onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }} />
                     )}
