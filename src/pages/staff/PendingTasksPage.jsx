@@ -177,6 +177,7 @@ export default function PendingTasksPage() {
   };
   const [returnedItems, setReturnedItems] = useState([]);
   const [returnedDetail, setReturnedDetail] = useState(null);
+  const [completedDetail, setCompletedDetail] = useState(null); // 課程相關·已完成申請詳情（含退款帳戶）
   // ⚠️ load() 被 afterDone()（每次審核動作完成後）、視窗取得焦點（useRefetchOnFocus）、初次掛載三處觸發，
   // 連續快速處理多筆待辦（核准A→立刻核准B）很容易讓兩個請求同時在飛；較舊的請求若較晚回來，會用過期
   // 資料蓋掉剛核准完成後的最新清單，讓已處理項目「看起來又跑回來」。用序號只採用最新一次請求的回應
@@ -472,7 +473,8 @@ export default function PendingTasksPage() {
                 const ts = (approved ? r.approvedAt : r.rejectedAt) || r.createdAt;
                 const dateStr = ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD') : '';
                 return (
-                  <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
+                  <div key={r.id} onClick={() => setCompletedDetail(r)}
+                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', cursor:'pointer' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
                       <div style={{ minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:600 }}>{r.memberName} — {r.courseName}</div>
@@ -667,6 +669,48 @@ export default function PendingTasksPage() {
                 {rows.map(Row)}
               </div>
               <button onClick={()=>setReturnedDetail(null)} style={{ marginTop:14, width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, cursor:'pointer' }}>關閉</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 課程相關·已完成申請詳情（含退款帳戶等，點「課程相關」卡片開） */}
+      {completedDetail && (() => {
+        const r = completedDetail;
+        const typeLabel = { refund:'退費', pause:'暫停' }[r.type] || r.type;
+        const approved = r.status === 'approved';
+        const ts = (approved ? r.approvedAt : r.rejectedAt) || r.createdAt;
+        const Row = ([k,v]) => <div key={k} style={{ display:'flex', fontSize:12, padding:'2px 0' }}><div style={{ width:86, color:'#999', flexShrink:0 }}>{k}</div><div style={{ color:'#333', wordBreak:'break-word' }}>{v || '—'}</div></div>;
+        const baseRows = [
+          ['類型', typeLabel],
+          ['原因', r.reason],
+          ['申請時間', r.createdAt?._seconds ? dayjs(r.createdAt._seconds*1000).format('YYYY-MM-DD HH:mm') : null],
+          ['處理結果', approved ? (r.type==='refund' ? '完成退款' : '已核准') : '已拒絕'],
+          ['處理時間', ts?._seconds ? dayjs(ts._seconds*1000).format('YYYY-MM-DD HH:mm') : null],
+        ];
+        if (!approved && r.rejectReason) baseRows.push(['拒絕原因', r.rejectReason]);
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }} onClick={()=>setCompletedDetail(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:14, padding:20, width:'100%', maxWidth:420, maxHeight:'85vh', overflowY:'auto' }}>
+              <div style={{ fontWeight:700, fontSize:15, marginBottom:2 }}>課程申請詳情</div>
+              <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>{r.memberName} · {r.courseName}</div>
+              <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom: r.type==='refund' ? 10 : 0 }}>
+                {baseRows.map(Row)}
+              </div>
+              {approved && r.type === 'refund' && r.finalRefund !== undefined && (
+                <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', margin:'8px 0' }}>已退款金額：NT${r.finalRefund}</div>
+              )}
+              {r.type === 'refund' && (
+                <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px' }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:4 }}>🏦 退款指定帳戶</div>
+                  {r.refundBankCode || r.refundAccount ? (
+                    [['銀行', `${r.refundBankCode || ''}${r.refundBankName ? `（${r.refundBankName}）` : ''}`], ['帳號', r.refundAccount], ['戶名', r.refundAccountName]].map(Row)
+                  ) : (
+                    <div style={{ fontSize:12, color:'#999' }}>會員未填寫（申請當下無實收款項，無款可退）</div>
+                  )}
+                </div>
+              )}
+              <button onClick={()=>setCompletedDetail(null)} style={{ marginTop:14, width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, cursor:'pointer' }}>關閉</button>
             </div>
           </div>
         );

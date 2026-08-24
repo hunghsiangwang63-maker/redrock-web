@@ -152,6 +152,11 @@ export default function MemberCoursesPage() {
   const adjKey = (courseId, memberId) => `${courseId}__${memberId}`;
   const [adjustReason, setAdjustReason] = useState('');
   const [adjustLoading, setAdjustLoading] = useState(false);
+  // 退費指定帳戶（2026-08-24 新增，比照比賽退費）：可能與當初付款帳戶不同，獨立收集
+  const [refundBankCode, setRefundBankCode] = useState('');
+  const [refundBankName, setRefundBankName] = useState('');
+  const [refundAccount, setRefundAccount] = useState('');
+  const [refundAccountName, setRefundAccountName] = useState('');
   const [enrollForMemberId, setEnrollForMemberId] = useState(null); // null = 本人
   const [familyMembers, setFamilyMembers] = useState([]);
   const [reuploadTarget, setReuploadTarget] = useState(null); // 重新上傳轉帳：{ enrollmentId, courseName, amount, memberId, gymId }
@@ -162,12 +167,23 @@ export default function MemberCoursesPage() {
   const courseSigRef = useRef(null);
   const courseGuardianSigRef = useRef(null);
 
+  const resetRefundAccountFields = () => {
+    setRefundBankCode(''); setRefundBankName(''); setRefundAccount(''); setRefundAccountName('');
+  };
+
   const handleAdjustSubmit = async () => {
     if (!adjustReason.trim()) { showMsg('請填寫原因', 'red'); return; }
+    // 已付費的退費申請，前端先擋（後端仍為權威——若判定與此處猜測不同，見下方 catch 對 MISSING_REFUND_ACCOUNT 的處理）
+    if (adjustModal.type === 'refund' && adjustModal.paid && (!refundBankCode.trim() || !refundAccount.trim())) {
+      showMsg('請填寫退款銀行代碼與帳號', 'red'); return;
+    }
     setAdjustLoading(true);
     try {
       if (adjustModal.type === 'refund') {
-        const res = await requestCourseRefund(adjustModal.enrollmentId, { reason: adjustReason, memberId: adjustModal.memberId });
+        const res = await requestCourseRefund(adjustModal.enrollmentId, {
+          reason: adjustReason, memberId: adjustModal.memberId,
+          ...(refundBankCode.trim() || refundAccount.trim() ? { refundBankCode, refundBankName, refundAccount, refundAccountName } : {}),
+        });
         showMsg(`退費申請已送出（建議退款 NT$${res.data.suggestedRefund}），等待管理員審核`);
       } else {
         await requestCoursePause(adjustModal.enrollmentId, { reason: adjustReason, memberId: adjustModal.memberId });
@@ -177,12 +193,19 @@ export default function MemberCoursesPage() {
       setPendingAdjust(prev => new Map(prev).set(adjKey(adjustModal.enrollmentId, adjustModal.memberId), adjustModal.type));
       setAdjustModal(null);
       setAdjustReason('');
+      resetRefundAccountFields();
       loadMyEnrollments(); // 退費凍結旗標已寫入 → 重載讓請假/補課等 UI 即時隱藏
     } catch (err) {
       showMsg(err.response?.data?.message || '申請失敗', 'red');
-      // 即使失敗也關閉 modal，避免卡住
-      setAdjustModal(null);
-      setAdjustReason('');
+      // 前端猜測「未付費」但後端判定實際已付費（MISSING_REFUND_ACCOUNT）：保留 modal 讓會員補填帳戶再送出，
+      // 不清空原因，避免打回重打；其餘錯誤維持原行為（關閉 modal，避免卡住）
+      if (err.response?.data?.error !== 'MISSING_REFUND_ACCOUNT') {
+        setAdjustModal(null);
+        setAdjustReason('');
+        resetRefundAccountFields();
+      } else if (adjustModal) {
+        setAdjustModal({ ...adjustModal, paid: true }); // 更正猜測，讓帳戶欄位改為必填顯示
+      }
     } finally { setAdjustLoading(false); }
   };
   const [calendarMonth, setCalendarMonth] = useState(dayjs().format('YYYY-MM'));
@@ -2043,7 +2066,7 @@ export default function MemberCoursesPage() {
                   ) : (
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
                     {(() => { const dis = !!adjType || refundFrozen; return (<>
-                    <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
+                    <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId, paid: pConfirmed })}
                       disabled={dis}
                       style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#A32D2D', border:`0.5px solid ${dis ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
                       {refundFrozen ? '退費審核中' : '申請退費'}
@@ -2518,7 +2541,7 @@ export default function MemberCoursesPage() {
       {/* 退費/暫停申請 Modal */}
       {adjustModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:400 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:400, maxHeight:'85vh', overflowY:'auto', boxSizing:'border-box' }}>
             <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>
               {adjustModal.type === 'refund' ? '申請退費' : '申請暫停課程'}
             </div>
@@ -2532,8 +2555,35 @@ export default function MemberCoursesPage() {
             <textarea value={adjustReason} onChange={e => setAdjustReason(e.target.value)} rows={3}
               placeholder={adjustModal.type === 'refund' ? '請說明退費原因' : '請說明暫停原因（如長期出差、受傷等）'}
               style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box' }} />
+            {adjustModal.type === 'refund' && (
+              <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginTop:14 }}>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>🏦 退款指定帳戶{adjustModal.paid ? '（必填）' : '（選填，若已付款請填寫）'}</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                  <div>
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>銀行代碼{adjustModal.paid ? ' *' : ''}</label>
+                    <input value={refundBankCode} onChange={e => setRefundBankCode(e.target.value)} placeholder="如：812"
+                      style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>銀行名稱</label>
+                    <input value={refundBankName} onChange={e => setRefundBankName(e.target.value)} placeholder="如：台新銀行"
+                      style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
+                  </div>
+                </div>
+                <div style={{ marginBottom:8 }}>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>帳號{adjustModal.paid ? ' *' : ''}</label>
+                  <input value={refundAccount} onChange={e => setRefundAccount(e.target.value)} placeholder="請填寫完整帳號"
+                    style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
+                </div>
+                <div>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>戶名</label>
+                  <input value={refundAccountName} onChange={e => setRefundAccountName(e.target.value)} placeholder="請填寫帳戶戶名"
+                    style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
+                </div>
+              </div>
+            )}
             <div style={{ display:'flex', gap:10, marginTop:14 }}>
-              <button onClick={() => { setAdjustModal(null); setAdjustReason(''); }}
+              <button onClick={() => { setAdjustModal(null); setAdjustReason(''); resetRefundAccountFields(); }}
                 style={{ flex:1, height:42, borderRadius:10, background:'#fff', color:'#666', border:'0.5px solid #E8D5D5', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={handleAdjustSubmit} disabled={adjustLoading}
                 style={{ flex:2, height:42, borderRadius:10, background: adjustModal.type === 'refund' ? '#A32D2D' : '#8B6914', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>

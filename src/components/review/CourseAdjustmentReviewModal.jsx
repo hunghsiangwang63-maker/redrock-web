@@ -55,6 +55,19 @@ export default function CourseAdjustmentReviewModal({ request, onClose, onDone }
             style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
         </div>
       )}
+      {request.type === 'refund' && (
+        <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:16, fontSize:13 }}>
+          <div style={{ fontWeight:600, marginBottom:6 }}>🏦 退款指定帳戶</div>
+          {request.refundBankCode || request.refundAccount ? (
+            <div style={{ color:'#444', lineHeight:1.8 }}>
+              {request.refundBankCode}{request.refundBankName ? `（${request.refundBankName}）` : ''} · {request.refundAccount}
+              {request.refundAccountName && <div>戶名：{request.refundAccountName}</div>}
+            </div>
+          ) : (
+            <div style={{ color:'#999' }}>會員未填寫（可能尚未實際付款、無款可退）</div>
+          )}
+        </div>
+      )}
       {request.type === 'pause' && (
         <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#8B6914' }}>
           核准後將移除學員課程學員入場資格，並從所有未來場次名單移除
