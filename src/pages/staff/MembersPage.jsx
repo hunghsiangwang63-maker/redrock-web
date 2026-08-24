@@ -245,19 +245,26 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
               <div style={{ padding:'10px 16px', background:'#FBF5F5', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
                 <span style={{ fontSize:14, fontWeight:600, color:'#8B1A1A' }}>{g.title}</span>
                 <span style={{ fontSize:12, color:'#999', flexShrink:0 }}>
-                  {g.members.filter(m => !m.isWaitlist).length} 人
+                  {g.members.filter(m => !m.isWaitlist && !m.refunded).length} 人
                   {g.members.some(m => m.isWaitlist) && `・候補 ${g.members.filter(m => m.isWaitlist).length} 人`}
+                  {g.members.some(m => m.refunded) && `・已退費 ${g.members.filter(m => m.refunded).length} 人`}
                   {g.range ? ` · 效期 ${g.range}` : ''}
                 </span>
               </div>
               {g.members.map((m, i) => (
-                <div key={i} style={{ padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
+                <div key={i} style={{ padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none', opacity: m.refunded ? 0.65 : 1 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
                     <span style={{ fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:6 }}>
                       {m.memberName || m.memberId}
                       {m.isWaitlist && (
                         <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:'#FFF8E6', color:'#8A5A00' }}>
                           🕐 候補・第{m.waitlistPosition ?? '?'}位
+                        </span>
+                      )}
+                      {m.refunded && (
+                        <span title={m.refundedAt ? `退費時間：${fmtTs(m.refundedAt) || ''}` : ''}
+                          style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:'#F0EDED', color:'#999' }}>
+                          💸 已退費
                         </span>
                       )}
                     </span>
@@ -797,7 +804,15 @@ export default function MembersPage() {
                 </button>
               </>
             ) : null}
-            renderRowExtra={(m, g) => m.isWaitlist ? null : (
+            renderRowExtra={(m, g) => m.isWaitlist ? null : m.refunded ? (
+              // 已退費：僅保留「詳細」供查詢原始報名資料，金額編輯／開立發票已無意義（款項已退、發票已自動作廢）
+              isManagerRole ? (
+                <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
+                  style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                  詳細
+                </button>
+              ) : null
+            ) : (
               <>
                 <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                 {isManagerRole && (
@@ -881,7 +896,14 @@ export default function MembersPage() {
                               {csDownloading ? '下載中...' : '⬇ 下載此班別名單'}
                             </button>
                           ) : null}
-                          renderRowExtra={(m, g) => m.isWaitlist ? null : (
+                          renderRowExtra={(m, g) => m.isWaitlist ? null : m.refunded ? (
+                            isManagerRole ? (
+                              <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
+                                style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                                詳細
+                              </button>
+                            ) : null
+                          ) : (
                             <>
                               <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                               {isManagerRole && (
@@ -931,7 +953,14 @@ export default function MembersPage() {
                         {csDownloading ? '下載中...' : gSel ? '⬇ 下載此班別名單' : '⬇ 下載總表'}
                       </button>
                     ) : null}
-                    renderRowExtra={(m, g) => m.isWaitlist ? null : (
+                    renderRowExtra={(m, g) => m.isWaitlist ? null : m.refunded ? (
+                      isManagerRole ? (
+                        <button onClick={() => setRegDetailTarget({ ...m, courseName: g.courseName, range: g.range })}
+                          style={{ height:26, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+                          詳細
+                        </button>
+                      ) : null
+                    ) : (
                       <>
                         <ReceivedAmountEditor member={m} editable={isManagerRole} stationVisible={isStationContext} onSaved={applyReceivedAmountEdit} />
                         {isManagerRole && (
@@ -1260,6 +1289,16 @@ export default function MembersPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 手機：紀錄查詢（桌機版在左欄另有獨立卡片，此處僅手機顯示，避免桌機重複渲染） */}
+            {isMobile && (
+              <div style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginTop:14 }}>
+                <div style={{ fontSize:14, fontWeight:600, marginBottom:12 }}>📋 {selected.name} 的紀錄查詢</div>
+                {recordsLoading && <div style={{ textAlign:'center', color:'#999', padding:20 }}>載入中...</div>}
+                {!recordsLoading && memberRecords && <MemberRecords records={memberRecords} />}
+                {!recordsLoading && !memberRecords && <div style={{ textAlign:'center', color:'#ccc', padding:20, fontSize:13 }}>紀錄載入失敗，請重新點選會員</div>}
               </div>
             )}
 
