@@ -442,6 +442,7 @@ export default function CoursesPage({ embedded = false }) {
         midpointSurcharge: isWorkshop ? (parseFloat(courseForm.midpointSurcharge) || 1.05) : undefined,
         refundTiers: isWorkshop ? courseForm.refundTiers : undefined,
         depositAmount: isWorkshop ? (parseInt(courseForm.depositAmount) || 0) : undefined,
+        paymentMethods: (isWorkshop && courseForm.cashOnly) ? ['cash'] : null,
         // 續報/舊生優惠（比率＋開關，週課專用）
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!courseForm.fullTermRenewalDiscountEnabled,
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(courseForm.fullTermRenewalDiscountRate) || 90) / 100,
@@ -514,6 +515,7 @@ export default function CoursesPage({ embedded = false }) {
       midpointSurcharge: course.midpointSurcharge || 1.05,
       refundTiers: course.refundTiers || null,
       depositAmount: course.depositAmount || 0,
+      cashOnly: Array.isArray(course.paymentMethods) && course.paymentMethods.length > 0 && !course.paymentMethods.includes('transfer'),
       type: course.type || 'weekly',
       unlimitedPracticeStart: course.unlimitedPracticeStart || course.startDate || '',
       unlimitedPracticeEnd: course.unlimitedPracticeEnd || course.endDate || '',
@@ -548,6 +550,7 @@ export default function CoursesPage({ embedded = false }) {
         midpointSurcharge: isWorkshop ? (parseFloat(editForm.midpointSurcharge) || 1.05) : undefined,
         refundTiers: isWorkshop ? editForm.refundTiers : undefined,
         depositAmount: isWorkshop ? (parseInt(editForm.depositAmount) || 0) : undefined,
+        paymentMethods: (isWorkshop && editForm.cashOnly) ? ['cash'] : null,
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!editForm.fullTermRenewalDiscountEnabled,
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(editForm.fullTermRenewalDiscountRate) || 90) / 100,
         alumniDiscountEnabled: isWorkshop ? undefined : !!editForm.alumniDiscountEnabled,
@@ -1992,6 +1995,15 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
           )}
+          {courseForm.type === 'workshop' && (
+            <div style={{ marginTop:14 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer' }}>
+                <input type="checkbox" checked={!!courseForm.cashOnly}
+                  onChange={e => setCourseForm({...courseForm, cashOnly: e.target.checked})} />
+                僅接受現場現金付款（不開放轉帳，如運動按摩；不論隊員或非隊員一律現金）
+              </label>
+            </div>
+          )}
           <div style={{ marginTop:14 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>是否分期（分期付款規則）</label>
             <InstallmentRuleEditor value={courseForm.installment} price={courseForm.type === 'workshop' ? courseForm.price : (Number(courseForm.pricePerSession)||0) * estimateWeeklySessionCount(courseForm.startDate, courseForm.endDate, courseForm.weekdays)}
@@ -2477,6 +2489,15 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               <input type="number" min="0" value={editForm.depositAmount ?? 0} placeholder="0＝不收保證金"
                 onChange={e => setEditForm({...editForm, depositAmount: e.target.value})}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+          )}
+          {editForm.type === 'workshop' && (
+            <div style={{ marginTop:16 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer' }}>
+                <input type="checkbox" checked={!!editForm.cashOnly}
+                  onChange={e => setEditForm({...editForm, cashOnly: e.target.checked})} />
+                僅接受現場現金付款（不開放轉帳，如運動按摩；不論隊員或非隊員一律現金）
+              </label>
             </div>
           )}
           <div style={{ display:'flex', gap:8, marginTop:20 }}>
