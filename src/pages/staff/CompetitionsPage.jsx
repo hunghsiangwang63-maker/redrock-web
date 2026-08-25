@@ -466,6 +466,7 @@ export default function CompetitionsPage() {
           {competitions.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無賽事</div>}
           {competitions.map(c => {
             const sl = STATUS_LABEL[c.status]||STATUS_LABEL.draft;
+            const regEnded = c.status==='open' && c.registrationEnd && dayjs().format('YYYY-MM-DD') > c.registrationEnd;
             return (
               <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
@@ -473,7 +474,7 @@ export default function CompetitionsPage() {
                     <div style={{ fontWeight:600, fontSize:15 }}>{c.name}</div>
                     <div style={{ fontSize:12, color:'#999', marginTop:3, lineHeight:1.8 }}>
                       <div>🗓 比賽日：{c.eventDate}</div>
-                      <div>⏰ 報名截止：{c.registrationEnd}</div>
+                      <div style={regEnded ? { color:'#A32D2D', fontWeight:700 } : undefined}>⏰ 報名截止：{c.registrationEnd}{regEnded ? '（已過期，會員端已自動擋新報名，仍開放中如需下架請手動改狀態）' : ''}</div>
                       {c.earlyBirdDeadline && <div>🐦 早鳥：{c.earlyBirdDeadline}</div>}
                     </div>
                     <div style={{ fontSize:12, color:'#999', marginTop:2, lineHeight:1.8 }}>

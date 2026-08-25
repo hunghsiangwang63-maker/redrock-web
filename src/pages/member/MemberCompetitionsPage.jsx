@@ -478,12 +478,13 @@ export default function MemberCompetitionsPage() {
                 {competitions.filter(c=>c.status==='open').map(c => {
                   const fee = calcFee(c);
                   const registered = alreadyRegistered(c.id);
+                  const regEnded = c.registrationEnd && dayjs().format('YYYY-MM-DD') > c.registrationEnd;
                   return (
                     <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                       <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{c.name}</div>
                       <div style={{ fontSize:12, color:'#999', marginBottom:8, lineHeight:1.8, textAlign:'left' }}>
                         <div>🗓 比賽日：{c.eventDate}</div>
-                        <div>⏰ 報名截止：{c.registrationEnd}</div>
+                        <div style={regEnded ? { color:'#A32D2D', fontWeight:600 } : undefined}>⏰ 報名截止：{c.registrationEnd}{regEnded ? '（已截止）' : ''}</div>
                         {c.earlyBirdDeadline && <div>🐦 早鳥至：{c.earlyBirdDeadline}</div>}
                       </div>
                       {fee && (
@@ -519,7 +520,12 @@ export default function MemberCompetitionsPage() {
                               ✓ 已報名：{names.join('、')}
                             </div>
                           )}
-                          {!registered && (
+                          {!registered && regEnded && (
+                            <div style={{ width:'100%', height:42, borderRadius:10, background:'#F5F5F5', color:'#999', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:500 }}>
+                              ⏰ 報名已截止
+                            </div>
+                          )}
+                          {!registered && !regEnded && (
                             <button onClick={()=>openRegister(c)}
                               style={{ width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
                               {names.length > 0 ? '為其他家庭成員報名' : '立即報名'}
