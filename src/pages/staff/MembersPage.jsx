@@ -13,6 +13,7 @@ import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonView } from '../../components/InvoiceButton';
 import CourseRegDetailModal from '../../components/CourseRegDetailModal';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
+import { getMemberReminders, createMemberReminder, updateMemberReminder, deleteMemberReminder } from '../../api/memberReminders';
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(3px)' }}>
@@ -595,6 +596,8 @@ export default function MembersPage() {
     setMemberRecords(null);
     setRecordsLoading(true);
     loadMemberRecords(member.id); // 內含 try/finally 會收 recordsLoading
+    setReminders([]);
+    loadReminders(member.id); // 內含 try/finally 會收 remindersLoading
     try {
       const res = await getMember(member.id);
       setDetail(res.data);
@@ -640,6 +643,66 @@ export default function MembersPage() {
   const [modalMsg, setModalMsg] = useState('');
   const [successBanner, setSuccessBanner] = useState('');
   const showBanner = (msg) => { setSuccessBanner(msg); setTimeout(() => setSuccessBanner(''), 3000); };
+
+  // 首頁自訂提醒（會員會在 App 首頁「課程活動提醒」看到，店員手動增減，非系統自動產生）
+  const [reminders, setReminders] = useState([]);
+  const [remindersLoading, setRemindersLoading] = useState(false);
+  const [reminderModal, setReminderModal] = useState(null); // null | 'new' | 提醒物件（編輯中）
+  const [reminderForm, setReminderForm] = useState({ title:'', subtitle:'', icon:'📣', link:'', showFrom:'', showUntil:'' });
+  const [reminderSaving, setReminderSaving] = useState(false);
+  const [reminderMsg, setReminderMsg] = useState('');
+
+  const loadReminders = async (memberId) => {
+    setRemindersLoading(true);
+    try {
+      const res = await getMemberReminders(memberId);
+      setReminders(res.data.reminders || []);
+    } catch (err) {
+      setReminders([]);
+    } finally {
+      setRemindersLoading(false);
+    }
+  };
+
+  const openNewReminder = () => {
+    setReminderForm({ title:'', subtitle:'', icon:'📣', link:'', showFrom:'', showUntil:'' });
+    setReminderMsg('');
+    setReminderModal('new');
+  };
+  const openEditReminder = (r) => {
+    setReminderForm({ title:r.title||'', subtitle:r.subtitle||'', icon:r.icon||'📣', link:r.link||'', showFrom:r.showFrom||'', showUntil:r.showUntil||'' });
+    setReminderMsg('');
+    setReminderModal(r);
+  };
+  const saveReminder = async () => {
+    if (!reminderForm.title.trim()) { setReminderMsg('請填寫標題'); return; }
+    setReminderSaving(true);
+    setReminderMsg('');
+    try {
+      if (reminderModal === 'new') {
+        await createMemberReminder({ memberId: detail.member.id, ...reminderForm });
+      } else {
+        await updateMemberReminder(reminderModal.id, reminderForm);
+      }
+      setReminderModal(null);
+      loadReminders(detail.member.id);
+      showBanner(reminderModal === 'new' ? '已新增提醒' : '已更新提醒');
+    } catch (err) {
+      setReminderMsg(err.response?.data?.message || '儲存失敗');
+    } finally {
+      setReminderSaving(false);
+    }
+  };
+  const handleDeleteReminder = async (r) => {
+    if (!window.confirm(`確定要刪除這則提醒「${r.title}」嗎？會員首頁將立即看不到。`)) return;
+    try {
+      await deleteMemberReminder(r.id);
+      setReminders(list => list.filter(x => x.id !== r.id));
+      showBanner('已刪除提醒');
+    } catch (err) {
+      alert(err.response?.data?.message || '刪除失敗');
+    }
+  };
 
   // ⚠️ 由編輯儲存、退回聲明書/墜測、登記墜測結果等多個動作觸發，同一會員連續快速處理多個動作時
   // 序號防過期回應覆蓋剛完成動作後的最新會員詳情。
@@ -1292,6 +1355,40 @@ export default function MembersPage() {
               </div>
             )}
 
+            {/* 首頁自訂提醒（會員 App 首頁「課程活動提醒」會混在同一份清單顯示；店員手動增減，不會自動產生） */}
+            <div style={{ padding:'10px 0', borderTop:'1px solid #F5EFEF' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5 }}>🔔 首頁提醒</div>
+                <button onClick={openNewReminder} style={{ fontSize:11, padding:'2px 8px', borderRadius:6, border:'0.5px solid #8B1A1A', background:'#fff', color:'#8B1A1A', cursor:'pointer' }}>＋ 新增</button>
+              </div>
+              {remindersLoading ? (
+                <div style={{ fontSize:12, color:'#999' }}>載入中...</div>
+              ) : reminders.length === 0 ? (
+                <div style={{ fontSize:12, color:'#999' }}>尚無自訂提醒</div>
+              ) : reminders.map(r => {
+                const today = new Date().toISOString().slice(0,10);
+                const expired = r.showUntil && r.showUntil < today;
+                const pending = r.showFrom && r.showFrom > today;
+                return (
+                  <div key={r.id} style={{ fontSize:12, background: expired?'#F5F5F5':'#FBF5F5', borderRadius:8, padding:'8px 10px', marginBottom:6, opacity: expired?0.6:1 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:6 }}>
+                      <div style={{ fontWeight:600 }}>{r.icon} {r.title}</div>
+                      <div style={{ display:'flex', gap:4, flexShrink:0 }}>
+                        <button onClick={() => openEditReminder(r)} style={{ fontSize:10, padding:'1px 6px', borderRadius:5, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', cursor:'pointer' }}>編輯</button>
+                        <button onClick={() => handleDeleteReminder(r)} style={{ fontSize:10, padding:'1px 6px', borderRadius:5, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>刪除</button>
+                      </div>
+                    </div>
+                    {r.subtitle && <div style={{ color:'#666', marginTop:2 }}>{r.subtitle}</div>}
+                    <div style={{ color:'#999', marginTop:3, fontSize:11 }}>
+                      {r.showFrom || r.showUntil ? `顯示期間：${r.showFrom || '不限'} ～ ${r.showUntil || '不限'}` : '顯示期間：不限'}
+                      {expired && <span style={{ color:'#A32D2D', marginLeft:6 }}>已過期</span>}
+                      {pending && <span style={{ color:'#185FA5', marginLeft:6 }}>尚未開始</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {/* 手機：紀錄查詢（桌機版在左欄另有獨立卡片，此處僅手機顯示，避免桌機重複渲染） */}
             {isMobile && (
               <div style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginTop:14 }}>
@@ -1585,6 +1682,60 @@ export default function MembersPage() {
               disabled={modalLoading || (fallTestResult === 'passed' && !detail.hasFallTestSignature)}
               style={{ flex:2, height:38, borderRadius:8, background: fallTestResult==='passed'?'#2D7D46':'#A32D2D', color:'#fff', border:'none', fontSize:13, cursor: (modalLoading || (fallTestResult === 'passed' && !detail.hasFallTestSignature)) ? 'not-allowed':'pointer', opacity: (modalLoading || (fallTestResult === 'passed' && !detail.hasFallTestSignature)) ? 0.5 : 1 }}>
               {modalLoading ? '處理中...' : `確認登記${fallTestResult==='passed'?'（通過）':'（未通過）'}`}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {reminderModal && (
+        <Modal title={reminderModal === 'new' ? '新增首頁提醒' : '編輯首頁提醒'} onClose={() => setReminderModal(null)}>
+          <div style={{ background:'#F5F9FB', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#666', marginBottom:16, lineHeight:1.6 }}>
+            會員登入 App 後，會在首頁「課程活動提醒」清單看到這則卡片，與課程/體驗提醒混在同一份清單依日期排序顯示。
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>標題 *</label>
+            <input value={reminderForm.title} onChange={e => setReminderForm(f => ({ ...f, title: e.target.value }))}
+              placeholder="例：8/30 抱石賽即將開賽"
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }} />
+          </div>
+          <div style={{ marginBottom:14 }}>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>副標（選填）</label>
+            <input value={reminderForm.subtitle} onChange={e => setReminderForm(f => ({ ...f, subtitle: e.target.value }))}
+              placeholder="例：請提前 30 分鐘完成報到"
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }} />
+          </div>
+          <div style={{ display:'flex', gap:10, marginBottom:14 }}>
+            <div style={{ flex:1 }}>
+              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>圖示</label>
+              <input value={reminderForm.icon} onChange={e => setReminderForm(f => ({ ...f, icon: e.target.value }))}
+                placeholder="🏆" maxLength={4}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:16, textAlign:'center', boxSizing:'border-box' }} />
+            </div>
+            <div style={{ flex:2 }}>
+              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>點擊後前往（選填）</label>
+              <input value={reminderForm.link} onChange={e => setReminderForm(f => ({ ...f, link: e.target.value }))}
+                placeholder="/member/competitions"
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+            <div style={{ flex:1 }}>
+              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>開始顯示（選填）</label>
+              <input type="date" value={reminderForm.showFrom} onChange={e => setReminderForm(f => ({ ...f, showFrom: e.target.value }))}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+            <div style={{ flex:1 }}>
+              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>結束顯示（選填）</label>
+              <input type="date" value={reminderForm.showUntil} onChange={e => setReminderForm(f => ({ ...f, showUntil: e.target.value }))}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+          </div>
+          {reminderMsg && <div style={{ color:'#A32D2D', fontSize:12, marginBottom:10 }}>{reminderMsg}</div>}
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setReminderModal(null)} style={{ flex:1, height:38, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <button onClick={saveReminder} disabled={reminderSaving}
+              style={{ flex:2, height:38, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor: reminderSaving?'not-allowed':'pointer', opacity: reminderSaving?0.6:1 }}>
+              {reminderSaving ? '儲存中...' : '儲存'}
             </button>
           </div>
         </Modal>

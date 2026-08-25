@@ -9,6 +9,7 @@ import { verifyCompetitionPartnerGym, getRegistrationInvoices, createRegistratio
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonView } from '../../components/InvoiceButton';
+import { broadcastCompetitionReminder } from '../../api/memberReminders';
 
 // 「實收金額」就地編修（管理員；扣除保費，供開發票/結帳共用）——比照課程學員頁的實收金額編輯器
 const RegReceivedAmountEditor = ({ reg, onSaved }) => {
@@ -161,6 +162,29 @@ export default function CompetitionsPage() {
   const [noticeBody, setNoticeBody] = useState('');
   const [noticeRecipients, setNoticeRecipients] = useState(null); // null=載入中 | {recipients,count} | {error:true}
   const [noticeSending, setNoticeSending] = useState(false);
+
+  // 首頁提醒推播：對該賽事目前有效（非取消）報名者，各自建一則會員 App 首頁自訂提醒卡片
+  const [reminderModal, setReminderModal] = useState(null); // 目前開啟推播 Modal 的賽事物件
+  const [reminderForm, setReminderForm] = useState({ title:'', subtitle:'', icon:'🏆', link:'/member/competitions', showFrom:'', showUntil:'' });
+  const [reminderSending, setReminderSending] = useState(false);
+  const openReminderBroadcast = (c) => {
+    setReminderModal(c);
+    setReminderForm({
+      title: `${c.name} 即將開賽`,
+      subtitle: `比賽日 ${c.eventDate}，請提前 30 分鐘完成報到`,
+      icon: '🏆', link: '/member/competitions', showFrom: '', showUntil: c.eventDate || '',
+    });
+  };
+  const sendReminderBroadcast = async () => {
+    if (!reminderForm.title.trim()) { showMsg('請填寫標題', 'red'); return; }
+    setReminderSending(true);
+    try {
+      const r = await broadcastCompetitionReminder(reminderModal.id, reminderForm);
+      showMsg(`已推播給 ${r.data.count} 位正取報名者`);
+      setReminderModal(null);
+    } catch (e) { showMsg(e.response?.data?.message || '推播失敗', 'red'); }
+    finally { setReminderSending(false); }
+  };
 
   const showMsg = (t, type='ok') => { setMsg(t); setMsgType(type); setTimeout(()=>setMsg(''),4000); };
 
@@ -474,6 +498,7 @@ export default function CompetitionsPage() {
                       </button>
                     )}
                     <button onClick={()=>openNotice(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B4513', border:'0.5px solid #D4B896', fontSize:12, cursor:'pointer' }}>📧 賽前通知</button>
+                    <button onClick={()=>openReminderBroadcast(c)} title="在會員 App 首頁「課程活動提醒」加一則自訂卡片給全部正取報名者" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8B4B4', fontSize:12, cursor:'pointer' }}>🔔 首頁提醒</button>
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
                     <button onClick={()=>handleDownloadInsuranceRoster(c,'xlsx')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#2D7D46', border:'0.5px solid #B5E4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(xlsx)</button>
                     <button onClick={()=>handleDownloadInsuranceRoster(c,'pdf')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#A32D2D', border:'0.5px solid #F0C4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(PDF)</button>
@@ -816,6 +841,47 @@ export default function CompetitionsPage() {
             <button onClick={sendNotice} disabled={noticeSending || !noticeRecipients?.count}
               style={{ height:40, padding:'0 18px', borderRadius:8, background: (noticeSending || !noticeRecipients?.count) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (noticeSending || !noticeRecipients?.count) ? 'not-allowed' : 'pointer' }}>
               {noticeSending ? '發送中…' : `📧 發送給 ${noticeRecipients?.count || 0} 人`}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 首頁提醒推播 Modal：對該賽事目前有效（非取消）報名者，各自建一則自訂提醒卡片（店員可事後於會員的紀錄查詢個別編輯/刪除） */}
+      {reminderModal && (
+        <Modal title={`首頁提醒 — ${reminderModal.name}`} onClose={()=>setReminderModal(null)} width={520}>
+          <div style={{ fontSize:12, color:'#666', marginBottom:14, background:'#FBF5F5', borderRadius:8, padding:'8px 12px', lineHeight:1.6 }}>
+            會為該賽事「目前有效（非取消）」的每位報名者，各自在其會員 App 首頁「課程活動提醒」清單新增一則相同內容的卡片。之後如需個別修改或刪除，請至該會員的紀錄查詢頁「🔔 首頁提醒」處理。
+          </div>
+          <label style={lbl}>標題</label>
+          <input style={{ ...inp, marginBottom:12 }} value={reminderForm.title} onChange={e=>setReminderForm(f=>({...f,title:e.target.value}))} />
+          <label style={lbl}>副標（選填）</label>
+          <input style={{ ...inp, marginBottom:12 }} value={reminderForm.subtitle} onChange={e=>setReminderForm(f=>({...f,subtitle:e.target.value}))} />
+          <div style={{ display:'flex', gap:10, marginBottom:12 }}>
+            <div style={{ flex:1 }}>
+              <label style={lbl}>圖示</label>
+              <input style={{ ...inp, textAlign:'center', fontSize:16 }} maxLength={4} value={reminderForm.icon} onChange={e=>setReminderForm(f=>({...f,icon:e.target.value}))} />
+            </div>
+            <div style={{ flex:2 }}>
+              <label style={lbl}>點擊後前往（選填）</label>
+              <input style={inp} value={reminderForm.link} onChange={e=>setReminderForm(f=>({...f,link:e.target.value}))} />
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+            <div style={{ flex:1 }}>
+              <label style={lbl}>開始顯示（選填）</label>
+              <input type="date" style={inp} value={reminderForm.showFrom} onChange={e=>setReminderForm(f=>({...f,showFrom:e.target.value}))} />
+            </div>
+            <div style={{ flex:1 }}>
+              <label style={lbl}>結束顯示（選填，預設帶賽事日期）</label>
+              <input type="date" style={inp} value={reminderForm.showUntil} onChange={e=>setReminderForm(f=>({...f,showUntil:e.target.value}))} />
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+            <button onClick={()=>setReminderModal(null)} disabled={reminderSending}
+              style={{ height:40, padding:'0 18px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+            <button onClick={sendReminderBroadcast} disabled={reminderSending}
+              style={{ height:40, padding:'0 18px', borderRadius:8, background: reminderSending ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: reminderSending ? 'not-allowed' : 'pointer' }}>
+              {reminderSending ? '推播中…' : '🔔 推播提醒'}
             </button>
           </div>
         </Modal>

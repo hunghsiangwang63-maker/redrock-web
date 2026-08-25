@@ -12,6 +12,7 @@ import { gymOpenLabel } from '../../utils/gymOpenStatus';
 import QRCode from 'qrcode';
 import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
 import PaymentSection from '../../components/PaymentSection';
+import { getMyReminders } from '../../api/memberReminders';
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
@@ -19,6 +20,7 @@ export default function MemberHomePage() {
   const [gyms, setGyms] = useState([]);
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myExperiences, setMyExperiences] = useState([]);
+  const [myReminders, setMyReminders] = useState([]); // 店員手動增減的首頁自訂提醒（比賽等活動），與課程/體驗提醒混在同一份清單依日期排序
   const [banners, setBanners] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [bannerIdx, setBannerIdx] = useState(0);
@@ -102,6 +104,9 @@ export default function MemberHomePage() {
           .sort((a,b) => a.bookingDate.localeCompare(b.bookingDate));
         setMyExperiences(upcoming);
       }).catch(() => { if (seq === loadSeqRef.current) setMyExperiences([]); });
+    getMyReminders()
+      .then(r => { if (seq === loadSeqRef.current) setMyReminders(r.data.reminders || []); })
+      .catch(() => { if (seq === loadSeqRef.current) setMyReminders([]); });
     // 今日入場橫幅（資料源自後端 checkIns，全天顯示、隔日午夜後自然消失、取消後消失）
     memberClient.get('/checkin/my-today')
       .then(r => { if (seq === loadSeqRef.current) setTodayCheckin(r.data || null); })
@@ -450,48 +455,63 @@ export default function MemberHomePage() {
           <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>課程活動提醒</div>
           <div onClick={() => navigate('/member/courses')} style={{ fontSize:11, color:'#8B1A1A', cursor:'pointer' }}>查看全部 →</div>
         </div>
-        {myEnrollments.length === 0 && myExperiences.length === 0 ? (
+        {myEnrollments.length === 0 && myExperiences.length === 0 && myReminders.length === 0 ? (
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'16px 14px', textAlign:'center', color:'#999', fontSize:13 }}>
             一週內沒有課程或體驗活動
           </div>
-        ) : (<>
-          {myEnrollments.map(e => {
-            const isLeave = e.status === 'leave';
-            const isMakeup = e.isMakeup === true;
-            const isCancelled = e.status === 'course_cancelled';
-            return (
-              <div key={e.id} style={{ background: isCancelled?'#FFF0F0':isLeave?'#F5F5F5':isMakeup?'#F0F8F0':'#fff', borderRadius:12, border:`0.5px solid ${isCancelled?'#FFB3B3':isLeave?'#DDD':isMakeup?'#B3DEC0':'#E8D5D5'}`, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        ) : (() => {
+          // 課程/體驗提醒為系統自動產生（近一週），自訂提醒為店員手動增減（不限一週、依開始顯示日排序，無日期者排最前）；
+          // 三種混在同一份清單依日期排序顯示，各自保留原本的卡片樣式。
+          const items = [
+            ...myEnrollments.map(e => ({ sortKey: e.date, node: (() => {
+              const isLeave = e.status === 'leave';
+              const isMakeup = e.isMakeup === true;
+              const isCancelled = e.status === 'course_cancelled';
+              return (
+                <div key={`c-${e.id}`} style={{ background: isCancelled?'#FFF0F0':isLeave?'#F5F5F5':isMakeup?'#F0F8F0':'#fff', borderRadius:12, border:`0.5px solid ${isCancelled?'#FFB3B3':isLeave?'#DDD':isMakeup?'#B3DEC0':'#E8D5D5'}`, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:14, color: isCancelled?'#A32D2D':isLeave?'#999':isMakeup?'#2D7D46':'#1a1a1a', display:'flex', alignItems:'center', gap:6 }}>
+                      {e.courseName}
+                      {isCancelled && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>課程已取消</span>}
+                      {isLeave && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>已請假</span>}
+                      {isMakeup && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>安排補課</span>}
+                    </div>
+                    <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
+                      {new Date(e.date).toLocaleDateString('zh-TW', { month:'numeric', day:'numeric', weekday:'short' })} {e.startTime}～{e.endTime}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:20 }}>{isCancelled?'❌':isLeave?'💤':isMakeup?'🔄':'📚'}</div>
+                </div>
+              );
+            })() })),
+            ...myExperiences.map(b => ({ sortKey: b.bookingDate, node: (
+              <div key={`x-${b.id}`} onClick={() => navigate('/member/experience?tab=my')}
+                style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
                 <div>
-                  <div style={{ fontWeight:600, fontSize:14, color: isCancelled?'#A32D2D':isLeave?'#999':isMakeup?'#2D7D46':'#1a1a1a', display:'flex', alignItems:'center', gap:6 }}>
-                    {e.courseName}
-                    {isCancelled && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>課程已取消</span>}
-                    {isLeave && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>已請假</span>}
-                    {isMakeup && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>安排補課</span>}
-                  </div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>🧗 體驗課程預約</div>
                   <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
-                    {new Date(e.date).toLocaleDateString('zh-TW', { month:'numeric', day:'numeric', weekday:'short' })} {e.startTime}～{e.endTime}
+                    {b.bookingDate} {b.bookingTime} · {b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · {b.numParticipants}人
+                  </div>
+                  <div style={{ fontSize:11, color: b.status==='confirmed'?'#2D7D46':'#854F0B', marginTop:2 }}>
+                    {b.status==='confirmed'?'✓ 已確認':'待確認付款'}
                   </div>
                 </div>
-                <div style={{ fontSize:20 }}>{isCancelled?'❌':isLeave?'💤':isMakeup?'🔄':'📚'}</div>
+                <div style={{ fontSize:20 }}>🧗</div>
               </div>
-            );
-          })}
-          {myExperiences.map(b => (
-            <div key={b.id} onClick={() => navigate('/member/experience?tab=my')}
-              style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
-              <div>
-                <div style={{ fontWeight:600, fontSize:14 }}>🧗 體驗課程預約</div>
-                <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
-                  {b.bookingDate} {b.bookingTime} · {b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · {b.numParticipants}人
+            ) })),
+            ...myReminders.map(r => ({ sortKey: r.showFrom || '0000-00-00', node: (
+              <div key={`r-${r.id}`} onClick={r.link ? () => navigate(r.link) : undefined}
+                style={{ background:'#FFF8E6', borderRadius:12, border:'0.5px solid #F0D890', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor: r.link ? 'pointer' : 'default' }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:14, color:'#8A5A00' }}>{r.title}</div>
+                  {r.subtitle && <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{r.subtitle}</div>}
                 </div>
-                <div style={{ fontSize:11, color: b.status==='confirmed'?'#2D7D46':'#854F0B', marginTop:2 }}>
-                  {b.status==='confirmed'?'✓ 已確認':'待確認付款'}
-                </div>
+                <div style={{ fontSize:20 }}>{r.icon || '📣'}</div>
               </div>
-              <div style={{ fontSize:20 }}>🧗</div>
-            </div>
-          ))}
-        </>)}
+            ) })),
+          ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+          return <>{items.map(i => i.node)}</>;
+        })()}
       </div>
 
       {/* 🔔 通知（退回事項/待補文件；處理完成自動消失）— 置於課程活動提醒之後 */}
