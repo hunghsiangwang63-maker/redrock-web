@@ -408,12 +408,15 @@ export default function MemberHomePage() {
         { icon:'🧗', label:'體驗課程', path:'/member/experience' },
           { icon:'🧗', label:'加入攀岩隊', path:'/member/team' },
           { icon:'👟', label:'器材租借', path:'/member/rental' },
+          { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
         ].map(f => (
-          <div key={f.label} onClick={() => navigate(f.path)}
+          <div key={f.label} onClick={() => f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
             style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor='#8B1A1A'}
             onMouseLeave={e => e.currentTarget.style.borderColor='#E8D5D5'}>
-            <div style={{ fontSize:22, marginBottom:5 }}>{f.icon}</div>
+            {f.img
+              ? <img src={f.img} alt="" style={{ width:22, height:22, borderRadius:5, marginBottom:5 }}/>
+              : <div style={{ fontSize:22, marginBottom:5 }}>{f.icon}</div>}
             <div style={{ fontSize:11, color:'#6b6b6b', fontWeight:500 }}>{t(f.label)}</div>
           </div>
         ))}
