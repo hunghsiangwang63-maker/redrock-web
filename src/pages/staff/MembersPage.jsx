@@ -13,7 +13,8 @@ import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonView } from '../../components/InvoiceButton';
 import CourseRegDetailModal from '../../components/CourseRegDetailModal';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
-import { getMemberReminders, createMemberReminder, updateMemberReminder, deleteMemberReminder } from '../../api/memberReminders';
+import { getMemberReminders, createMemberReminder, updateMemberReminder, deleteMemberReminder, uploadReminderImage } from '../../api/memberReminders';
+import ReminderFormFields from '../../components/ReminderFormFields';
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', backdropFilter:'blur(3px)' }}>
@@ -648,7 +649,8 @@ export default function MembersPage() {
   const [reminders, setReminders] = useState([]);
   const [remindersLoading, setRemindersLoading] = useState(false);
   const [reminderModal, setReminderModal] = useState(null); // null | 'new' | 提醒物件（編輯中）
-  const [reminderForm, setReminderForm] = useState({ title:'', subtitle:'', icon:'📣', link:'', showFrom:'', showUntil:'' });
+  const [reminderForm, setReminderForm] = useState({ title:'', subtitle:'', icon:'📣', link:'', imageUrl:'', showFrom:'', showUntil:'' });
+  const [reminderImageFile, setReminderImageFile] = useState(null); // 本機選取待上傳的圖片
   const [reminderSaving, setReminderSaving] = useState(false);
   const [reminderMsg, setReminderMsg] = useState('');
 
@@ -665,12 +667,14 @@ export default function MembersPage() {
   };
 
   const openNewReminder = () => {
-    setReminderForm({ title:'', subtitle:'', icon:'📣', link:'', showFrom:'', showUntil:'' });
+    setReminderForm({ title:'', subtitle:'', icon:'📣', link:'', imageUrl:'', showFrom:'', showUntil:'' });
+    setReminderImageFile(null);
     setReminderMsg('');
     setReminderModal('new');
   };
   const openEditReminder = (r) => {
-    setReminderForm({ title:r.title||'', subtitle:r.subtitle||'', icon:r.icon||'📣', link:r.link||'', showFrom:r.showFrom||'', showUntil:r.showUntil||'' });
+    setReminderForm({ title:r.title||'', subtitle:r.subtitle||'', icon:r.icon||'📣', link:r.link||'', imageUrl:r.imageUrl||'', showFrom:r.showFrom||'', showUntil:r.showUntil||'' });
+    setReminderImageFile(null);
     setReminderMsg('');
     setReminderModal(r);
   };
@@ -679,10 +683,15 @@ export default function MembersPage() {
     setReminderSaving(true);
     setReminderMsg('');
     try {
+      let payload = reminderForm;
+      if (reminderImageFile) {
+        const up = await uploadReminderImage(reminderImageFile);
+        payload = { ...reminderForm, imageUrl: up.data.imageUrl };
+      }
       if (reminderModal === 'new') {
-        await createMemberReminder({ memberId: detail.member.id, ...reminderForm });
+        await createMemberReminder({ memberId: detail.member.id, ...payload });
       } else {
-        await updateMemberReminder(reminderModal.id, reminderForm);
+        await updateMemberReminder(reminderModal.id, payload);
       }
       setReminderModal(null);
       loadReminders(detail.member.id);
@@ -1372,7 +1381,10 @@ export default function MembersPage() {
                 return (
                   <div key={r.id} style={{ fontSize:12, background: expired?'#F5F5F5':'#FBF5F5', borderRadius:8, padding:'8px 10px', marginBottom:6, opacity: expired?0.6:1 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:6 }}>
-                      <div style={{ fontWeight:600 }}>{r.icon} {r.title}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
+                        {r.imageUrl && <img src={r.imageUrl} alt="" style={{ width:28, height:28, borderRadius:6, objectFit:'cover', flexShrink:0 }}/>}
+                        <div style={{ fontWeight:600 }}>{!r.imageUrl && r.icon} {r.title}</div>
+                      </div>
                       <div style={{ display:'flex', gap:4, flexShrink:0 }}>
                         <button onClick={() => openEditReminder(r)} style={{ fontSize:10, padding:'1px 6px', borderRadius:5, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', cursor:'pointer' }}>編輯</button>
                         <button onClick={() => handleDeleteReminder(r)} style={{ fontSize:10, padding:'1px 6px', borderRadius:5, border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>刪除</button>
@@ -1692,44 +1704,9 @@ export default function MembersPage() {
           <div style={{ background:'#F5F9FB', borderRadius:8, padding:'10px 14px', fontSize:12, color:'#666', marginBottom:16, lineHeight:1.6 }}>
             會員登入 App 後，會在首頁「課程活動提醒」清單看到這則卡片，與課程/體驗提醒混在同一份清單依日期排序顯示。
           </div>
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>標題 *</label>
-            <input value={reminderForm.title} onChange={e => setReminderForm(f => ({ ...f, title: e.target.value }))}
-              placeholder="例：8/30 抱石賽即將開賽"
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }} />
-          </div>
-          <div style={{ marginBottom:14 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>副標（選填）</label>
-            <input value={reminderForm.subtitle} onChange={e => setReminderForm(f => ({ ...f, subtitle: e.target.value }))}
-              placeholder="例：請提前 30 分鐘完成報到"
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }} />
-          </div>
-          <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-            <div style={{ flex:1 }}>
-              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>圖示</label>
-              <input value={reminderForm.icon} onChange={e => setReminderForm(f => ({ ...f, icon: e.target.value }))}
-                placeholder="🏆" maxLength={4}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:16, textAlign:'center', boxSizing:'border-box' }} />
-            </div>
-            <div style={{ flex:2 }}>
-              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>點擊後前往（選填）</label>
-              <input value={reminderForm.link} onChange={e => setReminderForm(f => ({ ...f, link: e.target.value }))}
-                placeholder="/member/competitions"
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }} />
-            </div>
-          </div>
-          <div style={{ display:'flex', gap:10, marginBottom:16 }}>
-            <div style={{ flex:1 }}>
-              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>開始顯示（選填）</label>
-              <input type="date" value={reminderForm.showFrom} onChange={e => setReminderForm(f => ({ ...f, showFrom: e.target.value }))}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, boxSizing:'border-box' }} />
-            </div>
-            <div style={{ flex:1 }}>
-              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>結束顯示（選填）</label>
-              <input type="date" value={reminderForm.showUntil} onChange={e => setReminderForm(f => ({ ...f, showUntil: e.target.value }))}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, boxSizing:'border-box' }} />
-            </div>
-          </div>
+          <ReminderFormFields form={reminderForm} setForm={setReminderForm}
+            imageFile={reminderImageFile} setImageFile={setReminderImageFile}
+            titlePlaceholder="例：8/30 抱石賽即將開賽" subtitlePlaceholder="例：請提前 30 分鐘完成報到" />
           {reminderMsg && <div style={{ color:'#A32D2D', fontSize:12, marginBottom:10 }}>{reminderMsg}</div>}
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setReminderModal(null)} style={{ flex:1, height:38, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>

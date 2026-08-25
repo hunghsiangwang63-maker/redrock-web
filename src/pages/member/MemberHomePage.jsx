@@ -506,7 +506,9 @@ export default function MemberHomePage() {
                   <div style={{ fontWeight:600, fontSize:14, color:'#8A5A00' }}>{r.title}</div>
                   {r.subtitle && <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{r.subtitle}</div>}
                 </div>
-                <div style={{ fontSize:20 }}>{r.icon || '📣'}</div>
+                {r.imageUrl
+                  ? <img src={r.imageUrl} alt="" style={{ width:44, height:44, borderRadius:8, objectFit:'cover', flexShrink:0 }}/>
+                  : <div style={{ fontSize:20 }}>{r.icon || '📣'}</div>}
               </div>
             ) })),
           ].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
