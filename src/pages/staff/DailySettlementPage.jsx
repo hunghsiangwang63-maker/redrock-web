@@ -608,16 +608,17 @@ export default function DailySettlementPage() {
               { key:'taiwanPay', label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
               { key:'transfer', label:'轉帳', value: settlement?.payment?.transfer || 0 },
               { key:'other', label:'其他', value: settlement?.payment?.other || 0 },
+              { key:'prepaid', label:'預收款入帳', value: settlement?.payment?.prepaid || 0, sourceNote:'延後開立的發票，實際收款早於今天', noManual:true },
             ].map((item, i) => (
               <div key={i} style={s.row}>
-                <span style={s.label}>{item.label}</span>
+                <span style={s.label}>{item.label}{item.sourceNote && <span style={{ fontSize:10.5, color:'#999', marginLeft:6 }}>({item.sourceNote})</span>}</span>
                 <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  {transition.settlementPaymentManualInput && (
+                  {transition.settlementPaymentManualInput && !item.noManual && (
                     <input type="number" value={paymentManual[item.key] ?? ''} placeholder="手動"
                       onChange={e => setPaymentManual(p => ({ ...p, [item.key]: e.target.value }))}
                       style={{ width:88, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FFFDF5', textAlign:'right', boxSizing:'border-box' }} />
                   )}
-                  <span style={{ ...s.value, color: transition.settlementPaymentManualInput ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>NT${item.value.toLocaleString()}</span>
+                  <span style={{ ...s.value, color: (transition.settlementPaymentManualInput && !item.noManual) ? '#999' : '#1a1a1a', minWidth:72, textAlign:'right' }}>NT${item.value.toLocaleString()}</span>
                 </div>
               </div>
             ))}
@@ -925,6 +926,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
     { key:'taiwanPay', label:'台灣Pay', value: payment.taiwanPay || 0 },
     { key:'transfer', label:'轉帳', value: payment.transfer || 0 },
     { key:'other', label:'其他', value: payment.other || 0 },
+    { key:'prepaid', label:'預收款入帳', value: payment.prepaid || 0 },
   ] : [];
   const showPayManualCol = !!paymentManual;
   const payManVal = (k, sysV) => (paymentManual && paymentManual[k] !== '' && paymentManual[k] != null) ? (Number(paymentManual[k]) || 0) : sysV;
@@ -1027,7 +1029,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
             {payMethods.map((m, i) => {
-              const showSplit = showPayManualCol && m.key !== 'cash';
+              const showSplit = showPayManualCol && m.key !== 'cash' && m.key !== 'prepaid';
               const man = payManVal(m.key, m.value);
               const diff = showSplit && Number(man) !== Number(m.value);
               return (
