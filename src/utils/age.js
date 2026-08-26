@@ -9,10 +9,10 @@ export const ageOf = (birthday) => {
   return dayjs().diff(d, 'year');
 };
 
-// 未滿 5 歲（有生日才判斷）
-export const isUnder5 = (memberOrBirthday) => {
+// 未滿 4 歲（有生日才判斷）——2026-08-26 由 5 歲下修為 4 歲，與後端 isUnder4 同步
+export const isUnder4 = (memberOrBirthday) => {
   const a = ageOf(memberOrBirthday);
-  return a !== null && a < 5;
+  return a !== null && a < 4;
 };
 
 // 兒童：未滿 13 歲（用出生日期，不看 memberType）

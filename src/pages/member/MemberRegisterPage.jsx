@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
 import { memberSelfRegister } from '../../api/memberAuth';
-import { isUnder5, isMinor } from '../../utils/age';
+import { isUnder4, isMinor } from '../../utils/age';
 import { t, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const inputStyle = { width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:15, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
@@ -22,9 +22,9 @@ export default function MemberRegisterPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    // 前端友善提示（後端仍為權威）：未滿 5 歲無法成為會員
-    if (isUnder5(form.birthday)) {
-      setError('未滿 5 歲無法成為會員');
+    // 前端友善提示（後端仍為權威）：未滿 4 歲無法成為會員
+    if (isUnder4(form.birthday)) {
+      setError('未滿 4 歲無法成為會員');
       return;
     }
     if (form.password !== confirmPassword) {

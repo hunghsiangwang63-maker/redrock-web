@@ -5,7 +5,7 @@ import SignaturePad from '../../components/SignaturePad';
 const RED = '#8B1A1A';
 
 const under18 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 18; };
-const under5 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 5; };
+const under4 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 4; };
 
 // 公開週課整期報名（免登入、訪客，先轉帳）。連結格式：/book/course?course=<courseId>
 export default function PublicCourseEnrollPage() {
@@ -49,7 +49,7 @@ export default function PublicCourseEnrollPage() {
     if (!guestName.trim()) return setErr('請填寫姓名');
     if (!guestPhone.trim()) return setErr('請填寫聯絡電話');
     if (!guestBirthday) return setErr('請填寫生日');
-    if (under5(guestBirthday)) return setErr('未滿 5 歲無法報名課程');
+    if (under4(guestBirthday)) return setErr('未滿 4 歲無法報名課程');
     if (!agreedPolicy) return setErr('請閱讀並同意課程請假/補課/退費規則');
     if (!sigRef.current || sigRef.current.isEmpty()) return setErr('請完成簽名');
     if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr('未滿 18 歲需法定代理人簽名');
@@ -133,7 +133,7 @@ export default function PublicCourseEnrollPage() {
           <input value={guestEmail} onChange={e => setGuestEmail(e.target.value)} style={input} inputMode="email" />
           <label style={label}>健康備註（選填）</label>
           <input value={healthNote} onChange={e => setHealthNote(e.target.value)} style={input} placeholder="如過敏、慢性病、身體狀況" />
-          {under5(guestBirthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 5 歲無法報名課程</div>}
+          {under4(guestBirthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 4 歲無法報名課程</div>}
         </div>
 
         <label style={{ ...card, display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', fontSize: 13, lineHeight: 1.6 }}>

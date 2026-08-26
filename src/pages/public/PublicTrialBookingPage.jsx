@@ -5,7 +5,7 @@ import SignaturePad from '../../components/SignaturePad';
 const RED = '#8B1A1A';
 
 const under18 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 18; };
-const under5 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 5; };
+const under4 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 4; };
 
 // 公開試上預約（免登入、訪客，先轉帳）。連結格式：/book/trial?session=<courseSessionId>
 export default function PublicTrialBookingPage() {
@@ -45,7 +45,7 @@ export default function PublicTrialBookingPage() {
     if (!guestName.trim()) return setErr('請填寫姓名');
     if (!guestPhone.trim()) return setErr('請填寫聯絡電話');
     if (!guestBirthday) return setErr('請填寫生日');
-    if (under5(guestBirthday)) return setErr('未滿 5 歲無法報名試上');
+    if (under4(guestBirthday)) return setErr('未滿 4 歲無法報名試上');
     if (!sigRef.current || sigRef.current.isEmpty()) return setErr('請完成簽名');
     if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr('未滿 18 歲需法定代理人簽名');
     if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
@@ -121,7 +121,7 @@ export default function PublicTrialBookingPage() {
           <input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} style={input} placeholder="0912345678" inputMode="tel" />
           <label style={label}>Email（選填）</label>
           <input value={guestEmail} onChange={e => setGuestEmail(e.target.value)} style={input} inputMode="email" />
-          {under5(guestBirthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 5 歲無法報名試上</div>}
+          {under4(guestBirthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 4 歲無法報名試上</div>}
         </div>
 
         <div style={card}>

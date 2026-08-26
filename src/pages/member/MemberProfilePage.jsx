@@ -9,7 +9,7 @@ import { getMyFallTestStatus } from '../../api/fallTests';
 import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } from '../../api/fallTestBookings';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
-import { isUnder5 } from '../../utils/age';
+import { isUnder4 } from '../../utils/age';
 import { entryTypeLabel, entryLabelOf } from '../../utils/entryLabel';
 
 const FT_GYMS = [{ id:'gym-hsinchu', name:'新竹館' }, { id:'gym-shilin', name:'士林館' }];
@@ -141,7 +141,7 @@ export default function MemberProfilePage() {
   const handleAddChild = async () => {
     if (!childName.trim()) { setFamilyMsg('請填寫姓名'); return; }
     if (!childBirthday) { setFamilyMsg('請填寫生日（用於判斷入場資格）'); return; }
-    if (isUnder5(childBirthday)) { setFamilyMsg('未滿 5 歲無法成為會員'); return; }
+    if (isUnder4(childBirthday)) { setFamilyMsg('未滿 4 歲無法成為會員'); return; }
     const childAge = dayjs().diff(dayjs(childBirthday), 'year');
     if (childAge >= 18) { setAgeLimitModal({ age: childAge }); return; } // 超齡 → 跳 modal
     setAddingChild(true);

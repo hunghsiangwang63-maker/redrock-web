@@ -152,7 +152,7 @@ const DICT_EN = {
   '註冊中...': 'Registering...',
   '註冊': 'Register',
   '已經有帳號？': 'Already have an account? ',
-  '未滿 5 歲無法成為會員': 'Children under 5 cannot become members.',
+  '未滿 4 歲無法成為會員': 'Children under 4 cannot become members.',
   '未滿 18 歲需填寫法定代理人姓名、電話與關係': 'Under 18: guardian name, phone and relationship are required.',
   '註冊失敗，請確認資料是否正確': 'Registration failed. Please check your information.',
 
@@ -336,7 +336,7 @@ const DICT_JA = {
   '註冊中...': '登録中...',
   '註冊': '登録',
   '已經有帳號？': 'すでにアカウントをお持ちですか？ ',
-  '未滿 5 歲無法成為會員': '5歳未満は会員登録できません。',
+  '未滿 4 歲無法成為會員': '4歳未満は会員登録できません。',
   '未滿 18 歲需填寫法定代理人姓名、電話與關係': '18歳未満の方は法定代理人の氏名・電話番号・続柄が必須です。',
   '註冊失敗，請確認資料是否正確': '登録に失敗しました。入力内容をご確認ください。',
 

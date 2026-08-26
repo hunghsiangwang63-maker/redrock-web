@@ -44,8 +44,8 @@ export default function PublicExperienceBookingPage() {
     : 0;
   const totalFee = unitPrice * n;
 
-  const under5 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 5; };
-  const anyUnder5 = participants.some(p => under5(p.birthday));
+  const under4 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 4; };
+  const anyUnder4 = participants.some(p => under4(p.birthday));
 
   const addP = () => participants.length < 8 && setParticipants(p => [...p, { name: '', birthday: '', idNumber: '', nationality: '台灣' }]);
   const rmP = (i) => participants.length > 1 && setParticipants(p => p.filter((_, j) => j !== i));
@@ -60,7 +60,7 @@ export default function PublicExperienceBookingPage() {
     if (participants.some(p => !p.name.trim())) return setErr('請填寫每位參加者姓名');
     if (participants.some(p => !p.idNumber?.trim())) return setErr('請填寫每位參加者身分證字號／護照號碼（投保用）');
     if (participants.some(p => !p.birthday)) return setErr('請填寫每位參加者生日');
-    if (anyUnder5) return setErr('未滿 5 歲無法報名體驗');
+    if (anyUnder4) return setErr('未滿 4 歲無法報名體驗');
     if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
     if (!agreedTerms) return setErr('請閱讀並勾選同意注意事項');
     setSubmitting(true);
@@ -139,7 +139,7 @@ export default function PublicExperienceBookingPage() {
               <input value={p.nationality} onChange={e => setP(i, 'nationality', e.target.value)} style={dinput} placeholder="台灣" />
               <label style={label}>身分證字號／護照號碼</label>
               <input value={p.idNumber} onChange={e => setP(i, 'idNumber', e.target.value.toUpperCase())} style={input} placeholder="投保用" />
-              {under5(p.birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 5 歲無法報名體驗</div>}
+              {under4(p.birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 4 歲無法報名體驗</div>}
             </div>
           ))}
           <button onClick={addP} style={{ marginTop: 14, width: '100%', height: 40, borderRadius: 10, border: `1px dashed ${RED}`, background: '#fff', color: RED, fontSize: 14, cursor: 'pointer' }}>＋ 新增參加者</button>
