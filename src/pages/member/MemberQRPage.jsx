@@ -12,8 +12,9 @@ import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled, useEnabledPayments } from '../../utils/paymentMethods';
 
-// 支援線上付款（pay-first）的入館身份——純付費身份，卡/券/免費資格皆有自己的免費入場路徑，
-// 不適用；與後端 orderResolvers.entry（paymentService.js）白名單一致，勿單方修改。
+// 支援線上付款（pay-first）的入館身份——純付費身份（黑卡/紅利/單次券皆有自己的免費入場路徑，
+// 不適用），2026-08-27 起「使用已持有的優惠折扣券」(discount_card) 另外獨立判斷（見 onlinePayable）；
+// 與後端 orderResolvers.entry（paymentService.js）白名單一致，勿單方修改。
 const ONLINE_PAYABLE_ENTRY_TYPES = ['single_ticket', 'student_free', 'child_free'];
 
 const PAYMENT_METHODS = [
@@ -354,7 +355,7 @@ export default function MemberQRPage() {
             <PaymentFlow
               client={memberClient}
               orderType="entry"
-              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk, partnerVendor: onlinePayFor.partnerVendor, partnerGymMember: onlinePayFor.partnerGymMember, buyPassTypeId: onlinePayFor.buyPassTypeId }}
+              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk, partnerVendor: onlinePayFor.partnerVendor, partnerGymMember: onlinePayFor.partnerGymMember, buyPassTypeId: onlinePayFor.buyPassTypeId, discountCardId: onlinePayFor.discountCardId, baseEntryType: onlinePayFor.baseEntryType }}
               amount={onlinePayFor.amount}
               gymId={onlinePayFor.gymId}
               autoProvider="jkopay"
@@ -639,7 +640,10 @@ export default function MemberQRPage() {
    const onlinePayable = onlineEntryPayEnabled && (
      (selectedEntry?.kind === 'pay' && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type)) ||
      (selectedEntry?.kind === 'buy' && selectedEntry?.type === 'buy_discount_card') ||
-     (selectedEntry?.kind === 'buyPass' && selectedEntry?.type === 'buy_pass' && buyPassPlan === 'full')
+     (selectedEntry?.kind === 'buyPass' && selectedEntry?.type === 'buy_pass' && buyPassPlan === 'full') ||
+     // 2026-08-27：使用（已持有的）優惠折扣券入場——後端 orderResolvers.entry 已支援
+     // entryType==='discount_card'（付款前驗證此券歸屬本人且仍有效，扣點延到 redeem 當下）。
+     (selectedEntry?.kind === 'discountCard' && !!selectedEntry?.cardId)
    );
    // 目前唯一接了線上金流的方式是街口——若系統層「付款方式開關」把街口關了（如金鑰尚未到位），
    // 即使 onlinePayable 為 true 也不該顯示線上付款文案/觸發線上金流，否則會指向一個根本不存在的選項。
@@ -723,6 +727,10 @@ export default function MemberQRPage() {
                 gymId, rentShoes, rentChalk,
                 partnerVendor: _pvOn, partnerGymMember: _pgmOn,
                 buyPassTypeId: selectedEntry.buyPassTypeId || null,
+                // 2026-08-27：使用已持有的優惠折扣券——帶哪張卡＋所選身分（成人/學生/兒童，決定
+                // 8折的計價基準），供後端 orderResolvers.entry 驗證歸屬＋權威算價。
+                discountCardId: selectedEntry.kind === 'discountCard' ? (selectedEntry.cardId || null) : null,
+                baseEntryType: selectedEntry.baseEntryType || null,
               });
             } else {
               handleGenerateQR(rentShoes, rentChalk, key);
