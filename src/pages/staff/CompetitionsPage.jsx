@@ -317,9 +317,10 @@ export default function CompetitionsPage() {
   };
 
   // 計分系統（comp.redrocktaiwan.com）SSO 進入點——2026-08-26 起，計分系統管理員一律從這裡進入
-  // （首頁「管理員功能」卡片與底部導覽「設定」分頁已從計分系統移除）。已對接（有 compDocId）時
-  // 直接深連結到該賽事的「設定」頁；尚未對接則開一般首頁（可在計分系統內自行操作，或回頭先按
-  // 「開始與計分系統對接」建立連結）。
+  // （首頁「管理員功能」卡片、底部導覽「設定」分頁、頁面頂部原本常駐的 ⚙️ 圖示皆已從計分系統
+  // 移除）。原本每場賽事各自一顆「計分系統設定」深連結按鈕已拿掉——計分系統登入後右上角本身就
+  // 有一顆「僅登入者可見」的 ⚙️ 設定圖示，可在系統內直接切換到任一場賽事再進設定，不需要每場都
+  // 從員工端另開一個深連結；只留這顆「+新增賽事」旁的通用進入點。
   //
   // ⚠️ 2026-08-26 修：原本先 await SSO 換 token、拿到後才 window.open——中間隔了一次 await，
   // 部分瀏覽器會判定這次 window.open 已經脫離「使用者手勢」的當下，直接靜默擋掉彈窗（沒有跳出
@@ -327,23 +328,6 @@ export default function CompetitionsPage() {
   // 「按了沒反應／沒有跳轉到設定頁」。改法：window.open 一定要在 onClick 的同一個事件循環（await
   // 之前）就先呼叫、拿到分頁的 window 參考，換好 token 之後再用 win.location.href 導頁——這樣
   // window.open 本身仍在使用者手勢的當下觸發，不會被擋。
-  const [scoringOpeningId, setScoringOpeningId] = useState(null);
-  const openScoringSystem = async (c) => {
-    const win = window.open('', '_blank');
-    setScoringOpeningId(c.id);
-    try {
-      const r = await ssoCompAuth();
-      const params = new URLSearchParams({ ssoToken: r.data.token });
-      if (c.compDocId) { params.set('compId', c.compDocId); params.set('goto', 'settings'); }
-      const url = `https://comp.redrocktaiwan.com/?${params.toString()}`;
-      if (win && !win.closed) win.location.href = url;
-      else window.open(url, '_blank', 'noopener');
-    } catch (e) {
-      if (win && !win.closed) win.close();
-      showMsg(e.response?.data?.message || '無法進入計分系統（此帳號可能未被指派為計分系統管理員）', 'red');
-    } finally { setScoringOpeningId(null); }
-  };
-  // 通用進入點（不指定特定賽事，開計分系統首頁）——放在「+新增賽事」旁邊，同一份修復邏輯。
   const [scoringOpeningGeneral, setScoringOpeningGeneral] = useState(false);
   const openScoringSystemGeneral = async () => {
     const win = window.open('', '_blank');
@@ -556,11 +540,6 @@ export default function CompetitionsPage() {
                         {syncingId===c.id ? '對接中…' : c.scoringSyncEnabled ? '✅ 已對接·重新推送' : '🔗 開始與計分系統對接'}
                       </button>
                     )}
-                    <button onClick={()=>openScoringSystem(c)} disabled={scoringOpeningId===c.id}
-                      title={c.compDocId ? '進入計分系統並直接開啟此賽事的設定頁' : '進入計分系統首頁（尚未對接，可先按上方「開始與計分系統對接」）'}
-                      style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>
-                      {scoringOpeningId===c.id ? '進入中…' : '🎯 計分系統設定'}
-                    </button>
                     <button onClick={()=>openNotice(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B4513', border:'0.5px solid #D4B896', fontSize:12, cursor:'pointer' }}>📧 賽前通知</button>
                     <button onClick={()=>openReminderBroadcast(c)} title="在會員 App 首頁「課程活動提醒」加一則自訂卡片給全部正取報名者" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8B4B4', fontSize:12, cursor:'pointer' }}>🔔 首頁提醒</button>
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
