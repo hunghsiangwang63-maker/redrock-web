@@ -920,6 +920,7 @@ export default function CheckinPage() {
                     ✅ 此券已透過{PAYMENT_LABEL[scanResult.onlineTicket.paymentMethod] || scanResult.onlineTicket.paymentMethod}線上付款 NT${scanResult.onlineTicket.amount}，免再收費
                     {scanResult.onlineTicket.grantsDiscountCard && '（確認入場後將自動開通一張優惠折扣券）'}
                     {scanResult.onlineTicket.grantsPassTypeName && `（確認入場後將自動開通定期票：${scanResult.onlineTicket.grantsPassTypeName}）`}
+                    {scanResult.onlineTicket.usesDiscountCard && '（金額已含使用會員自己的優惠折扣券8折，確認入場後將自動扣點）'}
                   </div>
                 )}
                 {/* 定期票在家線上續約後尚未開發票——與本次入場類型完全無關（只是剛好命中同一位會員），
@@ -987,6 +988,7 @@ export default function CheckinPage() {
                   {confirmedCheckIn.memberName} — {
                     confirmedCheckIn.onlineTicket?.grantsDiscountCard ? '購買優惠折扣券（已開通）'
                     : confirmedCheckIn.onlineTicket?.grantsPassTypeName ? `定期票（${confirmedCheckIn.onlineTicket.grantsPassTypeName}，已開通）`
+                    : confirmedCheckIn.onlineTicket?.usesDiscountCard ? '使用優惠折扣券（已扣點）'
                     : (ENTRY_TYPE_LABEL[confirmedCheckIn.entryType] || confirmedCheckIn.entryType)
                   }
                   {confirmedCheckIn.amountPaid > 0 && ` — NT$${confirmedCheckIn.amountPaid}`}
@@ -1660,8 +1662,12 @@ export default function CheckinPage() {
         // 2026-08-24：此券線上購買的其實是優惠折扣券/定期票時，checkIn.entryType 恆為
         // 'single_entry_ticket'（redeem 統一走這個入場類型），invoiceEntryItemName 只認 entryType
         // 會誤標成「單次入場券」——用票券自帶的 grantsDiscountCard/grantsPassTypeName 覆寫正確品項名稱。
+        // 2026-08-27：使用（已持有的）優惠折扣券同理——改用票上的 discountCardBaseEntryType（真正
+        // 身分）組成合法 rec 再交給 invoiceEntryItemName，正確歸「成人／學生使用優惠券」（而非
+        // 用 checkIn.entryType='single_entry_ticket' 誤判成單次入場券）。
         const entryName = ot?.grantsDiscountCard ? '購買優惠折扣券'
           : ot?.grantsPassTypeName ? `定期票（${ot.grantsPassTypeName}）`
+          : ot?.usesDiscountCard ? invoiceEntryItemName({ entryType: 'discount_card', baseEntryType: ot.discountCardBaseEntryType })
           : invoiceEntryItemName(checkinInvoiceTarget);
         const rentalName = ot ? invoiceRentalItemName({ shoesPrice: ot.rentShoes ? 100 : 0, chalkPrice: ot.rentChalk ? 50 : 0 })
           : invoiceRentalItemName(checkinInvoiceTarget);
@@ -1680,7 +1686,7 @@ export default function CheckinPage() {
             memberName={checkinInvoiceTarget.memberName}
             paymentMethod={ot?.paymentMethod || checkinInvoiceTarget.paymentMethod}
             title={checkinInvoiceTarget.memberName || ''}
-            subtitle={ot?.grantsDiscountCard ? '購買優惠折扣券' : ot?.grantsPassTypeName ? `定期票（${ot.grantsPassTypeName}）` : (ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || '')}
+            subtitle={ot?.grantsDiscountCard ? '購買優惠折扣券' : ot?.grantsPassTypeName ? `定期票（${ot.grantsPassTypeName}）` : ot?.usesDiscountCard ? entryName : (ENTRY_TYPE_LABEL[checkinInvoiceTarget.entryType] || checkinInvoiceTarget.entryType || '')}
             feeInfo={totalAmount > 0 ? `實收金額 NT$${totalAmount}${ot ? '（已線上付款）' : ''}` : ''}
             defaultItemName={rentalName ? `${entryName}＋${rentalName}` : entryName}
             defaultAmount={totalAmount}
