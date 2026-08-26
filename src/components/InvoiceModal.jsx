@@ -130,7 +130,7 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
 // 「預先建立，尚未串接實體發票機」，track/number 純屬佔位標記（無真正序號配發/查重，見
 // invoiceService.js 說明），比賽報名沒有實體發票需要對應這組編號；付款方式也已在報名記錄上
 // 忠實記錄過，不需要在這裡另外修正一次。兩個開關預設 false／未傳＝其餘四個流程完全不受影響。
-export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, defaultItemName, sourceType, refId, paymentMethod, onClose, listInvoices, createInvoice, voidInvoiceFn, hideTrackNumber, hidePaymentMethodFix }) {
+export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, defaultItemName, sourceType, refId, paymentMethod, onClose, listInvoices, createInvoice, voidInvoiceFn, hideTrackNumber, hidePaymentMethodFix, hideWarning, hideNote }) {
   const [form, setForm] = useState({
     issuedAt: dayjs().format('YYYY-MM-DDTHH:mm'),
     itemName: defaultItemName || '費用',
@@ -190,7 +190,9 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
       <div style={{ background:'#FBF5F5', borderRadius:8, padding:10, marginBottom:14, fontSize:12, color:'#666' }}>
         {subtitle}
         {feeInfo && <div style={{ marginTop:4 }}>{feeInfo}</div>}
-        <div style={{ marginTop:6, color:'#A66A00' }}>⚠️ 預先建立，尚未串接實體發票機；開立後金額將寫入當日結帳「加減項」，不影響原本已認列之營收。</div>
+        {!hideWarning && (
+          <div style={{ marginTop:6, color:'#A66A00' }}>⚠️ 預先建立，尚未串接實體發票機；開立後金額將寫入當日結帳「加減項」，不影響原本已認列之營收。</div>
+        )}
       </div>
 
       {!hidePaymentMethodFix && (
@@ -266,11 +268,13 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
               <div style={{ fontSize:11, color:'#A32D2D', marginTop:4 }}>⚠️ 檢查碼不符，請確認統一編號是否正確</div>
             )}
           </div>
-          <div style={{ marginBottom:14 }}>
-            <label style={labS}>備註（管理員統一備註）</label>
-            <textarea rows={2} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-              style={{ ...inpS, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit' }} />
-          </div>
+          {!hideNote && (
+            <div style={{ marginBottom:14 }}>
+              <label style={labS}>備註（管理員統一備註）</label>
+              <textarea rows={2} value={form.note} onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                style={{ ...inpS, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit' }} />
+            </div>
+          )}
           <div style={{ display:'flex', gap:8, marginBottom:16 }}>
             <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>關閉</button>
             <button onClick={submit} disabled={saving} style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>

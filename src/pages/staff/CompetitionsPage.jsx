@@ -941,6 +941,8 @@ export default function CompetitionsPage() {
             defaultAmount={r.receivedAmount ?? Math.max(0, (r.paidAmount ?? r.memberPaidAmount ?? r.registrationFee ?? 0) - (r.insuranceFee || 0))}
             hideTrackNumber
             hidePaymentMethodFix
+            hideWarning
+            hideNote
             onClose={closeInvoiceTarget}
             listInvoices={() => getRegistrationInvoices(r.id).then(res => res.data.invoices || [])}
             createInvoice={(payload) => createRegistrationInvoice(r.id, payload).then(res => res.data.invoice)}
