@@ -126,7 +126,11 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
 //   listInvoices()          - async () => invoice[]
 //   createInvoice(payload)  - async ({itemName,amount,taxId,note,issuedAt}) => invoice
 //   voidInvoiceFn(id, voidReason) - async () => void
-export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, defaultItemName, sourceType, refId, paymentMethod, onClose, listInvoices, createInvoice, voidInvoiceFn }) {
+// hideTrackNumber / hidePaymentMethodFix：2026-08-26 為比賽報名新增——這套§9手動記帳版本來就
+// 「預先建立，尚未串接實體發票機」，track/number 純屬佔位標記（無真正序號配發/查重，見
+// invoiceService.js 說明），比賽報名沒有實體發票需要對應這組編號；付款方式也已在報名記錄上
+// 忠實記錄過，不需要在這裡另外修正一次。兩個開關預設 false／未傳＝其餘四個流程完全不受影響。
+export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, defaultItemName, sourceType, refId, paymentMethod, onClose, listInvoices, createInvoice, voidInvoiceFn, hideTrackNumber, hidePaymentMethodFix }) {
   const [form, setForm] = useState({
     issuedAt: dayjs().format('YYYY-MM-DDTHH:mm'),
     itemName: defaultItemName || '費用',
@@ -149,8 +153,10 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
 
   const submit = async () => {
     if (!(Number(form.amount) > 0)) { setMsg('請輸入大於 0 的發票金額'); return; }
-    if (!/^[A-Za-z]{2}$/.test(form.track.trim())) { setMsg('發票字軌須為 2 碼英文字母'); return; }
-    if (!/^\d{8}$/.test(form.number.trim())) { setMsg('發票號碼須為 8 碼數字'); return; }
+    if (!hideTrackNumber) {
+      if (!/^[A-Za-z]{2}$/.test(form.track.trim())) { setMsg('發票字軌須為 2 碼英文字母'); return; }
+      if (!/^\d{8}$/.test(form.number.trim())) { setMsg('發票號碼須為 8 碼數字'); return; }
+    }
     if (form.taxId.trim() && !isValidTaiwanTaxId(form.taxId)) { setMsg('統一編號檢查碼錯誤，請確認號碼是否正確'); return; }
     setSaving(true); setMsg('');
     try {
@@ -187,8 +193,10 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
         <div style={{ marginTop:6, color:'#A66A00' }}>⚠️ 預先建立，尚未串接實體發票機；開立後金額將寫入當日結帳「加減項」，不影響原本已認列之營收。</div>
       </div>
 
-      <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
-        amount={form.amount} payMethod={payMethod} setPayMethod={setPayMethod} />
+      {!hidePaymentMethodFix && (
+        <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
+          amount={form.amount} payMethod={payMethod} setPayMethod={setPayMethod} />
+      )}
 
       {history === null ? (
         <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>載入中...</div>
@@ -228,18 +236,20 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
             <label style={labS}>日期時間</label>
             <input type="datetime-local" style={inpS} value={form.issuedAt} onChange={e => setForm(f => ({ ...f, issuedAt: e.target.value }))} />
           </div>
-          <div style={{ display:'flex', gap:10, marginBottom:12 }}>
-            <div style={{ flex:1 }}>
-              <label style={labS}>發票字軌（2 碼英文）</label>
-              <input style={{ ...inpS, textTransform:'uppercase' }} value={form.track} maxLength={2}
-                onChange={e => setForm(f => ({ ...f, track: e.target.value.replace(/[^A-Za-z]/g, '') }))} placeholder="如：AB" />
+          {!hideTrackNumber && (
+            <div style={{ display:'flex', gap:10, marginBottom:12 }}>
+              <div style={{ flex:1 }}>
+                <label style={labS}>發票字軌（2 碼英文）</label>
+                <input style={{ ...inpS, textTransform:'uppercase' }} value={form.track} maxLength={2}
+                  onChange={e => setForm(f => ({ ...f, track: e.target.value.replace(/[^A-Za-z]/g, '') }))} placeholder="如：AB" />
+              </div>
+              <div style={{ flex:2 }}>
+                <label style={labS}>發票號碼（8 碼數字）</label>
+                <input style={inpS} value={form.number} maxLength={8}
+                  onChange={e => setForm(f => ({ ...f, number: e.target.value.replace(/\D/g, '') }))} placeholder="如：12345678" />
+              </div>
             </div>
-            <div style={{ flex:2 }}>
-              <label style={labS}>發票號碼（8 碼數字）</label>
-              <input style={inpS} value={form.number} maxLength={8}
-                onChange={e => setForm(f => ({ ...f, number: e.target.value.replace(/\D/g, '') }))} placeholder="如：12345678" />
-            </div>
-          </div>
+          )}
           <div style={{ marginBottom:12 }}>
             <label style={labS}>品項</label>
             <input style={inpS} value={form.itemName} onChange={e => setForm(f => ({ ...f, itemName: e.target.value }))} placeholder="如：課程費用" />

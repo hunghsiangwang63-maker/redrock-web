@@ -939,6 +939,8 @@ export default function CompetitionsPage() {
               + (r.paidAmount != null ? `　店員核對 NT$${r.paidAmount}` : '')}
             defaultItemName={`${r.competitionName || '比賽'}報名費`}
             defaultAmount={r.receivedAmount ?? Math.max(0, (r.paidAmount ?? r.memberPaidAmount ?? r.registrationFee ?? 0) - (r.insuranceFee || 0))}
+            hideTrackNumber
+            hidePaymentMethodFix
             onClose={closeInvoiceTarget}
             listInvoices={() => getRegistrationInvoices(r.id).then(res => res.data.invoices || [])}
             createInvoice={(payload) => createRegistrationInvoice(r.id, payload).then(res => res.data.invoice)}

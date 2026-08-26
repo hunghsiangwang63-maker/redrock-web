@@ -47,7 +47,7 @@ const lab = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 
 // 匯出供「發票號碼管理」設定頁的「手動開立發票（無來源）」直接重用——不透過 InvoiceIssuer 的
 // 開關判斷（那個是給五流程各自的既有入口用的），無來源發票本就只在真列印啟用時才有意義。
-export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, itemBreakdown, onClose, alwaysShowPaymentSelector, mergedCheckinIds }) {
+export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, itemBreakdown, onClose, alwaysShowPaymentSelector, mergedCheckinIds, hidePaymentMethodFix }) {
   const [itemName, setItemName] = useState(defaultItemName || '費用');
   const [amount, setAmount] = useState(defaultAmount ?? 0);
   const [taxId, setTaxId] = useState('');
@@ -194,8 +194,10 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
           </div>
         )}
         {/* 已列印後才發現付款方式記錯，仍可在此更正——只回寫來源訂單記錄，不影響已印出的紙本發票本身 */}
-        <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
-          amount={issued.amount} payMethod={payMethod} setPayMethod={setPayMethod} alwaysShowSelector={alwaysShowPaymentSelector} />
+        {!hidePaymentMethodFix && (
+          <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
+            amount={issued.amount} payMethod={payMethod} setPayMethod={setPayMethod} alwaysShowSelector={alwaysShowPaymentSelector} />
+        )}
         <button onClick={onClose} style={{ width:'100%', height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>關閉</button>
       </Modal>
     );
@@ -240,8 +242,10 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
           <button onClick={refreshAgent} style={{ fontSize:11, color:'#185FA5', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>重新檢查</button>
         </div>
       </div>
-      <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
-        amount={amount} payMethod={payMethod} setPayMethod={setPayMethod} alwaysShowSelector={alwaysShowPaymentSelector} />
+      {!hidePaymentMethodFix && (
+        <PaymentMethodFixBox sourceType={sourceType} refId={refId} paymentMethod={paymentMethod}
+          amount={amount} payMethod={payMethod} setPayMethod={setPayMethod} alwaysShowSelector={alwaysShowPaymentSelector} />
+      )}
       <div style={{ marginBottom:12 }}>
         <label style={lab}>品項</label>
         <input style={inp} value={itemName} onChange={e => setItemName(e.target.value)} placeholder="如：課程費用" />
