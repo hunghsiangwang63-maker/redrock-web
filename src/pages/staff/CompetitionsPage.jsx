@@ -11,6 +11,7 @@ import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonView } from '../../components/InvoiceButton';
 import { broadcastCompetitionReminder, uploadReminderImage } from '../../api/memberReminders';
 import ReminderFormFields from '../../components/ReminderFormFields';
+import { ssoCompAuth } from '../../api/compAuth';
 
 // 「實收金額」就地編修（管理員；扣除保費，供開發票/結帳共用）——比照課程學員頁的實收金額編輯器
 const RegReceivedAmountEditor = ({ reg, onSaved }) => {
@@ -315,6 +316,23 @@ export default function CompetitionsPage() {
     finally { setSyncingId(null); }
   };
 
+  // 計分系統（comp.redrocktaiwan.com）SSO 進入點——2026-08-26 起，計分系統管理員一律從這裡進入
+  // （首頁「管理員功能」卡片與底部導覽「設定」分頁已從計分系統移除）。已對接（有 compDocId）時
+  // 直接深連結到該賽事的「設定」頁；尚未對接則開一般首頁（可在計分系統內自行操作，或回頭先按
+  // 「開始與計分系統對接」建立連結）。
+  const [scoringOpeningId, setScoringOpeningId] = useState(null);
+  const openScoringSystem = async (c) => {
+    setScoringOpeningId(c.id);
+    try {
+      const r = await ssoCompAuth();
+      const params = new URLSearchParams({ ssoToken: r.data.token });
+      if (c.compDocId) { params.set('compId', c.compDocId); params.set('goto', 'settings'); }
+      window.open(`https://comp.redrocktaiwan.com/?${params.toString()}`, '_blank', 'noopener');
+    } catch (e) {
+      showMsg(e.response?.data?.message || '無法進入計分系統（此帳號可能未被指派為計分系統管理員）', 'red');
+    } finally { setScoringOpeningId(null); }
+  };
+
   const handleDelete = async (c) => {
     setConfirmDeleteComp(null);
     try {
@@ -506,6 +524,11 @@ export default function CompetitionsPage() {
                         {syncingId===c.id ? '對接中…' : c.scoringSyncEnabled ? '✅ 已對接·重新推送' : '🔗 開始與計分系統對接'}
                       </button>
                     )}
+                    <button onClick={()=>openScoringSystem(c)} disabled={scoringOpeningId===c.id}
+                      title={c.compDocId ? '進入計分系統並直接開啟此賽事的設定頁' : '進入計分系統首頁（尚未對接，可先按上方「開始與計分系統對接」）'}
+                      style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>
+                      {scoringOpeningId===c.id ? '進入中…' : '🎯 計分系統設定'}
+                    </button>
                     <button onClick={()=>openNotice(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B4513', border:'0.5px solid #D4B896', fontSize:12, cursor:'pointer' }}>📧 賽前通知</button>
                     <button onClick={()=>openReminderBroadcast(c)} title="在會員 App 首頁「課程活動提醒」加一則自訂卡片給全部正取報名者" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8B4B4', fontSize:12, cursor:'pointer' }}>🔔 首頁提醒</button>
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
