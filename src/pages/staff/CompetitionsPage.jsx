@@ -320,17 +320,43 @@ export default function CompetitionsPage() {
   // （首頁「管理員功能」卡片與底部導覽「設定」分頁已從計分系統移除）。已對接（有 compDocId）時
   // 直接深連結到該賽事的「設定」頁；尚未對接則開一般首頁（可在計分系統內自行操作，或回頭先按
   // 「開始與計分系統對接」建立連結）。
+  //
+  // ⚠️ 2026-08-26 修：原本先 await SSO 換 token、拿到後才 window.open——中間隔了一次 await，
+  // 部分瀏覽器會判定這次 window.open 已經脫離「使用者手勢」的當下，直接靜默擋掉彈窗（沒有跳出
+  // 「已封鎖彈出式視窗」提示，只是新分頁完全沒開，或開了一個空白分頁但沒有導向），導致按鈕看起來
+  // 「按了沒反應／沒有跳轉到設定頁」。改法：window.open 一定要在 onClick 的同一個事件循環（await
+  // 之前）就先呼叫、拿到分頁的 window 參考，換好 token 之後再用 win.location.href 導頁——這樣
+  // window.open 本身仍在使用者手勢的當下觸發，不會被擋。
   const [scoringOpeningId, setScoringOpeningId] = useState(null);
   const openScoringSystem = async (c) => {
+    const win = window.open('', '_blank');
     setScoringOpeningId(c.id);
     try {
       const r = await ssoCompAuth();
       const params = new URLSearchParams({ ssoToken: r.data.token });
       if (c.compDocId) { params.set('compId', c.compDocId); params.set('goto', 'settings'); }
-      window.open(`https://comp.redrocktaiwan.com/?${params.toString()}`, '_blank', 'noopener');
+      const url = `https://comp.redrocktaiwan.com/?${params.toString()}`;
+      if (win && !win.closed) win.location.href = url;
+      else window.open(url, '_blank', 'noopener');
     } catch (e) {
+      if (win && !win.closed) win.close();
       showMsg(e.response?.data?.message || '無法進入計分系統（此帳號可能未被指派為計分系統管理員）', 'red');
     } finally { setScoringOpeningId(null); }
+  };
+  // 通用進入點（不指定特定賽事，開計分系統首頁）——放在「+新增賽事」旁邊，同一份修復邏輯。
+  const [scoringOpeningGeneral, setScoringOpeningGeneral] = useState(false);
+  const openScoringSystemGeneral = async () => {
+    const win = window.open('', '_blank');
+    setScoringOpeningGeneral(true);
+    try {
+      const r = await ssoCompAuth();
+      const url = `https://comp.redrocktaiwan.com/?${new URLSearchParams({ ssoToken: r.data.token }).toString()}`;
+      if (win && !win.closed) win.location.href = url;
+      else window.open(url, '_blank', 'noopener');
+    } catch (e) {
+      if (win && !win.closed) win.close();
+      showMsg(e.response?.data?.message || '無法進入計分系統（此帳號可能未被指派為計分系統管理員）', 'red');
+    } finally { setScoringOpeningGeneral(false); }
   };
 
   const handleDelete = async (c) => {
@@ -474,7 +500,13 @@ export default function CompetitionsPage() {
     <div style={{ padding:24, maxWidth:900, margin:'0 auto' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
         <div style={{ fontSize:20, fontWeight:700, color:'#1a1a1a' }}>🏆 賽事管理</div>
-        {canManage && <button onClick={openCreate} style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>+ 新增賽事</button>}
+        {canManage && <div style={{ display:'flex', gap:8 }}>
+          <button onClick={openScoringSystemGeneral} disabled={scoringOpeningGeneral}
+            style={{ height:36, padding:'0 16px', borderRadius:8, background:'#fff', color:'#185FA5', border:'0.5px solid #185FA5', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            {scoringOpeningGeneral ? '進入中…' : '🎯 進入賽事計分系統'}
+          </button>
+          <button onClick={openCreate} style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>+ 新增賽事</button>
+        </div>}
       </div>
 
       {msg && <div style={{ background:msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F5C4C4'}`, borderRadius:8, padding:'8px 14px', marginBottom:14, fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
