@@ -21,7 +21,7 @@ const DENOMINATIONS = [
 const PRINT_AGENT_URL = 'http://localhost:3399';
 
 const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','押金收取','押金退還','其他退款','其他'];
-const INCOME_KEYS = ['entry', 'shoeRental', 'equipmentRental', 'product', 'course', 'pass'];
+const INCOME_KEYS = ['entry', 'shoeRental', 'equipmentRental', 'product', 'course', 'pass', 'competition'];
 
 // ── 入場費固定六分類（結帳畫面預設就顯示、可逐類手動輸入）──────────────────
 const ENTRY_CATS = ['成人', '學生', '兒童', '成人使用優惠券', '學生使用優惠券', '隊員折扣', '隊員＋優惠券'];
@@ -46,7 +46,7 @@ const entryManualTotal = (income, im) => {
 };
 // 手計總額：入場走逐類加總，其餘項有手動值取手動、缺項回退系統；無 incomeManual 回 null
 const manualIncomeTotal = (income, im) => im
-  ? entryManualTotal(income, im) + ['shoeRental', 'equipmentRental', 'product', 'course', 'pass']
+  ? entryManualTotal(income, im) + ['shoeRental', 'equipmentRental', 'product', 'course', 'pass', 'competition']
       .reduce((s, k) => s + ((im[k] !== '' && im[k] != null) ? (Number(im[k]) || 0) : (income?.[k] || 0)), 0)
   : null;
 
@@ -531,6 +531,7 @@ export default function DailySettlementPage() {
               { key:'equipmentRental', label:'器材租借', value: settlement?.income?.equipmentRental || 0 },
               { key:'product', label:'商品銷售', value: settlement?.income?.product || 0 },
               { key:'course', label:'課程收入', value: settlement?.income?.course || 0, sourceNote: printingEnabled ? '依今日開立發票' : null },
+              { key:'competition', label:'比賽報名', value: settlement?.income?.competition || 0, sourceNote: printingEnabled ? '依今日開立發票' : null },
               { key:'pass', label:'定期票', value: settlement?.income?.pass || 0, sub: settlement?.income?.passItems },
             ].map((item, i) => (
               <div key={i}>
@@ -606,6 +607,7 @@ export default function DailySettlementPage() {
               { key:'jko', label:'街口支付', value: settlement?.payment?.jko || 0 },
               { key:'taiwanPay', label:'台灣Pay', value: settlement?.payment?.taiwanPay || 0 },
               { key:'transfer', label:'轉帳', value: settlement?.payment?.transfer || 0 },
+              { key:'other', label:'其他', value: settlement?.payment?.other || 0 },
             ].map((item, i) => (
               <div key={i} style={s.row}>
                 <span style={s.label}>{item.label}</span>
@@ -909,6 +911,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
   const cats = income ? [
     { key:'entry', label:'入場', value: income.entry || 0, sub: income.entryItems },
     { key:'course', label:'課程', value: income.course || 0 },
+    { key:'competition', label:'比賽報名', value: income.competition || 0 },
     { key:'product', label:'裝備銷售', value: income.product || 0 },
     { key:'shoeRental', label:'出租', value: income.shoeRental || 0 },
     { key:'equipmentRental', label:'器材租借', value: income.equipmentRental || 0 },
@@ -921,6 +924,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
     { key:'jko', label:'街口支付', value: payment.jko || 0 },
     { key:'taiwanPay', label:'台灣Pay', value: payment.taiwanPay || 0 },
     { key:'transfer', label:'轉帳', value: payment.transfer || 0 },
+    { key:'other', label:'其他', value: payment.other || 0 },
   ] : [];
   const showPayManualCol = !!paymentManual;
   const payManVal = (k, sysV) => (paymentManual && paymentManual[k] !== '' && paymentManual[k] != null) ? (Number(paymentManual[k]) || 0) : sysV;
