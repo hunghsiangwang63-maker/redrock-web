@@ -316,6 +316,20 @@ export default function CompetitionsPage() {
     finally { setSyncingId(null); }
   };
 
+  // 2026-08-27：賽事已結束、計分系統總管理者在計分系統按過「回寫成績至會員紀錄」後，這裡拉一次
+  // 把組別名次/參賽人數寫進 RedRock 自己的報名紀錄（competitionRegistrations.result），供會員在
+  // 「我的紀錄」看到自己的比賽成績——與上面「開始對接」方向相反，各自獨立按鈕、獨立呼叫。
+  const [pullingId, setPullingId] = useState(null);
+  const pullResults = async (c) => {
+    if (!window.confirm(`拉取「${c.name}」的最終成績並寫回會員報名紀錄？\n請先確認在計分系統已標記「此賽事已結束」並按過「回寫成績至會員紀錄」，否則會拉取失敗。`)) return;
+    setPullingId(c.id);
+    try {
+      const r = await client.post(`/competitions/${c.id}/pull-results`);
+      showMsg(r.data.message || '已寫回成績');
+    } catch(e){ showMsg(e.response?.data?.message || '拉取失敗，請確認計分系統是否已回寫成績','red'); }
+    finally { setPullingId(null); }
+  };
+
   // 計分系統（comp.redrocktaiwan.com）SSO 進入點——2026-08-26 起，計分系統管理員一律從這裡進入
   // （首頁「管理員功能」卡片、底部導覽「設定」分頁、頁面頂部原本常駐的 ⚙️ 圖示皆已從計分系統
   // 移除）。原本每場賽事各自一顆「計分系統設定」深連結按鈕已拿掉——計分系統登入後右上角本身就
@@ -538,6 +552,13 @@ export default function CompetitionsPage() {
                           color: c.scoringSyncEnabled ? '#2D7D46' : '#fff',
                           border: c.scoringSyncEnabled ? '0.5px solid #2D7D46' : 'none', fontSize:12, cursor:'pointer' }}>
                         {syncingId===c.id ? '對接中…' : c.scoringSyncEnabled ? '✅ 已對接·重新推送' : '🔗 開始與計分系統對接'}
+                      </button>
+                    )}
+                    {c.scoringSystem==='competition_management_v2' && c.scoringSyncEnabled && (
+                      <button onClick={()=>pullResults(c)} disabled={pullingId===c.id}
+                        title="賽事已結束、計分系統已回寫成績後，拉取最終名次寫進會員自己的「我的紀錄」"
+                        style={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#4e8ef7', border:'0.5px solid #4e8ef7', fontSize:12, cursor:'pointer' }}>
+                        {pullingId===c.id ? '拉取中…' : '📥 拉取成績寫回會員紀錄'}
                       </button>
                     )}
                     <button onClick={()=>openNotice(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B4513', border:'0.5px solid #D4B896', fontSize:12, cursor:'pointer' }}>📧 賽前通知</button>

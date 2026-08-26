@@ -201,6 +201,11 @@ export default function MemberRecordsPage() {
                   </div>
                   <StatusBadge status={r.paymentStatus} labels={{ confirmed:'已繳費', pending:'待繳費' }}/>
                 </div>
+                {r.result?.rank != null && (
+                  <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginTop:6 }}>
+                    🏆 {r.result.categoryName || r.divisionName}第 {r.result.rank} 名{r.result.participantCount ? `（共 ${r.result.participantCount} 人）` : ''}
+                  </div>
+                )}
               </Card>
             ))}
           </div>
