@@ -591,7 +591,18 @@ export default function DailySettlementPage() {
 
           {/* 付款方式 */}
           <div style={s.card}>
-            <div style={s.cardHead}>付款方式統計{transition.settlementPaymentManualInput ? '（左：手動輸入　右：系統值）' : ''}</div>
+            <div style={{ ...s.cardHead, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span>付款方式統計{transition.settlementPaymentManualInput ? '（左：手動輸入　右：系統值）' : ''}</span>
+              {/* 所有付款方式加總（有效值：現金＝自動推算/系統、線上支付＝手動優先否則系統值） */}
+              <span style={{ fontSize:13, fontWeight:700, color:'#8B1A1A' }}>
+                合計 NT${(
+                  ((transition.settlementPaymentManualInput || printingEnabled) ? effectiveCash : (settlement?.payment?.cash || 0))
+                  + ['linePay','jko','taiwanPay','transfer','other'].reduce((sum, k) =>
+                      sum + ((transition.settlementPaymentManualInput && paymentManual[k] !== '' && paymentManual[k] != null)
+                        ? (Number(paymentManual[k]) || 0) : (settlement?.payment?.[k] || 0)), 0)
+                ).toLocaleString()}
+              </span>
+            </div>
             {(transition.settlementPaymentManualInput || printingEnabled) && (
               <div style={s.row}>
                 <span style={s.label}>現金（自動）</span>
@@ -1024,6 +1035,8 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
         <div style={{ ...row, flexDirection:'column', alignItems:'stretch' }}>
           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
             <span style={{ color:'#666' }}>付款方式統計{showPayManualCol ? '（手動 · 系統）' : ''}</span>
+            {/* 所有付款方式加總（手動模式時線上支付取手動優先值，與各列顯示一致） */}
+            <span style={{ fontWeight:700, color:'#8B1A1A' }}>合計 {money(payMethods.reduce((sum, m) => sum + (m.key === 'cash' ? m.value : payManVal(m.key, m.value)), 0))}</span>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:3 }}>
             {payMethods.map((m, i) => {
