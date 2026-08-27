@@ -14,33 +14,46 @@ import ReminderFormFields from '../../components/ReminderFormFields';
 import { ssoCompAuth } from '../../api/compAuth';
 
 // 「實收金額」就地編修（管理員；扣除保費，供開發票/結帳共用）——比照課程學員頁的實收金額編輯器
+// 2026-08-27 改制：預設「檢視模式」（純文字），管理員按「✏️ 編輯」才出現輸入框＋儲存/取消
+// ——名單列不再就地編輯，實收金額編輯統一走詳細彈窗的這個元件。
 const RegReceivedAmountEditor = ({ reg, onSaved }) => {
+  const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(reg.receivedAmount ?? 0);
   const [saving, setSaving] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
-  useEffect(() => { setVal(reg.receivedAmount ?? 0); }, [reg.receivedAmount, reg.id]);
+  useEffect(() => { setVal(reg.receivedAmount ?? 0); setEditing(false); }, [reg.receivedAmount, reg.id]);
   const commit = async () => {
     const num = Number(val);
-    if (isNaN(num) || num < 0) { setVal(reg.receivedAmount ?? 0); return; }
-    if (num === (reg.receivedAmount ?? 0)) return;
+    if (isNaN(num) || num < 0) { setVal(reg.receivedAmount ?? 0); setEditing(false); return; }
+    if (num === (reg.receivedAmount ?? 0)) { setEditing(false); return; }
     setSaving(true);
     try {
       await updateCompetitionReceivedAmount(reg.id, num);
       onSaved?.(reg.id, num);
-      setJustSaved(true); setTimeout(() => setJustSaved(false), 1500);
+      setEditing(false);
     } catch (err) {
       alert(err.response?.data?.message || '更新實收金額失敗');
       setVal(reg.receivedAmount ?? 0);
     } finally { setSaving(false); }
   };
+  if (!editing) {
+    return (
+      <span style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+        <span style={{ fontWeight:600, color:'#8B1A1A' }}>NT${reg.receivedAmount ?? 0}{reg.receivedAmountOverride != null ? '（管理員已編修）' : ''}</span>
+        <button onClick={() => setEditing(true)}
+          style={{ height:24, padding:'0 8px', borderRadius:6, background:'#fff', color:'#8B1A1A', border:'1px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>✏️ 編輯</button>
+      </span>
+    );
+  }
   return (
-    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
-      <input type="number" value={val} disabled={saving}
+    <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+      <input type="number" value={val} disabled={saving} autoFocus
         onChange={e => setVal(e.target.value)}
-        onBlur={commit}
-        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-        style={{ width:80, height:26, fontSize:12, borderRadius:6, border:'1px solid #E8D5D5', padding:'0 6px', boxSizing:'border-box' }} />
-      {justSaved && <span style={{ color:'#2D7D46', fontSize:11 }}>✓</span>}
+        onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setVal(reg.receivedAmount ?? 0); setEditing(false); } }}
+        style={{ width:90, height:28, fontSize:12, borderRadius:6, border:'1px solid #E8D5D5', padding:'0 8px', boxSizing:'border-box' }} />
+      <button onClick={commit} disabled={saving}
+        style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>{saving ? '儲存中' : '儲存'}</button>
+      <button onClick={() => { setVal(reg.receivedAmount ?? 0); setEditing(false); }} disabled={saving}
+        style={{ height:28, padding:'0 10px', borderRadius:6, background:'none', color:'#666', border:'1px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>取消</button>
     </span>
   );
 };
@@ -733,13 +746,7 @@ export default function CompetitionsPage() {
                       <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
                         <span style={{ fontSize:14, fontWeight:600 }}>{r.memberName}</span>
                         {isManagerOnly && (
-                          <span onClick={e => e.stopPropagation()} style={{ display:'inline-flex', alignItems:'center', gap:3 }}>
-                            <span style={{ fontSize:10, color:'#999' }}>實收</span>
-                            <RegReceivedAmountEditor reg={r} onSaved={(id, amt) => {
-                              setRegDetail(d => d && d.id === id ? { ...d, receivedAmount: amt, receivedAmountOverride: amt } : d);
-                              setRegistrations(list => list.map(x => x.id === id ? { ...x, receivedAmount: amt, receivedAmountOverride: amt } : x));
-                            }} />
-                          </span>
+                          <span style={{ fontSize:11, color:'#666', whiteSpace:'nowrap' }}>實收 NT${r.receivedAmount ?? 0}</span>
                         )}
                         <span style={{ fontSize:11, color:'#888' }}>{r.divisionName}</span>
                         <span style={{ fontSize:11, color:'#888' }}>{r.gender==='male'?'男':r.gender==='female'?'女':'—'}</span>

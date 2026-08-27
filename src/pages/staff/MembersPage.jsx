@@ -297,42 +297,11 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
 // 課程學員頁「實收金額」欄位：一律顯示（member.receivedAmount，後端已算好優先序：
 // 管理員直接編修 > 店員核對收款 > 會員自報匯款 > 報名應繳費用）；僅管理員可就地編修。
 // editable＝管理員（不限裝置，永遠可見可編修）；非管理員只有場館電腦（站台／值班）才看得到唯讀顯示，個人裝置登入看不到
-const ReceivedAmountEditor = ({ member, editable, stationVisible, onSaved }) => {
-  const [val, setVal] = useState(member.receivedAmount ?? 0);
-  const [saving, setSaving] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
-  useEffect(() => { setVal(member.receivedAmount ?? 0); }, [member.receivedAmount, member.enrollmentId]);
-
-  if (!editable) {
-    if (!stationVisible) return null;
-    return <span style={{ fontSize:12, color:'#666', whiteSpace:'nowrap' }}>實收 NT${member.receivedAmount ?? 0}</span>;
-  }
-  const commit = async () => {
-    const num = Number(val);
-    if (isNaN(num) || num < 0) { setVal(member.receivedAmount ?? 0); return; }
-    if (num === (member.receivedAmount ?? 0)) return;
-    if (!member.enrollmentId) return;
-    setSaving(true);
-    try {
-      await updateReceivedAmount(member.enrollmentId, num);
-      onSaved?.(member.enrollmentId, num);
-      setJustSaved(true); setTimeout(() => setJustSaved(false), 1500);
-    } catch (err) {
-      alert(err.response?.data?.message || '更新實收金額失敗');
-      setVal(member.receivedAmount ?? 0);
-    } finally { setSaving(false); }
-  };
-  return (
-    <span style={{ display:'inline-flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}>
-      <span style={{ fontSize:11, color:'#999' }}>實收</span>
-      <input type="number" value={val} disabled={!member.enrollmentId || saving}
-        onChange={e => setVal(e.target.value)}
-        onBlur={commit}
-        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-        style={{ width:72, height:24, fontSize:11, borderRadius:6, border:'1px solid #E8D5D5', padding:'0 6px', boxSizing:'border-box' }} />
-      {justSaved && <span style={{ color:'#2D7D46', fontSize:11 }}>✓</span>}
-    </span>
-  );
+// 2026-08-27 改制：名單列不再就地編輯實收金額（原 inline input 移除）——一律唯讀顯示，
+// 編輯統一走「詳細」彈窗（CourseRegDetailModal，預設檢視、管理員按「✏️ 編輯」才可改）。
+const ReceivedAmountEditor = ({ member, editable, stationVisible }) => {
+  if (!editable && !stationVisible) return null;
+  return <span style={{ fontSize:12, color:'#666', whiteSpace:'nowrap' }}>實收 NT${member.receivedAmount ?? 0}</span>;
 };
 
 export default function MembersPage() {
@@ -928,7 +897,15 @@ export default function MembersPage() {
               voidInvoiceFn={(id) => voidCourseInvoice(id)}
             />
           )}
-          {regDetailTarget && <CourseRegDetailModal r={regDetailTarget} onClose={() => setRegDetailTarget(null)} />}
+          {regDetailTarget && (
+            <CourseRegDetailModal r={regDetailTarget} onClose={() => setRegDetailTarget(null)}
+              editable={isManagerRole}
+              onSaveAmount={async (num) => {
+                await updateReceivedAmount(regDetailTarget.enrollmentId, num);
+                applyReceivedAmountEdit(regDetailTarget.enrollmentId, num);
+                setRegDetailTarget(t => t ? { ...t, receivedAmount: num, receivedAmountOverride: num } : t);
+              }} />
+          )}
 
           {/* 歷史開課資料（已過期梯次）：排在最後、預設收合，展開後下拉選擇單一梯次查看 */}
           <div style={{ marginTop:20, borderTop:'1px solid #E8D5D5', paddingTop:14 }}>
