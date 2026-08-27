@@ -894,7 +894,7 @@ export default function MembersPage() {
                   </button>
                 )}
                 {/* 開立發票：站台/值班比照後端 requireManagerOrStation 一併開放（原本只有管理員看得到） */}
-                {(isManagerRole || isStationContext) && (
+                {(isManagerRole || isStationContext) && (m.invoiceNo || (m.receivedAmount ?? 0) > 0) && (
                   <InvoiceButtonView invoiceNo={m.invoiceNo}
                     onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })} />
                 )}
@@ -984,7 +984,7 @@ export default function MembersPage() {
                                   詳細
                                 </button>
                               )}
-                              {(isManagerRole || isStationContext) && (
+                              {(isManagerRole || isStationContext) && (m.invoiceNo || (m.receivedAmount ?? 0) > 0) && (
                                 <InvoiceButtonView invoiceNo={m.invoiceNo}
                                   onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })} />
                               )}
@@ -1041,7 +1041,7 @@ export default function MembersPage() {
                             詳細
                           </button>
                         )}
-                        {(isManagerRole || isStationContext) && (
+                        {(isManagerRole || isStationContext) && (m.invoiceNo || (m.receivedAmount ?? 0) > 0) && (
                           <InvoiceButtonView invoiceNo={m.invoiceNo}
                             onClick={() => setInvoiceTarget({ ...m, courseId: g.courseId, courseName: g.courseName, gymId: g.gymId })} />
                         )}

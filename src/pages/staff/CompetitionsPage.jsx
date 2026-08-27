@@ -751,7 +751,8 @@ export default function CompetitionsPage() {
                         {remark.map((rm,i)=><span key={i} style={{ fontSize:10, background:'#FFF8E6', color:'#854F0B', padding:'1px 6px', borderRadius:6 }}>{rm}</span>)}
                       </div>
                     </div>
-                    {canInvoice && r.status !== 'cancelled' && !r.refundRequested && (
+                    {canInvoice && r.status !== 'cancelled' && !r.refundRequested
+                      && (r.invoiceNo || (r.receivedAmount ?? Math.max(0, (r.paidAmount ?? r.memberPaidAmount ?? r.registrationFee ?? 0) - (r.insuranceFee || 0))) > 0) && (
                       <InvoiceButtonView invoiceNo={r.invoiceNo}
                         onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }} />
                     )}

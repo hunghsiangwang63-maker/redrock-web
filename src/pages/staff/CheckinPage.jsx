@@ -708,7 +708,7 @@ export default function CheckinPage() {
                       </button>
                     )}
                     {/* 開立比賽發票：2026-08-17 放寬值班站台可開（原限管理員），與後端 requireManagerOrStation 對齊 */}
-                    {canCheckin && (
+                    {canCheckin && (compScan.receivedAmount ?? compScan.registrationFee ?? 0) > 0 && (
                       <InvoiceButtonAuto sourceType="competition" refId={compScan.registrationId} refreshToken={compInvRefresh}
                         onClick={() => setCompInvoiceTarget(compScan)}
                         style={{ marginTop:8, width:'100%', height:38, borderRadius:9, fontSize:13 }} />
@@ -1340,7 +1340,7 @@ export default function CheckinPage() {
                     <div style={{ fontSize:11, color:'#999' }}>{s.startTime}～{s.endTime}</div>
                     {/* 課程發票：2026-08-17 放寬值班站台可開（原限管理員，後端已改
                         requireManagerOrStation，與本頁其餘入場/補租一致） */}
-                    {s.isLastSession && canCheckin && (
+                    {s.isLastSession && canCheckin && (s.receivedAmount ?? 0) > 0 && (
                       <div onClick={(e) => e.stopPropagation()} style={{ marginTop:6 }}>
                         <InvoiceButtonAuto sourceType="course" refId={s.enrollmentId} refreshToken={courseInvRefresh}
                           onClick={() => setCourseInvoiceTarget(s)} style={{ width:'100%', textAlign:'center' }} />
@@ -1433,7 +1433,7 @@ export default function CheckinPage() {
                       )}
                       {/* 課程學員剛好是最後一堂：先入場後也能在這裡開同一張課程發票（非入場費本身，
                           與上面「入場」發票各自獨立），資料來源見 GET /checkin/today 的 courseInvoice */}
-                      {c.courseInvoice && canCheckin && (
+                      {c.courseInvoice && canCheckin && (c.courseInvoice.receivedAmount ?? 0) > 0 && (
                         <InvoiceButtonAuto sourceType="course" refId={c.courseInvoice.enrollmentId} refreshToken={courseInvRefresh}
                           onClick={() => setCourseInvoiceTarget({
                             memberId: c.memberId, memberName: c.memberName,
