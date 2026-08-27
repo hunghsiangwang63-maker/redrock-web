@@ -53,6 +53,9 @@ export default function SchedulePage() {
 
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [editingShift, setEditingShift] = useState(null);
+  // 檢視模式：月曆點既有排班/重要事項先開唯讀檢視彈窗（人人可看），底部「編輯」鈕才進編輯 Modal
+  const [viewingShift, setViewingShift] = useState(null);
+  const [viewingEvent, setViewingEvent] = useState(null);
   const [shiftForm, setShiftForm] = useState({ staffId:'', date:'', type:'full_day', startTime:'10:00', endTime:'18:00', note:'' });
   const [saving, setSaving] = useState(false);
   const [schedBusy, setSchedBusy] = useState(false);
@@ -508,11 +511,11 @@ export default function SchedulePage() {
                       {dayEvents.map(ev => {
                         const meta = EVENT_CATEGORY_META[ev.category] || EVENT_CATEGORY_META.other;
                         return (
-                          <div key={ev.id} onClick={e => { e.stopPropagation(); openEditEvent(ev); }}
+                          <div key={ev.id} onClick={e => { e.stopPropagation(); setViewingEvent(ev); }}
                             style={{
                               fontSize:10, fontWeight:700, padding:'2px 5px', borderRadius:4, marginBottom:2,
                               background: meta.color, color:'#fff',
-                              cursor: canManageEvents ? 'pointer' : 'default',
+                              cursor:'pointer',
                               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                             }}>
                             {meta.emoji} {ev.title || meta.label}{!ev.allDay && ev.startTime ? ` ${ev.startTime}-${ev.endTime}` : ''}
@@ -523,14 +526,14 @@ export default function SchedulePage() {
                         const isCourse = s.source === 'course' || String(s.note || '').startsWith('體驗課程');
                         const cname = s.courseName || String(s.note || '').replace(/^體驗課程・/, '').split('・')[0];
                         return (
-                        <div key={s.id} onClick={e => { e.stopPropagation(); openEditShift(s); }}
+                        <div key={s.id} onClick={e => { e.stopPropagation(); setViewingShift(s); }}
                           style={{
                             fontSize:10, fontWeight:700, padding:'2px 5px', borderRadius:4, marginBottom:2,
                             // 全天：淡色填滿（員工色 +25% 透明度）＋員工色文字，讀得清楚又不搶眼
                             background: s.type === 'full_day' ? `${staffColor(s.staffId)}40` : 'transparent',
                             color: staffColor(s.staffId),
                             border: s.type === 'full_day' ? 'none' : `1.5px solid ${staffColor(s.staffId)}`,
-                            cursor: canManage ? 'pointer' : 'default',
+                            cursor:'pointer',
                             whiteSpace: isCourse ? 'normal' : 'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                           }}>
                           {s.staffName} {s.type === 'full_day' ? '全天' : `${s.startTime}-${s.endTime}`}
@@ -575,6 +578,76 @@ export default function SchedulePage() {
               {settingsSaving ? '儲存中...' : '儲存設定'}
             </button>
           </div>
+        </Modal>
+      )}
+
+      {/* 排班檢視 Modal（唯讀；月曆點既有排班先進這裡，按「編輯」才進編輯 Modal） */}
+      {viewingShift && (
+        <Modal title="排班內容" onClose={() => setViewingShift(null)}>
+          {(() => {
+            const s2 = viewingShift;
+            const isCourse = s2.source === 'course' || String(s2.note || '').startsWith('體驗課程');
+            const Row = ({ label, children }) => (
+              <div style={{ display:'flex', gap:12, padding:'9px 0', borderBottom:'0.5px solid #F3E8E8', fontSize:13 }}>
+                <div style={{ width:76, color:'#999', flexShrink:0 }}>{label}</div>
+                <div style={{ color:'#1a1a1a', flex:1, whiteSpace:'pre-wrap', wordBreak:'break-word', lineHeight:1.6 }}>{children}</div>
+              </div>
+            );
+            return (
+              <>
+                <Row label="員工">
+                  <span style={{ fontWeight:700, color: staffColor(s2.staffId) }}>{s2.staffName}</span>
+                </Row>
+                <Row label="日期">{s2.date}（週{['日','一','二','三','四','五','六'][dayjs(s2.date).day()]}）</Row>
+                <Row label="班別">{s2.type === 'full_day' ? '全天班' : `自訂時段 ${s2.startTime || ''}~${s2.endTime || ''}`}</Row>
+                {isCourse && <Row label="來源">📚 課程/體驗連動班（{s2.courseName || String(s2.note || '').replace(/^體驗課程・/, '').split('・')[0]}）</Row>}
+                <Row label="備註">{s2.note || '—'}</Row>
+                <div style={{ display:'flex', gap:8, marginTop:18 }}>
+                  <button onClick={() => setViewingShift(null)}
+                    style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>關閉</button>
+                  {canManage && (
+                    <button onClick={() => { setViewingShift(null); openEditShift(s2); }}
+                      style={{ flex:2, height:42, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>✏️ 編輯</button>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </Modal>
+      )}
+
+      {/* 重要事項檢視 Modal（唯讀；按「編輯」才進編輯 Modal） */}
+      {viewingEvent && (
+        <Modal title="重要事項內容" onClose={() => setViewingEvent(null)}>
+          {(() => {
+            const ev = viewingEvent;
+            const meta = EVENT_CATEGORY_META[ev.category] || EVENT_CATEGORY_META.other;
+            const Row = ({ label, children }) => (
+              <div style={{ display:'flex', gap:12, padding:'9px 0', borderBottom:'0.5px solid #F3E8E8', fontSize:13 }}>
+                <div style={{ width:76, color:'#999', flexShrink:0 }}>{label}</div>
+                <div style={{ color:'#1a1a1a', flex:1, whiteSpace:'pre-wrap', wordBreak:'break-word', lineHeight:1.6 }}>{children}</div>
+              </div>
+            );
+            return (
+              <>
+                <Row label="類別">
+                  <span style={{ background: meta.color, color:'#fff', borderRadius:5, padding:'2px 8px', fontSize:12, fontWeight:700 }}>{meta.emoji} {meta.label}</span>
+                </Row>
+                <Row label="標題">{ev.title || meta.label}</Row>
+                <Row label="日期">{ev.date}（週{['日','一','二','三','四','五','六'][dayjs(ev.date).day()]}）{ev.recurrenceGroupId ? '　🔁 循環系列' : ''}</Row>
+                <Row label="時間">{ev.allDay ? '全天' : `${ev.startTime || ''}~${ev.endTime || ''}`}</Row>
+                <Row label="備註">{ev.note || '—'}</Row>
+                <div style={{ display:'flex', gap:8, marginTop:18 }}>
+                  <button onClick={() => setViewingEvent(null)}
+                    style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>關閉</button>
+                  {canManageEvents && (
+                    <button onClick={() => { setViewingEvent(null); openEditEvent(ev); }}
+                      style={{ flex:2, height:42, borderRadius:9, background:'#6B3FA0', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>✏️ 編輯</button>
+                  )}
+                </div>
+              </>
+            );
+          })()}
         </Modal>
       )}
 
@@ -623,8 +696,10 @@ export default function SchedulePage() {
           )}
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
-            <input value={shiftForm.note} onChange={e => setShiftForm({...shiftForm, note:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            <textarea value={shiftForm.note} maxLength={200} rows={6}
+              onChange={e => setShiftForm({...shiftForm, note:e.target.value})}
+              style={{ width:'100%', minHeight:140, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'10px 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', resize:'vertical', lineHeight:1.6, fontFamily:'inherit' }}/>
+            <div style={{ fontSize:11, color:'#bbb', textAlign:'right', marginTop:3 }}>{(shiftForm.note || '').length}/200</div>
           </div>
           <div style={{ display:'flex', gap:8 }}>
             {editingShift && (
@@ -745,8 +820,10 @@ export default function SchedulePage() {
           )}
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
-            <input value={eventForm.note} onChange={e => setEventForm({...eventForm, note:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            <textarea value={eventForm.note} maxLength={200} rows={6}
+              onChange={e => setEventForm({...eventForm, note:e.target.value})}
+              style={{ width:'100%', minHeight:140, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'10px 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', resize:'vertical', lineHeight:1.6, fontFamily:'inherit' }}/>
+            <div style={{ fontSize:11, color:'#bbb', textAlign:'right', marginTop:3 }}>{(eventForm.note || '').length}/200</div>
           </div>
           <div style={{ display:'flex', gap:8 }}>
             {editingEvent && (
@@ -836,8 +913,10 @@ export default function SchedulePage() {
 
           <div style={{ marginBottom:20 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
-            <input value={recurringForm.note} onChange={e => setRecurringForm({...recurringForm, note:e.target.value})}
-              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            <textarea value={recurringForm.note} maxLength={200} rows={6}
+              onChange={e => setRecurringForm({...recurringForm, note:e.target.value})}
+              style={{ width:'100%', minHeight:140, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'10px 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', resize:'vertical', lineHeight:1.6, fontFamily:'inherit' }}/>
+            <div style={{ fontSize:11, color:'#bbb', textAlign:'right', marginTop:3 }}>{(recurringForm.note || '').length}/200</div>
           </div>
 
           {recurringError && (
