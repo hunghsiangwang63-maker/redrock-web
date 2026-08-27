@@ -155,6 +155,60 @@ export default function CompetitionsPage() {
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
   const [tab, setTab] = useState('list');
   const [showForm, setShowForm] = useState(false);
+  // 贊助商 Logo 管理（顯示於計分系統首頁，可設顯示期間；資料存計分系統專案、經後端推送）
+  const [sponsorOpen, setSponsorOpen] = useState(false);
+  const [sponsors, setSponsors] = useState(null);
+  const [spForm, setSpForm] = useState({ name:'', startDate:'', endDate:'', logo:'' });
+  const [spBusy, setSpBusy] = useState(false);
+  const loadSponsors = async () => {
+    try { const r = await client.get('/competitions/sponsors'); setSponsors(r.data.sponsors || []); }
+    catch (e) { setSponsors([]); showMsg(e.response?.data?.message || '贊助商清單載入失敗', 'err'); }
+  };
+  const openSponsors = () => { setSponsorOpen(true); setSponsors(null); setSpForm({ name:'', startDate:'', endDate:'', logo:'' }); loadSponsors(); };
+  // 上傳前縮圖（最長邊 600px、PNG 保留透明背景），避免 base64 過大
+  const readSponsorLogo = (file) => new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 600;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = () => reject(new Error('圖片讀取失敗'));
+      img.src = fr.result;
+    };
+    fr.onerror = () => reject(new Error('檔案讀取失敗'));
+    fr.readAsDataURL(file);
+  });
+  const submitSponsor = async () => {
+    if (!spForm.name.trim()) return showMsg('請填寫贊助商名稱', 'err');
+    if (!spForm.logo) return showMsg('請選擇 Logo 圖檔', 'err');
+    if (!spForm.startDate || !spForm.endDate) return showMsg('請設定顯示期間', 'err');
+    setSpBusy(true);
+    try {
+      await client.post('/competitions/sponsors', spForm);
+      showMsg('已新增贊助商，計分系統首頁將於顯示期間內呈現', 'ok');
+      setSpForm({ name:'', startDate:'', endDate:'', logo:'' });
+      loadSponsors();
+    } catch (e) { showMsg(e.response?.data?.message || '新增失敗', 'err'); }
+    finally { setSpBusy(false); }
+  };
+  const updateSponsorPeriod = async (sp) => {
+    try {
+      await client.put(`/competitions/sponsors/${sp.id}`, { startDate: sp.startDate, endDate: sp.endDate });
+      showMsg('顯示期間已更新', 'ok'); loadSponsors();
+    } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'err'); }
+  };
+  const deleteSponsor = async (sp) => {
+    if (!window.confirm(`確定刪除贊助商「${sp.name}」的 Logo？計分系統首頁將不再顯示。`)) return;
+    try { await client.delete(`/competitions/sponsors/${sp.id}`); showMsg('已刪除', 'ok'); loadSponsors(); }
+    catch (e) { showMsg(e.response?.data?.message || '刪除失敗', 'err'); }
+  };
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm());
   const [saving, setSaving] = useState(false);
@@ -516,11 +570,83 @@ export default function CompetitionsPage() {
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#fff', color:'#185FA5', border:'0.5px solid #185FA5', fontSize:13, fontWeight:500, cursor:'pointer' }}>
             {scoringOpeningGeneral ? '進入中…' : '🎯 進入賽事計分系統'}
           </button>
+          <button onClick={openSponsors}
+            style={{ height:36, padding:'0 16px', borderRadius:8, background:'#fff', color:'#8B6914', border:'0.5px solid #C9A227', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            🤝 贊助商 Logo
+          </button>
           <button onClick={openCreate} style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>+ 新增賽事</button>
         </div>}
       </div>
 
       {msg && <div style={{ background:msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F5C4C4'}`, borderRadius:8, padding:'8px 14px', marginBottom:14, fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
+
+      {/* 贊助商 Logo 管理 Modal（顯示於計分系統首頁，設顯示期間） */}
+      {sponsorOpen && (
+        <div onClick={() => setSponsorOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:14, width:'100%', maxWidth:560, maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch', padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a' }}>🤝 贊助商 Logo（計分系統首頁）</div>
+              <button onClick={() => setSponsorOpen(false)} style={{ border:'none', background:'none', fontSize:18, cursor:'pointer', color:'#999' }}>✕</button>
+            </div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:14, textAlign:'left', lineHeight:1.6 }}>
+              Logo 會顯示在 comp.redrocktaiwan.com 首頁「比賽清單」下方，只在顯示期間內出現、到期自動下架。各場比賽共用同一份清單。
+            </div>
+            {/* 新增 */}
+            <div style={{ background:'#F7F3F3', borderRadius:10, padding:12, marginBottom:16 }}>
+              <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:8, textAlign:'left' }}>＋ 新增贊助商</div>
+              <input value={spForm.name} onChange={e => setSpForm(p2 => ({ ...p2, name:e.target.value }))} placeholder="贊助商名稱"
+                style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, marginBottom:8, boxSizing:'border-box' }} />
+              <div style={{ display:'flex', gap:8, marginBottom:8, alignItems:'center' }}>
+                <input type="date" value={spForm.startDate} onChange={e => setSpForm(p2 => ({ ...p2, startDate:e.target.value }))}
+                  style={{ flex:1, height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, boxSizing:'border-box' }} />
+                <span style={{ color:'#999' }}>～</span>
+                <input type="date" value={spForm.endDate} onChange={e => setSpForm(p2 => ({ ...p2, endDate:e.target.value }))}
+                  style={{ flex:1, height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, boxSizing:'border-box' }} />
+              </div>
+              <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+                <input type="file" accept="image/*" onChange={async e => {
+                  const f = e.target.files?.[0]; if (!f) return;
+                  try { const dataUrl = await readSponsorLogo(f); setSpForm(p2 => ({ ...p2, logo:dataUrl })); }
+                  catch { showMsg('圖片處理失敗，請換一張圖檔', 'err'); }
+                }} style={{ fontSize:12, flex:1 }} />
+                {spForm.logo && <img src={spForm.logo} alt="預覽" style={{ height:36, maxWidth:90, objectFit:'contain', background:'#fff', borderRadius:6, border:'0.5px solid #eee' }} />}
+                <button onClick={submitSponsor} disabled={spBusy}
+                  style={{ height:34, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer', opacity:spBusy?0.6:1 }}>
+                  {spBusy ? '上傳中…' : '新增'}
+                </button>
+              </div>
+            </div>
+            {/* 清單 */}
+            {sponsors === null ? <div style={{ color:'#999', fontSize:13, padding:12 }}>載入中…</div>
+              : sponsors.length === 0 ? <div style={{ color:'#999', fontSize:13, padding:12 }}>尚無贊助商 Logo</div>
+              : sponsors.map(sp => {
+                  const today = dayjs().format('YYYY-MM-DD');
+                  const live = (sp.startDate || '') <= today && today <= (sp.endDate || '');
+                  return (
+                    <div key={sp.id} style={{ border:'0.5px solid #eee', borderRadius:10, padding:10, marginBottom:10, display:'flex', gap:10, alignItems:'center' }}>
+                      <img src={sp.logo} alt={sp.name} style={{ height:40, width:90, objectFit:'contain', background:'#fafafa', borderRadius:6, flexShrink:0 }} />
+                      <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{sp.name}
+                          <span style={{ marginLeft:6, fontSize:10.5, padding:'1px 6px', borderRadius:4, background: live ? '#E6F4EB' : '#F5F5F5', color: live ? '#2D7D46' : '#999' }}>{live ? '顯示中' : '未在期間'}</span>
+                        </div>
+                        <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:4 }}>
+                          <input type="date" value={sp.startDate || ''} onChange={e => setSponsors(prev => prev.map(x => x.id === sp.id ? { ...x, startDate:e.target.value } : x))}
+                            style={{ height:28, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 6px', fontSize:12 }} />
+                          <span style={{ color:'#999', fontSize:12 }}>～</span>
+                          <input type="date" value={sp.endDate || ''} onChange={e => setSponsors(prev => prev.map(x => x.id === sp.id ? { ...x, endDate:e.target.value } : x))}
+                            style={{ height:28, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 6px', fontSize:12 }} />
+                          <button onClick={() => updateSponsorPeriod(sp)}
+                            style={{ height:28, padding:'0 10px', borderRadius:6, border:'0.5px solid #185FA5', background:'#fff', color:'#185FA5', fontSize:12, cursor:'pointer' }}>儲存期間</button>
+                        </div>
+                      </div>
+                      <button onClick={() => deleteSponsor(sp)}
+                        style={{ height:30, padding:'0 10px', borderRadius:6, border:'0.5px solid #F5C4C4', background:'#fff', color:'#A32D2D', fontSize:12, cursor:'pointer', flexShrink:0 }}>刪除</button>
+                    </div>
+                  );
+                })}
+          </div>
+        </div>
+      )}
 
       {loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : (
         <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
