@@ -684,13 +684,17 @@ export default function CheckinPage() {
                 ) : (
                   <>
                     <div style={{ fontWeight:600, fontSize:15, marginBottom:10 }}>🎫 比賽報到</div>
+                    {/* 2026-08-27 精簡：只顯示 選手/比賽名稱/組別/背號（計分系統配發）＋三個警示（拍板保留）；
+                        比賽日與「已確認收款」正常態繳費行移除（繳費資訊只在未確認時以警示呈現） */}
                     <div style={{ fontSize:13, lineHeight:2 }}>
                       <div>選手：<strong>{compScan.memberName}</strong></div>
-                      <div>賽事：{compScan.competitionName}・{compScan.divisionName}</div>
-                      <div>比賽日：{compScan.eventDate}</div>
-                      <div>繳費：{compScan.paymentStatus === 'confirmed'
-                        ? <span style={{ color:'#2D7D46', fontWeight:600 }}>已確認（NT${compScan.registrationFee}）</span>
-                        : <span style={{ color:'#A32D2D', fontWeight:700 }}>⚠ 未確認收款（NT${compScan.registrationFee}），請先收款</span>}</div>
+                      <div>比賽名稱：{compScan.competitionName}</div>
+                      <div>組別：{compScan.divisionName}</div>
+                      <div>背號：{compScan.bibNumber
+                        ? <strong style={{ fontSize:16, color:'#8B1A1A' }}>{compScan.bibNumber}</strong>
+                        : <span style={{ color:'#999' }}>—（計分系統尚未配發）</span>}</div>
+                      {compScan.paymentStatus !== 'confirmed' &&
+                        <div style={{ color:'#A32D2D', fontWeight:700 }}>⚠ 未確認收款（NT${compScan.registrationFee}），請先收款</div>}
                       {!compScan.isComplete && <div style={{ color:'#A32D2D', fontWeight:600 }}>⚠ 尚未完成簽署（待法定代理人）</div>}
                       {compScan.checkedInAt && <div style={{ color:'#854F0B', fontWeight:700 }}>⚠ 此選手已完成報到</div>}
                     </div>
