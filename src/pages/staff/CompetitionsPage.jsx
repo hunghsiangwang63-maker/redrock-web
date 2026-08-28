@@ -221,6 +221,13 @@ export default function CompetitionsPage() {
     list.splice(to, 0, item);
     commitSponsorOrder(list);
   };
+  const toggleSponsorHidden = async (sp) => {
+    try {
+      await client.put(`/competitions/sponsors/${sp.id}`, { hidden: !sp.hidden });
+      setSponsors(prev => prev.map(x => x.id === sp.id ? { ...x, hidden: !sp.hidden } : x));
+      showMsg(!sp.hidden ? `「${sp.name}」本期間將不顯示（資料保留）` : `「${sp.name}」已恢復顯示`, 'ok');
+    } catch (e) { showMsg(e.response?.data?.message || '更新失敗', 'err'); }
+  };
   const deleteSponsor = async (sp) => {
     if (!window.confirm(`確定刪除贊助商「${sp.name}」的 Logo？計分系統首頁將不再顯示。`)) return;
     try { await client.delete(`/competitions/sponsors/${sp.id}`); showMsg('已刪除', 'ok'); loadSponsors(); }
@@ -664,8 +671,14 @@ export default function CompetitionsPage() {
                       }}
                       title="順序（1 排最前）"
                       style={{ width:46, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', textAlign:'center', fontSize:13, flexShrink:0 }} />
-                    <img src={sp.logo} alt={sp.name} style={{ height:40, width:90, objectFit:'contain', background:'#fafafa', borderRadius:6, flexShrink:0 }} />
-                    <div style={{ flex:1, minWidth:0, textAlign:'left', fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{sp.name}</div>
+                    <img src={sp.logo} alt={sp.name} style={{ height:40, width:90, objectFit:'contain', background:'#fafafa', borderRadius:6, flexShrink:0, opacity: sp.hidden ? 0.35 : 1 }} />
+                    <div style={{ flex:1, minWidth:0, textAlign:'left', overflow:'hidden' }}>
+                      <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color: sp.hidden ? '#999' : '#1a1a1a' }}>{sp.name}</div>
+                      <label style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:11.5, color: sp.hidden ? '#A32D2D' : '#888', cursor:'pointer', marginTop:2 }}>
+                        <input type="checkbox" checked={!!sp.hidden} onChange={() => toggleSponsorHidden(sp)} style={{ width:14, height:14, cursor:'pointer' }} />
+                        本期間不顯示
+                      </label>
+                    </div>
                     <button onClick={() => deleteSponsor(sp)}
                       style={{ height:30, padding:'0 10px', borderRadius:6, border:'0.5px solid #F5C4C4', background:'#fff', color:'#A32D2D', fontSize:12, cursor:'pointer', flexShrink:0 }}>刪除</button>
                   </div>
