@@ -140,11 +140,13 @@ const emptyForm = () => ({
 export default function CompetitionsPage() {
   const { staff, operator } = useAuth();
   // 2026-08-08：後端 competitions.manage 早已開放 full_time 編輯，前端這裡漏更新（一直卡在只認管理員）
-  // 2026-08-24：competitions.manage 在後端 COUNTER_PERMS 內，值班 operator 不論本人角色一律放行
-  // （checkPermission 對 type==='operator' 是無條件通過，跟角色無關）——原本這裡漏加 operator 判斷，
-  // 導致館別電腦（值班中）完全看不到「賽前通知」等管理按鈕，即使後端其實允許。比照下面 canInvoice
-  // 已有的 isManagerOnly || !!operator 寫法補上。
+  // ⚠ 2026-08-27 更正：competitions.manage 其實「不在」COUNTER_PERMS（先前註解看錯清單）——
+  // 值班 operator 走角色矩陣（part_time:false）；名單檢視已由後端 rosterViewGate 對值班放行（3.384.0），
+  // 其餘管理動作兼職值班仍會被後端擋。
   const canManage = ['super_admin','gym_manager','full_time'].includes(staff?.role) || !!operator;
+  // 贊助商 Logo 管理（competitions.manage）：後端走角色矩陣、無值班放行 → 兼職值班會 403，
+  // 按鈕依「實際角色」顯示對齊後端（值班 operator 的 role 沿用該員工角色）。
+  const canSponsor = ['super_admin','gym_manager','full_time'].includes(operator?.role || staff?.role);
   // 實收金額覆寫（PUT /registrations/:regId/received-amount）後端走 requireManager，維持僅管理員（full_time 不含）
   const isManagerOnly = ['super_admin','gym_manager'].includes(staff?.role);
   // 開立發票（POST /registrations/:regId/invoices、/invoices/:id/void）2026-08-17 放寬值班站台可開，
@@ -594,10 +596,10 @@ export default function CompetitionsPage() {
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#fff', color:'#185FA5', border:'0.5px solid #185FA5', fontSize:13, fontWeight:500, cursor:'pointer' }}>
             {scoringOpeningGeneral ? '進入中…' : '🎯 進入賽事計分系統'}
           </button>
-          <button onClick={openSponsors}
+          {canSponsor && <button onClick={openSponsors}
             style={{ height:36, padding:'0 16px', borderRadius:8, background:'#fff', color:'#8B6914', border:'0.5px solid #C9A227', fontSize:13, fontWeight:500, cursor:'pointer' }}>
             🤝 贊助商 Logo
-          </button>
+          </button>}
           <button onClick={openCreate} style={{ height:36, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>+ 新增賽事</button>
         </div>}
       </div>
