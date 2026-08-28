@@ -612,6 +612,8 @@ export default function CompetitionsPage() {
               <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a' }}>🤝 贊助商 Logo（計分系統首頁）</div>
               <button onClick={() => setSponsorOpen(false)} style={{ border:'none', background:'none', fontSize:18, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
+            {/* 訊息顯示在視窗內（頁面頂部的橫幅會被此 modal 蓋住看不到） */}
+            {msg && <div style={{ background:msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F5C4C4'}`, borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D', textAlign:'left' }}>{msg}</div>}
             {/* 圖檔格式與大小建議 */}
             <div style={{ background:'#FFF9EC', border:'0.5px solid #F0DFAE', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#7A5C12', textAlign:'left', lineHeight:1.7 }}>
               <div style={{ fontWeight:700, marginBottom:2 }}>📐 圖檔建議</div>
