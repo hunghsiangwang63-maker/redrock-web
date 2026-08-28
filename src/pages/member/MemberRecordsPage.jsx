@@ -25,6 +25,8 @@ export default function MemberRecordsPage() {
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);       // 家庭成員（本人＋子女）
   const [viewId, setViewId] = useState(null);      // 目前檢視對象
+  const [expandedYears, setExpandedYears] = useState({});   // 入場：超過三個月的年度展開狀態
+  const [expandedCourses, setExpandedCourses] = useState({}); // 課程：梯次展開狀態
 
   // 載入家庭成員（本人＋子女）供下拉選單
   useEffect(() => {
@@ -41,8 +43,9 @@ export default function MemberRecordsPage() {
   useEffect(() => {
     if (!viewId) return;
     setLoading(true);
+    setExpandedYears({}); setExpandedCourses({});
     Promise.allSettled([
-      memberClient.get('/checkin/history', { params: { memberId: viewId, limit: 50 } }),
+      memberClient.get('/checkin/history', { params: { memberId: viewId, limit: 2000 } }),
       memberClient.get(`/passes/member/${viewId}`),
       memberClient.get(`/courses/member/${viewId}/enrollments`),
       memberClient.get(`/course-adjustments/member/${viewId}`),
@@ -94,7 +97,9 @@ export default function MemberRecordsPage() {
       <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto', gap:0, padding:'0 12px' }}>
         {TABS.map(t => {
           const active = tab===t.key;
-          const count = records?.[t.key]?.length || 0;
+          const count = t.key === 'courses'
+            ? courseGroups(records?.courses || []).length
+            : (records?.[t.key]?.length || 0);
           return (
             <button key={t.key} onClick={()=>setTab(t.key)}
               style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'10px 16px', border:'none', borderBottom:active?'2.5px solid #8B1A1A':'2.5px solid transparent', background:'none', color:active?'#8B1A1A':'#666', fontSize:11, fontWeight:active?700:400, cursor:'pointer' }}>
@@ -108,30 +113,49 @@ export default function MemberRecordsPage() {
       <div style={{ padding:'12px 16px' }}>
         {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
 
-        {!loading && tab==='checkins' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {!records?.checkins?.length && <Empty text="無入場紀錄"/>}
-            {(records?.checkins||[]).map((c,i) => {
-              const cancelled = c.isCancelled === true || c.status === 'cancelled';
-              return (
-                <Card key={i}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', opacity: cancelled ? 0.6 : 1 }}>
-                    <div>
-                      <div style={{ fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:6 }}>
-                        <span style={{ textDecoration: cancelled ? 'line-through' : 'none', color: cancelled ? '#999' : '#333' }}>
-                          {c.gymId==='gym-hsinchu'?'新竹館':'士林館'}
-                        </span>
-                        {cancelled && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'#F0EDED', color:'#999', fontWeight:600 }}>已取消</span>}
-                      </div>
-                      <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryLabelOf(c)}</div>
+        {!loading && tab==='checkins' && (() => {
+          const all = records?.checkins || [];
+          if (!all.length) return <Empty text="無入場紀錄"/>;
+          const cutoff = dayjs().subtract(3, 'month');
+          const recent = [], older = [];
+          all.forEach(c => { (checkinDay(c) && checkinDay(c).isBefore(cutoff) ? older : recent).push(c); });
+          // 更早的依年分組（年新→舊），點入後依季列出
+          const byYear = {};
+          older.forEach(c => { const d = checkinDay(c); const y = d ? d.year() : '其他'; (byYear[y] = byYear[y] || []).push(c); });
+          const years = Object.keys(byYear).sort((a, b) => String(b).localeCompare(String(a)));
+          return (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {recent.map((c,i) => <CheckinRow key={'r'+i} c={c} card/>)}
+              {!recent.length && <div style={{ textAlign:'center', color:'#999', fontSize:12, padding:'8px 0' }}>近三個月無入場紀錄</div>}
+              {years.length > 0 && <div style={{ fontSize:11, color:'#999', margin:'8px 2px 0', letterSpacing:1 }}>—— 三個月以前 ——</div>}
+              {years.map(y => {
+                const list = byYear[y];
+                const open = !!expandedYears[y];
+                // 依季分組（第4季→第1季，季內維持時間新→舊）
+                const byQ = {};
+                list.forEach(c => { const d = checkinDay(c); const q = d ? Math.floor(d.month() / 3) + 1 : 1; (byQ[q] = byQ[q] || []).push(c); });
+                const qs = Object.keys(byQ).map(Number).sort((a, b) => b - a);
+                return (
+                  <div key={y} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
+                    <div onClick={() => setExpandedYears(v => ({ ...v, [y]: !v[y] }))}
+                      style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 14px', cursor:'pointer' }}>
+                      <div style={{ fontSize:14, fontWeight:600, color:'#333' }}>{y} 年</div>
+                      <div style={{ fontSize:12, color:'#999' }}>{list.filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length} 次入場 {open ? '▲' : '▼'}</div>
                     </div>
-                    <div style={{ fontSize:12, color:'#999' }}>{c.checkedInAt?._seconds ? dayjs(c.checkedInAt._seconds*1000).format('MM/DD HH:mm') : (c.createdAt?._seconds ? dayjs(c.createdAt._seconds*1000).format('MM/DD HH:mm') : (c.date || '—'))}</div>
+                    {open && qs.map(q => (
+                      <div key={q} style={{ borderTop:'0.5px solid #F0E4E4' }}>
+                        <div style={{ fontSize:11, fontWeight:600, color:'#8B1A1A', padding:'8px 14px 4px', background:'#FBF5F5' }}>
+                          第 {q} 季（{q*3-2}–{q*3} 月）· {byQ[q].filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length} 次
+                        </div>
+                        {byQ[q].map((c,i) => <CheckinRow key={i} c={c}/>)}
+                      </div>
+                    ))}
                   </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {!loading && tab==='passes' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -148,22 +172,51 @@ export default function MemberRecordsPage() {
           </div>
         )}
 
-        {!loading && tab==='courses' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {!records?.courses?.length && <Empty text="無課程報名紀錄"/>}
-            {(records?.courses||[]).map((e,i) => (
-              <Card key={i}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div>
-                    <div style={{ fontSize:13, fontWeight:500 }}>{gymPrefix(e.gymId)}{e.courseName}{e.isMakeup?' 🔄 補課':''}</div>
-                    <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{e.date} {e.startTime}</div>
+        {!loading && tab==='courses' && (() => {
+          const groups = courseGroups(records?.courses || []);
+          if (!groups.length) return <Empty text="無課程報名紀錄"/>;
+          return (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {groups.map(g => {
+                const open = !!expandedCourses[g.key];
+                return (
+                  <div key={g.key} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
+                    <div onClick={() => setExpandedCourses(v => ({ ...v, [g.key]: !v[g.key] }))}
+                      style={{ padding:'12px 14px', cursor:'pointer' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>
+                          {gymPrefix(g.gymId)}{g.courseName}{g.allMakeup ? ' 🔄 補課' : ''}{g.allTrial ? ' ✨ 試上' : ''}
+                        </div>
+                        <div style={{ fontSize:12, color:'#999', flexShrink:0 }}>{open ? '▲' : '▼'}</div>
+                      </div>
+                      <div style={{ fontSize:11, color:'#999', marginTop:3 }}>
+                        {g.dateFrom}{g.dateTo && g.dateTo !== g.dateFrom ? ` ～ ${g.dateTo}` : ''}
+                      </div>
+                      <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
+                        {g.stats.confirmed > 0 && <MiniTag bg="#E6F4EB" color="#2D7D46">已報名 {g.stats.confirmed} 堂</MiniTag>}
+                        {g.stats.leave > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">請假 {g.stats.leave}</MiniTag>}
+                        {g.stats.waitlist > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">候補 {g.stats.waitlist}</MiniTag>}
+                        {g.stats.cancelled > 0 && <MiniTag bg="#F0EDED" color="#999">取消 {g.stats.cancelled}</MiniTag>}
+                      </div>
+                    </div>
+                    {open && (
+                      <div style={{ borderTop:'0.5px solid #F0E4E4' }}>
+                        {g.items.map((e,i) => (
+                          <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 14px', borderTop: i>0 ? '0.5px solid #F7EFEF' : 'none' }}>
+                            <div style={{ fontSize:12, color:'#333' }}>
+                              {e.date} {e.startTime || ''}{e.isMakeup ? ' 🔄 補課' : ''}{e.isTrial ? ' ✨ 試上' : ''}
+                            </div>
+                            <StatusBadge status={e.status} labels={{ confirmed:'已報名', leave:'已請假', waitlist:'候補', cancelled:'已取消', course_cancelled:'課程已取消' }}/>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <StatusBadge status={e.status} labels={{ confirmed:'已報名', leave:'已請假', cancelled:'已取消', course_cancelled:'課程已取消' }}/>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {!loading && tab==='adjustments' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -216,6 +269,75 @@ export default function MemberRecordsPage() {
     </div>
   );
 }
+
+// 入場紀錄時間（Firestore Timestamp 序列化為 {_seconds}，見既有慣例）
+const checkinDay = (c) => {
+  const sec = c.checkedInAt?._seconds ?? c.checkedInAt?.seconds ?? c.createdAt?._seconds ?? c.createdAt?.seconds;
+  if (sec) return dayjs(sec * 1000);
+  if (c.date) { const d = dayjs(c.date); return d.isValid() ? d : null; }
+  return null;
+};
+
+// 單筆入場列（card=獨立卡片樣式，否則為分組內的細列）
+const CheckinRow = ({ c, card }) => {
+  const cancelled = c.isCancelled === true || c.status === 'cancelled';
+  const d = checkinDay(c);
+  const inner = (
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', opacity: cancelled ? 0.6 : 1 }}>
+      <div>
+        <div style={{ fontSize: card ? 13 : 12, fontWeight:500, display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ textDecoration: cancelled ? 'line-through' : 'none', color: cancelled ? '#999' : '#333' }}>
+            {c.gymId==='gym-hsinchu'?'新竹館':'士林館'}
+          </span>
+          {cancelled && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'#F0EDED', color:'#999', fontWeight:600 }}>已取消</span>}
+        </div>
+        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryLabelOf(c)}</div>
+      </div>
+      <div style={{ fontSize:12, color:'#999', flexShrink:0 }}>{d ? d.format(card ? 'MM/DD HH:mm' : 'MM/DD HH:mm') : '—'}</div>
+    </div>
+  );
+  if (card) return <Card>{inner}</Card>;
+  return <div style={{ padding:'8px 14px', borderTop:'0.5px solid #F7EFEF' }}>{inner}</div>;
+};
+
+// 課程報名依「梯次（courseId）」分組：一梯一卡，點入才看逐堂細項
+const courseGroups = (enrollments) => {
+  const map = new Map();
+  enrollments.forEach(e => {
+    const key = e.courseId || e.courseName || 'unknown';
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(e);
+  });
+  const groups = [];
+  map.forEach((items, key) => {
+    items.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    const dates = items.map(i => i.date).filter(Boolean);
+    const stats = { confirmed:0, leave:0, waitlist:0, cancelled:0 };
+    items.forEach(i => {
+      if (i.status === 'confirmed') stats.confirmed++;
+      else if (i.status === 'leave') stats.leave++;
+      else if (i.status === 'waitlist') stats.waitlist++;
+      else stats.cancelled++;
+    });
+    groups.push({
+      key,
+      courseName: items[0].courseName,
+      gymId: items[0].gymId,
+      dateFrom: dates[0] || '', dateTo: dates[dates.length-1] || '',
+      stats,
+      allMakeup: items.every(i => i.isMakeup),
+      allTrial: items.every(i => i.isTrial),
+      items: [...items].reverse(), // 細項時間新→舊
+    });
+  });
+  // 梯次依最後上課日新→舊
+  groups.sort((a, b) => String(b.dateTo).localeCompare(String(a.dateTo)));
+  return groups;
+};
+
+const MiniTag = ({ bg, color, children }) => (
+  <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:bg, color, fontWeight:600 }}>{children}</span>
+);
 
 const Card = ({ children }) => (
   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>{children}</div>
