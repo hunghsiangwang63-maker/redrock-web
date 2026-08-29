@@ -354,6 +354,21 @@ export default function MembersPage() {
   const [futureList, setFutureList] = useState(null);
   const [futureListLoading, setFutureListLoading] = useState(false);
 
+  // 定期票持有人 Excel（限管理員；走 client blob 自動帶對的 token——勿自己 fetch+手讀 localStorage）
+  const [apDownloading, setApDownloading] = useState(false);
+  const handleDownloadActivePasses = async () => {
+    setApDownloading(true);
+    try {
+      const params = reportGymId ? { gymId: reportGymId } : {};
+      const res = await client.get('/members/reports/active-passes/download', { params, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url; a.download = `定期票持有人_${dayjs().format('YYYY-MM-DD')}.xlsx`; a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { alert(e.response?.status === 403 ? '下載限管理員' : '下載失敗，請重試'); }
+    finally { setApDownloading(false); }
+  };
+
   const handleDownloadCourseStudents = async (courseId) => {
     setCsDownloading(true);
     try {
@@ -828,7 +843,13 @@ export default function MembersPage() {
       {view === 'team' && <VipPage embedded section="team" />}
       {view === 'passes' && (
         <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名"
-          groups={(passList || []).map(g => ({ key: g.passTypeId || g.passTypeName, title: g.passTypeName, members: g.members }))} />
+          groups={(passList || []).map(g => ({ key: g.passTypeId || g.passTypeName, title: g.passTypeName, members: g.members }))}
+          headerExtra={isManagerRole ? () => (
+            <button onClick={handleDownloadActivePasses} disabled={apDownloading}
+              style={{ height:34, padding:'0 12px', borderRadius:8, border:'1px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+              {apDownloading ? '下載中...' : '⬇ 下載 Excel'}
+            </button>
+          ) : null} />
       )}
       {view === 'courses' && (
         <>
