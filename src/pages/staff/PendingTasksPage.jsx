@@ -72,7 +72,7 @@ const NOTIF_LINK = {
   settlement_difference: '/staff/settlement', invoice_amount_modified: '/staff/settlement', stocktake_discrepancy: '/staff/sales',
   checkin_cancelled: '/staff/checkin',
 };
-const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名' };
+const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名', team:'入隊申請' };
 const notifCatOf = (t) => NOTIF_CAT[t] || 'system';
 // 通知連結：新通知建立時已直接帶 link（見 memberService.js 認領通知）；這裡只為「舊通知」
 // （course_roster_claimed/competition_reg_claimed 在補上 link 欄位前建立的既有紀錄，link 為 null）
