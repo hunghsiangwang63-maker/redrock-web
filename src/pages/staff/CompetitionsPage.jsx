@@ -241,6 +241,7 @@ export default function CompetitionsPage() {
   const [showRegistrations, setShowRegistrations] = useState(null);
   const [confirmDeleteComp, setConfirmDeleteComp] = useState(null); // 刪除賽事二次確認 Modal
   const [registrations, setRegistrations] = useState([]);
+  const [regSearch, setRegSearch] = useState('');   // 名單搜尋（姓名/電話/背號）
   const [regLoading, setRegLoading] = useState(false);
   const [regTab, setRegTab] = useState('all'); // all | refunds
   const [statusFilter, setStatusFilter] = useState('all'); // 依報名狀態下拉篩選
@@ -460,7 +461,7 @@ export default function CompetitionsPage() {
   };
 
   const openRegistrations = async (c) => {
-    setShowRegistrations(c); setRegLoading(true);
+    setShowRegistrations(c); setRegLoading(true); setRegSearch('');
     try { const r = await getCompetitionRegistrations(c.id); setRegistrations(r.data.registrations||[]); }
     catch(e) { setRegistrations([]); } finally { setRegLoading(false); }
   };
@@ -868,6 +869,8 @@ export default function CompetitionsPage() {
             {' · '}申請退費 <strong style={{ color:'#A32D2D' }}>{registrations.filter(r=>r.refundRequested).length}</strong>
             {' · '}已取消 <strong style={{ color:'#999' }}>{registrations.filter(r=>r.status==='cancelled'&&!r.refundRequested).length}</strong>
           </div>
+          <input value={regSearch} onChange={e=>setRegSearch(e.target.value)} placeholder="🔍 搜尋姓名 / 電話 / 背號"
+            style={{ width:'100%', boxSizing:'border-box', padding:'8px 12px', borderRadius:10, border:'1px solid #E8D5D5', fontSize:13, marginBottom:10, color:'#333', background:'#fff' }} />
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
             <SegmentedTabs wrap minTabWidth={130} value={regTab} onChange={setRegTab} style={{ flex:'1 1 280px', minWidth:0 }} tabs={[
               { key:'all',       label:`全部 (${registrations.filter(r=>r.status!=='cancelled').length})` },
@@ -903,6 +906,8 @@ export default function CompetitionsPage() {
                 else if (regTab.startsWith('div_')) { const did = regTab.slice(4); base = registrations.filter(r=>r.divisionId===did && r.status!=='cancelled'); }
                 else base = registrations.filter(r=>r.status!=='cancelled');
                 if (regTab==='all' && statusFilter!=='all') base = base.filter(r => regState(r)===statusFilter);
+                const q = regSearch.trim().toLowerCase();
+                if (q) base = base.filter(r => (r.memberName||'').toLowerCase().includes(q) || (r.phone||'').includes(q) || (r.bibNumber||'')===q || (r.bibNumber||'').includes(q));
                 return [...base].sort((a,b)=> secOf(a)-secOf(b));   // 依報名日期排序（早→晚）
               })().map(r => {
                 const st = regState(r);
@@ -913,6 +918,7 @@ export default function CompetitionsPage() {
                   <div key={r.id} onClick={()=>setRegDetail(r)} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'10px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:10 }}>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
+                        {r.bibNumber && <span style={{ fontSize:13, fontWeight:800, color:'#8B1A1A' }}>#{r.bibNumber}</span>}
                         <span style={{ fontSize:14, fontWeight:600 }}>{r.memberName}</span>
                         {isManagerOnly && (
                           <span style={{ fontSize:11, color:'#666', whiteSpace:'nowrap' }}>實收 NT${r.receivedAmount ?? 0}</span>
