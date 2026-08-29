@@ -25,6 +25,7 @@ const EVENT_CATEGORY_META = {
   competition:  { label: '比賽',      emoji: '🏆', color: '#6B3FA0' },
   maintenance:  { label: '維修/保養', emoji: '🔧', color: '#B5762B' },
   routesetting: { label: '定線',      emoji: '🧗', color: '#2D7D46' },
+  group_experience: { label: '團體體驗', emoji: '👥', color: '#0E7C86' },
   other:        { label: '其他',      emoji: '📌', color: '#185FA5' },
 };
 
