@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import client from '../../api/client';
+import { useAuth } from '../../store/authStore';
 
 // 轉帳「確認收款」彈窗：顯示完整匯款資訊，按「確認收款」才正式確認
 const ORDER_TYPE_LABEL = {
@@ -17,6 +18,9 @@ const Row = ({ label, children }) => (
 );
 
 export default function TransferConfirmModal({ record, onClose, onDone }) {
+  const { staff, operator } = useAuth();
+  // 付款方式更正僅限管理員（2026-08-29 拍板；後端權威擋，此處同步顯示——非管理員維持唯讀）
+  const canCorrectPm = ['super_admin', 'gym_manager'].includes(operator?.role || staff?.role);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [confirmedAmt, setConfirmedAmt] = useState(record?.paidAmount != null ? String(record.paidAmount) : String(record?.amount ?? ''));
@@ -77,6 +81,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
               style={{ width: 140, height: 34, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }}/>
           </Row>
           <Row label="付款方式">
+            {!canCorrectPm ? (PAY_LABEL[record.paymentMethod] || record.paymentMethod) : (<>
             <select value={payMethod} onChange={e => setPayMethod(e.target.value)}
               style={{ padding:'5px 8px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }}>
               {Object.entries(PAY_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
@@ -87,6 +92,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
                 {record.paymentMethod !== 'transfer' && payMethod === 'transfer' ? '（改為轉帳需管理員權限）' : ''}
               </div>
             )}
+            </>)}
           </Row>
           {record.origPaymentMethod && record.origPaymentMethod !== record.paymentMethod && (
             <Row label="原報名選">{PAY_LABEL[record.origPaymentMethod] || record.origPaymentMethod}</Row>
