@@ -525,7 +525,13 @@ export default function SchedulePage() {
                       })}
                       {dayShifts.map(s => {
                         const isCourse = s.source === 'course' || String(s.note || '').startsWith('體驗課程');
-                        const cname = s.courseName || String(s.note || '').replace(/^體驗課程・/, '').split('・')[0];
+                        // 體驗連動班：總表只顯示「體驗課程・N 人」（教練/時間本就在上一行）；
+                        // 課程全名與申請人姓名點入檢視彈窗才看（2026-08-29 需求）。
+                        const isExp = String(s.note || '').startsWith('體驗課程');
+                        const expPeople = isExp ? (String(s.note).split('・').filter(x => /人$/.test(x)).pop() || '') : '';
+                        const cname = isExp
+                          ? `體驗課程${expPeople ? `・${expPeople}` : ''}`
+                          : (s.courseName || String(s.note || '').split('・')[0]);
                         return (
                         <div key={s.id} onClick={e => { e.stopPropagation(); setViewingShift(s); }}
                           style={{
@@ -601,7 +607,22 @@ export default function SchedulePage() {
                 </Row>
                 <Row label="日期">{s2.date}（週{['日','一','二','三','四','五','六'][dayjs(s2.date).day()]}）</Row>
                 <Row label="班別">{s2.type === 'full_day' ? '全天班' : `自訂時段 ${s2.startTime || ''}~${s2.endTime || ''}`}</Row>
-                {isCourse && <Row label="來源">📚 課程/體驗連動班（{s2.courseName || String(s2.note || '').replace(/^體驗課程・/, '').split('・')[0]}）</Row>}
+                {isCourse && (() => {
+                  const isExp2 = String(s2.note || '').startsWith('體驗課程');
+                  if (!isExp2) return <Row label="來源">📚 課程連動班（{s2.courseName || String(s2.note || '').split('・')[0]}）</Row>;
+                  // 體驗連動班：courseName＝「體驗課程・課程名・申請人」、note＝「體驗課程・課程名・N 人」（experienceService 建班格式）
+                  const nameParts = String(s2.courseName || '').split('・');
+                  const noteParts = String(s2.note || '').split('・');
+                  const expLabel = nameParts[1] || noteParts[1] || '體驗課程';
+                  const applicant = nameParts.length >= 3 ? nameParts.slice(2).join('・') : '—';
+                  const people = noteParts.filter(x => /人$/.test(x)).pop() || '—';
+                  return (<>
+                    <Row label="來源">📚 體驗課程連動班</Row>
+                    <Row label="體驗課程">{expLabel}</Row>
+                    <Row label="申請人">{applicant}</Row>
+                    <Row label="人數">{people}</Row>
+                  </>);
+                })()}
                 <Row label="備註">{s2.note || '—'}</Row>
                 <div style={{ display:'flex', gap:8, marginTop:18 }}>
                   <button onClick={() => setViewingShift(null)}
