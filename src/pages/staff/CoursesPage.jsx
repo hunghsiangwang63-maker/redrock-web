@@ -34,6 +34,16 @@ const estimateWeeklySessionCount = (startDate, endDate, weekdays) => {
 };
 
 // 場次剩餘名額＝maxStudents −（原報名−請假＋補課＋試上）（expectedCount＝實際佔位；候補不佔位）
+// 場次日期/時間早期檢查（新增/編輯場次 Modal 共用；後端 validateSessionSchedule 仍為權威）：
+// 回傳警告文字，null＝無問題。課程未設起訖日的欄位不檢查（虛擬掛靠課程等）。
+const sessionScheduleIssue = (course, form) => {
+  if (!form?.date) return null;
+  if (course?.startDate && form.date < course.startDate) return `場次日期早於課程開始日 ${course.startDate}——場次需在梯次期間內，如需調整請先至「編輯梯次」修改課程起訖日`;
+  if (course?.endDate && form.date > course.endDate) return `場次日期晚於課程結束日 ${course.endDate}——場次需在梯次期間內，如需期間外加開（如展延補課）請先至「編輯梯次」延長課程結束日`;
+  if (form.startTime && form.endTime && form.endTime <= form.startTime) return '結束時間必須晚於開始時間';
+  return null;
+};
+
 const sessionRemain = (s) => {
   const max = s?.maxStudents || 0;
   if (!max) return null;
@@ -707,7 +717,8 @@ export default function CoursesPage({ embedded = false }) {
   };
 
   const handleCreateSession = async () => {
-    if (!selectedCourse) return;
+    if (!selectedCourse || loading) return; // loading 防連點（按鈕已 disabled，此為雙保險）
+    if (sessionScheduleIssue(selectedCourse, sessionForm)) return;
     setLoading(true);
     try {
       const enrollMemberIds = addSessionStudents.filter(s => s.checked).map(s => s.memberId);
@@ -2213,14 +2224,26 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               <div style={{ fontSize:10, color:'#999', marginTop:6, textAlign:'left' }}>勾選者將直接加入此場次名單（不另計費）；未勾選者不會看到這堂課。</div>
             </div>
           )}
-          <div style={{ display:'flex', gap:8, marginTop:8 }}>
-            <button onClick={() => setShowAddSession(false)}
-              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
-            <button onClick={handleCreateSession} disabled={loading}
-              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {loading ? '建立中...' : '建立場次'}
-            </button>
-          </div>
+          {(() => {
+            const issue = sessionScheduleIssue(selectedCourse, sessionForm);
+            const dup = sessions.some(s => s.courseId === selectedCourse.id && s.status !== 'cancelled' && s.date === sessionForm.date && s.startTime === sessionForm.startTime);
+            return (<>
+              {issue && (
+                <div style={{ fontSize:12, color:'#A32D2D', background:'#FDEEEE', border:'0.5px solid #E8B4B4', borderRadius:8, padding:'8px 10px', marginBottom:10, textAlign:'left' }}>⚠️ {issue}</div>
+              )}
+              {!issue && dup && (
+                <div style={{ fontSize:12, color:'#8A5A00', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:8, padding:'8px 10px', marginBottom:10, textAlign:'left' }}>⚠️ 此課程 {sessionForm.date} {sessionForm.startTime} 已有場次，送出會被擋下（避免重複建立）</div>
+              )}
+              <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                <button onClick={() => setShowAddSession(false)}
+                  style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+                <button onClick={handleCreateSession} disabled={loading || !!issue}
+                  style={{ flex:2, height:40, borderRadius:9, background:(loading||issue)?'#f5f5f5':'#8B1A1A', color:(loading||issue)?'#999':'#fff', border:'none', fontSize:13, fontWeight:500, cursor:(loading||issue)?'not-allowed':'pointer' }}>
+                  {loading ? '建立中...' : issue ? '日期不在梯次期間內' : '建立場次'}
+                </button>
+              </div>
+            </>);
+          })()}
         </Modal>
       )}
 
@@ -2241,14 +2264,23 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
           ))}
-          <div style={{ display:'flex', gap:8, marginTop:8 }}>
-            <button onClick={() => setEditingSession(null)}
-              style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
-            <button onClick={handleSaveEditSession}
-              style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              儲存變更
-            </button>
-          </div>
+          {(() => {
+            const _course = courses.find(c => c.id === editingSession.courseId) || (selectedCourse?.id === editingSession.courseId ? selectedCourse : null);
+            const issue = sessionScheduleIssue(_course, sessionForm);
+            return (<>
+              {issue && (
+                <div style={{ fontSize:12, color:'#A32D2D', background:'#FDEEEE', border:'0.5px solid #E8B4B4', borderRadius:8, padding:'8px 10px', marginBottom:10, textAlign:'left' }}>⚠️ {issue}</div>
+              )}
+              <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                <button onClick={() => setEditingSession(null)}
+                  style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+                <button onClick={handleSaveEditSession} disabled={!!issue}
+                  style={{ flex:2, height:40, borderRadius:9, background:issue?'#f5f5f5':'#8B1A1A', color:issue?'#999':'#fff', border:'none', fontSize:13, fontWeight:500, cursor:issue?'not-allowed':'pointer' }}>
+                  {issue ? '日期不在梯次期間內' : '儲存變更'}
+                </button>
+              </div>
+            </>);
+          })()}
         </Modal>
       )}
 
