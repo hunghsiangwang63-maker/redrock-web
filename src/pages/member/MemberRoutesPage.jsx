@@ -29,8 +29,14 @@ export default function MemberRoutesPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 排名
   const [period, setPeriod] = useState('month'); // month | all
+  const [rankGym, setRankGym] = useState('');    // ''=全部合併 | gym id（排名分館/合併檢視）
   const [ranking, setRanking] = useState(null);
   const [rankLoading, setRankLoading] = useState(false);
+  const [prefOpen, setPrefOpen] = useState(false);   // 排名設定 modal
+  const [pref, setPref] = useState({ optOut:false, nickname:'' });
+  const [prefSaving, setPrefSaving] = useState(false);
+  const [prefMsg, setPrefMsg] = useState(null);
+  const [shareToast, setShareToast] = useState('');
 
   const changeGym = (g) => { setGymId(g); localStorage.setItem('memberRouteGym', g); };
 
@@ -46,11 +52,40 @@ export default function MemberRoutesPage() {
   useEffect(() => {
     if (tab !== 'rankings') return;
     setRankLoading(true);
-    memberClient.get('/climbing-routes/rankings', { params: { gymId, period } })
+    memberClient.get('/climbing-routes/rankings', { params: { ...(rankGym ? { gymId: rankGym } : {}), period } })
       .then(r => setRanking(r.data))
       .catch(() => setRanking(null))
       .finally(() => setRankLoading(false));
-  }, [tab, gymId, period]);
+  }, [tab, rankGym, period]);
+
+  const openPref = () => {
+    setPrefMsg(null);
+    memberClient.get('/climbing-routes/ranking-settings')
+      .then(r => setPref({ optOut: !!r.data.optOut, nickname: r.data.nickname || '' }))
+      .catch(() => {});
+    setPrefOpen(true);
+  };
+  const savePref = async () => {
+    setPrefSaving(true); setPrefMsg(null);
+    try {
+      await memberClient.put('/climbing-routes/ranking-settings', pref);
+      setPrefOpen(false);
+      if (tab === 'rankings') { // 重載排名反映開關/暱稱
+        setRankLoading(true);
+        memberClient.get('/climbing-routes/rankings', { params: { ...(rankGym ? { gymId: rankGym } : {}), period } })
+          .then(r => setRanking(r.data)).catch(() => {}).finally(() => setRankLoading(false));
+      }
+    } catch (e) { setPrefMsg(e.response?.data?.message || '儲存失敗'); }
+    finally { setPrefSaving(false); }
+  };
+  const shareIg = async (r) => {
+    const title = `${r.area || ''} ${r.color || ''} ${r.grade} 路線示範`.trim();
+    try {
+      if (navigator.share) { await navigator.share({ title, url: r.igUrl }); return; }
+      await navigator.clipboard.writeText(r.igUrl);
+      setShareToast('已複製示範影片連結'); setTimeout(() => setShareToast(''), 2000);
+    } catch (e) { /* 使用者取消分享等，靜默 */ }
+  };
 
   const tiers = data?.tiers || [];
   const routes = data?.routes || [];
@@ -120,26 +155,34 @@ export default function MemberRoutesPage() {
         ))}
       </div>
 
-      <div style={{ padding:'14px 16px 0' }}>
-        <GymChips />
-      </div>
+      {tab === 'routes' && (
+        <div style={{ padding:'14px 16px 0' }}>
+          <GymChips />
+        </div>
+      )}
 
       {tab === 'routes' && (
         <div style={{ padding:'12px 16px 0' }}>
           {/* 我的積分摘要 */}
-          {data?.myTotals && (
+          {data?.myTotals && (() => {
+            const cur = data.myTotals.byGym?.[gymId] || { points:0, ascents:0 };
+            const all = data.myTotals.all || { points:0, ascents:0 };
+            return (
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', gap:18, marginBottom:12 }}>
               <div>
-                <div style={{ fontSize:10, color:'#999' }}>我的總積分</div>
-                <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A' }}>{data.myTotals.points.toLocaleString()}</div>
+                <div style={{ fontSize:10, color:'#999' }}>{GYMS.find(g=>g.id===gymId)?.label}積分</div>
+                <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A' }}>{cur.points.toLocaleString()}</div>
+                <div style={{ fontSize:10, color:'#999' }}>{cur.ascents} 條</div>
               </div>
               <div>
-                <div style={{ fontSize:10, color:'#999' }}>完攀路線</div>
-                <div style={{ fontSize:20, fontWeight:700, color:'#333' }}>{data.myTotals.ascents} <span style={{ fontSize:11, fontWeight:400 }}>條</span></div>
+                <div style={{ fontSize:10, color:'#999' }}>全館合併</div>
+                <div style={{ fontSize:20, fontWeight:700, color:'#333' }}>{all.points.toLocaleString()}</div>
+                <div style={{ fontSize:10, color:'#999' }}>{all.ascents} 條</div>
               </div>
-              <div style={{ flex:1, alignSelf:'center', fontSize:10, color:'#999', textAlign:'right' }}>含各館與已換線路線的累積成績</div>
+              <div style={{ flex:1, alignSelf:'center', fontSize:10, color:'#999', textAlign:'right' }}>僅計目前上架中的路線<br/>（換線下架後積分不再計入）</div>
             </div>
-          )}
+            );
+          })()}
 
           {/* 入場狀態提示 */}
           {!loading && !loadErr && (
@@ -180,12 +223,16 @@ export default function MemberRoutesPage() {
                             <div style={{ fontSize:11, color:'#999', marginTop:2 }}>基本分 {r.basePoints}{r.setter ? ` · 定線 ${r.setter}` : ''}{r.plannedRemoveAt ? ` · 預計換線 ${r.plannedRemoveAt}` : ''}</div>
                             {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2, textAlign:'left' }}>💬 {r.note}</div>}
                           </div>
-                          {r.igUrl && (
+                          {r.igUrl && (<>
                             <button onClick={() => window.open(r.igUrl, '_blank', 'noopener')}
                               style={{ fontSize:11, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 9px', cursor:'pointer', whiteSpace:'nowrap' }}>
                               📹 示範
                             </button>
-                          )}
+                            <button onClick={() => shareIg(r)} aria-label="分享示範影片連結"
+                              style={{ fontSize:12, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 8px', cursor:'pointer' }}>
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                            </button>
+                          </>)}
                         </div>
                         <div style={{ marginTop:8, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                           {mine ? (
@@ -213,7 +260,18 @@ export default function MemberRoutesPage() {
 
       {tab === 'rankings' && (
         <div style={{ padding:'12px 16px 0' }}>
-          <div style={{ display:'flex', gap:8, marginBottom:12 }}>
+          {/* 分館/合併 */}
+          <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+            {[{ id:'', label:'全館合併' }, ...GYMS].map(g => (
+              <button key={g.id || 'all'} onClick={() => setRankGym(g.id)}
+                style={{ flex:1, padding:'8px 0', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer',
+                  border: rankGym === g.id ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
+                  background: rankGym === g.id ? '#8B1A1A' : '#fff', color: rankGym === g.id ? '#fff' : '#666' }}>
+                {g.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:8, marginBottom:12, alignItems:'center' }}>
             {[{ key:'month', label:'本月' }, { key:'all', label:'全部' }].map(p => (
               <button key={p.key} onClick={() => setPeriod(p.key)}
                 style={{ padding:'6px 16px', borderRadius:16, fontSize:12, fontWeight:600, cursor:'pointer',
@@ -222,7 +280,17 @@ export default function MemberRoutesPage() {
                 {p.label}
               </button>
             ))}
+            <div style={{ flex:1 }} />
+            <button onClick={openPref}
+              style={{ padding:'6px 12px', borderRadius:16, fontSize:12, fontWeight:600, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#666' }}>
+              ⚙️ 排名設定
+            </button>
           </div>
+          {ranking?.myOptedOut && (
+            <div style={{ background:'#F0EDED', color:'#666', borderRadius:10, padding:'8px 12px', fontSize:12, marginBottom:10, textAlign:'left' }}>
+              你目前<strong>未參加排名</strong>（積分照常累計{ranking.myStats ? `：${ranking.myStats.points.toLocaleString()} 分` : ''}）——到「⚙️ 排名設定」可重新公開參加
+            </div>
+          )}
 
           {rankLoading ? (
             <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center' }}>載入中...</div>
@@ -263,6 +331,48 @@ export default function MemberRoutesPage() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* 分享連結 toast */}
+      {shareToast && (
+        <div style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', background:'#1a1a1a', color:'#fff', fontSize:12, padding:'8px 16px', borderRadius:20, zIndex:300 }}>
+          ✅ {shareToast}
+        </div>
+      )}
+
+      {/* 排名設定 Modal */}
+      {prefOpen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:360, maxWidth:'95vw' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>⚙️ 排名設定</div>
+              <button onClick={() => setPrefOpen(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
+            </div>
+            <div onClick={() => setPref(f => ({ ...f, optOut: !f.optOut }))}
+              style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10, border:'1px solid #E8D5D5', cursor:'pointer', marginBottom:10 }}>
+              <div style={{ width:18, height:18, borderRadius:5, flexShrink:0, border: pref.optOut ? '1px solid #ccc' : 'none', background: pref.optOut ? '#fff' : '#2D7D46', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {!pref.optOut && <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 6.5 4.8 9.2 10 3.2"/></svg>}
+              </div>
+              <div style={{ textAlign:'left' }}>
+                <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>公開積分並參加排名</div>
+                <div style={{ fontSize:11, color:'#999', marginTop:2 }}>取消勾選＝不出現在排行榜（積分仍照常累計，只有自己看得到）</div>
+              </div>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:4, textAlign:'left' }}>排行榜暱稱（選填，最多 10 字）</div>
+              <input value={pref.nickname} maxLength={10}
+                onChange={e => setPref(f => ({ ...f, nickname: e.target.value }))}
+                placeholder="留空＝顯示本名"
+                style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
+              <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'right' }}>{[...pref.nickname].length}/10</div>
+            </div>
+            {prefMsg && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, textAlign:'left' }}>{prefMsg}</div>}
+            <button onClick={savePref} disabled={prefSaving}
+              style={{ width:'100%', background: prefSaving ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: prefSaving ? 'default' : 'pointer' }}>
+              {prefSaving ? '儲存中...' : '儲存'}
+            </button>
+          </div>
         </div>
       )}
 
