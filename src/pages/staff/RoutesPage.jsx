@@ -13,7 +13,9 @@ const GRADE_COLORS = {
   V5:'#8B48B0', V6:'#B03E96', V7:'#C13A5E', V8:'#C1462A', V9:'#8A3A1E', V10:'#3A3A3A',
 };
 
-const emptyForm = { area:'', color:'', grade:'V0', name:'', setter:'', igUrl:'', setAt:'' };
+const emptyForm = { area:'', color:'', grade:'V0', name:'', note:'', setter:'', igUrl:'', setAt:'' };
+const GYM_OPTIONS = [ { id:'gym-hsinchu', label:'新竹館' }, { id:'gym-shilin', label:'士林館' } ];
+const emptyItem = () => ({ color:'', grade:'V0', name:'' });
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
@@ -58,17 +60,32 @@ export default function RoutesPage() {
   useEffect(load, [effectiveGymId]);
   useEffect(() => { client.get('/climbing-routes/scoring-config').then(r => setScoring(r.data)).catch(() => {}); }, []);
 
-  const openNew = () => { setForm({ ...emptyForm, setAt: new Date().toISOString().slice(0,10) }); setEditTarget('new'); };
-  const openEdit = (r) => { setForm({ area:r.area||'', color:r.color||'', grade:r.grade||'V0', name:r.name||'', setter:r.setter||'', igUrl:r.igUrl||'', setAt:r.setAt||'' }); setEditTarget(r); };
+  const [items, setItems] = useState([emptyItem()]);     // 批次新增：每條路線（顏色/難度/名稱）
+  const [formGym, setFormGym] = useState('');             // 批次新增：館別（super_admin 可選、其他鎖自己館）
+
+  const openNew = () => {
+    setForm({ ...emptyForm, setAt: new Date().toISOString().slice(0,10) });
+    setItems([emptyItem()]);
+    setFormGym(effectiveGymId || 'gym-hsinchu');
+    setEditTarget('new');
+  };
+  const openEdit = (r) => { setForm({ area:r.area||'', color:r.color||'', grade:r.grade||'V0', name:r.name||'', note:r.note||'', setter:r.setter||'', igUrl:r.igUrl||'', setAt:r.setAt||'' }); setEditTarget(r); };
 
   const save = async () => {
-    if (!form.area.trim() || !form.color.trim()) { setMsg({ ok:false, text:'牆面/區域與岩點顏色為必填' }); return; }
     setSaving(true); setMsg(null);
     try {
       if (editTarget === 'new') {
-        await client.post('/climbing-routes', { ...form, gymId: effectiveGymId });
-        setMsg({ ok:true, text:'路線已新增' });
+        if (!form.area.trim()) { setMsg({ ok:false, text:'牆面/區域為必填' }); setSaving(false); return; }
+        const valid = items.filter(it => it.color.trim());
+        if (!valid.length) { setMsg({ ok:false, text:'至少填寫一條路線的岩點顏色' }); setSaving(false); return; }
+        // 同一支 IG 影片對應多條路線：共用欄位＋routes 陣列一次建立
+        await client.post('/climbing-routes', {
+          gymId: formGym, area: form.area, setter: form.setter, igUrl: form.igUrl, setAt: form.setAt, note: form.note,
+          routes: valid.map(it => ({ color: it.color, grade: it.grade, name: it.name })),
+        });
+        setMsg({ ok:true, text: `已新增 ${valid.length} 條路線` });
       } else {
+        if (!form.area.trim() || !form.color.trim()) { setMsg({ ok:false, text:'牆面/區域與岩點顏色為必填' }); setSaving(false); return; }
         await client.put(`/climbing-routes/${editTarget.id}`, form);
         setMsg({ ok:true, text:'路線已更新' });
       }
@@ -111,6 +128,7 @@ export default function RoutesPage() {
           {r.setter && `定線 ${r.setter} · `}{r.setAt || ''} · 完攀 {r.ascentCount} 人
           {scoring && ` · 基本分 ${scoring.gradePoints?.[r.grade] ?? '—'}`}
         </div>
+        {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2 }}>💬 {r.note}</div>}
       </div>
       {r.igUrl && (
         <a href={r.igUrl} target="_blank" rel="noopener noreferrer"
@@ -180,9 +198,82 @@ export default function RoutesPage() {
         </div>
       )}
 
-      {editTarget && (
-        <Modal title={editTarget === 'new' ? '新增路線' : '編輯路線'} onClose={() => setEditTarget(null)}>
+      {editTarget === 'new' && (
+        <Modal title="新增路線" onClose={() => setEditTarget(null)}>
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <div>
+                <label style={labelStyle}>館別 *</label>
+                {isSuperAdmin ? (
+                  <select style={inputStyle} value={formGym} onChange={e => setFormGym(e.target.value)}>
+                    {GYM_OPTIONS.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
+                  </select>
+                ) : (
+                  <div style={{ ...inputStyle, background:'#F5F2F2', color:'#666' }}>{gymLabel(formGym) || '—'}</div>
+                )}
+              </div>
+              <div>
+                <label style={labelStyle}>牆面/區域 *</label>
+                <input style={inputStyle} value={form.area} onChange={e => setForm(f => ({ ...f, area:e.target.value }))} placeholder="例：B區、斜板牆" />
+              </div>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+              <div>
+                <label style={labelStyle}>定線員（選填）</label>
+                <input style={inputStyle} value={form.setter} onChange={e => setForm(f => ({ ...f, setter:e.target.value }))} />
+              </div>
+              <div>
+                <label style={labelStyle}>上架日期</label>
+                <input type="date" style={inputStyle} value={form.setAt} onChange={e => setForm(f => ({ ...f, setAt:e.target.value }))} />
+              </div>
+            </div>
+            <div>
+              <label style={labelStyle}>IG 示範影片連結（選填）</label>
+              <input style={inputStyle} value={form.igUrl} onChange={e => setForm(f => ({ ...f, igUrl:e.target.value }))} placeholder="https://www.instagram.com/p/..." />
+              <div style={{ fontSize:11, color:'#999', marginTop:4 }}>同一支影片示範多條路線時，下方一次加多條——全部共用這個連結</div>
+            </div>
+            <div>
+              <label style={labelStyle}>備註（選填，會員看得到）</label>
+              <textarea style={{ ...inputStyle, minHeight:56, resize:'vertical' }} maxLength={200} value={form.note}
+                onChange={e => setForm(f => ({ ...f, note:e.target.value }))} placeholder="例：起攀點在左側標記、限用標示岩點" />
+            </div>
+
+            <div style={{ borderTop:'1px solid #F0EDED', paddingTop:10 }}>
+              <label style={labelStyle}>路線清單（{items.length} 條）</label>
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {items.map((it, i) => (
+                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 28px', gap:6, alignItems:'center' }}>
+                    <input style={inputStyle} value={it.color} placeholder="顏色 *"
+                      onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, color:e.target.value } : x))} />
+                    <select style={inputStyle} value={it.grade}
+                      onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, grade:e.target.value } : x))}>
+                      {GRADES.map(g => <option key={g} value={g}>{g}{scoring ? `・${scoring.gradePoints?.[g] ?? ''}分` : ''}</option>)}
+                    </select>
+                    <input style={inputStyle} value={it.name} placeholder="名稱（選填）"
+                      onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, name:e.target.value } : x))} />
+                    <button onClick={() => setItems(arr => arr.length > 1 ? arr.filter((_, j) => j !== i) : arr)}
+                      style={{ background:'none', border:'none', color: items.length > 1 ? '#A32D2D' : '#ddd', fontSize:16, cursor: items.length > 1 ? 'pointer' : 'default', padding:0 }}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => setItems(arr => arr.length < 20 ? [...arr, emptyItem()] : arr)}
+                style={{ marginTop:8, fontSize:12, fontWeight:600, padding:'6px 12px', borderRadius:8, border:'1px dashed #C9A0A0', background:'#fff', color:'#8B1A1A', cursor:'pointer' }}>
+                ＋ 再加一條（同一支影片）
+              </button>
+            </div>
+
+            <button onClick={save} disabled={saving}
+              style={{ background: saving ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: saving ? 'default' : 'pointer', marginTop:4 }}>
+              {saving ? '儲存中...' : `新增 ${items.filter(it => it.color.trim()).length || ''} 條路線`}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {editTarget && editTarget !== 'new' && (
+        <Modal title="編輯路線" onClose={() => setEditTarget(null)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <div style={{ fontSize:11, color:'#999' }}>館別：{gymLabel(editTarget.gymId) || '—'}（不可變更，建錯館請刪除重建）</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               <div>
                 <label style={labelStyle}>牆面/區域 *</label>
@@ -218,11 +309,15 @@ export default function RoutesPage() {
             <div>
               <label style={labelStyle}>IG 示範影片連結（選填）</label>
               <input style={inputStyle} value={form.igUrl} onChange={e => setForm(f => ({ ...f, igUrl:e.target.value }))} placeholder="https://www.instagram.com/p/..." />
-              <div style={{ fontSize:11, color:'#999', marginTop:4 }}>貼上該篇 IG 貼文網址，會員點路線即可開啟示範影片</div>
+            </div>
+            <div>
+              <label style={labelStyle}>備註（選填，會員看得到）</label>
+              <textarea style={{ ...inputStyle, minHeight:56, resize:'vertical' }} maxLength={200} value={form.note}
+                onChange={e => setForm(f => ({ ...f, note:e.target.value }))} placeholder="例：起攀點在左側標記、限用標示岩點" />
             </div>
             <button onClick={save} disabled={saving}
               style={{ background: saving ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: saving ? 'default' : 'pointer', marginTop:4 }}>
-              {saving ? '儲存中...' : (editTarget === 'new' ? '新增路線' : '儲存變更')}
+              {saving ? '儲存中...' : '儲存變更'}
             </button>
           </div>
         </Modal>
