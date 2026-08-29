@@ -932,6 +932,22 @@ export default function CompetitionsPage() {
                       <InvoiceButtonView invoiceNo={r.invoiceNo}
                         onClick={(e) => { e.stopPropagation(); setInvoiceTarget(r); }} />
                     )}
+                    {/* 比賽日當天：報到狀態／手動報到（選手無 QR 時：手機沒電、未註冊會員等；後端 manual-checkin 權威擋非比賽日/未簽署/重複） */}
+                    {r.checkedInAt ? (
+                      <span style={{ fontSize:10, fontWeight:600, background:'#E6F4EB', color:'#2D7D46', padding:'2px 7px', borderRadius:8, flexShrink:0, whiteSpace:'nowrap' }}>✅ 已報到</span>
+                    ) : (canInvoice && r.status === 'confirmed' && showRegistrations.eventDate === dayjs().format('YYYY-MM-DD') && (
+                      <button onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!window.confirm(`確認為「${r.memberName}」手動報到？（${r.divisionName || ''}）`)) return;
+                        try {
+                          const res = await client.post(`/competitions/registrations/${r.id}/manual-checkin`);
+                          showMsg(res.data?.message || '報到完成', 'ok');
+                          setRegistrations(list => list.map(x => x.id === r.id ? { ...x, checkedInAt: new Date().toISOString() } : x));
+                        } catch (err) { showMsg(err.response?.data?.message || '報到失敗', 'err'); }
+                      }} style={{ fontSize:11, fontWeight:600, padding:'4px 10px', borderRadius:8, border:'none', background:'#8B1A1A', color:'#fff', cursor:'pointer', flexShrink:0, whiteSpace:'nowrap' }}>
+                        手動報到
+                      </button>
+                    ))}
                     <span style={{ fontSize:11, color:'#185FA5', flexShrink:0, whiteSpace:'nowrap' }}>詳細 ›</span>
                   </div>
                 );
