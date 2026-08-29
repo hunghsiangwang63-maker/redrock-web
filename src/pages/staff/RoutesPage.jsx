@@ -13,9 +13,9 @@ const GRADE_COLORS = {
   V5:'#8B48B0', V6:'#B03E96', V7:'#C13A5E', V8:'#C1462A', V9:'#8A3A1E', V10:'#3A3A3A',
 };
 
-const emptyForm = { area:'', color:'', grade:'V0', name:'', note:'', setter:'', igUrl:'', setAt:'' };
+const emptyForm = { area:'', color:'', grade:'V0', name:'', note:'', setter:'', igUrl:'', setAt:'', plannedRemoveAt:'' };
 const GYM_OPTIONS = [ { id:'gym-hsinchu', label:'新竹館' }, { id:'gym-shilin', label:'士林館' } ];
-const emptyItem = () => ({ color:'', grade:'V0', name:'' });
+const emptyItem = () => ({ color:'', grade:'V0', name:'', note:'' });
 
 const Modal = ({ title, onClose, children }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
@@ -69,7 +69,7 @@ export default function RoutesPage() {
     setFormGym(effectiveGymId || 'gym-hsinchu');
     setEditTarget('new');
   };
-  const openEdit = (r) => { setForm({ area:r.area||'', color:r.color||'', grade:r.grade||'V0', name:r.name||'', note:r.note||'', setter:r.setter||'', igUrl:r.igUrl||'', setAt:r.setAt||'' }); setEditTarget(r); };
+  const openEdit = (r) => { setForm({ area:r.area||'', color:r.color||'', grade:r.grade||'V0', name:r.name||'', note:r.note||'', setter:r.setter||'', igUrl:r.igUrl||'', setAt:r.setAt||'', plannedRemoveAt:r.plannedRemoveAt||'' }); setEditTarget(r); };
 
   const save = async () => {
     setSaving(true); setMsg(null);
@@ -80,8 +80,8 @@ export default function RoutesPage() {
         if (!valid.length) { setMsg({ ok:false, text:'至少填寫一條路線的岩點顏色' }); setSaving(false); return; }
         // 同一支 IG 影片對應多條路線：共用欄位＋routes 陣列一次建立
         await client.post('/climbing-routes', {
-          gymId: formGym, area: form.area, setter: form.setter, igUrl: form.igUrl, setAt: form.setAt, note: form.note,
-          routes: valid.map(it => ({ color: it.color, grade: it.grade, name: it.name })),
+          gymId: formGym, area: form.area, setter: form.setter, igUrl: form.igUrl, setAt: form.setAt, plannedRemoveAt: form.plannedRemoveAt,
+          routes: valid.map(it => ({ color: it.color, grade: it.grade, name: it.name, note: it.note || '' })),
         });
         setMsg({ ok:true, text: `已新增 ${valid.length} 條路線` });
       } else {
@@ -127,6 +127,9 @@ export default function RoutesPage() {
         <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
           {r.setter && `定線 ${r.setter} · `}{r.setAt || ''} · 完攀 {r.ascentCount} 人
           {scoring && ` · 基本分 ${scoring.gradePoints?.[r.grade] ?? '—'}`}
+          {r.plannedRemoveAt && (!isArchived && r.plannedRemoveAt < new Date().toISOString().slice(0,10)
+            ? <span style={{ color:'#A32D2D', fontWeight:600 }}> · 預計下架 {r.plannedRemoveAt} 已過（請下架）</span>
+            : <span> · 預計下架 {r.plannedRemoveAt}</span>)}
         </div>
         {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2 }}>💬 {r.note}</div>}
       </div>
@@ -233,26 +236,29 @@ export default function RoutesPage() {
               <div style={{ fontSize:11, color:'#999', marginTop:4 }}>同一支影片示範多條路線時，下方一次加多條——全部共用這個連結</div>
             </div>
             <div>
-              <label style={labelStyle}>備註（選填，會員看得到）</label>
-              <textarea style={{ ...inputStyle, minHeight:56, resize:'vertical' }} maxLength={200} value={form.note}
-                onChange={e => setForm(f => ({ ...f, note:e.target.value }))} placeholder="例：起攀點在左側標記、限用標示岩點" />
+              <label style={labelStyle}>預計下架日期（選填，會員看得到；僅提示、到期不會自動下架）</label>
+              <input type="date" style={inputStyle} value={form.plannedRemoveAt} onChange={e => setForm(f => ({ ...f, plannedRemoveAt:e.target.value }))} />
             </div>
 
             <div style={{ borderTop:'1px solid #F0EDED', paddingTop:10 }}>
               <label style={labelStyle}>路線清單（{items.length} 條）</label>
               <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                 {items.map((it, i) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 28px', gap:6, alignItems:'center' }}>
-                    <input style={inputStyle} value={it.color} placeholder="顏色 *"
-                      onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, color:e.target.value } : x))} />
-                    <select style={inputStyle} value={it.grade}
-                      onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, grade:e.target.value } : x))}>
-                      {GRADES.map(g => <option key={g} value={g}>{g}{scoring ? `・${scoring.gradePoints?.[g] ?? ''}分` : ''}</option>)}
-                    </select>
-                    <input style={inputStyle} value={it.name} placeholder="名稱（選填）"
-                      onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, name:e.target.value } : x))} />
-                    <button onClick={() => setItems(arr => arr.length > 1 ? arr.filter((_, j) => j !== i) : arr)}
-                      style={{ background:'none', border:'none', color: items.length > 1 ? '#A32D2D' : '#ddd', fontSize:16, cursor: items.length > 1 ? 'pointer' : 'default', padding:0 }}>✕</button>
+                  <div key={i} style={{ border:'1px solid #F0EDED', borderRadius:10, padding:8, display:'flex', flexDirection:'column', gap:6 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 28px', gap:6, alignItems:'center' }}>
+                      <input style={inputStyle} value={it.color} placeholder="顏色 *"
+                        onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, color:e.target.value } : x))} />
+                      <select style={inputStyle} value={it.grade}
+                        onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, grade:e.target.value } : x))}>
+                        {GRADES.map(g => <option key={g} value={g}>{g}{scoring ? `・${scoring.gradePoints?.[g] ?? ''}分` : ''}</option>)}
+                      </select>
+                      <input style={inputStyle} value={it.name} placeholder="名稱（選填）"
+                        onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, name:e.target.value } : x))} />
+                      <button onClick={() => setItems(arr => arr.length > 1 ? arr.filter((_, j) => j !== i) : arr)}
+                        style={{ background:'none', border:'none', color: items.length > 1 ? '#A32D2D' : '#ddd', fontSize:16, cursor: items.length > 1 ? 'pointer' : 'default', padding:0 }}>✕</button>
+                    </div>
+                    <input style={inputStyle} value={it.note} maxLength={200} placeholder="此路線備註（選填，會員看得到）"
+                      onChange={e => setItems(arr => arr.map((x, j) => j === i ? { ...x, note:e.target.value } : x))} />
                   </div>
                 ))}
               </div>
@@ -309,6 +315,10 @@ export default function RoutesPage() {
             <div>
               <label style={labelStyle}>IG 示範影片連結（選填）</label>
               <input style={inputStyle} value={form.igUrl} onChange={e => setForm(f => ({ ...f, igUrl:e.target.value }))} placeholder="https://www.instagram.com/p/..." />
+            </div>
+            <div>
+              <label style={labelStyle}>預計下架日期（選填，會員看得到；僅提示、到期不會自動下架）</label>
+              <input type="date" style={inputStyle} value={form.plannedRemoveAt} onChange={e => setForm(f => ({ ...f, plannedRemoveAt:e.target.value }))} />
             </div>
             <div>
               <label style={labelStyle}>備註（選填，會員看得到）</label>
