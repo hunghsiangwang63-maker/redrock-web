@@ -21,6 +21,7 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
   const [error, setError] = useState('');
   const [confirmedAmt, setConfirmedAmt] = useState(record?.paidAmount != null ? String(record.paidAmount) : String(record?.amount ?? ''));
   const [staffNote, setStaffNote] = useState(record?.staffNote || '');
+  const [payMethod, setPayMethod] = useState(record?.paymentMethod || 'transfer'); // 確認時可更正選錯的付款方式（同步寫進訂單與記帳）
   if (!record) return null;
 
   const isCash = record.paymentMethod === 'cash';
@@ -28,7 +29,10 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
   const confirm = async () => {
     setBusy(true); setError('');
     try {
-      await client.put(`/transfers/${record.id}/confirm`, { confirmedAmount: confirmedAmt !== '' ? Number(confirmedAmt) : null, staffNote });
+      await client.put(`/transfers/${record.id}/confirm`, {
+        confirmedAmount: confirmedAmt !== '' ? Number(confirmedAmt) : null, staffNote,
+        ...(payMethod !== record.paymentMethod ? { paymentMethod: payMethod } : {}),
+      });
       onDone?.('已確認收款');
     } catch (e) {
       setError(e.response?.data?.message || '確認失敗，請重試');
@@ -72,7 +76,18 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
               onChange={e => setConfirmedAmt(e.target.value.replace(/[^\d]/g, ''))}
               style={{ width: 140, height: 34, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }}/>
           </Row>
-          <Row label="付款方式">{isCash ? '現金' : '轉帳'}</Row>
+          <Row label="付款方式">
+            <select value={payMethod} onChange={e => setPayMethod(e.target.value)}
+              style={{ padding:'5px 8px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }}>
+              {Object.entries(PAY_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            {payMethod !== record.paymentMethod && (
+              <div style={{ fontSize:11, color:'#854F0B', marginTop:4 }}>
+                ⚠ 將由「{PAY_LABEL[record.paymentMethod] || record.paymentMethod}」更正為「{PAY_LABEL[payMethod]}」——訂單與記帳的付款方式會一併更正
+                {record.paymentMethod !== 'transfer' && payMethod === 'transfer' ? '（改為轉帳需管理員權限）' : ''}
+              </div>
+            )}
+          </Row>
           {record.origPaymentMethod && record.origPaymentMethod !== record.paymentMethod && (
             <Row label="原報名選">{PAY_LABEL[record.origPaymentMethod] || record.origPaymentMethod}</Row>
           )}
