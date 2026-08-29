@@ -28,6 +28,7 @@ import SchedulePage from './pages/staff/SchedulePage';
 import CompetitionsPage from './pages/staff/CompetitionsPage';
 import CourseActivitiesPage from './pages/staff/CourseActivitiesPage';
 import RentalsPage from './pages/staff/RentalsPage';
+import RoutesPage from './pages/staff/RoutesPage';
 import ShopPage from './pages/staff/ShopPage';
 import PendingTasksPage from './pages/staff/PendingTasksPage';
 import ExperienceBookingsPage from './pages/staff/ExperienceBookingsPage';
@@ -50,6 +51,7 @@ import MemberRentalPage from './pages/member/MemberRentalPage';
 import MemberTeamPage from './pages/member/MemberTeamPage';
 import MemberExperiencePage from './pages/member/MemberExperiencePage';
 import MemberRecordsPage from './pages/member/MemberRecordsPage';
+import MemberRoutesPage from './pages/member/MemberRoutesPage';
 import MemberForgotPasswordPage from './pages/member/MemberForgotPasswordPage';
 import MemberResetPasswordPage from './pages/member/MemberResetPasswordPage';
 import ParentCompetitionWaiverPage from './pages/member/ParentCompetitionWaiverPage';
@@ -91,6 +93,7 @@ function StaffRoutes() {
         <Route path="schedule" element={<SchedulePage />} />
         <Route path="competitions" element={<CompetitionsPage />} />
         <Route path="rentals"        element={<RentalsPage />} />
+        <Route path="routes"         element={<RoutesPage />} />
         <Route path="shop"           element={<ShopPage />} />
         <Route path="pending-tasks"  element={<PendingTasksPage />} />
         <Route path="experience"     element={<ExperienceBookingsPage />} />
@@ -129,6 +132,7 @@ function MemberRoutes() {
       <Route path="/member/team"         element={<MemberRoute><MemberTeamPage /></MemberRoute>} />
       <Route path="/member/experience"   element={<MemberRoute><MemberExperiencePage /></MemberRoute>} />
       <Route path="/member/records"      element={<MemberRoute><MemberRecordsPage /></MemberRoute>} />
+      <Route path="/member/routes"       element={<MemberRoute><MemberRoutesPage /></MemberRoute>} />
       <Route path="/waiver/parent/:token" element={<ParentWaiverPage />} />
       <Route path="/competitions/waiver/parent/:token" element={<ParentCompetitionWaiverPage />} />
       <Route path="*" element={<Navigate to="/member/login" replace />} />

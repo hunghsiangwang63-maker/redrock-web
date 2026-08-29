@@ -404,6 +404,7 @@ export default function MemberHomePage() {
         {[
           { icon:'📱', label:'入場QR碼',   path:'/member/qr' },
           { icon:'📋', label:'我的紀錄', path:'/member/records' },
+          { icon:'🪨', label:'路線攻略', path:'/member/routes' },
           { icon:'🏆', label:'比賽報名', path:'/member/competitions' },
         { icon:'🧗', label:'體驗課程', path:'/member/experience' },
           { icon:'🧗', label:'加入攀岩隊', path:'/member/team' },
