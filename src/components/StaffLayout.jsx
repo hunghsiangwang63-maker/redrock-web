@@ -4,6 +4,9 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../store/authStore.jsx';
 import client from '../api/client';
 
+// 抱石路線攻略：入口暫時隱藏（測試期間直接輸入 /staff/routes 進入）；全部測試完成後改 true 正式上線
+const ROUTES_FEATURE_LIVE = false;
+
 const NAV = [
   { path:'/staff/pending-tasks', icon:'ti-bell', label:'待辦' },
   { path:'/staff/checkin',    icon:'ti-door-enter',    label:'入場' },
@@ -14,7 +17,7 @@ const NAV = [
   { path:'/staff/settlement', icon:'ti-calculator',    label:'結帳' },
   { path:'/staff/schedule',  icon:'ti-calendar-time',  label:'排班表' },
   { path:'/staff/activities', icon:'ti-calendar-event', label:'課程活動' },
-  { path:'/staff/routes',     icon:'ti-route',          label:'路線管理' },
+  ...(ROUTES_FEATURE_LIVE ? [{ path:'/staff/routes', icon:'ti-route', label:'路線管理' }] : []),
   { path:'/staff/staff-entry', icon:'ti-qrcode',        label:'員工入館' },
   { path:'/staff/settings',   icon:'ti-settings',      label:'設定' },
 ];
@@ -281,7 +284,7 @@ export default function StaffLayout() {
                 { path:'/staff/pending-tasks', icon:'ti-bell',         label:'待辦總覽' },
                 { path:'/staff/shop',          icon:'ti-shopping-cart', label:'商品/租借' },
                 { path:'/staff/passes',        icon:'ti-ticket',       label:'票券管理' },
-                { path:'/staff/routes',        icon:'ti-route',        label:'路線管理' },
+                ...(ROUTES_FEATURE_LIVE ? [{ path:'/staff/routes', icon:'ti-route', label:'路線管理' }] : []),
                 ...(isAdmin ? [{ path:'/staff/finance', icon:'ti-chart-bar', label:'財務' }] : []),
                 { path:'/staff/settlement',    icon:'ti-calculator',   label:'每日結算' },
                 { path:'/staff/schedule',      icon:'ti-calendar-time',label:'排班表' },
