@@ -23,7 +23,7 @@ const STAFF_COLORS = ['#8B1A1A','#185FA5','#2D7D46','#854F0B','#533AB7','#0F6E56
 const EVENT_CATEGORY_META = {
   closure:      { label: '休館',      emoji: '⛔', color: '#A32D2D' },
   competition:  { label: '比賽',      emoji: '🏆', color: '#6B3FA0' },
-  maintenance:  { label: '維修/保養', emoji: '🔧', color: '#B5762B' },
+  maintenance:  { label: '維修/保養', shortLabel: '維修', emoji: '🔧', color: '#B5762B' },
   routesetting: { label: '定線',      emoji: '🧗', color: '#2D7D46' },
   group_experience: { label: '團體體驗', emoji: '👥', color: '#0E7C86' },
   other:        { label: '其他',      emoji: '📌', color: '#185FA5' },
@@ -777,11 +777,12 @@ export default function SchedulePage() {
           )}
           <div style={{ marginBottom:14 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>類別</label>
-            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {/* 六類固定同一列（nowrap 等分；窄螢幕字級縮小、維修/保養簡稱維修，不換行） */}
+            <div style={{ display:'flex', gap:5, flexWrap:'nowrap' }}>
               {Object.entries(EVENT_CATEGORY_META).map(([key, meta]) => (
                 <button key={key} onClick={() => setEventForm({...eventForm, category:key})}
-                  style={{ flex:'1 1 auto', minWidth:76, height:36, borderRadius:8, border: eventForm.category===key?'none':'0.5px solid #E8D5D5', background: eventForm.category===key?meta.color:'#fff', color: eventForm.category===key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
-                  {meta.emoji} {meta.label}
+                  style={{ flex:1, minWidth:0, height:36, borderRadius:8, padding:'0 2px', border: eventForm.category===key?'none':'0.5px solid #E8D5D5', background: eventForm.category===key?meta.color:'#fff', color: eventForm.category===key?'#fff':'#666', fontSize:11, cursor:'pointer', whiteSpace:'nowrap', overflow:'hidden' }}>
+                  {meta.emoji} {meta.shortLabel || meta.label}
                 </button>
               ))}
             </div>
