@@ -421,6 +421,7 @@ export default function CompetitionsPage() {
     try {
       const r = await client.post(`/competitions/${c.id}/pull-results`);
       showMsg(r.data.message || '已寫回成績');
+      await loadCompetitions();
     } catch(e){ showMsg(e.response?.data?.message || '拉取失敗，請確認計分系統是否已回寫成績','red'); }
     finally { setPullingId(null); }
   };
@@ -535,6 +536,7 @@ export default function CompetitionsPage() {
       const r = await client.post(`/competitions/${noticeModal.id}/send-notice`, { subject: noticeSubject, body: html });
       showMsg(r.data.message || '已發送');
       setNoticeModal(null);
+      await loadCompetitions();
     } catch (e) { showMsg(e.response?.data?.message || '發送失敗', 'red'); }
     finally { setNoticeSending(false); }
   };
@@ -742,10 +744,13 @@ export default function CompetitionsPage() {
                       <button onClick={()=>pullResults(c)} disabled={pullingId===c.id}
                         title="賽事已結束、計分系統已回寫成績後，拉取最終名次寫進會員自己的「我的紀錄」"
                         style={{ height:30, padding:'0 12px', borderRadius:6, background:'#fff', color:'#4e8ef7', border:'0.5px solid #4e8ef7', fontSize:12, cursor:'pointer' }}>
-                        {pullingId===c.id ? '拉取中…' : '📥 拉取成績寫回會員紀錄'}
+                        {pullingId===c.id ? '拉取中…' : c.lastFinalResultsSyncedAt ? '✅ 已完成成績回寫' : '📥 拉取成績寫回會員紀錄'}
                       </button>
                     )}
-                    <button onClick={()=>openNotice(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B4513', border:'0.5px solid #D4B896', fontSize:12, cursor:'pointer' }}>📧 賽前通知</button>
+                    <button onClick={()=>openNotice(c)} title={c.lastNoticeSentAt ? '可再發送一次' : undefined}
+                      style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B4513', border:'0.5px solid #D4B896', fontSize:12, cursor:'pointer' }}>
+                      {c.lastNoticeSentAt ? `📧 ${fmtDeadline(c.lastNoticeSentAt).split(' ')[0]} 已完成發送賽前通知` : '📧 賽前通知'}
+                    </button>
                     <button onClick={()=>openReminderBroadcast(c)} title="在會員 App 首頁「課程活動提醒」加一則自訂卡片給全部正取報名者" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8B4B4', fontSize:12, cursor:'pointer' }}>🔔 首頁提醒</button>
                     <button onClick={()=>handleDownloadCSV(c)} style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#185FA5', border:'0.5px solid #B5D4F4', fontSize:12, cursor:'pointer' }}>⬇ 下載名單</button>
                     <button onClick={()=>handleDownloadInsuranceRoster(c,'xlsx')} title="簽到表暨保險名冊（含簽名截圖）" style={{ height:30, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#2D7D46', border:'0.5px solid #B5E4C4', fontSize:12, cursor:'pointer' }}>⬇ 保險名冊(xlsx)</button>
