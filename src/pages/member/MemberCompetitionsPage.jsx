@@ -22,15 +22,27 @@ export default function MemberCompetitionsPage() {
   const [competitions, setCompetitions] = useState([]);
   const [myRegistrations, setMyRegistrations] = useState([]);
   const [reupTarget, setReupTarget] = useState(null); // 轉帳被退回 → 重新上傳補正
-  const [checkinQr, setCheckinQr] = useState(null); // 比賽報到 QR：{ name, comp, dataUrl, checkedInAt }
+  const [checkinQr, setCheckinQr] = useState(null); // 比賽報到 QR：{ regId, name, comp, dataUrl, checkedInAt }
   const [guardianSignTarget, setGuardianSignTarget] = useState(null); // 未成年補簽法定代理人同意書
   const openCheckinQr = async (r) => {
     try {
       const res = await memberClient.post(`/competitions/registrations/${r.id}/checkin-token`);
       const dataUrl = await QRCode.toDataURL(res.data.token, { width: 260, margin: 1 });
-      setCheckinQr({ name: r.memberName, comp: r.competitionName, division: r.divisionName, dataUrl, checkedInAt: res.data.checkedInAt });
+      setCheckinQr({ regId: r.id, name: r.memberName, comp: r.competitionName, division: r.divisionName, dataUrl, checkedInAt: res.data.checkedInAt });
     } catch (e) { showMsg(e.response?.data?.message || '無法產生報到 QR', 'red'); }
   };
+  // QR 開著時每 3 秒輪詢報到狀態（比照入場 QR 既有輪詢模式）——工作人員掃完碼，
+  // 選手手機畫面即時切換成「✅ 已完成報到」，不用關掉重開才看得到（2026-08-30 比賽日現場需求）。
+  useEffect(() => {
+    if (!checkinQr || checkinQr.checkedInAt || !checkinQr.regId) return;
+    const timer = setInterval(async () => {
+      try {
+        const res = await memberClient.post(`/competitions/registrations/${checkinQr.regId}/checkin-token`);
+        if (res.data.checkedInAt) setCheckinQr(q => q ? { ...q, checkedInAt: res.data.checkedInAt } : q);
+      } catch (e) { /* 網路異常靜默，下次再試 */ }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [checkinQr?.regId, checkinQr?.checkedInAt]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'my' ? 'my' : 'open'); // open | my（退回通知帶 ?tab=my 直接開我的報名）
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
@@ -1086,7 +1098,7 @@ export default function MemberCompetitionsPage() {
             <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>🎫 比賽報到</div>
             <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{checkinQr.comp}・{checkinQr.division}</div>
             {checkinQr.checkedInAt
-              ? <div style={{ background:'#E6F4EB', borderRadius:10, padding:'20px 12px', color:'#2D7D46', fontWeight:700, fontSize:15 }}>✅ 已完成報到</div>
+              ? <div style={{ background:'#E6F4EB', borderRadius:10, padding:'20px 12px', color:'#2D7D46', fontWeight:700, fontSize:15 }}>✅ 已完成報到<div style={{ fontSize:11, fontWeight:400, marginTop:4 }}>祝比賽順利！</div></div>
               : <>
                   <img src={checkinQr.dataUrl} alt="報到QR" style={{ width:220, height:220 }}/>
                   <div style={{ fontSize:12, color:'#999', marginTop:8, lineHeight:1.7, textAlign:'left' }}>
