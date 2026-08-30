@@ -20,7 +20,8 @@ export default function MemberHomePage() {
   const [gyms, setGyms] = useState([]);
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myExperiences, setMyExperiences] = useState([]);
-  const [myReminders, setMyReminders] = useState([]); // 店員手動增減的首頁自訂提醒（比賽等活動），與課程/體驗提醒混在同一份清單依日期排序
+  const [myReminders, setMyReminders] = useState([]);
+  const [reminderImgPreview, setReminderImgPreview] = useState(null); // 提醒卡縮圖點擊 → 全螢幕看完整圖 // 店員手動增減的首頁自訂提醒（比賽等活動），與課程/體驗提醒混在同一份清單依日期排序
   const [banners, setBanners] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [bannerIdx, setBannerIdx] = useState(0);
@@ -512,7 +513,8 @@ export default function MemberHomePage() {
                   {r.subtitle && <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{r.subtitle}</div>}
                 </div>
                 {r.imageUrl
-                  ? <img src={r.imageUrl} alt="" style={{ width:44, height:44, borderRadius:8, objectFit:'cover', flexShrink:0 }}/>
+                  ? <img src={r.imageUrl} alt="" onClick={(e) => { e.stopPropagation(); setReminderImgPreview(r.imageUrl); }}
+                      style={{ width:44, height:44, borderRadius:8, objectFit:'cover', flexShrink:0, cursor:'zoom-in' }}/>
                   : <div style={{ fontSize:20 }}>{r.icon || '📣'}</div>}
               </div>
             ) })),
@@ -588,6 +590,14 @@ export default function MemberHomePage() {
               {a.content && <div style={{ fontSize:12, color:'#6b6b6b', marginTop:3, lineHeight:1.5 }}>{a.content}</div>}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 提醒圖片全螢幕預覽（點任意處關閉） */}
+      {reminderImgPreview && (
+        <div onClick={() => setReminderImgPreview(null)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.85)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:16, cursor:'zoom-out' }}>
+          <img src={reminderImgPreview} alt="" style={{ maxWidth:'100%', maxHeight:'90vh', borderRadius:12, objectFit:'contain' }}/>
         </div>
       )}
 
