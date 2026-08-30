@@ -122,6 +122,7 @@ const emptyForm = () => ({
   registrationEnd: dayjs().add(14,'day').format('YYYY-MM-DD'),
   earlyBirdDeadline: dayjs().add(7,'day').format('YYYY-MM-DD'),
   eventDate: dayjs().add(21,'day').format('YYYY-MM-DD'),
+  eventStartTime: '09:00', // 比賽開始時間（賽前10分鐘自動開啟計分用）
   divisions: [
     { id:`d${Date.now()}1`, name:'V2-V3組', maxParticipants:40, waitlistMax:5 },
     { id:`d${Date.now()}2`, name:'V4-V5組', maxParticipants:40, waitlistMax:5 },
@@ -367,7 +368,7 @@ export default function CompetitionsPage() {
     setForm({
       name:c.name, description:c.description||'', gymId:c.gymId||'gym-hsinchu',
       registrationStart:c.registrationStart, registrationEnd:c.registrationEnd,
-      earlyBirdDeadline:c.earlyBirdDeadline||'', eventDate:c.eventDate,
+      earlyBirdDeadline:c.earlyBirdDeadline||'', eventDate:c.eventDate, eventStartTime:c.eventStartTime||'09:00',
       divisions: c.divisions?.length ? c.divisions.map(d=>({ id:d.id, name:d.name, maxParticipants:d.maxParticipants||40, waitlistMax:d.waitlistMax||5 })) : emptyForm().divisions,
       fees: { ...emptyForm().fees, ...(c.fees || {}) }, // 舊賽事若缺新欄位（如保險費）→ 補上預設值，避免輸入框空白
       refundPolicies: c.refundPolicies || emptyForm().refundPolicies,
@@ -764,6 +765,7 @@ export default function CompetitionsPage() {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div style={{ gridColumn:'1/-1' }}><label style={lbl}>賽事名稱</label><input style={inp} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
             <div><label style={lbl}>比賽日期</label><input type="date" style={inp} value={form.eventDate} onChange={e=>setForm(f=>({...f,eventDate:e.target.value}))}/></div>
+            <div><label style={lbl}>開始時間（賽前 10 分鐘自動開啟計分）</label><input type="time" style={inp} value={form.eventStartTime||'09:00'} onChange={e=>setForm(f=>({...f,eventStartTime:e.target.value}))}/></div>
             <div><label style={lbl}>場館</label>
               <select style={inp} value={form.gymId} onChange={e=>setForm(f=>({...f,gymId:e.target.value}))}>
                 <option value="gym-hsinchu">新竹館</option>
