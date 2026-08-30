@@ -1446,6 +1446,12 @@ export default function CheckinPage() {
                             receivedAmount: c.courseInvoice.receivedAmount,
                           })} />
                       )}
+                      {/* 比賽報到入場：顯示/開立「報名費」發票（與賽事管理名單、報到掃描同一張；
+                          資料來源見 GET /checkin/today 的 competitionInvoice，2026-08-30 比賽日需求） */}
+                      {c.competitionInvoice && canCheckin && (c.competitionInvoice.receivedAmount ?? 0) > 0 && (
+                        <InvoiceButtonAuto sourceType="competition" refId={c.competitionInvoice.registrationId} refreshToken={compInvRefresh}
+                          onClick={() => setCompInvoiceTarget({ ...c.competitionInvoice, gymId: c.gymId })} />
+                      )}
                       {canCancel && (
                         <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
                           style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
