@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore.jsx';
 import { getGyms } from '../../api/gyms';
@@ -51,6 +52,7 @@ const manualIncomeTotal = (income, im) => im
   : null;
 
 export default function DailySettlementPage() {
+  const navigate = useNavigate();
   const { staff, activeGymId, operator, isStationMode, viewGym } = useAuth();
   const isSuperAdmin = (operator?.role || staff?.role) === 'super_admin';
   const [gyms, setGyms] = useState([]);
@@ -68,6 +70,7 @@ export default function DailySettlementPage() {
   // 發票多段：一天內換發票捲可加多段起末號（track＝字軌，如 AB，跟著換捲可能改變）
   const [invoiceSegments, setInvoiceSegments] = useState([{ track:'', start:'', last:'' }]);
   const [showConfirm, setShowConfirm] = useState(false);   // 完成結帳確認 modal
+  const [showRolloverNotice, setShowRolloverNotice] = useState(false); // 偶數月最後一個營業日：提醒換發票本
   const [savingDraft, setSavingDraft] = useState(false);
   const [resettleMode, setResettleMode] = useState(false); // 當日再次結帳（由已結帳畫面進入）
   const [resettleReason, setResettleReason] = useState('');
@@ -282,6 +285,7 @@ export default function DailySettlementPage() {
       const res = await client.post('/daily-settlements', { ...buildBody(), ...(resettleMode ? { resettleReason } : {}) });
       setShowConfirm(false);
       showMsg(res.data?.message || '結帳完成！');
+      if (res.data?.invoiceRolloverDue) setShowRolloverNotice(true);
       await loadToday(); await loadHistory();
     } catch (e) { showMsg(e.response?.data?.message || '結帳失敗', 'err'); }
     finally { setSaving(false); }
@@ -873,6 +877,24 @@ export default function DailySettlementPage() {
             <button onClick={doSettle} disabled={saving}
               style={{ flex:2, height:44, borderRadius:10, background: saving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: saving?'not-allowed':'pointer' }}>
               {saving ? '處理中...' : (resettleMode ? '確認更新' : '確認結帳')}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 偶數月最後一個營業日結帳完成：提醒換發票本／設定下一期發票號碼 */}
+      {showRolloverNotice && (
+        <Modal title="🔖 請更換下一期發票" onClose={() => setShowRolloverNotice(false)} width={420}>
+          <div style={{ fontSize:14, color:'#444', lineHeight:1.7 }}>
+            今天是本期（雙月）最後一個營業日的結帳，<strong>請更換下一期發票本</strong>，
+            並到「發票號碼管理」設定新的起始號碼，避免下次列印時號碼銜接不上。
+          </div>
+          <div style={{ display:'flex', gap:8, marginTop:20 }}>
+            <button onClick={() => setShowRolloverNotice(false)}
+              style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>稍後再說</button>
+            <button onClick={() => { setShowRolloverNotice(false); navigate('/staff/settings?tab=invoiceNumbers'); }}
+              style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              前往設定發票號碼
             </button>
           </div>
         </Modal>

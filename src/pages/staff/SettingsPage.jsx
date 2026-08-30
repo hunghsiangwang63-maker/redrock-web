@@ -80,7 +80,9 @@ export default function SettingsPage() {
     getAllGyms().then(res => setGyms(res.data.gyms || [])).catch(() => {});
   }, []);
   const isAdmin = ['super_admin', 'admin'].includes(staff?.role);
-  const [activeTab, setActiveTab] = useState('entryTypes');
+  // 支援深連結 /staff/settings?tab=xxx（如結帳頁「換發票本」提醒導向發票號碼管理）；
+  // 若此角色看不到該分頁，下方 effect 會自動切到第一個可見分頁
+  const [activeTab, setActiveTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'entryTypes');
   // 若預設分頁對此角色不可見（如正職/值班只看得到場館公告），自動切到第一個可見分頁
   useEffect(() => {
     const vis = t => (!t.superAdminOnly || isSuperAdmin) && (!t.adminOnly || isAdmin) && (!t.ownGymAnnounce || canOwnGymAnnounce) && (!t.managerOnly || isManagerPlus) && (!t.managerOrStation || canManageInvoiceNumbers);
