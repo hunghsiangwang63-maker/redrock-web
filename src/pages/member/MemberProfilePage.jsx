@@ -190,7 +190,7 @@ export default function MemberProfilePage() {
       setWaiverLoading(false);
     }
   };
-  const [editForm, setEditForm] = useState({ name:'', email:'', birthday:'', gender:'', ecName:'', ecRelation:'', ecPhone:'' });
+  const [editForm, setEditForm] = useState({ name:'', email:'', birthday:'', gender:'', nickname:'', ecName:'', ecRelation:'', ecPhone:'' });
   const [editOpen, setEditOpen] = useState(false);
   const [pwForm, setPwForm] = useState({ current:'', newPw:'', confirm:'' });
   const [checkinHistory, setCheckinHistory] = useState([]);
@@ -320,7 +320,7 @@ export default function MemberProfilePage() {
         {/* 功能清單 */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:12 }}>
           {[
-            { icon:'✏️', label:'修改個人資料', action: () => { const ec = (member?.emergencyContact||'').split('/').map(s => s.trim()); setEditForm({ name: member?.name||'', email: member?.email||'', birthday: member?.birthday||'', gender: member?.gender||'', ecName: ec[0]||'', ecRelation: ec[1]||'', ecPhone: ec[2]||'' }); setShowEditProfile(true); } },
+            { icon:'✏️', label:'修改個人資料', action: () => { const ec = (member?.emergencyContact||'').split('/').map(s => s.trim()); setEditForm({ name: member?.name||'', email: member?.email||'', birthday: member?.birthday||'', gender: member?.gender||'', nickname: member?.nickname||'', ecName: ec[0]||'', ecRelation: ec[1]||'', ecPhone: ec[2]||'' }); setShowEditProfile(true); } },
             { icon:'🔑', label:'修改密碼', action: () => setShowChangePassword(true) },
             { icon:'🔔', label:'Line 官方通知設定', action: () => setShowNotification(true) },
             { icon:'👨‍👩‍👧‍👦', label:'家庭成員（限兒童及青少年）', action: () => { loadChildren(); setShowFamily(true); } },
@@ -543,6 +543,13 @@ export default function MemberProfilePage() {
               </div>
             </div>
             <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>暱稱（選填，最多10字）</label>
+              <input value={editForm.nickname} maxLength={10} onChange={e => setEditForm(p => ({...p, nickname: e.target.value}))}
+                placeholder="留空則以本名顯示"
+                style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.5, textAlign:'left' }}>用於路線積分排行榜與路線標記朋友功能的公開顯示</div>
+            </div>
+            <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>性別</label>
               <select value={editForm.gender} onChange={e => setEditForm(p => ({...p, gender: e.target.value}))}
                 style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}>
@@ -559,7 +566,7 @@ export default function MemberProfilePage() {
                 try {
                   const ecParts = [editForm.ecName, editForm.ecRelation, editForm.ecPhone].map(s => (s || '').trim());
                   const emergencyContact = ecParts.some(Boolean) ? ecParts.join(' / ') : '';
-                  const payload = { name: editForm.name, email: editForm.email, birthday: editForm.birthday, gender: editForm.gender, emergencyContact };
+                  const payload = { name: editForm.name, email: editForm.email, birthday: editForm.birthday, gender: editForm.gender, nickname: editForm.nickname, emergencyContact };
                   const { memberClient } = await import('../../api/client');
                   await memberClient.put('/auth/member/profile', payload);
                   updateMember(payload);

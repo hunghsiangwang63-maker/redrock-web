@@ -9,7 +9,7 @@ const inputStyle = { width:'100%', height:44, borderRadius:10, border:'0.5px sol
 const labelStyle = { fontSize:12, color:'#6b6b6b', display:'block', marginBottom:5 };
 
 export default function MemberRegisterPage() {
-  const [form, setForm] = useState({ name:'', phone:'', email:'', password:'', birthday:'', parentName:'', parentPhone:'', parentRelation:'' });
+  const [form, setForm] = useState({ name:'', phone:'', email:'', password:'', birthday:'', nickname:'', parentName:'', parentPhone:'', parentRelation:'' });
   const [confirmPassword, setConfirmPassword] = useState('');
   const minor = isMinor(form.birthday);
   const [error, setError] = useState('');
@@ -78,6 +78,13 @@ export default function MemberRegisterPage() {
               <div style={{ marginBottom:14 }}>
                 <label style={labelStyle}>{t('姓名')}</label>
                 <input value={form.name} onChange={set('name')} placeholder={t('王小明')} required style={inputStyle} />
+              </div>
+              <div style={{ marginBottom:14 }}>
+                <label style={labelStyle}>{t('暱稱（選填，最多10字）')}</label>
+                <input value={form.nickname} maxLength={10} onChange={set('nickname')} placeholder={t('留空則以本名顯示')} style={inputStyle} />
+                <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.5, textAlign:'left' }}>
+                  {t('用於路線積分排行榜與路線標記朋友功能的公開顯示，可保護個人隱私（之後也可在「個人資料」修改）')}
+                </div>
               </div>
               <div style={{ marginBottom:14 }}>
                 <label style={labelStyle}>{t('手機號碼')}</label>

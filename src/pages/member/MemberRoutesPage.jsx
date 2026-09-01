@@ -477,11 +477,12 @@ export default function MemberRoutesPage() {
               </div>
             </div>
             <div style={{ marginBottom:14 }}>
-              <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:4, textAlign:'left' }}>排行榜暱稱（選填，最多 10 字）</div>
+              <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:4, textAlign:'left' }}>暱稱（選填，最多 10 字）</div>
               <input value={pref.nickname} maxLength={10}
                 onChange={e => setPref(f => ({ ...f, nickname: e.target.value }))}
                 placeholder="留空＝顯示本名"
                 style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
+              <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'left' }}>與「個人資料」共用同一個暱稱，排行榜與標記朋友都會用它顯示</div>
               <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'right' }}>{[...pref.nickname].length}/10</div>
             </div>
             {prefMsg && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, textAlign:'left' }}>{prefMsg}</div>}
@@ -582,7 +583,7 @@ export default function MemberRoutesPage() {
                   <div key={m.id} onClick={() => addTagSelect(m)}
                     style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 12px', borderBottom:'0.5px solid #F0EDED', cursor:'pointer' }}>
                     <div style={{ textAlign:'left' }}>
-                      <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{m.name}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{m.name}{m.nickname ? `（${m.nickname}）` : ''}</div>
                       <div style={{ fontSize:11, color:'#999' }}>{m.phone}</div>
                     </div>
                     <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>+ 加入</div>
