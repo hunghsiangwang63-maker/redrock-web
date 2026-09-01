@@ -5,7 +5,7 @@ import { useAuth } from '../store/authStore.jsx';
 import client from '../api/client';
 
 // 抱石路線攻略：入口暫時隱藏（測試期間直接輸入 /staff/routes 進入）；全部測試完成後改 true 正式上線
-const ROUTES_FEATURE_LIVE = false;
+const ROUTES_FEATURE_LIVE = true;
 
 const NAV = [
   { path:'/staff/pending-tasks', icon:'ti-bell', label:'待辦' },
