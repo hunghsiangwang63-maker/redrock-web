@@ -196,7 +196,7 @@ export default function MemberHomePage() {
             </div>
             <div style={{ width:38, height:38, borderRadius:'50%', background:'#F5E8E8', color:'#8B1A1A', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, fontWeight:600, cursor:'pointer' }}
               onClick={() => navigate('/member/profile')}>
-              {member?.name?.[0]}
+              {(member?.nickname || member?.name)?.[0]}
             </div>
             <MemberLogoutButton inline />
           </div>
