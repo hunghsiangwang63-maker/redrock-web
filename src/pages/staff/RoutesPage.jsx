@@ -125,7 +125,7 @@ export default function RoutesPage() {
           {isArchived && <span style={{ fontSize:10, color:'#999', marginLeft:6 }}>已下架</span>}
         </div>
         <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-          {r.setter && `定線 ${r.setter} · `}{r.setAt || ''} · 完攀 {r.ascentCount} 人
+          {r.setter && `定線 ${r.setter} · `}{r.setAt || ''} · 完攀 {r.ascentCount} 人 · ❤️ {r.likeCount || 0}
           {scoring && ` · 基本分 ${scoring.gradePoints?.[r.grade] ?? '—'}`}
           {r.plannedRemoveAt && (!isArchived && r.plannedRemoveAt < new Date().toISOString().slice(0,10)
             ? <span style={{ color:'#A32D2D', fontWeight:600 }}> · 預計下架 {r.plannedRemoveAt} 已過（請下架）</span>
