@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
+import MemberBottomNav from '../../components/MemberBottomNav';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -61,17 +62,7 @@ export default function MemberRecordsPage() {
     }).finally(() => setLoading(false));
   }, [viewId]);
 
-  const NavBar = () => (
-    <div style={{ position:'fixed', bottom:0, left:0, right:0, background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50 }}>
-      {[{icon:'🏠',label:'首頁',path:'/member/home'},{icon:'📚',label:'課程總覽',path:'/member/courses'},{icon:'🎫',label:'我的票券',path:'/member/passes'},{icon:'👤',label:'我的',path:'/member/profile'}].map(n=>{
-        const active = location.pathname===n.path;
-        return <div key={n.path} onClick={()=>navigate(n.path)} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color:active?'#8B1A1A':'#999' }}>
-          <div style={{ fontSize:20 }}>{n.icon}</div>
-          <div style={{ fontSize:10, fontWeight:active?600:400 }}>{t(n.label)}</div>
-        </div>;
-      })}
-    </div>
-  );
+  const NavBar = () => <MemberBottomNav navigate={navigate} />;
 
   return (
     <div style={{ minHeight:'100vh', background:'#FBF5F5', paddingBottom:80 }}>

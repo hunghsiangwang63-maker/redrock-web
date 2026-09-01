@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
+import MemberBottomNav from '../../components/MemberBottomNav';
 import { t } from '../../utils/memberI18n';
 import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
@@ -23,25 +24,6 @@ const fmtTs = (t, format = 'YYYY/MM/DD HH:mm', fallback = '—') => {
   return d.isValid() ? d.format(format) : fallback;
 };
 
-const BottomNav = ({ navigate }) => (
-  <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:"env(safe-area-inset-bottom)", zIndex:50 }}>
-    {[
-      { icon:'🏠', label:'首頁',     path:'/member/home' },
-      { icon:'📚', label:'課程總覽', path:'/member/courses' },
-      { icon:'🎫', label:'我的票券', path:'/member/passes' },
-      { icon:'👤', label:'我的',     path:'/member/profile' },
-    ].map(n => {
-      const active = location.pathname === n.path;
-      return (
-        <div key={n.path} onClick={() => navigate(n.path)}
-          style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? '#8B1A1A' : '#999' }}>
-          <div style={{ fontSize:20 }}>{n.icon}</div>
-          <div style={{ fontSize:10, fontWeight: active ? 600 : 400 }}>{t(n.label)}</div>
-        </div>
-      );
-    })}
-  </div>
-);
 
 export default function MemberProfilePage() {
   const { member, logout, updateMember } = useMember();
@@ -725,7 +707,7 @@ export default function MemberProfilePage() {
         </div>
       )}
 
-      <BottomNav navigate={navigate} />
+      <MemberBottomNav navigate={navigate} />
     </div>
   );
 }

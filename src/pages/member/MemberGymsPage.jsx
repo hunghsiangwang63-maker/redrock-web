@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
+import MemberBottomNav from '../../components/MemberBottomNav';
 import { t } from '../../utils/memberI18n';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getGyms, getAnnouncements } from '../../api/gyms';
@@ -8,26 +9,6 @@ import { gymOpenLabel } from '../../utils/gymOpenStatus';
 
 const DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
 const DAY_LABELS = { mon:'週一', tue:'週二', wed:'週三', thu:'週四', fri:'週五', sat:'週六', sun:'週日' };
-
-const BottomNav = ({ navigate }) => (
-  <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:"env(safe-area-inset-bottom)", zIndex:50 }}>
-    {[
-      { icon:'🏠', label:'首頁',     path:'/member/home' },
-      { icon:'📚', label:'課程總覽', path:'/member/courses' },
-      { icon:'🎫', label:'我的票券', path:'/member/passes' },
-      { icon:'👤', label:'我的',     path:'/member/profile' },
-    ].map(n => {
-      const active = location.pathname === n.path;
-      return (
-        <div key={n.path} onClick={() => navigate(n.path)}
-          style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? '#8B1A1A' : '#999' }}>
-          <div style={{ fontSize:20 }}>{n.icon}</div>
-          <div style={{ fontSize:10, fontWeight: active ? 600 : 400 }}>{t(n.label)}</div>
-        </div>
-      );
-    })}
-  </div>
-);
 
 export default function MemberGymsPage() {
   const navigate = useNavigate();
@@ -311,7 +292,7 @@ export default function MemberGymsPage() {
           </div>
         </>
       )}
-      <BottomNav navigate={navigate} />
+      <MemberBottomNav navigate={navigate} />
     </div>
   );
 }

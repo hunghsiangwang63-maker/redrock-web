@@ -52,6 +52,7 @@ import MemberTeamPage from './pages/member/MemberTeamPage';
 import MemberExperiencePage from './pages/member/MemberExperiencePage';
 import MemberRecordsPage from './pages/member/MemberRecordsPage';
 import MemberRoutesPage from './pages/member/MemberRoutesPage';
+import MemberInquiriesPage from './pages/member/MemberInquiriesPage';
 import MemberForgotPasswordPage from './pages/member/MemberForgotPasswordPage';
 import MemberResetPasswordPage from './pages/member/MemberResetPasswordPage';
 import ParentCompetitionWaiverPage from './pages/member/ParentCompetitionWaiverPage';
@@ -133,6 +134,7 @@ function MemberRoutes() {
       <Route path="/member/experience"   element={<MemberRoute><MemberExperiencePage /></MemberRoute>} />
       <Route path="/member/records"      element={<MemberRoute><MemberRecordsPage /></MemberRoute>} />
       <Route path="/member/routes"       element={<MemberRoute><MemberRoutesPage /></MemberRoute>} />
+      <Route path="/member/inquiries"    element={<MemberRoute><MemberInquiriesPage /></MemberRoute>} />
       <Route path="/waiver/parent/:token" element={<ParentWaiverPage />} />
       <Route path="/competitions/waiver/parent/:token" element={<ParentCompetitionWaiverPage />} />
       <Route path="*" element={<Navigate to="/member/login" replace />} />

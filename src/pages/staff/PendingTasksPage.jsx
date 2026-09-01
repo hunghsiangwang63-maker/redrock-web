@@ -12,6 +12,7 @@ import TransferConfirmModal from '../../components/review/TransferConfirmModal';
 import ExperienceDetailModal from '../../components/review/ExperienceDetailModal';
 import TicketApprovalModal from '../../components/review/TicketApprovalModal';
 import FallTestBookingModal from '../../components/review/FallTestBookingModal';
+import InquiryReplyModal from '../../components/review/InquiryReplyModal';
 import { confirmTeamPayment } from '../../api/team';
 import { rejectTicket, rejectTicketBatch } from '../../api/passes';
 import { getCourseAdjustmentRequests } from '../../api/courseAdjustments';
@@ -174,6 +175,7 @@ export default function PendingTasksPage() {
     ticket_approval:     isManager,                    // checkPermission('passes.approve')
     fall_test_pending:   true,                          // 站台/值班/員工皆可登記（後端 authenticate）
     installment:         isManager || isOpStation,      // checkPermission('installments.manage')
+    member_inquiry:      true,                          // 純溝通性質，後端 authenticate（全員工皆可回覆）
   };
   const [returnedItems, setReturnedItems] = useState([]);
   const [returnedDetail, setReturnedDetail] = useState(null);
@@ -336,6 +338,8 @@ export default function PendingTasksPage() {
           <button onClick={() => { setInstallMethod('cash'); setInstallError(''); setModal({ kind:'installment', record: task.record, props:{ seq: task.dueSeq, amount: task.dueAmount, desc: task.desc } }); }} style={primaryBtn('#2D7D46')}>確認收款</button>
           {goLink(task)}
         </>;
+      case 'member_inquiry':
+        return <button onClick={() => setModal({ kind:'inquiry', record: task.record })} style={primaryBtn('#2D7D46')}>回覆</button>;
       default:
         // rental_pickup（取件提醒）、transfer_payment、experience_transfer：維持前往處理
         return <button onClick={() => navigate(task.link)} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 }}>前往處理</button>;
@@ -792,6 +796,7 @@ export default function PendingTasksPage() {
       {modal?.kind === 'experience' && <ExperienceDetailModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'ticket' && <TicketApprovalModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'falltest' && <FallTestBookingModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
+      {modal?.kind === 'inquiry' && <InquiryReplyModal record={modal.record} onClose={() => setModal(null)} onDone={afterDone} />}
       {modal?.kind === 'team' && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:220, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:420, border:'0.5px solid #E8D5D5' }}>
