@@ -19,6 +19,20 @@ export default function MemberRoutesPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState('routes'); // routes | rankings
   const [gymId, setGymId] = useState(() => localStorage.getItem('memberRouteGym') || 'gym-hsinchu');
+  // 家長代子會員操作（2026-09-02 新增）：子會員無獨立登入，完攀記錄/積分/暱稱/標記朋友皆可切換
+  // 檢視對象代為操作——viewAsId 貫穿整頁所有讀寫（記錄完攀為誰記錄、排名看誰的、暱稱改誰的、
+  // 標記朋友以誰的身份發起），單一選擇器統一控管，避免多套各自獨立的「為誰」選單造成混淆。
+  const [children, setChildren] = useState([]); // GET /members/my/children
+  const [viewAsId, setViewAsId] = useState(() => localStorage.getItem('memberRouteViewAs') || '');
+  useEffect(() => {
+    memberClient.get('/members/my/children').then(r => setChildren(r.data.children || [])).catch(() => {});
+  }, []);
+  const familyOptions = member ? [{ id: member.id, name: member.name, nickname: member.nickname, isSelf: true }, ...children.map(c => ({ id: c.id, name: c.name, nickname: c.nickname, isSelf: false }))] : [];
+  // 存在 localStorage 的檢視對象若不再屬於自己家庭（例如切換帳號）→ 安全 fallback 回本人
+  const effectiveViewAsId = (member && familyOptions.some(f => f.id === viewAsId)) ? viewAsId : (member?.id || '');
+  const changeViewAs = (id) => { setViewAsId(id); localStorage.setItem('memberRouteViewAs', id); };
+  const viewingMember = familyOptions.find(f => f.id === effectiveViewAsId) || null;
+  const viewingLabel = viewingMember ? (viewingMember.isSelf ? '我' : (viewingMember.nickname || viewingMember.name || '')) : '';
   const [data, setData] = useState(null);       // GET /climbing-routes/member 回應
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState(false);
@@ -53,13 +67,14 @@ export default function MemberRoutesPage() {
   const changeGym = (g) => { setGymId(g); localStorage.setItem('memberRouteGym', g); };
 
   const load = () => {
+    if (!effectiveViewAsId) return;
     setLoading(true); setLoadErr(false);
-    memberClient.get('/climbing-routes/member', { params: { gymId } })
+    memberClient.get('/climbing-routes/member', { params: { gymId, targetMemberId: effectiveViewAsId } })
       .then(r => setData(r.data))
       .catch(() => setLoadErr(true))
       .finally(() => setLoading(false));
   };
-  useEffect(load, [gymId]);
+  useEffect(load, [gymId, effectiveViewAsId]);
 
   // 深連結分享進來（?route=<id>）：資料載入完成後，若目前館別清單裡沒有該路線（多半是另一館的路線），
   // 自動切換館別去找；找到後短暫高亮＋捲動定位。只在真的帶了 route 參數時才動作，一般進頁不受影響。
@@ -77,17 +92,17 @@ export default function MemberRoutesPage() {
   }, [loading, data]);
 
   useEffect(() => {
-    if (tab !== 'rankings') return;
+    if (tab !== 'rankings' || !effectiveViewAsId) return;
     setRankLoading(true);
-    memberClient.get('/climbing-routes/rankings', { params: { ...(rankGym ? { gymId: rankGym } : {}), period } })
+    memberClient.get('/climbing-routes/rankings', { params: { ...(rankGym ? { gymId: rankGym } : {}), period, targetMemberId: effectiveViewAsId } })
       .then(r => setRanking(r.data))
       .catch(() => setRanking(null))
       .finally(() => setRankLoading(false));
-  }, [tab, rankGym, period]);
+  }, [tab, rankGym, period, effectiveViewAsId]);
 
   const openPref = () => {
     setPrefMsg(null);
-    memberClient.get('/climbing-routes/ranking-settings')
+    memberClient.get('/climbing-routes/ranking-settings', { params: { targetMemberId: effectiveViewAsId } })
       .then(r => setPref({ optOut: !!r.data.optOut, nickname: r.data.nickname || '' }))
       .catch(() => {});
     setPrefOpen(true);
@@ -95,11 +110,11 @@ export default function MemberRoutesPage() {
   const savePref = async () => {
     setPrefSaving(true); setPrefMsg(null);
     try {
-      await memberClient.put('/climbing-routes/ranking-settings', pref);
+      await memberClient.put('/climbing-routes/ranking-settings', { ...pref, targetMemberId: effectiveViewAsId });
       setPrefOpen(false);
       if (tab === 'rankings') { // 重載排名反映開關/暱稱
         setRankLoading(true);
-        memberClient.get('/climbing-routes/rankings', { params: { ...(rankGym ? { gymId: rankGym } : {}), period } })
+        memberClient.get('/climbing-routes/rankings', { params: { ...(rankGym ? { gymId: rankGym } : {}), period, targetMemberId: effectiveViewAsId } })
           .then(r => setRanking(r.data)).catch(() => {}).finally(() => setRankLoading(false));
       }
     } catch (e) { setPrefMsg(e.response?.data?.message || '儲存失敗'); }
@@ -150,7 +165,7 @@ export default function MemberRoutesPage() {
     setTagSearching(true); setTagSearchErr(''); setTagResults([]);
     try {
       const isPhone = /^[0-9+]+$/.test(q);
-      const res = await memberClient.get('/climbing-routes/search-member', { params: isPhone ? { phone: q } : { name: q } });
+      const res = await memberClient.get('/climbing-routes/search-member', { params: { ...(isPhone ? { phone: q } : { name: q }), excludeMemberId: effectiveViewAsId } });
       const results = (res.data.results || []).filter(m => !tagSelected.some(s => s.id === m.id));
       if (!results.length) setTagSearchErr('查無符合的會員（電話需完整、姓名需完全一致）');
       setTagResults(results);
@@ -169,6 +184,7 @@ export default function MemberRoutesPage() {
     try {
       const res = await memberClient.post(`/climbing-routes/${tagModal.id}/tag`, {
         taggedMemberIds: tagSelected.map(m => m.id),
+        fromMemberId: effectiveViewAsId,
       });
       setTagMsg({ ok: true, text: `已標記：${(res.data.tagged || []).join('、')}` });
       setTagSelected([]);
@@ -194,7 +210,7 @@ export default function MemberRoutesPage() {
     if (!pickedTier) { setModalMsg({ ok:false, text:'請選擇完攀方式' }); return; }
     setSaving(true); setModalMsg(null);
     try {
-      await memberClient.post(`/climbing-routes/${recordTarget.id}/ascents`, { tier: pickedTier });
+      await memberClient.post(`/climbing-routes/${recordTarget.id}/ascents`, { tier: pickedTier, targetMemberId: effectiveViewAsId });
       setRecordTarget(null); load();
     } catch (e) {
       setModalMsg({ ok:false, text: e.response?.data?.message || '記錄失敗，請稍後再試' });
@@ -204,7 +220,7 @@ export default function MemberRoutesPage() {
   const deleteRecord = async () => {
     setSaving(true); setModalMsg(null);
     try {
-      await memberClient.delete(`/climbing-routes/${recordTarget.id}/ascents`);
+      await memberClient.delete(`/climbing-routes/${recordTarget.id}/ascents`, { params: { targetMemberId: effectiveViewAsId } });
       setRecordTarget(null); load();
     } catch (e) {
       setModalMsg({ ok:false, text: e.response?.data?.message || '刪除失敗' });
@@ -245,6 +261,23 @@ export default function MemberRoutesPage() {
         ))}
       </div>
 
+      {/* 家長代子會員操作（2026-09-02 新增）：有子會員才顯示，切換後貫穿全頁（積分/記錄/排名/暱稱/tag） */}
+      {familyOptions.length > 1 && (
+        <div style={{ padding:'12px 16px 0' }}>
+          <div style={{ fontSize:11, color:'#999', marginBottom:5, textAlign:'left' }}>檢視/操作對象</div>
+          <div style={{ display:'flex', gap:8, overflowX:'auto' }}>
+            {familyOptions.map(f => (
+              <button key={f.id} onClick={() => changeViewAs(f.id)}
+                style={{ flexShrink:0, padding:'7px 14px', borderRadius:16, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap',
+                  border: effectiveViewAsId === f.id ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
+                  background: effectiveViewAsId === f.id ? '#8B1A1A' : '#fff', color: effectiveViewAsId === f.id ? '#fff' : '#666' }}>
+                {f.isSelf ? '本人' : `👦 ${f.nickname || f.name}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {tab === 'routes' && (
         <div style={{ padding:'14px 16px 0' }}>
           <GymChips />
@@ -253,14 +286,14 @@ export default function MemberRoutesPage() {
 
       {tab === 'routes' && (
         <div style={{ padding:'12px 16px 0' }}>
-          {/* 我的積分摘要 */}
+          {/* 積分摘要（隨檢視對象切換） */}
           {data?.myTotals && (() => {
             const cur = data.myTotals.byGym?.[gymId] || { points:0, ascents:0 };
             const all = data.myTotals.all || { points:0, ascents:0 };
             return (
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', gap:18, marginBottom:12 }}>
               <div>
-                <div style={{ fontSize:10, color:'#999' }}>{GYMS.find(g=>g.id===gymId)?.label}積分</div>
+                <div style={{ fontSize:10, color:'#999' }}>{viewingMember && !viewingMember.isSelf ? `${viewingLabel}的` : ''}{GYMS.find(g=>g.id===gymId)?.label}積分</div>
                 <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A' }}>{cur.points.toLocaleString()}</div>
                 <div style={{ fontSize:10, color:'#999' }}>{cur.ascents} 條</div>
               </div>
@@ -274,15 +307,15 @@ export default function MemberRoutesPage() {
             );
           })()}
 
-          {/* 入場狀態提示 */}
+          {/* 入場狀態提示（依檢視對象本人今日是否已入場） */}
           {!loading && !loadErr && (
             checkedIn ? (
               <div style={{ background:'#E6F4EB', color:'#2D7D46', borderRadius:10, padding:'8px 12px', fontSize:12, marginBottom:12 }}>
-                ✅ 今日已入場——完攀後點路線即可記錄成績
+                ✅ {viewingMember && !viewingMember.isSelf ? `${viewingLabel}今日已入場` : '今日已入場'}——完攀後點路線即可記錄成績
               </div>
             ) : (
               <div style={{ background:'#FAEEDA', color:'#854F0B', borderRadius:10, padding:'8px 12px', fontSize:12, marginBottom:12, textAlign:'left', lineHeight:1.6 }}>
-                ⏳ 記錄完攀需於「入場當日」進行——今日尚未於{GYMS.find(g=>g.id===gymId)?.label}入場，可先瀏覽路線與示範影片
+                ⏳ 記錄完攀需於「入場當日」進行——{viewingMember && !viewingMember.isSelf ? `${viewingLabel}今日尚未` : '今日尚未'}於{GYMS.find(g=>g.id===gymId)?.label}入場，可先瀏覽路線與示範影片
               </div>
             )
           )}
@@ -405,7 +438,7 @@ export default function MemberRoutesPage() {
           </div>
           {ranking?.myOptedOut && (
             <div style={{ background:'#F0EDED', color:'#666', borderRadius:10, padding:'8px 12px', fontSize:12, marginBottom:10, textAlign:'left' }}>
-              你目前<strong>未參加排名</strong>（積分照常累計{ranking.myStats ? `：${ranking.myStats.points.toLocaleString()} 分` : ''}）——到「⚙️ 排名設定」可重新公開參加
+              {viewingMember && !viewingMember.isSelf ? viewingLabel : '你'}目前<strong>未參加排名</strong>（積分照常累計{ranking.myStats ? `：${ranking.myStats.points.toLocaleString()} 分` : ''}）——到「⚙️ 排名設定」可重新公開參加
             </div>
           )}
 
@@ -420,14 +453,14 @@ export default function MemberRoutesPage() {
               {ranking.myRank && (
                 <div style={{ background:'#8B1A1A', color:'#fff', borderRadius:12, padding:'10px 14px', display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
                   <div style={{ fontSize:18, fontWeight:700 }}>#{ranking.myRank.rank}</div>
-                  <div style={{ flex:1, fontSize:13, fontWeight:600 }}>我的排名</div>
+                  <div style={{ flex:1, fontSize:13, fontWeight:600 }}>{viewingMember && !viewingMember.isSelf ? `${viewingLabel}的排名` : '我的排名'}</div>
                   <div style={{ fontSize:14, fontWeight:700 }}>{ranking.myRank.points.toLocaleString()} 分</div>
                   <div style={{ fontSize:11, opacity:.8 }}>{ranking.myRank.ascents} 條</div>
                 </div>
               )}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                 {ranking.rankings.map(r => {
-                  const isMe = member?.id === r.memberId;
+                  const isMe = effectiveViewAsId === r.memberId;
                   return (
                     <div key={r.memberId} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 14px', borderBottom:'0.5px solid #F0EDED',
                       background: isMe ? '#FBEFEF' : '#fff' }}>
@@ -435,7 +468,7 @@ export default function MemberRoutesPage() {
                         {r.rank <= 3 ? ['🥇','🥈','🥉'][r.rank-1] : `#${r.rank}`}
                       </div>
                       <div style={{ flex:1, fontSize:13, fontWeight: isMe ? 700 : 500, color:'#333' }}>
-                        {r.memberName || '會員'}{isMe && <span style={{ fontSize:10, color:'#8B1A1A', marginLeft:5 }}>（我）</span>}
+                        {r.memberName || '會員'}{isMe && <span style={{ fontSize:10, color:'#8B1A1A', marginLeft:5 }}>（{viewingMember && !viewingMember.isSelf ? viewingLabel : '我'}）</span>}
                       </div>
                       <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A' }}>{r.points.toLocaleString()}</div>
                       <div style={{ fontSize:11, color:'#999', width:38, textAlign:'right' }}>{r.ascents} 條</div>
@@ -463,7 +496,7 @@ export default function MemberRoutesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:360, maxWidth:'95vw' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>⚙️ 排名設定</div>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>⚙️ 排名設定{viewingMember && !viewingMember.isSelf ? `（${viewingLabel}）` : ''}</div>
               <button onClick={() => setPrefOpen(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div onClick={() => setPref(f => ({ ...f, optOut: !f.optOut }))}
@@ -482,7 +515,9 @@ export default function MemberRoutesPage() {
                 onChange={e => setPref(f => ({ ...f, nickname: e.target.value }))}
                 placeholder="留空＝顯示本名"
                 style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
-              <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'left' }}>與「個人資料」共用同一個暱稱，排行榜與標記朋友都會用它顯示</div>
+              <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'left' }}>
+                {viewingMember && !viewingMember.isSelf ? '排行榜與標記朋友都會用它顯示' : '與「個人資料」共用同一個暱稱，排行榜與標記朋友都會用它顯示'}
+              </div>
               <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'right' }}>{[...pref.nickname].length}/10</div>
             </div>
             {prefMsg && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, textAlign:'left' }}>{prefMsg}</div>}
@@ -499,7 +534,7 @@ export default function MemberRoutesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:400, maxWidth:'95vw', maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>記錄完攀</div>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>記錄完攀{viewingMember && !viewingMember.isSelf ? `（${viewingLabel}）` : ''}</div>
               <button onClick={() => setRecordTarget(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
@@ -508,7 +543,7 @@ export default function MemberRoutesPage() {
             </div>
             {!checkedIn && (
               <div style={{ background:'#FAEEDA', color:'#854F0B', borderRadius:8, padding:'7px 10px', fontSize:11, marginBottom:10, textAlign:'left' }}>
-                今日尚未入場，無法新增或修改記錄（可刪除既有記錄）
+                {viewingMember && !viewingMember.isSelf ? `${viewingLabel}今日尚未` : '今日尚未'}入場，無法新增或修改記錄（可刪除既有記錄）
               </div>
             )}
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
@@ -556,7 +591,7 @@ export default function MemberRoutesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:400, maxWidth:'95vw', maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>👥 標記朋友</div>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>👥 標記朋友{viewingMember && !viewingMember.isSelf ? `（以${viewingLabel}的身份）` : ''}</div>
               <button onClick={() => setTagModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div style={{ fontSize:12, color:'#666', marginBottom:12, textAlign:'left' }}>
@@ -564,7 +599,7 @@ export default function MemberRoutesPage() {
               {tagModal.area} · {tagModal.color}{tagModal.name ? ` · ${tagModal.name}` : ''}
             </div>
             <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
-              最多可同時標記 5 位朋友；標記後對方會收到首頁提醒，路線頁面也會公開顯示「誰標記了誰」（姓名會部分遮蔽保護隱私）。
+              最多可同時標記 5 位朋友；標記後對方會收到首頁提醒，路線頁面也會公開顯示「誰標記了誰」（沒設暱稱的姓名會部分遮蔽保護隱私）。
             </div>
             <div style={{ display:'flex', gap:6, marginBottom:8 }}>
               <input value={tagQuery} onChange={e => setTagQuery(e.target.value)}
