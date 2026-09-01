@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 
@@ -37,6 +37,18 @@ export default function MemberRoutesPage() {
   const [prefSaving, setPrefSaving] = useState(false);
   const [prefMsg, setPrefMsg] = useState(null);
   const [shareToast, setShareToast] = useState('');
+  // 社交互動（2026-09-01 新增：讚/分享路線/tag 朋友，皆不限入館皆可操作）
+  const [searchParams] = useSearchParams();
+  const [highlightId, setHighlightId] = useState(null); // 深連結分享進來時短暫高亮的路線
+  const [likeBusy, setLikeBusy] = useState(null); // 正在送出讚的 routeId（防連點）
+  const [tagModal, setTagModal] = useState(null); // 開啟 tag modal 的路線
+  const [tagQuery, setTagQuery] = useState('');
+  const [tagResults, setTagResults] = useState([]);
+  const [tagSelected, setTagSelected] = useState([]); // 已選的會員 [{id,name,phone}]
+  const [tagSearching, setTagSearching] = useState(false);
+  const [tagSearchErr, setTagSearchErr] = useState('');
+  const [tagSubmitting, setTagSubmitting] = useState(false);
+  const [tagMsg, setTagMsg] = useState(null);
 
   const changeGym = (g) => { setGymId(g); localStorage.setItem('memberRouteGym', g); };
 
@@ -48,6 +60,21 @@ export default function MemberRoutesPage() {
       .finally(() => setLoading(false));
   };
   useEffect(load, [gymId]);
+
+  // 深連結分享進來（?route=<id>）：資料載入完成後，若目前館別清單裡沒有該路線（多半是另一館的路線），
+  // 自動切換館別去找；找到後短暫高亮＋捲動定位。只在真的帶了 route 參數時才動作，一般進頁不受影響。
+  useEffect(() => {
+    const targetId = searchParams.get('route');
+    if (!targetId || loading) return;
+    const found = routes.find(r => r.id === targetId);
+    if (!found) return; // 可能在另一館，或資料還沒到；不強制猜測跨館切換，避免使用者選定的館別被打斷
+    setHighlightId(targetId);
+    const el = document.getElementById(`route-${targetId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHighlightId(null), 2500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, data]);
 
   useEffect(() => {
     if (tab !== 'rankings') return;
@@ -85,6 +112,69 @@ export default function MemberRoutesPage() {
       await navigator.clipboard.writeText(r.igUrl);
       setShareToast('已複製示範影片連結'); setTimeout(() => setShareToast(''), 2000);
     } catch (e) { /* 使用者取消分享等，靜默 */ }
+  };
+
+  // 分享「這條路線」本身（深連結，不限有無 IG 示範影片；跟上面 shareIg 分享 IG 連結是兩個獨立功能）
+  const shareRoute = async (r) => {
+    const title = `${r.area || ''} ${r.color || ''} ${r.grade}${r.name ? ' · ' + r.name : ''}`.trim();
+    const url = `${window.location.origin}/member/routes?route=${r.id}`;
+    try {
+      if (navigator.share) { await navigator.share({ title: `紅石路線攻略：${title}`, url }); return; }
+      await navigator.clipboard.writeText(url);
+      setShareToast('已複製路線連結'); setTimeout(() => setShareToast(''), 2000);
+    } catch (e) { /* 使用者取消分享等，靜默 */ }
+  };
+
+  // 讚：toggle，不限入館。防連點（送出中忽略再次點擊）；成功後直接更新本地 data 避免重新整個 reload。
+  const toggleLike = async (r) => {
+    if (likeBusy === r.id) return;
+    setLikeBusy(r.id);
+    try {
+      const res = await memberClient.post(`/climbing-routes/${r.id}/like`);
+      setData(d => d && {
+        ...d,
+        routes: d.routes.map(x => x.id === r.id ? { ...x, liked: res.data.liked, likeCount: res.data.likeCount } : x),
+      });
+    } catch (e) { /* 靜默失敗，維持原狀即可 */ }
+    finally { setLikeBusy(null); }
+  };
+
+  // Tag 朋友：開啟 modal
+  const openTagModal = (r) => {
+    setTagModal(r); setTagQuery(''); setTagResults([]); setTagSelected([]);
+    setTagSearchErr(''); setTagMsg(null);
+  };
+  const searchTagFriends = async () => {
+    const q = tagQuery.trim();
+    if (!q) return;
+    setTagSearching(true); setTagSearchErr(''); setTagResults([]);
+    try {
+      const isPhone = /^[0-9+]+$/.test(q);
+      const res = await memberClient.get('/climbing-routes/search-member', { params: isPhone ? { phone: q } : { name: q } });
+      const results = (res.data.results || []).filter(m => !tagSelected.some(s => s.id === m.id));
+      if (!results.length) setTagSearchErr('查無符合的會員（電話需完整、姓名需完全一致）');
+      setTagResults(results);
+    } catch (e) { setTagSearchErr(e.response?.data?.message || '搜尋失敗'); }
+    finally { setTagSearching(false); }
+  };
+  const addTagSelect = (m) => {
+    if (tagSelected.length >= 5) return;
+    setTagSelected(s => [...s, m]);
+    setTagResults(rs => rs.filter(r => r.id !== m.id));
+  };
+  const removeTagSelect = (id) => setTagSelected(s => s.filter(m => m.id !== id));
+  const submitTag = async () => {
+    if (!tagSelected.length) return;
+    setTagSubmitting(true); setTagMsg(null);
+    try {
+      const res = await memberClient.post(`/climbing-routes/${tagModal.id}/tag`, {
+        taggedMemberIds: tagSelected.map(m => m.id),
+      });
+      setTagMsg({ ok: true, text: `已標記：${(res.data.tagged || []).join('、')}` });
+      setTagSelected([]);
+      load(); // 重新載入清單，讓路線卡片上的「已標記」清單即時更新
+    } catch (e) { setTagMsg({ ok: false, text: e.response?.data?.message || '標記失敗' }); }
+    finally { setTagSubmitting(false); }
   };
 
   const tiers = data?.tiers || [];
@@ -215,7 +305,9 @@ export default function MemberRoutesPage() {
                   {list.map(r => {
                     const mine = myAscents[r.id];
                     return (
-                      <div key={r.id} style={{ background:'#fff', borderRadius:12, border: mine ? '1px solid #C9DFC9' : '0.5px solid #E8D5D5', padding:'10px 12px' }}>
+                      <div key={r.id} id={`route-${r.id}`} style={{ background:'#fff', borderRadius:12, padding:'10px 12px', transition:'box-shadow .3s, border-color .3s',
+                        border: highlightId === r.id ? '1.5px solid #8B1A1A' : (mine ? '1px solid #C9DFC9' : '0.5px solid #E8D5D5'),
+                        boxShadow: highlightId === r.id ? '0 0 0 3px rgba(139,26,26,.15)' : 'none' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                           <span style={{ fontSize:12, fontWeight:700, color:'#fff', background: GRADE_COLORS[r.grade]||'#666', padding:'3px 9px', borderRadius:8, minWidth:28, textAlign:'center' }}>{r.grade}</span>
                           <div style={{ flex:1, minWidth:0 }}>
@@ -248,6 +340,31 @@ export default function MemberRoutesPage() {
                             {mine ? '修改記錄' : '記錄完攀'}
                           </button>
                         </div>
+                        {/* 社交互動（2026-09-01 新增）：讚/分享路線/tag 朋友——不限入館，任何時候都可操作 */}
+                        <div style={{ marginTop:8, paddingTop:8, borderTop:'0.5px solid #F0EDED', display:'flex', alignItems:'center', gap:6 }}>
+                          <button onClick={() => toggleLike(r)} disabled={likeBusy === r.id}
+                            style={{ display:'flex', alignItems:'center', gap:4, fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer',
+                              border: r.liked ? '1px solid #F0C9C9' : '1px solid #E8D5D5', background: r.liked ? '#FBEFEF' : '#fff', color: r.liked ? '#8B1A1A' : '#999' }}>
+                            {r.liked ? '❤️' : '🤍'} {r.likeCount > 0 ? r.likeCount : ''}
+                          </button>
+                          <button onClick={() => shareRoute(r)} aria-label="分享路線"
+                            style={{ display:'flex', alignItems:'center', gap:3, fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                            分享
+                          </button>
+                          <button onClick={() => openTagModal(r)}
+                            style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
+                            👥 標記朋友
+                          </button>
+                        </div>
+                        {r.tags && r.tags.length > 0 && (
+                          <div style={{ marginTop:6, fontSize:11, color:'#999', textAlign:'left', lineHeight:1.6 }}>
+                            {r.tags.slice(0, 3).map((t, i) => (
+                              <span key={i}>👥 {t.from} 標記了 {t.tagged}{i < Math.min(r.tags.length, 3) - 1 ? '、' : ''}</span>
+                            ))}
+                            {r.tags.length > 3 && <span>　等共 {r.tags.length} 筆</span>}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -429,6 +546,71 @@ export default function MemberRoutesPage() {
                 </button>
               )
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 標記朋友 Modal（2026-09-01 新增）*/}
+      {tagModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:400, maxWidth:'95vw', maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>👥 標記朋友</div>
+              <button onClick={() => setTagModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
+            </div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:12, textAlign:'left' }}>
+              <span style={{ fontWeight:700, color:'#fff', background: GRADE_COLORS[tagModal.grade]||'#666', padding:'2px 7px', borderRadius:6, marginRight:6 }}>{tagModal.grade}</span>
+              {tagModal.area} · {tagModal.color}{tagModal.name ? ` · ${tagModal.name}` : ''}
+            </div>
+            <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
+              最多可同時標記 5 位朋友；標記後對方會收到首頁提醒，路線頁面也會公開顯示「誰標記了誰」（姓名會部分遮蔽保護隱私）。
+            </div>
+            <div style={{ display:'flex', gap:6, marginBottom:8 }}>
+              <input value={tagQuery} onChange={e => setTagQuery(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') searchTagFriends(); }}
+                placeholder="輸入電話或完整姓名搜尋"
+                style={{ flex:1, boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
+              <button onClick={searchTagFriends} disabled={tagSearching || !tagQuery.trim()}
+                style={{ padding:'0 16px', borderRadius:8, border:'none', background: tagSearching ? '#ccc' : '#8B1A1A', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                {tagSearching ? '搜尋中' : '搜尋'}
+              </button>
+            </div>
+            {tagSearchErr && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, textAlign:'left' }}>{tagSearchErr}</div>}
+            {tagResults.length > 0 && (
+              <div style={{ marginBottom:10, border:'1px solid #E8D5D5', borderRadius:10, overflow:'hidden' }}>
+                {tagResults.map(m => (
+                  <div key={m.id} onClick={() => addTagSelect(m)}
+                    style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 12px', borderBottom:'0.5px solid #F0EDED', cursor:'pointer' }}>
+                    <div style={{ textAlign:'left' }}>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{m.name}</div>
+                      <div style={{ fontSize:11, color:'#999' }}>{m.phone}</div>
+                    </div>
+                    <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>+ 加入</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {tagSelected.length > 0 && (
+              <div style={{ marginBottom:10 }}>
+                <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:6, textAlign:'left' }}>已選（{tagSelected.length}/5）</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                  {tagSelected.map(m => (
+                    <div key={m.id} style={{ display:'flex', alignItems:'center', gap:5, background:'#FBEFEF', color:'#8B1A1A', borderRadius:16, padding:'5px 10px', fontSize:12, fontWeight:600 }}>
+                      {m.name}
+                      <span onClick={() => removeTagSelect(m.id)} style={{ cursor:'pointer', fontSize:13 }}>✕</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {tagMsg && (
+              <div style={{ marginBottom:10, padding:'7px 10px', borderRadius:8, fontSize:12, textAlign:'left',
+                background: tagMsg.ok ? '#E6F4EB' : '#FCEBEB', color: tagMsg.ok ? '#2D7D46' : '#A32D2D' }}>{tagMsg.text}</div>
+            )}
+            <button onClick={submitTag} disabled={!tagSelected.length || tagSubmitting}
+              style={{ width:'100%', background: (!tagSelected.length || tagSubmitting) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: (!tagSelected.length || tagSubmitting) ? 'default' : 'pointer' }}>
+              {tagSubmitting ? '送出中...' : `標記 ${tagSelected.length || ''} 位朋友`}
+            </button>
           </div>
         </div>
       )}
