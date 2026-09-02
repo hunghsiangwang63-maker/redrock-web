@@ -333,8 +333,12 @@ export default function MemberRoutesPage() {
             </div>
           ) : (
             Object.entries(byArea).map(([area, list]) => (
-              <div key={area} style={{ marginBottom:14 }}>
-                <div style={{ fontSize:12, fontWeight:700, color:'#8B1A1A', marginBottom:6 }}>{area}</div>
+              <div key={area} style={{ marginBottom:16 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, background:'linear-gradient(135deg,#8B1A1A,#6B1414)', borderRadius:10, padding:'10px 14px', marginBottom:8 }}>
+                  <span style={{ fontSize:16 }}>📍</span>
+                  <span style={{ fontSize:15, fontWeight:700, color:'#fff', flex:1, textAlign:'left' }}>{area}</span>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,.85)', fontWeight:600, flexShrink:0 }}>{list.length} 條</span>
+                </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                   {list.map(r => {
                     const mine = myAscents[r.id];
