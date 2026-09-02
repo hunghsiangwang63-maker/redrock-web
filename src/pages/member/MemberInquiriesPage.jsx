@@ -96,7 +96,7 @@ export default function MemberInquiriesPage() {
                       <div style={{ fontSize:14, color:'#999', flexShrink:0 }}>{open ? '−' : '+'}</div>
                     </div>
                     {open && (
-                      <div style={{ padding:'0 14px 14px', fontSize:12, color:'#666', lineHeight:1.8, textAlign:'left', borderTop:'0.5px solid #F0EDED', paddingTop:10 }}>
+                      <div style={{ padding:'0 14px 14px', fontSize:12, color:'#666', lineHeight:1.8, textAlign:'left', borderTop:'0.5px solid #F0EDED', paddingTop:10, whiteSpace:'pre-wrap' }}>
                         A. {item.answer}
                       </div>
                     )}

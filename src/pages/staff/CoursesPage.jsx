@@ -1131,7 +1131,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       <div><span style={{ fontWeight:600 }}>{c.enrolledCount || 0}/{c.maxStudents} 人</span></div>
                       {c.waitlistCount > 0 && <div style={{ fontSize:11, color:'#A66A00', marginTop:2 }}>候補 {c.waitlistCount} 人</div>}
                     </div>
-                    <div style={{ display:'flex', gap:6, flexShrink:0 }} onClick={e => e.stopPropagation()}>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:6, minWidth:0 }} onClick={e => e.stopPropagation()}>
                       <button onClick={() => { setSelectedCourse(c); setSelectedSession(null); setRoster(null); setTab('sessions'); }}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>場次</button>
                       <button onClick={() => loadCourseRoster(c)}
@@ -1742,7 +1742,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   {list.length === 0 ? (
                     <div style={{ padding:'14px 16px', color:'#bbb', fontSize:12 }}>（尚無班別）</div>
                   ) : list.map(c => (
-                    <div key={c.id} style={{ padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+                    <div key={c.id} style={{ padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', flexWrap:'wrap', justifyContent:'space-between', alignItems:'center', gap:10 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:0 }}>
                         {c.imageUrl
                           ? <img src={c.imageUrl} alt="" style={{ width:36, height:36, borderRadius:8, objectFit:'cover', flexShrink:0 }}/>
@@ -1761,7 +1761,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           </div>
                         </div>
                       </div>
-                      <div style={{ display:'flex', gap:6, flexShrink:0 }}>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:6, minWidth:0 }}>
                         <button onClick={() => copyPublicCategoryLink(c)} title="免登入，非會員可看此班別底下所有梯次並直接報名"
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>
                           🔗 公開連結
