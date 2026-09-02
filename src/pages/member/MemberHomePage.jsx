@@ -15,6 +15,32 @@ import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
 import PaymentSection from '../../components/PaymentSection';
 import { getMyReminders } from '../../api/memberReminders';
 
+// 自繪 SVG 圖示（Unicode 無對應字元、Tabler 圖示字型亦無專屬圖案，故手繪，比照專案慣例
+// 用 SVG 而非文字符號，避免缺字裝置顯示成方塊）。
+// 攀岩吊帶：腰帶＋前扣環＋兩條肩帶＋兩個腿環，對應真實吊帶正面外觀。
+const HarnessIcon = ({ size = 22, color = '#8B1A1A' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="3" y="2" width="18" height="3" rx="1.5" fill={color} />
+    <rect x="10.5" y="4.5" width="3" height="4" rx="1" fill={color} />
+    <path d="M5.5 5 L8 14" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
+    <path d="M18.5 5 L16 14" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
+    <ellipse cx="8" cy="18" rx="4.3" ry="3.4" stroke={color} strokeWidth="2" fill="none" />
+    <ellipse cx="16" cy="18" rx="4.3" ry="3.4" stroke={color} strokeWidth="2" fill="none" />
+  </svg>
+);
+// 抱石攀岩剪影：頭＋軀幹＋一手向上抓點、一手側伸抓點＋一腳屈膝踩點、一腳下伸踩點，
+// 動態伸展姿勢（比照奧運運動圖標粗線條風格，維持在小尺寸下仍可辨識）。
+const ClimberIcon = ({ size = 22, color = '#8B1A1A' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="16" cy="3.2" r="2.1" fill={color} />
+    <path d="M14.3 6.2 L10 14" stroke={color} strokeWidth="3" strokeLinecap="round" />
+    <path d="M12.8 7.6 L20 0.8" stroke={color} strokeWidth="2.6" strokeLinecap="round" />
+    <path d="M11.5 9 L5 7.5" stroke={color} strokeWidth="2.6" strokeLinecap="round" />
+    <path d="M10 14 L6 17 L2.5 14.3" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+    <path d="M10 14 L14 19.5 L13 23" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+  </svg>
+);
+
 export default function MemberHomePage() {
   const { member, logout } = useMember();
   const navigate = useNavigate();
@@ -411,8 +437,8 @@ export default function MemberHomePage() {
           { icon:'🪨', label:'路線攻略', path:'/member/routes', badge:'施工中' },
           { icon:'🏆', label:'比賽報名', path:'/member/competitions' },
         { icon:'🧗', label:'體驗課程', path:'/member/experience' },
-          { icon:'💪', label:'加入攀岩隊', path:'/member/team' },
-          { icon:'🦺', label:'器材租借', path:'/member/rental' },
+          { svgIcon: ClimberIcon, label:'加入攀岩隊', path:'/member/team' },
+          { svgIcon: HarnessIcon, label:'器材租借', path:'/member/rental' },
           { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
         ].map(f => (
           <div key={f.label} onClick={() => f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
@@ -432,6 +458,8 @@ export default function MemberHomePage() {
               ? <div style={{ width:26, height:26, margin:'0 auto 5px', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <i className={f.iconClass} style={{ fontSize:24, color:'#fff' }} aria-hidden="true" />
                 </div>
+              : f.svgIcon
+              ? <div style={{ marginBottom:5, display:'flex', justifyContent:'center' }}><f.svgIcon /></div>
               : <div style={{ fontSize:22, marginBottom:5 }}>{f.icon}</div>}
             <div style={{ fontSize:11, color: f.highlight ? '#fff' : '#6b6b6b', fontWeight: f.highlight ? 700 : 500 }}>{t(f.label)}</div>
           </div>
