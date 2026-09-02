@@ -212,6 +212,7 @@ export default function MemberProfilePage() {
           <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>基本資訊</div>
           {[
             { label:'姓名', value: member?.name },
+            { label:'暱稱', value: member?.nickname },
             { label:'手機', value: member?.phone },
             { label:'Email', value: member?.email },
             { label:'生日', value: member?.birthday ? `${member.birthday}（${age}歲）` : '—' },
