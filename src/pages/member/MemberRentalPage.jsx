@@ -14,6 +14,10 @@ import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 
 const ITEM_ICONS = { crashPad:'🪨', helmet:'⛑️', harness:'🔗' };
+// 吊帶用實際產品外觀圖（Unicode 無對應字元，🔗 僅為權宜），其餘品項維持 emoji。
+const ItemIcon = ({ type, size = 16 }) => type === 'harness'
+  ? <img src="/harness.webp" alt="吊帶" style={{ width:size, height:size, objectFit:'contain', verticalAlign:'middle' }} />
+  : <span>{ITEM_ICONS[type] || '📦'}</span>;
 const STATUS_LABEL = {
   pending:   { bg:'#FAEEDA', color:'#854F0B', text:'待確認' },
   confirmed: { bg:'#E6F4EB', color:'#2D7D46', text:'已確認' },
@@ -213,7 +217,7 @@ export default function MemberRentalPage() {
       {/* Header */}
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate('/member/home')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
-        <div style={{ fontSize:18, fontWeight:700 }}>👟 器材租借</div>
+        <div style={{ fontSize:18, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}><img src="/harness.webp" alt="" style={{ width:22, height:22, objectFit:'contain' }} /> 器材租借</div>
       </div>
 
       <ErrorAlertModal modal={alertModal} onClose={() => setAlertModal(null)} />
@@ -337,7 +341,7 @@ export default function MemberRentalPage() {
                 return (
                   <div key={type} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 0', borderBottom:'0.5px solid #F0E8E8' }}>
                     <div>
-                      <div style={{ fontSize:13, fontWeight:500 }}>{ITEM_ICONS[type]} {cfg.name}</div>
+                      <div style={{ fontSize:13, fontWeight:500 }}><ItemIcon type={type} /> {cfg.name}</div>
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                         租金 NT${unitFee}/件　押金 NT${cfg.deposit}/件
                       </div>
@@ -423,8 +427,12 @@ export default function MemberRentalPage() {
                         <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:sl.bg, color:sl.color }}>{sl.text}</span>
                       </span>
                     </div>
-                    <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
-                      {r.items?.map(i => `${ITEM_ICONS[i.type]||''}${i.name} ×${i.quantity}`).join('　')}
+                    <div style={{ fontSize:12, color:'#666', marginBottom:8, display:'flex', gap:6, flexWrap:'wrap' }}>
+                      {r.items?.map((i, idx) => (
+                        <span key={idx} style={{ display:'inline-flex', alignItems:'center', gap:2 }}>
+                          <ItemIcon type={i.type} size={13} />{i.name} ×{i.quantity}
+                        </span>
+                      ))}
                     </div>
                     <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:500 }}>
                       租金 NT${r.totalRentalFee}　押金 NT${r.totalDeposit}
@@ -563,7 +571,7 @@ export default function MemberRentalPage() {
                 if (cfg.active === false && q === 0) return null;
                 return (
                   <div key={type} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                    <span style={{ fontSize:13 }}>{ITEM_ICONS[type]||'📦'} {cfg.name || type}</span>
+                    <span style={{ fontSize:13 }}><ItemIcon type={type} /> {cfg.name || type}</span>
                     <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                       <button onClick={()=>setEditTarget(t=>({ ...t, form:{ ...t.form, quantities:{ ...t.form.quantities, [type]: Math.max(0,q-1) } } }))}
                         style={{ width:30, height:30, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', cursor:'pointer' }}>−</button>

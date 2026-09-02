@@ -412,7 +412,7 @@ export default function MemberHomePage() {
           { icon:'🏆', label:'比賽報名', path:'/member/competitions' },
         { icon:'🧗', label:'體驗課程', path:'/member/experience' },
           { icon:'🧗', label:'加入攀岩隊', path:'/member/team' },
-          { icon:'👟', label:'器材租借', path:'/member/rental' },
+          { img:'/harness.webp', label:'器材租借', path:'/member/rental' },
           { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
         ].map(f => (
           <div key={f.label} onClick={() => f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
@@ -427,7 +427,7 @@ export default function MemberHomePage() {
               </div>
             )}
             {f.img
-              ? <img src={f.img} alt="" style={{ width:22, height:22, borderRadius:5, marginBottom:5 }}/>
+              ? <img src={f.img} alt="" style={{ width:22, height:22, objectFit:'contain', borderRadius:5, marginBottom:5 }}/>
               : f.iconClass
               ? <div style={{ width:26, height:26, margin:'0 auto 5px', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <i className={f.iconClass} style={{ fontSize:24, color:'#fff' }} aria-hidden="true" />

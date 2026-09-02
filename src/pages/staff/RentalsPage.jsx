@@ -26,6 +26,10 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const ITEM_ICONS = { crashPad:'🪨', helmet:'⛑️', harness:'🔗', locker:'🔐' };
+// 吊帶用實際產品外觀圖（Unicode 無對應字元，🔗 僅為權宜），其餘品項維持 emoji。
+const ItemIcon = ({ type, size = 16 }) => type === 'harness'
+  ? <img src="/harness.webp" alt="吊帶" style={{ width:size, height:size, objectFit:'contain', verticalAlign:'middle' }} />
+  : <span>{ITEM_ICONS[type] || '📦'}</span>;
 const PayTag = ({ method }) => method === 'cash'
   ? <Tag type="warn">💵 現金</Tag>
   : method === 'transfer' ? <Tag type="blue">🏦 轉帳</Tag>
@@ -160,7 +164,7 @@ export default function RentalsPage({ embedded = false }) {
   return (
     <div style={{ padding:24, maxWidth:900, margin:'0 auto' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontSize:20, fontWeight:700 }}>👟 器材租借管理</div>
+        <div style={{ fontSize:20, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}><img src="/harness.webp" alt="" style={{ width:26, height:26, objectFit:'contain' }} /> 器材租借管理</div>
         <div style={{ display:'flex', gap:8 }}>
           {isAdmin && <button onClick={openSettings} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>⚙ 費率設定</button>}
         </div>
@@ -247,7 +251,7 @@ export default function RentalsPage({ embedded = false }) {
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 }}>
                 {(stats.stats||[]).map(s => (
                   <div key={s.type} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, textAlign:'center' }}>
-                    <div style={{ fontSize:28, marginBottom:4 }}>{ITEM_ICONS[s.type]||'📦'}</div>
+                    <div style={{ fontSize:28, marginBottom:4 }}><ItemIcon type={s.type} size={28} /></div>
                     <div style={{ fontSize:13, fontWeight:600 }}>{s.name}</div>
                     <div style={{ fontSize:28, fontWeight:700, color:'#8B1A1A', margin:'6px 0' }}>{s.total}</div>
                     <div style={{ fontSize:11, color:'#999' }}>件最多同時出借</div>
@@ -257,7 +261,7 @@ export default function RentalsPage({ embedded = false }) {
               {/* 每項明細 */}
               {(stats.stats||[]).map(s => s.records?.length > 0 && (
                 <div key={s.type} style={{ marginBottom:16 }}>
-                  <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>{ITEM_ICONS[s.type]} {s.name} 明細</div>
+                  <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}><ItemIcon type={s.type} /> {s.name} 明細</div>
                   <div style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                       <thead>
@@ -432,7 +436,7 @@ export default function RentalsPage({ embedded = false }) {
               const cfg = editTarget.settings?.[type] || {};
               return (
                 <div key={type} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                  <span style={{ fontSize:13 }}>{ITEM_ICONS[type]||'📦'} {cfg.name || type}</span>
+                  <span style={{ fontSize:13 }}><ItemIcon type={type} /> {cfg.name || type}</span>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <button onClick={() => setEditTarget(t => ({ ...t, form:{ ...t.form, quantities:{ ...t.form.quantities, [type]: Math.max(0, q-1) } } }))}
                       style={{ width:28, height:28, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', cursor:'pointer' }}>−</button>
@@ -489,7 +493,7 @@ export default function RentalsPage({ embedded = false }) {
           {Object.entries(rentalSettings).filter(([k]) => k !== 'updatedAt').map(([type, cfg]) => (
             cfg && typeof cfg === 'object' && cfg.name ? (
               <div key={type} style={{ background:'#FBF5F5', borderRadius:10, padding:14, marginBottom:12 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>{ITEM_ICONS[type]} {cfg.name}{cfg.mode==='monthly' && <span style={{ fontSize:11, color:'#8A5A00', marginLeft:6 }}>月租{Array.isArray(cfg.gyms)&&cfg.gyms.length?`・限${cfg.gyms.map(g=>g==='gym-shilin'?'士林':g==='gym-hsinchu'?'新竹':g).join('、')}`:''}</span>}</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}><ItemIcon type={type} /> {cfg.name}{cfg.mode==='monthly' && <span style={{ fontSize:11, color:'#8A5A00', marginLeft:6 }}>月租{Array.isArray(cfg.gyms)&&cfg.gyms.length?`・限${cfg.gyms.map(g=>g==='gym-shilin'?'士林':g==='gym-hsinchu'?'新竹':g).join('、')}`:''}</span>}</div>
                 {cfg.mode === 'monthly' ? (
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                     {[1,3,6].map(m => (
