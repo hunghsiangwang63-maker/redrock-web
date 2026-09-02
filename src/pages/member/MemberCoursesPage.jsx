@@ -114,9 +114,17 @@ export default function MemberCoursesPage() {
   const [enrollSession, setEnrollSession] = useState(null);
   const [payFor, setPayFor] = useState(null); // { enrollmentId, fee, gymId }
   const [enrollStep, setEnrollStep] = useState(1); // 1=基本資料 2=付款 3=規則確認 4=肖像授權
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  // 課程報名付款預設轉帳（櫃檯人力成本較低）；若該課程覆寫允許方式（如運動按摩只現金）且不含轉帳，
+  // 才退回該課程允許清單的第一個選項——避免預設值落在畫面上根本沒顯示的按鈕，導致送出卡在「請填寫
+  // 匯款帳號末五碼」卻看不到任何轉帳欄位的死路（PaymentSection 對 methods 之外的 value.method 沒有
+  // 自動修正）。與 PaymentSection 的 methods prop 用同一套 fallback（['cash','transfer']），勿分開改。
+  const defaultCoursePaymentMethod = (course) => {
+    const allowed = course?.paymentMethods?.length ? course.paymentMethods : ['cash', 'transfer'];
+    return allowed.includes('transfer') ? 'transfer' : (allowed[0] || 'cash');
+  };
+  const [paymentMethod, setPaymentMethod] = useState('transfer');
   const [enrollPlan, setEnrollPlan] = useState('full');   // full | installment（課程有開分期時可選）
-  const [paymentData, setPaymentData] = useState({ method:'cash', paymentDate:'', bankLastFive:'' });
+  const [paymentData, setPaymentData] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
   const [paymentDate, setPaymentDate] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
   const [healthNote, setHealthNote] = useState('');
@@ -461,7 +469,8 @@ export default function MemberCoursesPage() {
     setShowEnrollModal(false); // 關閉報名 Modal（原本漏了此行 → 送出成功後只重置到步驟1、Modal 不關 → 使用者以為失敗重複送出、造成重複報名/重複收費）
     setEnrollSession(null);
     setEnrollStep(1);
-    setPaymentMethod('cash');
+    setPaymentMethod(defaultCoursePaymentMethod(selectedCourse));
+    setPaymentData({ method: defaultCoursePaymentMethod(selectedCourse), paymentDate:'', bankLastFive:'' });
     setEnrollPlan('full');
     setPaymentDate('');
     setBankLastFive('');
@@ -1400,6 +1409,8 @@ export default function MemberCoursesPage() {
                       <button disabled={!feeReady || !enrollOpenNow || youthAgeBlocked} onClick={() => {
                         if (!feeReady || !enrollOpenNow || youthAgeBlocked) return;
                         setEnrollSession({ id: sessions.find(s => s.courseId === selectedCourse.id && s.date >= today)?.id, courseId: selectedCourse.id, isCourse: true, fee, isWaitlist: isCourseFull });
+                        setPaymentMethod(defaultCoursePaymentMethod(selectedCourse));
+                        setPaymentData({ method: defaultCoursePaymentMethod(selectedCourse), paymentDate:'', bankLastFive:'' });
                         setShowEnrollModal(true);
                       }}
                         style={{ width:'100%', height:44, borderRadius:10, background: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'not-allowed':'pointer' }}>
@@ -1486,7 +1497,7 @@ export default function MemberCoursesPage() {
                         {enrolled ? (
                           <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>已報名</span>
                         ) : (
-                          <button onClick={() => { if (full || !_myOpen) return; setEnrollSession({ ...s, fee: _myPrice }); setShowEnrollModal(true); }}
+                          <button onClick={() => { if (full || !_myOpen) return; setEnrollSession({ ...s, fee: _myPrice }); setPaymentMethod(defaultCoursePaymentMethod(selectedCourse)); setPaymentData({ method: defaultCoursePaymentMethod(selectedCourse), paymentDate:'', bankLastFive:'' }); setShowEnrollModal(true); }}
                             style={{ marginTop:4, height:30, padding:'0 12px', borderRadius:8, background: (full||!_myOpen)?'#f5f5f5':'#8B1A1A', color: (full||!_myOpen)?'#999':'#fff', border:'none', fontSize:12, cursor: (full||!_myOpen)?'not-allowed':'pointer' }}
                             disabled={full || !_myOpen}>
                             {full ? '候補' : '報名'}
