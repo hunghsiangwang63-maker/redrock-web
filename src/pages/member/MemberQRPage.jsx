@@ -345,6 +345,11 @@ export default function MemberQRPage() {
 
   const wrap = (kids) => (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+      {verifyResult?.member?.fallTestWarning && (
+        <div style={{ margin:'12px 20px 0', background:'#FCEBEB', border:'1.5px solid #E8A5A5', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#A32D2D', fontWeight:600, lineHeight:1.6 }}>
+          ⚠️ {tt(verifyResult.member.fallTestWarning.message, 'Fall test consent form or test not yet completed', '墜落テスト同意書またはテストが完了していません')}
+        </div>
+      )}
       {onlinePaySuccess && (
         <div style={{ margin:'12px 20px 0', background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#2D7D46', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
           <span>{t('✅ 付款成功，入場券已開通！請選擇「使用單次入場券（免費）」領取，即可產生入場 QR。')}</span>

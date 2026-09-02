@@ -953,6 +953,11 @@ export default function CheckinPage() {
                     🎓 學生入場：請查驗學生證後再放行
                   </div>
                 )}
+                {scanResult.fallTestWarning && (
+                  <div style={{ background:'#FCEBEB', border:'1.5px solid #E8A0A0', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#A32D2D', fontWeight:700 }}>
+                    ⚠️ {scanResult.fallTestWarning.message}
+                  </div>
+                )}
                 {(scanResult.paymentMethod === 'linepay' || scanResult.paymentMethod === 'taiwanpay') && (
                   <div style={{ background:'#FCEBEB', border:'1.5px solid #E8A0A0', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#A32D2D', fontWeight:700 }}>
                     📷 {scanResult.paymentMethod === 'linepay' ? 'LINE Pay' : '台灣Pay'}為現場立牌掃碼付款、系統無法自動確認收款，請務必確認會員已完成付款（可查看店家 App 交易紀錄）後再放行入場
@@ -1007,6 +1012,11 @@ export default function CheckinPage() {
                     </div>
                     <InvoiceButtonAuto sourceType="pass_renewal" refId={confirmedCheckIn.pendingRenewalInvoice.paymentId} refreshToken={renewalInvRefresh}
                       onClick={() => setRenewalInvoiceTarget(confirmedCheckIn.pendingRenewalInvoice)} style={{ height:'auto', padding:'4px 10px' }} />
+                  </div>
+                )}
+                {confirmedCheckIn.fallTestWarning && (
+                  <div style={{ background:'#FCEBEB', border:'1.5px solid #E8A0A0', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#A32D2D', fontWeight:700 }}>
+                    ⚠️ {confirmedCheckIn.fallTestWarning.message}
                   </div>
                 )}
                 {confirmedCheckIn.id && (
@@ -1234,10 +1244,17 @@ export default function CheckinPage() {
 
                   {(() => {
                     const noWaiver = memberEligibility && !memberEligibility.waiverSigned;
-                    const noFallTest = memberEligibility && memberEligibility.fallTestPassed === false;
+                    // 小蜘蛛人正式學員未過墜測仍可入場（fallTestWarning 有值＝後端已判定例外成立）——
+                    // 不擋按鈕，改在下方顯示醒目提醒（見 fallTestWarning 區塊）
+                    const noFallTest = memberEligibility && memberEligibility.fallTestPassed === false && !memberEligibility.fallTestWarning;
                     const blocked = noWaiver || noFallTest;
                     return (
                   <>
+                  {memberEligibility?.fallTestWarning && (
+                    <div style={{ background:'#FCEBEB', border:'1.5px solid #E8A0A0', borderRadius:8, padding:'10px 12px', marginBottom:8, fontSize:13, color:'#A32D2D', fontWeight:700 }}>
+                      ⚠️ {memberEligibility.fallTestWarning.message}
+                    </div>
+                  )}
                   <button type="button" onClick={handlePhoneCheckin}
                     disabled={phoneLoading || blocked}
                     style={{ width:'100%', height:44, borderRadius:8, background: blocked ? '#ccc' : '#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: blocked ? 'not-allowed' : 'pointer' }}>
@@ -1266,6 +1283,11 @@ export default function CheckinPage() {
                     {phoneCheckedIn.memberName} — {ENTRY_TYPE_LABEL[phoneCheckedIn.entryType] || phoneCheckedIn.entryType}
                     {phoneCheckedIn.amountPaid > 0 && ` — NT$${phoneCheckedIn.amountPaid}`}
                   </div>
+                  {phoneCheckedIn.fallTestWarning && (
+                    <div style={{ background:'#FCEBEB', border:'1.5px solid #E8A0A0', borderRadius:8, padding:'10px 12px', marginTop:10, fontSize:13, color:'#A32D2D', fontWeight:700 }}>
+                      ⚠️ {phoneCheckedIn.fallTestWarning.message}
+                    </div>
+                  )}
                   {phoneCheckedIn.needsPromotion && (
                     <div style={{ background:'#FAEEDA', border:'0.5px solid #F0D9A8', borderRadius:8, padding:'8px 11px', marginTop:10, fontSize:12, color:'#854F0B' }}>
                       ⚠️ {phoneCheckedIn.promotionMessage}
