@@ -1431,7 +1431,10 @@ export default function CheckinPage() {
                   </div>
                   {!mergeMode && (
                     <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
-                      {c.amountPaid > 0 && (
+                      {/* 線上付款（街口等）購買的單次入場券兌換入場時 amountPaid 恆為 0（錢已在購票當下
+                          收取），但仍是應開發票的真實金額——見 confirmCheckIn 寫回的 onlineTicket 欄位
+                          （2026-09-03 修復：原本只判斷 amountPaid>0，此類入場的發票鈕會被誤藏）。 */}
+                      {(c.amountPaid > 0 || c.onlineTicket?.amount > 0) && (
                         <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                           onClick={() => setCheckinInvoiceTarget(c)} />
                       )}
@@ -1525,7 +1528,7 @@ export default function CheckinPage() {
                     </div>
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6, flexShrink:0 }}>
-                    {c.amountPaid > 0 && (
+                    {(c.amountPaid > 0 || c.onlineTicket?.amount > 0) && (
                       <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                         onClick={() => setCheckinInvoiceTarget(c)} />
                     )}
