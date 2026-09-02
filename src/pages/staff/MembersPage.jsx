@@ -1197,6 +1197,7 @@ export default function MembersPage() {
 
             {/* 基本資訊 */}
             {[
+              { label:'暱稱', value: detail.member?.nickname },
               { label:'生日', value: detail.member?.birthday },
               { label:'Email', value: detail.member?.email },
               { label:'性別', value: detail.member?.gender === 'male' ? '男' : detail.member?.gender === 'female' ? '女' : '不公開' },
