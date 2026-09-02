@@ -399,7 +399,9 @@ export default function MemberExperiencePage() {
                   </div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                     <div style={{ gridColumn:'1/-1' }}>
-                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>姓名 *</label>
+                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>
+                        姓名 * {needsIns && <span style={{ color:'#A32D2D', fontWeight:600 }}>（投保用，須填寫真實姓名，不可用暱稱代替）</span>}
+                      </label>
                       <input value={p.name} onChange={e=>updateParticipant(i,'name',e.target.value)} placeholder="請填寫真實姓名" style={{ ...inp, background:'#fff' }}/>
                     </div>
                     {needsIns && (<>
