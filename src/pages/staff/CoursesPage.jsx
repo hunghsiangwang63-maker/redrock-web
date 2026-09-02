@@ -276,6 +276,35 @@ export default function CoursesPage({ embedded = false }) {
     finally { setReminderSending(false); }
   };
 
+  // 開課前通知：櫃檯編輯草稿後直接發送給該梯次目前有效（非取消）報名者（完整比照 CompetitionsPage.jsx 的賽前通知）
+  const [noticeModal, setNoticeModal] = useState(null); // 目前開啟通知 Modal 的梯次物件
+  const [noticeSubject, setNoticeSubject] = useState('');
+  const [noticeBody, setNoticeBody] = useState('');
+  const [noticeRecipients, setNoticeRecipients] = useState(null); // null=載入中 | {recipients,count} | {error:true}
+  const [noticeSending, setNoticeSending] = useState(false);
+  const openCourseNotice = async (c) => {
+    setNoticeModal(c);
+    setNoticeSubject(`【紅石攀岩】${c.name} 開課前提醒`);
+    setNoticeBody(`您好，\n\n「${c.name}」即將於 ${c.startDate} 開課，提醒您：\n\n・請提前 10 分鐘完成報到\n・請攜帶合適裝備、輕便服裝\n・如有請假需求請透過會員 App 提前申請\n・如有任何問題請聯繫櫃檯\n\n紅石攀岩館 敬上`);
+    setNoticeRecipients(null);
+    try {
+      const r = await client.get(`/courses/${c.id}/participant-emails`);
+      setNoticeRecipients(r.data);
+    } catch (e) { setNoticeRecipients({ recipients: [], count: 0, error: true }); }
+  };
+  const sendCourseNoticeEmail = async () => {
+    if (!noticeSubject.trim() || !noticeBody.trim()) { showMsg('請填寫主旨與內容', 'red'); return; }
+    setNoticeSending(true);
+    try {
+      const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      const html = noticeBody.split('\n').map(line => line.trim() ? `<p style="margin:0 0 8px">${esc(line)}</p>` : '<br/>').join('');
+      const r = await client.post(`/courses/${noticeModal.id}/send-notice`, { subject: noticeSubject, body: html });
+      showMsg(r.data.message || '已發送');
+      setNoticeModal(null);
+    } catch (e) { showMsg(e.response?.data?.message || '發送失敗', 'red'); }
+    finally { setNoticeSending(false); }
+  };
+
   // 切換館別（super_admin 頂部選單）時重新載入該館課程並回到類別總頁，避免顯示他館課程（如士林館看到新竹館小蜘蛛人）
   useEffect(() => { loadCourses(); loadCategories(); loadMakeupTypes(); setSelectedCategory(null); }, [effectiveGymId]);
   // 深連結：?course=<id> → 課程載入後自動切到該班別＋直接開啟該梯次名單（供通知「查看」按鈕使用；只開一次）
@@ -1121,6 +1150,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       {c.status !== 'cancelled' && (
                       <button onClick={() => openCourseReminder(c)} title="在會員 App 首頁「課程活動提醒」加一則自訂卡片給此梯次目前正取的常態學員"
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8B4B4', color:'#8B1A1A', fontSize:11, cursor:'pointer' }}>🔔 首頁提醒</button>
+                      )}
+                      {c.status !== 'cancelled' && (
+                      <button onClick={() => openCourseNotice(c)} title={c.lastNoticeSentAt ? '可再發送一次' : undefined}
+                        style={{ height:28, padding:'0 10px', borderRadius:6, background:'#FBF5F5', border:'0.5px solid #D4B896', color:'#8B4513', fontSize:11, cursor:'pointer' }}>
+                        {c.lastNoticeSentAt ? `📧 ${dayjs(c.lastNoticeSentAt._seconds ? c.lastNoticeSentAt._seconds*1000 : c.lastNoticeSentAt).format('MM/DD')} 已發送開課通知` : '📧 開課前通知'}
+                      </button>
                       )}
                       {c.status !== 'cancelled' && (inactive ? (
                         <button onClick={() => handleToggleCourseActive(c, true)}
@@ -2928,6 +2963,40 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             <button onClick={sendCourseReminder} disabled={reminderSending}
               style={{ height:40, padding:'0 18px', borderRadius:8, background: reminderSending ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: reminderSending ? 'not-allowed' : 'pointer' }}>
               {reminderSending ? '推播中…' : '🔔 推播提醒'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* 開課前通知 Modal：編輯草稿 → 發送給該梯次目前有效（非取消）報名者（BCC，彼此不見信箱） */}
+      {noticeModal && (
+        <Modal title={`開課前通知 — ${noticeModal.name}`} onClose={() => setNoticeModal(null)} width={640}>
+          <div style={{ fontSize:12, color:'#666', marginBottom:12, background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+            {noticeRecipients === null ? '載入收件人中…' :
+              noticeRecipients.error ? <span style={{ color:'#A32D2D' }}>載入收件人清單失敗，請關閉重試</span> :
+              noticeRecipients.count === 0 ? <span style={{ color:'#A32D2D' }}>目前沒有可寄送的學員信箱（報名可能都還未填 email 或皆已取消）</span> :
+              `將以密件副本(BCC)寄給 ${noticeRecipients.count} 位有效報名者，彼此不會看到對方信箱`}
+          </div>
+          {noticeRecipients?.count > 0 && (
+            <details style={{ marginBottom:14, fontSize:12, color:'#999' }}>
+              <summary style={{ cursor:'pointer' }}>查看收件人清單（{noticeRecipients.count}）</summary>
+              <div style={{ maxHeight:120, overflowY:'auto', marginTop:6, lineHeight:1.9, borderTop:'0.5px solid #eee', paddingTop:6 }}>
+                {noticeRecipients.recipients.map((r,i) => <div key={i}>{r.name || '（無姓名）'} — {r.email}</div>)}
+              </div>
+            </details>
+          )}
+          <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>主旨</label>
+          <input style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', marginBottom:12 }}
+            value={noticeSubject} onChange={e=>setNoticeSubject(e.target.value)} />
+          <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>內容</label>
+          <textarea rows={10} style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:10, fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', fontFamily:'inherit', lineHeight:1.7, resize:'vertical' }}
+            value={noticeBody} onChange={e=>setNoticeBody(e.target.value)} />
+          <div style={{ display:'flex', gap:8, marginTop:16, justifyContent:'flex-end' }}>
+            <button onClick={()=>setNoticeModal(null)} disabled={noticeSending}
+              style={{ height:40, padding:'0 18px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+            <button onClick={sendCourseNoticeEmail} disabled={noticeSending || !noticeRecipients?.count}
+              style={{ height:40, padding:'0 18px', borderRadius:8, background: (noticeSending || !noticeRecipients?.count) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (noticeSending || !noticeRecipients?.count) ? 'not-allowed' : 'pointer' }}>
+              {noticeSending ? '發送中…' : `📧 發送給 ${noticeRecipients?.count || 0} 人`}
             </button>
           </div>
         </Modal>
