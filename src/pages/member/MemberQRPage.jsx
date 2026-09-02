@@ -187,6 +187,20 @@ export default function MemberQRPage() {
       const data = res.data;
       setVerifyResult(data);
       const justPaidTickets = data.instruments?.singleEntryTicket?.tickets || [];
+      // 保底機制（2026-09-03）：付款完成後的瀏覽器導轉在行動裝置上不一定可靠（尤其 PWA／
+      // 原生分頁情境常常跑丟，見對話紀錄——JKoPay 走 window.location.href 整頁導轉，若
+      // result_display_url 沒能正確帶使用者回到這頁，?paid=1 標記就永遠不會出現）。票券
+      // 本身已由 payments webhook 權威授予、與導轉是否成功無關，故即使沒有 ?paid=1，只要
+      // 偵測到「20 分鐘內、剛透過線上付款開通、尚未使用」的單次入場券，也直接產生 QR，
+      // 省去使用者手動重新走「選身分→選付款方式→找到票券」三步。
+      const RECENT_PAID_TICKET_WINDOW_MS = 20 * 60 * 1000;
+      const recentPaidTicket = justPaidTickets.find(tk => {
+        if (tk.source !== 'online-entry') return false;
+        const secs = tk.createdAt?._seconds ?? tk.createdAt?.seconds;
+        if (!secs) return false;
+        const age = Date.now() - secs * 1000;
+        return age >= 0 && age < RECENT_PAID_TICKET_WINDOW_MS;
+      });
       if (!data.allowed) {
         clearJustPaid();
         setStep('blocked');
@@ -209,6 +223,16 @@ export default function MemberQRPage() {
         justPaidRetryRef.current += 1;
         setTimeout(() => { doVerify(); }, 1500);
         return;
+      } else if (!justPaidAutoSelectRef.current && recentPaidTicket) {
+        // 上面 ?paid=1 導回路徑沒有被觸發（見上方保底機制註解），但確實查到剛付款開通的票券——
+        // 同樣直接產生 QR，不進 select_entry 讓使用者再手動找一次。
+        clearJustPaid();
+        setOnlinePaySuccess(true);
+        justPaidRentalRef.current = { shoes: !!recentPaidTicket.rentShoes, chalk: !!recentPaidTicket.rentChalk };
+        setSelectedEntry({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true,
+          instrumentKind:'singleEntryTicket', baseEntryType:'single_entry_ticket', cards:[recentPaidTicket], cardId:recentPaidTicket.id });
+        setStep('shoes');
+        setAutoGenQR(true);
       } else {
         clearJustPaid();
         setStep('select_entry');
