@@ -411,7 +411,7 @@ export default function MemberHomePage() {
           { icon:'🪨', label:'路線攻略', path:'/member/routes', badge:'施工中' },
           { icon:'🏆', label:'比賽報名', path:'/member/competitions' },
         { icon:'🧗', label:'體驗課程', path:'/member/experience' },
-          { icon:'🧗', label:'加入攀岩隊', path:'/member/team' },
+          { img:'/climbing-team.webp', label:'加入攀岩隊', path:'/member/team' },
           { img:'/harness.webp', label:'器材租借', path:'/member/rental' },
           { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
         ].map(f => (
