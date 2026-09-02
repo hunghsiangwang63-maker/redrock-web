@@ -427,7 +427,7 @@ export default function MemberHomePage() {
               </div>
             )}
             {f.img
-              ? <img src={f.img} alt="" style={{ width:22, height:22, objectFit:'contain', borderRadius:5, marginBottom:5 }}/>
+              ? <img src={f.img} alt="" style={{ width:25, height:25, objectFit:'contain', borderRadius:5, marginBottom:4 }}/>
               : f.iconClass
               ? <div style={{ width:26, height:26, margin:'0 auto 5px', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <i className={f.iconClass} style={{ fontSize:24, color:'#fff' }} aria-hidden="true" />
