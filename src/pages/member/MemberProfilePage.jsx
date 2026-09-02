@@ -58,6 +58,9 @@ export default function MemberProfilePage() {
   const [ageLimitModal, setAgeLimitModal] = useState(null); // 超過 18 歲提示：{ age }
   const [childBookings, setChildBookings] = useState({}); // memberId -> pending booking
   const [ftBusyChild, setFtBusyChild] = useState(null);
+  const [promoteTarget, setPromoteTarget] = useState(null); // 目前展開升級表單的子女 id
+  const [promoteForm, setPromoteForm] = useState({ phone:'', email:'', password:'' });
+  const [promoting, setPromoting] = useState(false);
 
   // ⚠️ 由 loadChildren 內部、安排/取消子女排測動作觸發，序號防過期回應覆蓋。
   const childBookingsSeqRef = useRef(0);
@@ -91,6 +94,26 @@ export default function MemberProfilePage() {
     } catch (e) {
       setFamilyMsg(e.response?.data?.message || '取消失敗');
     } finally { setFtBusyChild(null); }
+  };
+
+  // 子女升級為正式會員（獨立電話+Email+密碼）。升級是原地更新同一份會員資料（memberId 不變），
+  // 課程/票券/入場等所有既有紀錄皆以 memberId 關聯，因此完整保留、不需搬移——升級後只是改用
+  // 新的手機號碼獨立登入即可看到全部歷史資料；升級後也會從此清單消失（不再是您的家庭成員）。
+  const handlePromoteChild = async (childId) => {
+    if (!promoteForm.phone.trim() || !promoteForm.email.trim() || !promoteForm.password.trim()) {
+      setFamilyMsg('請完整填寫手機、Email 與密碼'); return;
+    }
+    if (promoteForm.password.length < 8) { setFamilyMsg('密碼至少需 8 碼'); return; }
+    setPromoting(true); setFamilyMsg('');
+    try {
+      const r = await memberClient.post(`/members/my/children/${childId}/promote`, promoteForm);
+      setFamilyMsg(r.data.message || '已升級為正式會員');
+      setPromoteTarget(null);
+      setPromoteForm({ phone:'', email:'', password:'' });
+      await loadChildren();
+    } catch (e) {
+      setFamilyMsg(e.response?.data?.message || '升級失敗，請確認手機/Email 是否已被使用');
+    } finally { setPromoting(false); }
   };
 
   // ⚠️ 由 showFamily 開啟、新增子女成功、選單點擊三處觸發，序號防過期回應覆蓋。
@@ -392,6 +415,39 @@ export default function MemberProfilePage() {
                       </div>
                     </div>
                   )
+                )}
+
+                {/* 升級為正式會員（獨立電話+Email） */}
+                {promoteTarget === c.id ? (
+                  <div style={{ marginTop:10, borderTop:'0.5px solid #E8D5D5', paddingTop:10 }}>
+                    <div style={{ fontSize:11, color:'#666', marginBottom:8 }}>
+                      設定 <strong>{c.name}</strong> 專屬的手機號碼、Email 與密碼，升級後即可獨立登入，過去的課程/票券/紀錄都會完整保留；升級後將不再出現在您的家庭成員清單中。
+                    </div>
+                    <input placeholder="新手機號碼" value={promoteForm.phone}
+                      onChange={e => setPromoteForm(f => ({ ...f, phone: e.target.value }))}
+                      style={{ width:'100%', height:36, padding:'0 10px', borderRadius:8, border:'1px solid #E8D5D5', fontSize:13, marginBottom:6, boxSizing:'border-box' }} />
+                    <input placeholder="新 Email" value={promoteForm.email}
+                      onChange={e => setPromoteForm(f => ({ ...f, email: e.target.value }))}
+                      style={{ width:'100%', height:36, padding:'0 10px', borderRadius:8, border:'1px solid #E8D5D5', fontSize:13, marginBottom:6, boxSizing:'border-box' }} />
+                    <PasswordInput placeholder="設定密碼（至少 8 碼）" value={promoteForm.password}
+                      onChange={e => setPromoteForm(f => ({ ...f, password: e.target.value }))}
+                      style={{ width:'100%', height:36, padding:'0 10px', borderRadius:8, border:'1px solid #E8D5D5', fontSize:13, marginBottom:8, boxSizing:'border-box' }} />
+                    <div style={{ display:'flex', gap:8 }}>
+                      <button onClick={() => { setPromoteTarget(null); setPromoteForm({ phone:'', email:'', password:'' }); }}
+                        style={{ flex:1, height:34, borderRadius:8, background:'#fff', color:'#888', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
+                        取消
+                      </button>
+                      <button disabled={promoting} onClick={() => handlePromoteChild(c.id)}
+                        style={{ flex:1, height:34, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer' }}>
+                        {promoting ? '處理中…' : '確認升級'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => { setPromoteTarget(c.id); setPromoteForm({ phone:'', email:'', password:'' }); setFamilyMsg(''); }}
+                    style={{ marginTop:10, fontSize:11, padding:'3px 10px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
+                    🎓 升級為正式會員
+                  </button>
                 )}
               </div>
             ))}
