@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
+import MemberBottomNav from '../../components/MemberBottomNav';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -241,7 +242,7 @@ export default function MemberRoutesPage() {
   );
 
   return (
-    <div style={{ minHeight:'100vh', background:'#F7F3F3', paddingBottom:40 }}>
+    <div style={{ minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
       <MemberLogoutButton />
       {/* 頂部 */}
       <div style={{ background:'linear-gradient(135deg,#8B1A1A,#6B1414)', padding:'18px 16px 16px', color:'#fff' }}>
@@ -650,6 +651,7 @@ export default function MemberRoutesPage() {
           </div>
         </div>
       )}
+      <MemberBottomNav navigate={navigate} />
     </div>
   );
 }
