@@ -1329,6 +1329,7 @@ export default function CheckinPage() {
                         {s.isTrial && <span style={{ fontSize:9, fontWeight:600, color:'#5B2D8B', background:'#F3EEF9', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>試上</span>}
                         {s.trialUnpaid && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>試上費未收</span>}
                         {s.isLastSession && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>最後一堂，請開立發票</span>}
+                        {s.newStudentPrep && <span style={{ fontSize:9, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>🎁 請準備制服跟集點卡</span>}
                       </span>
                       {s.isCrossMakeup ? (
                         <span style={{ fontSize:10, color:'#5B2D8B', fontWeight:600 }}>非會員名單</span>
