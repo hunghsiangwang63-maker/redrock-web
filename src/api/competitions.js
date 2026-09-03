@@ -11,6 +11,7 @@ export const downloadCompetitionCSV = (id) => `${import.meta.env.VITE_API_BASE |
 export const confirmCompetitionPayment = (regId, data) => client.post(`/competitions/registrations/${regId}/confirm-payment`, data);
 export const rejectCompetitionPayment = (regId, data) => client.post(`/competitions/registrations/${regId}/reject-payment`, data);
 export const refundCompetitionRegistration = (regId, data) => client.post(`/competitions/registrations/${regId}/refund`, data);
+export const getCompetitionRefundPreview = (regId) => client.get(`/competitions/registrations/${regId}/refund-preview`);
 export const verifyCompetitionPartnerGym = (regId, approved) => client.post(`/competitions/registrations/${regId}/verify-partner-gym`, { approved });
 // 開立發票（預先建立，待日後發票機串接）——與課程學員共用同一套規則
 export const getRegistrationInvoices = (regId) => client.get(`/competitions/registrations/${regId}/invoices`);
