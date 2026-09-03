@@ -481,6 +481,20 @@ export default function CoursesPage({ embedded = false }) {
   };
 
   const handleCreateCourse = async () => {
+    // 梯次專屬資料必填檢查（第二步，畫面上沒有 HTML required 屬性擋，這裡統一把關；
+    // 後端 POST /courses 有對稱的權威驗證，這裡只是提早給出清楚的錯誤訊息）
+    if (courseForm.maxWaitlist === '' || courseForm.maxWaitlist === null || isNaN(Number(courseForm.maxWaitlist)) || Number(courseForm.maxWaitlist) < 0) {
+      showMsg('請填寫候補上限（不開放候補請填 0）', 'red'); return;
+    }
+    if (courseForm.gymAccessDays === '' || courseForm.gymAccessDays === null || isNaN(Number(courseForm.gymAccessDays))) {
+      showMsg('請填寫入館有效天數', 'red'); return;
+    }
+    if (!courseForm.startDate || !courseForm.endDate) { showMsg('請填寫課程起訖日期', 'red'); return; }
+    if (!courseForm.startTime || !courseForm.endTime) { showMsg('請填寫上課時段', 'red'); return; }
+    if (!courseForm.instructor?.trim()) { showMsg('請填寫教練', 'red'); return; }
+    if (courseForm.type === 'weekly' && (!courseForm.weekdays || courseForm.weekdays.length === 0)) {
+      showMsg('請至少選擇一個上課星期', 'red'); return;
+    }
     setLoading(true);
     try {
       const catName = categories.find(c => c.id === courseForm.categoryId)?.name || '';
@@ -2012,13 +2026,13 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 ? [{ label:'費用（NT$）', key:'price', type:'number' }]
                 : [{ label:'單堂費用（NT$／每堂）', key:'pricePerSession', type:'number' }]),
               { label:'最多人數（正取）', key:'maxStudents', type:'number' },
-              { label:'候補上限（留空＝不限、0＝不開放）', key:'maxWaitlist', type:'number' },
-              { label:'入館有效天數（自開課日起算）', key:'gymAccessDays', type:'number' },
-              { label:'課程開始日期', key:'startDate', type:'date' },
-              { label:'課程結束日期', key:'endDate', type:'date' },
-              { label:'上課開始時間', key:'startTime', type:'time' },
-              { label:'上課結束時間', key:'endTime', type:'time' },
-              { label:'教練', key:'instructor', type:'text', colSpan:2 },
+              { label:'候補上限 *（0＝不開放）', key:'maxWaitlist', type:'number' },
+              { label:'入館有效天數 *（自開課日起算）', key:'gymAccessDays', type:'number' },
+              { label:'課程開始日期 *', key:'startDate', type:'date' },
+              { label:'課程結束日期 *', key:'endDate', type:'date' },
+              { label:'上課開始時間 *', key:'startTime', type:'time' },
+              { label:'上課結束時間 *', key:'endTime', type:'time' },
+              { label:'教練 *', key:'instructor', type:'text', colSpan:2 },
             ].map(f => (
               <div key={f.key} style={{ gridColumn: f.colSpan===2 ? '1/-1' : 'auto' }}>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -2029,7 +2043,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             ))}
             {courseForm.type === 'weekly' && (
               <div style={{ gridColumn:'1/-1' }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期（可複選）</label>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期 *（可複選）</label>
                 <div style={{ display:'flex', gap:8 }}>
                   {['日','一','二','三','四','五','六'].map((d, i) => (
                     <button key={i} type="button"
