@@ -1086,7 +1086,11 @@ export default function MemberCoursesPage() {
           {!selectedCourse ? (
             // 兩層式：第一層【類別】一課一卡 → 點進去 → 第二層列該類別各梯次 → 選一個 → 進報名
             (() => {
-              const list = browseGymId ? courses.filter(c => c.gymId === browseGymId) : courses;
+              // hasFutureSession：依真實場次資料判斷（不倚賴 course.endDate，可能因加開場次/補課展延
+              // 等原因與實際場次不同步）——已無未來場次（含已取消整門課，其場次也一併標取消）不出現在
+              // 可報名列表；後端未附此欄位（舊快取/例外情況）時預設視為仍有效，不誤刪。
+              const list = (browseGymId ? courses.filter(c => c.gymId === browseGymId) : courses)
+                .filter(c => c.hasFutureSession !== false);
               if (list.length === 0) return (
                 <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
                   {browseGymId ? '此館目前沒有開放報名的課程' : '目前沒有開放報名的課程'}
