@@ -1421,28 +1421,33 @@ export default function MemberCoursesPage() {
                 );
               })()}
 
-              {/* 週課：列出此梯次全部上課場次供報名前參考確認（唯讀，非個別報名） */}
+              {/* 週課：列出此梯次全部上課場次供報名前參考確認（唯讀，非個別報名）；
+                  已取消場次（一般取消或休館停課）一併列出並標「停課」，讓報名前就能看到哪幾天不上課 */}
               {selectedCourse.type === 'weekly' && (() => {
                 const cohortSessions = sessions
-                  .filter(s => s.courseId === selectedCourse.id && s.status !== 'cancelled')
+                  .filter(s => s.courseId === selectedCourse.id)
                   .sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
                 if (cohortSessions.length === 0) return null;
+                const activeCount = cohortSessions.filter(s => s.status !== 'cancelled').length;
                 const todayStr = dayjs().format('YYYY-MM-DD');
                 return (
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginTop:12 }}>
                     <div style={{ fontSize:13, fontWeight:600, color:'#666', marginBottom:10, textAlign:'left' }}>
-                      📅 此梯次上課場次（共 {cohortSessions.length} 堂）
+                      📅 此梯次上課場次（共 {activeCount} 堂）
                     </div>
                     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                       {cohortSessions.map(s => {
+                        const isCancelled = s.status === 'cancelled';
                         const isPast = s.date < todayStr;
                         return (
-                          <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:8, background: isPast ? '#F5F5F5' : '#FBF5F5', opacity: isPast ? 0.6 : 1 }}>
-                            <div style={{ fontSize:13, color:'#1a1a1a', textAlign:'left' }}>
+                          <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:8, background: isCancelled ? '#FBFBFB' : (isPast ? '#F5F5F5' : '#FBF5F5'), opacity: (isPast && !isCancelled) ? 0.6 : 1 }}>
+                            <div style={{ fontSize:13, color: isCancelled ? '#999' : '#1a1a1a', textAlign:'left' }}>
                               {dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}） {s.startTime}～{s.endTime}
-                              {s.instructor && <span style={{ color:'#999', marginLeft:6 }}>· {s.instructor}</span>}
+                              {!isCancelled && s.instructor && <span style={{ color:'#999', marginLeft:6 }}>· {s.instructor}</span>}
                             </div>
-                            {isPast && <span style={{ fontSize:11, color:'#999', flexShrink:0 }}>已上課</span>}
+                            {isCancelled
+                              ? <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 7px', borderRadius:8, flexShrink:0 }}>停課</span>
+                              : (isPast && <span style={{ fontSize:11, color:'#999', flexShrink:0 }}>已上課</span>)}
                           </div>
                         );
                       })}
