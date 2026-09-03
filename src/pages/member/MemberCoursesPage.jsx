@@ -1880,6 +1880,9 @@ export default function MemberCoursesPage() {
               const confirmed = group.sessions.filter(s => s.status === 'confirmed');
               const onLeave = group.sessions.filter(s => s.status === 'leave');
               const waitlist = group.sessions.filter(s => s.status === 'waitlist');
+              // 休館停課（closureCancelSession，cancelReason:'closure'）——原本會直接從清單消失，
+              // 現改為列出並標「停課」，讓學員知道那天不是漏掉、是館方停課
+              const closureCancelled = group.sessions.filter(s => s.status === 'cancelled' && s.cancelReason === 'closure');
               // 候補群組：無正取、僅候補（非正式學員，隱藏請假/退費/暫停等正取功能）
               const isWaitlistGroup = confirmed.length === 0 && onLeave.length === 0 && waitlist.length > 0;
               const waitlistPos = waitlist.find(s => s.waitlistPosition != null)?.waitlistPosition;
@@ -2102,6 +2105,18 @@ export default function MemberCoursesPage() {
                               </div>
                             );
                           })}
+                        </div>
+                      )}
+
+                      {closureCancelled.length > 0 && (
+                        <div style={{ marginBottom:10 }}>
+                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>停課</div>
+                          {closureCancelled.sort((a,b) => b.date.localeCompare(a.date)).map(s => (
+                            <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
+                              <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
+                              <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 7px', borderRadius:8 }}>停課</span>
+                            </div>
+                          ))}
                         </div>
                       )}
 
