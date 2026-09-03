@@ -1128,9 +1128,16 @@ export default function MembersPage() {
                         : <Tag type="red">未完成</Tag>}
                     </td>
                     <td style={{ padding:'12px 16px' }}>
-                      {m.fallTestPassed
-                        ? <Tag type="ok">已通過</Tag>
-                        : <Tag type="red">未通過</Tag>}
+                      {(() => {
+                        // fallTestPassed 是「曾經通過」的一次性寫死旗標，過期後不會被清掉——
+                        // 要用 fallTestExpiresAt 跟今天比較才能正確分辨「已過期」（2026-09-03 踩雷：
+                        // 0918529058 過期後仍被列表顯示成已通過，誤導核對）。
+                        const expSec = m.fallTestExpiresAt?._seconds ?? m.fallTestExpiresAt?.seconds;
+                        const isExpired = m.fallTestPassed && expSec && dayjs(expSec * 1000).isBefore(dayjs(), 'day');
+                        if (m.fallTestPassed && !isExpired) return <Tag type="ok">已通過</Tag>;
+                        if (isExpired) return <Tag type="warn">已過期</Tag>;
+                        return <Tag type="red">未通過</Tag>;
+                      })()}
                     </td>
                     {!isMobile && (
                       <td style={{ padding:'12px 16px', fontSize:12, color:'#999' }}>
