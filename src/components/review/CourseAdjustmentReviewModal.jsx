@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import Modal from '../Modal';
 import client from '../../api/client';
 import { approveCourseAdjustment, rejectCourseAdjustment } from '../../api/courseAdjustments';
 
+const fmtTs = (ts) => ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD HH:mm') : '—';
+
 // 課程退費／暫停申請審核（共用：票券管理頁 + 待辦頁）
-// props: request {id,type:'refund'|'pause',memberName,courseName,reason,suggestedRefund,suggestedPercentage,enrollmentId}
+// props: request {id,type:'refund'|'pause',memberName,courseName,reason,suggestedRefund,suggestedPercentage,enrollmentId,
+//                 createdAt,paidAmount,actuallyPaid,refundNote}
 //        onClose(), onDone(message)
 export default function CourseAdjustmentReviewModal({ request, onClose, onDone }) {
   const [refundAmount, setRefundAmount] = useState(request.suggestedRefund?.toString() || '0');
+  const [refundSentDate, setRefundSentDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [refundSentLastFive, setRefundSentLastFive] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -26,7 +32,9 @@ export default function CourseAdjustmentReviewModal({ request, onClose, onDone }
   const approve = async () => {
     setSaving(true); setError('');
     try {
-      const data = request.type === 'refund' ? { finalRefund: Number(refundAmount) } : {};
+      const data = request.type === 'refund'
+        ? { finalRefund: Number(refundAmount), refundSentDate, refundSentLastFive: refundSentLastFive.trim() }
+        : {};
       const res = await approveCourseAdjustment(request.id, data);
       onDone(res.data.message || '已核准');
     } catch (err) { setError(err.response?.data?.message || '操作失敗'); setSaving(false); }
@@ -45,7 +53,21 @@ export default function CourseAdjustmentReviewModal({ request, onClose, onDone }
       <div style={{ background:'#FBF5F5', borderRadius:8, padding:12, marginBottom:16, fontSize:13 }}>
         <div>{request.courseName} · {{ refund:'退費', pause:'暫停' }[request.type]}申請</div>
         <div style={{ color:'#999', fontSize:12, marginTop:4 }}>原因：{request.reason}</div>
+        <div style={{ color:'#999', fontSize:12, marginTop:4 }}>申請日期：{fmtTs(request.createdAt)}</div>
       </div>
+      {request.type === 'refund' && (
+        <div style={{ background:'#F0F6FB', border:'0.5px solid #C7DDF0', borderRadius:8, padding:12, marginBottom:16, fontSize:12.5 }}>
+          <div style={{ fontWeight:600, color:'#185FA5', marginBottom:6 }}>📐 計算過程</div>
+          <div style={{ color:'#444', lineHeight:1.8 }}>
+            已繳金額：NT${request.paidAmount ?? '—'}
+            {request.actuallyPaid != null && request.actuallyPaid !== request.paidAmount && <>（分期實收 NT${request.actuallyPaid}）</>}
+            <br/>
+            {request.refundNote || '（無詳細計算過程）'}
+            <br/>
+            建議退費：NT${request.suggestedRefund}（{request.suggestedPercentage}%）
+          </div>
+        </div>
+      )}
       {request.type === 'refund' && (
         <div style={{ marginBottom:16 }}>
           <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>
@@ -53,6 +75,20 @@ export default function CourseAdjustmentReviewModal({ request, onClose, onDone }
           </label>
           <input type="number" value={refundAmount} onChange={e => setRefundAmount(e.target.value)}
             style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+        </div>
+      )}
+      {request.type === 'refund' && (
+        <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+          <div style={{ flex:1 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>退款日期</label>
+            <input type="date" value={refundSentDate} onChange={e => setRefundSentDate(e.target.value)}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ flex:1 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>退款帳號後五碼</label>
+            <input value={refundSentLastFive} onChange={e => setRefundSentLastFive(e.target.value)} maxLength={5} placeholder="選填"
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
         </div>
       )}
       {request.type === 'refund' && (

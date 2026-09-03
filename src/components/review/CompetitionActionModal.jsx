@@ -1,19 +1,23 @@
 import { useState, useEffect } from 'react';
+import dayjs from 'dayjs';
 import Modal from '../Modal';
 import client from '../../api/client';
 import { confirmCompetitionPayment, rejectCompetitionPayment, refundCompetitionRegistration } from '../../api/competitions';
 
 const inp = { width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const lbl = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
+const fmtTs = (ts) => ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD HH:mm') : '—';
 
 // 比賽報名收款／退費（共用：賽事頁 + 待辦頁）
 // props: action 'pay'|'refund', reg {id,memberName,divisionName,paymentMethod,bankLastFive,paymentDate,registrationFee,
-//        paidAmount,refundBankCode,refundBankName,refundAccount,refundAccountName}
+//        paidAmount,cancelledAt,refundBankCode,refundBankName,refundAccount,refundAccountName}
 //        onClose(), onDone(message)
 export default function CompetitionActionModal({ action, reg, onClose, onDone }) {
   // 退費預設帶入實際已收金額（多為全額退），可再手動改成部分退款
   const [amount, setAmount] = useState(action === 'pay' ? (reg.registrationFee?.toString() || '') : ((reg.paidAmount || reg.registrationFee || '')?.toString() || '0'));
   const [reason, setReason] = useState('');
+  const [refundSentDate, setRefundSentDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [refundSentLastFive, setRefundSentLastFive] = useState('');
   const [staffNote, setStaffNote] = useState(reg.staffNote || ''); // 員工內部備註（報名者看不到）
   const [rejectReason, setRejectReason] = useState('');            // 退回原因（報名者看得到，必填）
   const [saving, setSaving] = useState(false);
@@ -37,7 +41,7 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
         await confirmCompetitionPayment(reg.id, { amount: Number(amount), staffNote });
         onDone('已確認收款');
       } else {
-        await refundCompetitionRegistration(reg.id, { refundAmount: Number(amount), reason });
+        await refundCompetitionRegistration(reg.id, { refundAmount: Number(amount), reason, refundSentDate, refundSentLastFive: refundSentLastFive.trim() });
         onDone('退費已處理');
       }
     } catch (err) { setError(err.response?.data?.message || '操作失敗'); setSaving(false); }
@@ -82,6 +86,7 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
         <div style={{ background:'#FBF5F5', borderRadius:10, padding:'10px 14px', marginBottom:14 }}>
           <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A', marginBottom:8 }}>已收款資訊 / 退費帳號（請自行匯款後點下方確認）</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, fontSize:12, color:'#444' }}>
+            <div><span style={{ color:'#999' }}>申請日期：</span>{fmtTs(reg.cancelledAt)}</div>
             <div><span style={{ color:'#999' }}>已收金額：</span>NT${reg.paidAmount || reg.registrationFee || '—'}</div>
             <div><span style={{ color:'#999' }}>戶名：</span>{reg.refundAccountName || '—'}</div>
             <div><span style={{ color:'#999' }}>銀行：</span>{reg.refundBankCode ? `(${reg.refundBankCode}) ` : ''}{reg.refundBankName || '—'}</div>
@@ -93,6 +98,18 @@ export default function CompetitionActionModal({ action, reg, onClose, onDone })
         <div style={{ marginBottom:14 }}>
           <label style={lbl}>退費原因</label>
           <input style={inp} value={reason} onChange={e => setReason(e.target.value)}/>
+        </div>
+      )}
+      {action === 'refund' && (
+        <div style={{ display:'flex', gap:10, marginBottom:14 }}>
+          <div style={{ flex:1 }}>
+            <label style={lbl}>退款日期</label>
+            <input type="date" style={inp} value={refundSentDate} onChange={e => setRefundSentDate(e.target.value)}/>
+          </div>
+          <div style={{ flex:1 }}>
+            <label style={lbl}>退款帳號後五碼</label>
+            <input style={inp} value={refundSentLastFive} onChange={e => setRefundSentLastFive(e.target.value)} maxLength={5} placeholder="選填"/>
+          </div>
         </div>
       )}
       {existingInvoice && (

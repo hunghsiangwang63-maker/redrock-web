@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import Modal from '../Modal';
-import { approvePassRequest, rejectPassRequest } from '../../api/passAdjustments';
+import { approvePassRequest, rejectPassRequest, getPassRefundPreview } from '../../api/passAdjustments';
+
+const fmtTs = (ts) => ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD HH:mm') : '—';
 
 // 定期票展延／退費／轉讓／課程練習期遞延 審核（共用：票券管理頁 + 待辦頁）
-// props: request {id,type,memberName,passTypeName,reasonLabel,reasonDetail,evidenceUrl,
+// props: request {id,type,memberName,passTypeName,reasonLabel,reasonDetail,evidenceUrl,createdAt,
 //                 transferToPhone, courseName,practiceEnd,remainingDays,currentEndDate,proposedEndDate}
 //        onClose(), onDone(message)
 export default function PassRequestReviewModal({ request, onClose, onDone }) {
@@ -13,12 +15,31 @@ export default function PassRequestReviewModal({ request, onClose, onDone }) {
   const [rejectReason, setRejectReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [preview, setPreview] = useState(null);       // 退費計算過程（審核核准前預覽）
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [refundAmount, setRefundAmount] = useState('0'); // 實際退款金額（可調整，預設帶入計算出的建議值）
+  const [refundSentDate, setRefundSentDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [refundSentLastFive, setRefundSentLastFive] = useState('');
+
+  useEffect(() => {
+    if (request.type !== 'refund') return;
+    let alive = true;
+    setPreviewLoading(true);
+    getPassRefundPreview(request.id)
+      .then(r => { if (!alive) return; setPreview(r.data.preview); setRefundAmount(String(r.data.preview.netRefund)); })
+      .catch(err => { if (alive) setError(err.response?.data?.message || '計算退費金額失敗'); })
+      .finally(() => { if (alive) setPreviewLoading(false); });
+    return () => { alive = false; };
+  }, [request.type, request.id]);
 
   const approve = async () => {
     if (request.type === 'refund' && !hasInvoice) { setError('退費需先確認會員已提供發票正本'); return; }
     setSaving(true); setError('');
     try {
-      const res = await approvePassRequest(request.id, { extensionMonths, hasInvoice });
+      const data = request.type === 'refund'
+        ? { extensionMonths, hasInvoice, finalRefund: Number(refundAmount), refundSentDate, refundSentLastFive: refundSentLastFive.trim() }
+        : { extensionMonths, hasInvoice };
+      const res = await approvePassRequest(request.id, data);
       onDone(res.data.message || '申請已核准');
     } catch (err) { setError(err.response?.data?.message || '核准失敗'); setSaving(false); }
   };
@@ -50,6 +71,7 @@ export default function PassRequestReviewModal({ request, onClose, onDone }) {
             {request.evidenceUrl && <a href={request.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize:12, color:'#185FA5', display:'inline-block', marginTop:6 }}>查看證明文件 →</a>}
           </>
         )}
+        <div style={{ color:'#999', fontSize:12, marginTop:6 }}>申請日期：{fmtTs(request.createdAt)}</div>
       </div>
 
       {request.type === 'extension' && (Number(request.extensionDays) > 0 ? (
@@ -70,12 +92,49 @@ export default function PassRequestReviewModal({ request, onClose, onDone }) {
       ))}
 
       {request.type === 'refund' && (
+        <div style={{ background:'#F0F6FB', border:'0.5px solid #C7DDF0', borderRadius:8, padding:12, marginBottom:16, fontSize:12.5 }}>
+          <div style={{ fontWeight:600, color:'#185FA5', marginBottom:6 }}>📐 計算過程</div>
+          {previewLoading ? (
+            <div style={{ color:'#999' }}>計算中...</div>
+          ) : preview ? (
+            <div style={{ color:'#444', lineHeight:1.8 }}>
+              總天數 {preview.totalDays} 天・剩餘 {preview.remainingDays} 天<br/>
+              原價 NT${preview.originalPrice} ÷ {preview.totalDays} 天 ＝ 每日 NT${preview.dailyRate}<br/>
+              剩餘價值 NT${preview.grossRefund}（NT${preview.dailyRate} × {preview.remainingDays} 天）− 手續費 NT${preview.fee}<br/>
+              建議退費：<strong>NT${preview.netRefund}</strong>
+            </div>
+          ) : (
+            <div style={{ color:'#A32D2D' }}>計算失敗，請重新開啟此視窗</div>
+          )}
+        </div>
+      )}
+      {request.type === 'refund' && (
+        <div style={{ marginBottom:16 }}>
+          <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>實際退款金額</label>
+          <input type="number" value={refundAmount} onChange={e => setRefundAmount(e.target.value)}
+            style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+        </div>
+      )}
+      {request.type === 'refund' && (
+        <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+          <div style={{ flex:1 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>退款日期</label>
+            <input type="date" value={refundSentDate} onChange={e => setRefundSentDate(e.target.value)}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+          <div style={{ flex:1 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>退款帳號後五碼</label>
+            <input value={refundSentLastFive} onChange={e => setRefundSentLastFive(e.target.value)} maxLength={5} placeholder="選填"
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+          </div>
+        </div>
+      )}
+      {request.type === 'refund' && (
         <div style={{ marginBottom:16 }}>
           <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer' }}>
             <input type="checkbox" checked={hasInvoice} onChange={e => setHasInvoice(e.target.checked)} />
             會員已親自持發票正本至櫃檯辦理
           </label>
-          <div style={{ fontSize:11, color:'#999', marginTop:6 }}>系統將自動依剩餘天數比例計算退費金額，扣除NT$600手續費後四捨五入。</div>
         </div>
       )}
 

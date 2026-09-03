@@ -78,6 +78,26 @@ export default function ExperienceBookingsPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelExistingInvoice, setCancelExistingInvoice] = useState(null); // {invoiceNo, amount} | null——取消預約若已開過發票，要警示取回
+  const [refundBooking, setRefundBooking] = useState(null); // 處理退費的預約
+  const [refundAmount, setRefundAmount] = useState('0');
+  const [refundSentDate, setRefundSentDate] = useState('');
+  const [refundSentLastFive, setRefundSentLastFive] = useState('');
+  const [refunding, setRefunding] = useState(false);
+  const openRefund = (b) => {
+    setRefundBooking(b); setRefundAmount(String(b.refundAmount || 0));
+    setRefundSentDate(dayjs().format('YYYY-MM-DD')); setRefundSentLastFive('');
+  };
+  const doRefund = async () => {
+    if (!refundBooking) return;
+    setRefunding(true);
+    try {
+      await client.post(`/experience-bookings/${refundBooking.id}/refund`, {
+        finalRefund: Number(refundAmount), refundSentDate, refundSentLastFive: refundSentLastFive.trim(),
+      });
+      showMsg('✅ 已標記退款完成'); setRefundBooking(null); load();
+    } catch (err) { showMsg(err.response?.data?.message || '處理失敗', 'red'); }
+    finally { setRefunding(false); }
+  };
 
   // 開啟取消預約彈窗時查一次這筆有沒有已開票（比照課程/比賽退費彈窗同一套）
   useEffect(() => {
@@ -455,10 +475,21 @@ export default function ExperienceBookingsPage() {
                       </div>
                     )}
                     {b.status==='cancelled' && b.refundRequested && (
-                      <div style={{ fontSize:12, color:'#A32D2D', background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 10px', marginTop:8, textAlign:'left', lineHeight:1.7 }}>
-                        💰 <strong>會員取消・待退款 NT${(b.refundAmount||0).toLocaleString()}</strong>（已繳 NT${(b.totalFee||0).toLocaleString()} − 手續費 NT${(b.refundHandlingFee||0).toLocaleString()}）<br/>
-                        退款帳號：{b.refundBankCode}-{b.refundAccount}{b.refundAccountName?`（${b.refundAccountName}）`:''}
-                        {b.refundStatus==='done' ? <span style={{ color:'#2D7D46', marginLeft:8 }}>✓ 已退款</span> : <span style={{ marginLeft:8 }}>（匯款後請於備註記錄）</span>}
+                      <div style={{ fontSize:12, color: b.refundStatus==='done' ? '#2D7D46' : '#A32D2D', background: b.refundStatus==='done' ? '#EAF7EE' : '#FCEBEB', border: `0.5px solid ${b.refundStatus==='done' ? '#B9E0C4' : '#EEC1C1'}`, borderRadius:8, padding:'8px 10px', marginTop:8, textAlign:'left', lineHeight:1.7 }}>
+                        {b.refundStatus==='done' ? (
+                          <>✓ <strong>已退款 NT${(b.finalRefund??b.refundAmount??0).toLocaleString()}</strong>
+                            {b.refundSentDate && <> · {b.refundSentDate}</>}
+                            {b.refundSentLastFive && <> · 帳號後五碼 {b.refundSentLastFive}</>}
+                          </>
+                        ) : (
+                          <>
+                            💰 <strong>會員取消・待退款 NT${(b.refundAmount||0).toLocaleString()}</strong>（已繳 NT${(b.totalFee||0).toLocaleString()} − 手續費 NT${(b.refundHandlingFee||0).toLocaleString()}）
+                            {b.cancelledAt?._seconds && <> · 申請日期 {dayjs(b.cancelledAt._seconds*1000).format('YYYY-MM-DD')}</>}
+                            <br/>
+                            退款帳號：{b.refundBankCode}-{b.refundAccount}{b.refundAccountName?`（${b.refundAccountName}）`:''}
+                            {canInvoice && <button onClick={()=>openRefund(b)} style={{ marginLeft:10, height:24, padding:'0 10px', borderRadius:6, background:'#A32D2D', border:'none', color:'#fff', fontSize:11, cursor:'pointer' }}>處理退費</button>}
+                          </>
+                        )}
                       </div>
                     )}
                     {/* 教練費／發票金額：管理員可改可存；櫃檯（值班/站台）唯讀可見 */}
@@ -895,6 +926,42 @@ export default function ExperienceBookingsPage() {
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={()=>setCancelBooking(null)} disabled={cancelling} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>返回</button>
               <button onClick={doCancel} disabled={cancelling} style={{ flex:2, height:44, borderRadius:10, background:cancelling?'#C99':'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{cancelling?'取消中…':'確認取消預約'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {refundBooking && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:420 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style={{ fontSize:16, fontWeight:600, color:'#A32D2D' }}>💰 處理退費</div>
+              <span onClick={()=>setRefundBooking(null)} style={{ cursor:'pointer', color:'#999', fontSize:18 }}>×</span>
+            </div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>{refundBooking.contactName} · {dateWD(refundBooking.bookingDate)} {refundBooking.bookingTime}</div>
+            <div style={{ background:'#F0F6FB', border:'0.5px solid #C7DDF0', borderRadius:8, padding:12, marginBottom:16, fontSize:12.5 }}>
+              <div style={{ fontWeight:600, color:'#185FA5', marginBottom:6 }}>📐 計算過程</div>
+              <div style={{ color:'#444', lineHeight:1.8 }}>
+                {refundBooking.cancelledAt?._seconds && <>申請日期：{dayjs(refundBooking.cancelledAt._seconds*1000).format('YYYY-MM-DD HH:mm')}<br/></>}
+                已繳金額 NT${(refundBooking.totalFee||0).toLocaleString()} − 手續費 NT${(refundBooking.refundHandlingFee||0).toLocaleString()} ＝ 應退 NT${(refundBooking.refundAmount||0).toLocaleString()}<br/>
+                退款帳號：{refundBooking.refundBankCode}-{refundBooking.refundAccount}{refundBooking.refundAccountName?`（${refundBooking.refundAccountName}）`:''}
+              </div>
+            </div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>實際退款金額</label>
+            <input type="number" value={refundAmount} onChange={e=>setRefundAmount(e.target.value)} style={{ ...tinp, marginBottom:12 }} />
+            <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+              <div style={{ flex:1 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>退款日期</label>
+                <input type="date" value={refundSentDate} onChange={e=>setRefundSentDate(e.target.value)} style={tinp} />
+              </div>
+              <div style={{ flex:1 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>退款帳號後五碼</label>
+                <input value={refundSentLastFive} onChange={e=>setRefundSentLastFive(e.target.value)} maxLength={5} placeholder="選填" style={tinp} />
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>setRefundBooking(null)} disabled={refunding} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>返回</button>
+              <button onClick={doRefund} disabled={refunding} style={{ flex:2, height:44, borderRadius:10, background:refunding?'#C99':'#2D7D46', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{refunding?'處理中…':'確認退款完成'}</button>
             </div>
           </div>
         </div>

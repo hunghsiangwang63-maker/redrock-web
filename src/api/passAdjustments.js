@@ -7,6 +7,7 @@ export const editPassWithReason = (passId, data) => client.put(`/pass-adjustment
 // 員工審核
 export const getAllPassRequests = (status) => client.get('/pass-adjustments/requests', { params: status ? { status } : {} });
 export const approvePassRequest = (id, data) => client.post(`/pass-adjustments/requests/${id}/approve`, data);
+export const getPassRefundPreview = (id) => client.get(`/pass-adjustments/requests/${id}/refund-preview`);
 export const rejectPassRequest = (id, rejectReason) => client.post(`/pass-adjustments/requests/${id}/reject`, { rejectReason });
 
 // 年假批次展延
