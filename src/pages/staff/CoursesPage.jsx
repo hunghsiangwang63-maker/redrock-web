@@ -12,6 +12,11 @@ import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import CoachSelect from '../../components/CoachSelect';
 import { gymPrefix } from '../../utils/gymLabel';
 import { courseColor } from '../../utils/courseColor';
+// 月曆場次排序：先依開始時間，同時段再依課程名稱首字筆劃（瀏覽器 ICU 支援 zh-Hant-u-co-stroke 真筆劃排序，
+// 非拼音/字碼排序；Collator 只建立一次共用，避免每次排序都重新產生）
+const strokeCollator = new Intl.Collator('zh-Hant-u-co-stroke');
+const sortSessionsByStartThenStroke = (a, b) =>
+  (a.startTime || '').localeCompare(b.startTime || '') || strokeCollator.compare(a.courseName || '', b.courseName || '');
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import WorkshopRefundTiersEditor from '../../components/WorkshopRefundTiersEditor';
@@ -1254,7 +1259,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                               <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400, marginBottom:4 }}>{dayjs(date).date()}</div>
                               {daySessions.length > 0 && (
                                 <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                                  {[...daySessions].sort((a,b) => (a.startTime||'').localeCompare(b.startTime||'')).map(s => {
+                                  {[...daySessions].sort(sortSessionsByStartThenStroke).map(s => {
                                     const col = courseColor(s.courseId || s.courseName);
                                     return (
                                     <div key={s.id} style={{ fontSize:9, background:col.bg, borderRadius:4, padding:'2px 3px', lineHeight:1.25, overflow:'hidden' }}>
@@ -1276,7 +1281,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 {calendarSelectedDate ? (
                   <div>
                     <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{dayjs(calendarSelectedDate).format('MM月DD日')} 課程場次</div>
-                    {sessionsForDate(calendarSelectedDate).sort((a,b) => a.startTime.localeCompare(b.startTime)).map(s => (
+                    {sessionsForDate(calendarSelectedDate).sort(sortSessionsByStartThenStroke).map(s => (
                       <div key={s.id} onClick={() => { setRosterSession(s); loadRoster(s.id); }}
                         style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:8, cursor:'pointer' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
