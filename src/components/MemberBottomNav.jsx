@@ -26,7 +26,14 @@ export default function MemberBottomNav({ navigate }) {
   ];
 
   return (
-    <div style={{ position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50 }}>
+    <div style={{
+      position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50,
+      // 手機瀏覽器（尤其 iOS Safari）在頁面很長、需要捲動很多才能看到底部內容時（如課程報名的場次
+      // 列表），position:fixed 元素偶爾會「脫離」視窗底部、卡在畫面中間——這是瀏覽器對長頁面 fixed
+      // 元素的已知算繪問題，非本元件邏輯錯誤。強制建立獨立合成層（GPU 硬體加速）是業界標準解法，
+      // 讓瀏覽器把這塊視為固定不隨頁面內容重排的圖層，避免這種「跑位」。
+      transform:'translateZ(0)', WebkitTransform:'translate3d(0,0,0)', WebkitBackfaceVisibility:'hidden', backfaceVisibility:'hidden',
+    }}>
       {items.map(n => {
         const active = location.pathname === n.path;
         return (
