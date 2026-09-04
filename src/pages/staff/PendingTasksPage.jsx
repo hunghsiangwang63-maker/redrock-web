@@ -151,6 +151,7 @@ export default function PendingTasksPage() {
                                                                 // 「🔔通知」消失、pending 任務回覆後也離開主清單，
                                                                 // 這裡是唯一能回頭查歷史的地方）
   const [inquiriesLoading, setInquiriesLoading] = useState(false);
+  const [inquiryHistoryMonth, setInquiryHistoryMonth] = useState(''); // 「歷史資料」下拉選取的月份（1個月前）
 
   // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
   const isManager = isAdmin;                          // super_admin / gym_manager
@@ -648,49 +649,86 @@ export default function PendingTasksPage() {
 
       {/* 問題諮詢記錄：待回覆＋已回覆都在——通知已讀後就從「🔔通知」消失、待辦任務回覆後也離開主清單，
           這裡是唯一能回頭查歷史的地方（點任一筆都開同一個 InquiryReplyModal，該元件本就依 status 自動切
-          待回覆表單／已回覆唯讀顯示，兩種狀態不用另外做畫面）。 */}
-      {trackView === 'inquiry' && (
-        <div style={{ marginTop:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
-            <div style={{ fontSize:14, fontWeight:700 }}>❓ 問題諮詢記錄（待回覆／已回覆）</div>
-            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
-            <div style={{ fontSize:12, color:'#999' }}>{inquiries ? `${inquiries.length} 筆` : ''}</div>
-          </div>
-          {inquiriesLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
-          {!inquiriesLoading && inquiries && inquiries.length === 0 && (
-            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
-              目前沒有會員提問記錄
+          待回覆表單／已回覆唯讀顯示，兩種狀態不用另外做畫面）。
+          一個月內直接列出；更早的收進「歷史資料」下拉，依月份分類，選了才載入該月清單，
+          避免累積久了主清單越滾越長。 */}
+      {trackView === 'inquiry' && (() => {
+        const renderInquiryRow = (item) => {
+          const replied = item.status === 'replied';
+          const gymLabel = item.gymId === 'gym-hsinchu' ? '新竹館' : item.gymId === 'gym-shilin' ? '士林館' : '';
+          const badge = replied ? { bg:'#E6F4EB', color:'#2D7D46', label:'已回覆' } : { bg:'#F0EDED', color:'#999', label:'待回覆' };
+          const dateStr = item.createdAt?._seconds ? dayjs(item.createdAt._seconds * 1000).format('YYYY-MM-DD') : '';
+          return (
+            <div key={item.id} onClick={() => setModal({ kind:'inquiry', record: item })}
+              style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', cursor:'pointer' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+                <div style={{ minWidth:0, flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600 }}>{item.memberName}{item.memberPhone ? `（${item.memberPhone}）` : ''}{gymLabel ? ` · ${gymLabel}` : ''}</div>
+                  <div style={{ fontSize:12, color:'#333', marginTop:3, fontWeight:500 }}>{item.subject}</div>
+                  <div style={{ fontSize:11, color:'#999', marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.content}</div>
+                  {replied && item.reply && (
+                    <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>回覆{item.repliedByName ? `（${item.repliedByName}）` : ''}：{item.reply}</div>
+                  )}
+                  {dateStr && <div style={{ fontSize:11, color:'#bbb', marginTop:3 }}>{dateStr}</div>}
+                </div>
+                <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
+              </div>
             </div>
-          )}
-          {!inquiriesLoading && inquiries && inquiries.length > 0 && (
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {inquiries.map(item => {
-                const replied = item.status === 'replied';
-                const gymLabel = item.gymId === 'gym-hsinchu' ? '新竹館' : item.gymId === 'gym-shilin' ? '士林館' : '';
-                const badge = replied ? { bg:'#E6F4EB', color:'#2D7D46', label:'已回覆' } : { bg:'#F0EDED', color:'#999', label:'待回覆' };
-                const dateStr = item.createdAt?._seconds ? dayjs(item.createdAt._seconds * 1000).format('YYYY-MM-DD') : '';
-                return (
-                  <div key={item.id} onClick={() => setModal({ kind:'inquiry', record: item })}
-                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', cursor:'pointer' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
-                      <div style={{ minWidth:0, flex:1 }}>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{item.memberName}{item.memberPhone ? `（${item.memberPhone}）` : ''}{gymLabel ? ` · ${gymLabel}` : ''}</div>
-                        <div style={{ fontSize:12, color:'#333', marginTop:3, fontWeight:500 }}>{item.subject}</div>
-                        <div style={{ fontSize:11, color:'#999', marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.content}</div>
-                        {replied && item.reply && (
-                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>回覆{item.repliedByName ? `（${item.repliedByName}）` : ''}：{item.reply}</div>
-                        )}
-                        {dateStr && <div style={{ fontSize:11, color:'#bbb', marginTop:3 }}>{dateStr}</div>}
-                      </div>
-                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
-                    </div>
+          );
+        };
+
+        const monthCutoff = dayjs().subtract(1, 'month');
+        const recent = (inquiries || []).filter(i => !i.createdAt?._seconds || dayjs(i.createdAt._seconds * 1000).isAfter(monthCutoff));
+        const older = (inquiries || []).filter(i => i.createdAt?._seconds && !dayjs(i.createdAt._seconds * 1000).isAfter(monthCutoff));
+        const monthsMap = {};
+        older.forEach(i => {
+          const key = dayjs(i.createdAt._seconds * 1000).format('YYYY-MM');
+          (monthsMap[key] = monthsMap[key] || []).push(i);
+        });
+        const monthKeys = Object.keys(monthsMap).sort((a, b) => b.localeCompare(a));
+        const monthItems = inquiryHistoryMonth ? (monthsMap[inquiryHistoryMonth] || []) : [];
+
+        return (
+          <div style={{ marginTop:8 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
+              <div style={{ fontSize:14, fontWeight:700 }}>❓ 問題諮詢記錄（1 個月內）</div>
+              <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+              <div style={{ fontSize:12, color:'#999' }}>{inquiries ? `${recent.length} 筆` : ''}</div>
+            </div>
+            {inquiriesLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+            {!inquiriesLoading && inquiries && recent.length === 0 && (
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
+                近一個月沒有會員提問記錄
+              </div>
+            )}
+            {!inquiriesLoading && recent.length > 0 && (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                {recent.map(renderInquiryRow)}
+              </div>
+            )}
+
+            {!inquiriesLoading && monthKeys.length > 0 && (
+              <div style={{ marginTop:16 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color:'#666' }}>📁 歷史資料（1 個月前）</div>
+                  <select value={inquiryHistoryMonth} onChange={e => setInquiryHistoryMonth(e.target.value)}
+                    style={{ height:32, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', cursor:'pointer' }}>
+                    <option value="">請選擇月份</option>
+                    {monthKeys.map(k => (
+                      <option key={k} value={k}>{dayjs(k + '-01').format('YYYY年MM月')}（{monthsMap[k].length} 筆）</option>
+                    ))}
+                  </select>
+                </div>
+                {inquiryHistoryMonth && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {monthItems.map(renderInquiryRow)}
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {trackView === 'returned' && (
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:16 }}>
