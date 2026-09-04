@@ -7,7 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getTeamFees, applyTeam, getMyTeamRecords } from '../../api/team';
 import dayjs from 'dayjs';
-import PaymentSection from '../../components/PaymentSection';
+import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 
 const STATUS = {
   pending:   { bg:'#FAEEDA', color:'#854F0B', text:'待審核' },
@@ -35,10 +35,14 @@ export default function MemberTeamPage() {
   // 入隊轉帳被退回 → 重新上傳
   const [reupDate, setReupDate] = useState('');
   const [reupLast5, setReupLast5] = useState('');
+  const [reupBankName, setReupBankName] = useState('');
+  const [reupPaidAmount, setReupPaidAmount] = useState('');
   const [reupBusy, setReupBusy] = useState(false);
   const handleReupload = async () => {
-    if (!reupLast5.trim()) { alert('請填寫匯款帳號末五碼'); return; }
+    if (!reupBankName.trim()) { alert('請填寫匯款銀行名稱'); return; }
     if (!reupDate.trim()) { alert('請填寫轉帳日期'); return; }
+    if (!reupLast5.trim()) { alert('請填寫匯款帳號末五碼'); return; }
+    if (!(Number(reupPaidAmount) > 0)) { alert('請填寫實際匯款金額'); return; }
     setReupBusy(true);
     try {
       const { submitTransferRecord } = await import('../../api/transfers');
@@ -47,7 +51,8 @@ export default function MemberTeamPage() {
         orderName: `攀岩隊年費（${currentYearRecord.year}）`,
         amount: currentYearRecord.expectedFee || 0,
         gymId: currentYearRecord.primaryGym === '士林紅石' ? 'gym-shilin' : 'gym-hsinchu',
-        memberName: member?.name || '', bankLastFive: reupLast5.trim(), paymentDate: reupDate.trim(),
+        memberName: member?.name || '', bankLastFive: reupLast5.trim(), bankName: reupBankName.trim(),
+        paymentDate: reupDate.trim(), paidAmount: reupPaidAmount,
       });
       alert('已重新送出，等待工作人員確認收款');
       window.location.reload();
@@ -94,12 +99,11 @@ export default function MemberTeamPage() {
   );
 
   const handleSubmit = async () => {
-    const { paymentDate, bankLastFive, bankName } = paymentData;
+    const { paymentDate, bankLastFive, bankName, paidAmount } = paymentData;
     if (!idNumber.trim()) { showMsg('請填寫身分證字號（山協保險用）', 'red'); return; }
     if (!address.trim()) { showMsg('請填寫地址', 'red'); return; }
     if (!lineId.trim()) { showMsg('請填寫 Line ID（加入隊群組用）', 'red'); return; }
-    if (!bankLastFive?.trim()) { showMsg('請填寫匯款帳號末五碼', 'red'); return; }
-    if (!paymentDate?.trim()) { showMsg('請填寫轉帳日期', 'red'); return; }
+    if (!isTransferInfoComplete(paymentData)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
     if (!joinReasons.length) { showMsg('請選擇至少一項加入原因', 'red'); return; }
     if (!currentGrade) { showMsg('請選擇目前抱石最高級數', 'red'); return; }
     if (!weeklyFrequency) { showMsg('請選擇每週頻率', 'red'); return; }
@@ -129,7 +133,7 @@ export default function MemberTeamPage() {
           await submitTransferRecord({
             memberId: member.id, memberName: member.name, gymId: primaryGym,
             orderType: 'team_member', refId: res.data.id, orderName: `攀岩隊年費（${year}）`,
-            amount, bankLastFive, bankName, paymentDate,
+            amount, bankLastFive, bankName, paymentDate, paidAmount,
           });
         } catch (e) { /* 不阻斷申請 */ }
       }
@@ -232,9 +236,16 @@ export default function MemberTeamPage() {
                   轉帳資料確認未通過{currentYearRecord.paymentRejectReason ? `：${currentYearRecord.paymentRejectReason}` : ''}。
                   請於下方重新上傳轉帳資料，或聯絡櫃檯協助。
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                    <input placeholder="匯款日期 YYYY-MM-DD" value={reupDate} onChange={e=>setReupDate(e.target.value)}
+                    <input placeholder="匯款銀行名稱 *" value={reupBankName} onChange={e=>setReupBankName(e.target.value)}
                       style={{ flex:1, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
-                    <input placeholder="末五碼" value={reupLast5} onChange={e=>setReupLast5(e.target.value)}
+                    <input placeholder="實際匯款金額 *" inputMode="numeric" value={reupPaidAmount}
+                      onChange={e=>setReupPaidAmount(e.target.value.replace(/\D/g,''))}
+                      style={{ width:110, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
+                  </div>
+                  <div style={{ display:'flex', gap:6, marginTop:6 }}>
+                    <input placeholder="匯款日期 YYYY-MM-DD *" value={reupDate} onChange={e=>setReupDate(e.target.value)}
+                      style={{ flex:1, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
+                    <input placeholder="末五碼 *" value={reupLast5} onChange={e=>setReupLast5(e.target.value)}
                       style={{ width:90, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
                   </div>
                   <button onClick={handleReupload} disabled={reupBusy}

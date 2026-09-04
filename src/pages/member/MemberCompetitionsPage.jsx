@@ -12,7 +12,7 @@ import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import QRCode from 'qrcode';
-import PaymentSection from '../../components/PaymentSection';
+import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 
 const STEPS = ['基本資料', '付款資訊', '同意書', '簽名'];
@@ -172,7 +172,7 @@ export default function MemberCompetitionsPage() {
   const submitRepay = async () => {
     const { method: repayMethod, paymentDate: repayDate, bankLastFive: repayLast5, bankName: repayBank, paidAmount: repayPaidAmount } = repayData;
     if (!repayDate) { setRepayErr('請填寫繳費日期'); return; }
-    if (repayMethod === 'transfer' && !repayLast5?.trim()) { setRepayErr('請填寫匯款帳號末五碼'); return; }
+    if (!isTransferInfoComplete(repayData)) { setRepayErr('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'); return; }
     setRepaySaving(true); setRepayErr('');
     try {
       const { memberClient } = await import('../../api/client');
@@ -363,6 +363,7 @@ export default function MemberCompetitionsPage() {
   const handleSubmit = async () => {
     if (!memberSig) { showMsg('請完成本人簽名', 'red'); return; }
     if (isMinor && !guardianSig) { showMsg('未滿18歲需法定代理人簽名', 'red'); return; }
+    if (!isTransferInfoComplete(paymentData)) { showMsg('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
     const { method: paymentMethod, paymentDate, bankLastFive, bankName, paidAmount: regPaidAmount } = paymentData;
     setSubmitting(true);
     try {

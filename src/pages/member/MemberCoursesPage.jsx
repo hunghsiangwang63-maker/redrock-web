@@ -81,7 +81,7 @@ import dayjs from 'dayjs';
 import { isUnder4 } from '../../utils/age';
 import { gymPrefix } from '../../utils/gymLabel';
 import { courseColor } from '../../utils/courseColor';
-import PaymentSection from '../../components/PaymentSection';
+import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
@@ -252,7 +252,7 @@ export default function MemberCoursesPage() {
     if (trialTargetUnder4) { showMsg('未滿 4 歲無法報名課程／試上', 'red'); return; }
     if (trialYouthAgeBlocked) { showMsg('此課程限未滿 18 歲學員報名，請確認報名對象是否正確選擇子女', 'red'); return; }
     if (!trialConsent) { showMsg('請先勾選同意免責同意書', 'red'); return; }
-    if (trialPay.method === 'transfer' && (!trialPay.paymentDate || !trialPay.bankLastFive)) { showMsg('請填寫匯款日期與末五碼', 'red'); return; }
+    if (!isTransferInfoComplete(trialPay)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
     setTrialSubmitting(true);
     try {
       const res = await memberClient.post('/experience-bookings', {
@@ -487,7 +487,7 @@ export default function MemberCoursesPage() {
 
   const handleEnroll = async () => {
     if (!enrollSession) return;
-    if (paymentMethod === 'transfer' && (!paymentData.bankLastFive?.trim() || !paymentData.paymentDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
+    if (!isTransferInfoComplete(paymentData)) { showMsg('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
     const enrollGymId = selectedCourse?.gymId || enrollSession?.gymId || gymId; // 用課程所屬館（銀行帳號/待收款歸該館）
     setLoading(true);
     try {

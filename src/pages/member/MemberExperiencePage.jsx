@@ -8,7 +8,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import { isUnder4 } from '../../utils/age';
-import PaymentSection from '../../components/PaymentSection';
+import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
@@ -138,7 +138,7 @@ export default function MemberExperiencePage() {
   const submitTrial = async () => {
     if (trialTargetUnder4) { showMsg('未滿 4 歲無法報名課程/體驗','red'); return; }
     if (!trialConsent) { showMsg('請先勾選同意免責同意書','red'); return; }
-    if (trialPay.method==='transfer' && (!trialPay.paymentDate || !trialPay.bankLastFive)) { showMsg('請填寫匯款日期與末五碼','red'); return; }
+    if (!isTransferInfoComplete(trialPay)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額','red'); return; }
     setTrialSubmitting(true);
     try {
       const res = await memberClient.post('/experience-bookings', {
@@ -190,8 +190,7 @@ export default function MemberExperiencePage() {
     const invalid = participants.find(p => !p.name.trim() || (needsIns && (!p.idNumber.trim() || !p.birthday.trim())));
     if (invalid) { showMsg(needsIns ? '請填寫所有參加者的姓名、身分證字號、生日' : '請填寫所有參加者的姓名','red'); return; }
     if (anyParticipantUnder4) { showMsg('未滿 4 歲無法報名課程/體驗','red'); return; }
-    if (payment.method==='transfer' && !payment.paymentDate) { showMsg('請填寫匯款日期','red'); return; }
-    if (payment.method==='transfer' && !payment.bankLastFive) { showMsg('請填寫匯款末五碼','red'); return; }
+    if (!isTransferInfoComplete(payment)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額','red'); return; }
     setSubmitting(true);
     try {
       const res = await memberClient.post('/experience-bookings', {

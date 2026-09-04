@@ -6,20 +6,23 @@ import { submitTransferRecord } from '../api/transfers';
 export default function TransferReuploadModal({ target, memberName, onClose, onDone }) {
   const [date, setDate] = useState('');
   const [last5, setLast5] = useState('');
+  const [bankName, setBankName] = useState('');
   const [paidAmt, setPaidAmt] = useState('');
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
   const submit = async () => {
-    if (!last5.trim()) { setErr('請填寫匯款帳號末五碼'); return; }
+    if (!bankName.trim()) { setErr('請填寫匯款銀行名稱'); return; }
     if (!date.trim()) { setErr('請填寫轉帳日期'); return; }
+    if (!last5.trim()) { setErr('請填寫匯款帳號末五碼'); return; }
+    if (!(Number(paidAmt) > 0)) { setErr('請填寫實際匯款金額'); return; }
     setBusy(true); setErr('');
     try {
       await submitTransferRecord({
         orderType: target.orderType, refId: target.refId, orderName: target.orderName || '',
         amount: target.amount || 0, gymId: target.gymId || '', memberName: memberName || '',
-        bankLastFive: last5.trim(), paymentDate: date, screenshot: file, paidAmount: paidAmt || null,
+        bankLastFive: last5.trim(), bankName: bankName.trim(), paymentDate: date, screenshot: file, paidAmount: paidAmt,
       });
       onDone?.();
     } catch (e) { setErr(e.response?.data?.message || '送出失敗，請稍後再試'); }
@@ -39,7 +42,12 @@ export default function TransferReuploadModal({ target, memberName, onClose, onD
         )}
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           <div>
-            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>匯款日期</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>匯款銀行名稱 *</div>
+            <input value={bankName} onChange={e=>setBankName(e.target.value)} placeholder="例：國泰世華、台新…"
+              style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
+          </div>
+          <div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>匯款日期 *</div>
             <input type="date" value={date} onChange={e=>setDate(e.target.value)}
               style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
           </div>
@@ -49,7 +57,7 @@ export default function TransferReuploadModal({ target, memberName, onClose, onD
               style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
           </div>
           <div>
-            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>實際匯款金額</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:4, textAlign:'left' }}>實際匯款金額 *</div>
             <input value={paidAmt} onChange={e=>setPaidAmt(e.target.value.replace(/[^\d]/g,''))} placeholder={target.amount ? String(target.amount) : '實際匯出的金額'} inputMode="numeric"
               style={{ width:'100%', height:38, border:'0.5px solid #DCC8C8', borderRadius:8, padding:'0 10px', fontSize:14, boxSizing:'border-box' }} />
           </div>

@@ -26,6 +26,16 @@
 
 import { useEnabledPayments } from '../utils/paymentMethods';
 
+// 轉帳資訊是否已完整填寫（銀行/日期/末五碼/實際匯款金額皆為必填）；非轉帳一律視為完整（不受此限制）。
+// 供各頁送出前檢查用，與下方欄位標籤的「*」必填標示對應同一套規則。
+// opts.requirePaidAmount=false：該處刻意隱藏「實際匯款金額」欄（showPaidAmount=false）時不檢查此欄。
+export function isTransferInfoComplete(value = {}, opts = {}) {
+  if (value.method !== 'transfer') return true;
+  const requirePaidAmount = opts.requirePaidAmount !== false;
+  return !!(String(value.bankName || '').trim() && value.paymentDate
+    && String(value.bankLastFive || '').trim() && (!requirePaidAmount || Number(value.paidAmount) > 0));
+}
+
 const METHODS = [
   { key:'cash',      label:'現金',    icon:'💵' },
   { key:'transfer',  label:'轉帳',    icon:'🏦' },
@@ -124,18 +134,18 @@ export default function PaymentSection({
             </div>
           )}
           <div style={{ marginBottom:8 }}>
-            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('匯款銀行名稱')}</label>
+            <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('匯款銀行名稱')} <span style={{ color:'#B3261E' }}>*</span></label>
             <input value={bankName} onChange={e => set({ bankName: e.target.value })}
               placeholder={t('例：國泰世華、台新…')} style={inp}/>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             <div>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('匯款日期')}</label>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('匯款日期')} <span style={{ color:'#B3261E' }}>*</span></label>
               <input type="date" value={paymentDate} onChange={e => set({ paymentDate: e.target.value })}
                 min={dateMin} max={dateMax} style={inp}/>
             </div>
             <div>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('末五碼')}</label>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('末五碼')} <span style={{ color:'#B3261E' }}>*</span></label>
               <input value={bankLastFive} onChange={e => set({ bankLastFive: e.target.value.slice(0,5) })}
                 placeholder="12345" maxLength={5}
                 style={{ ...inp, fontFamily:'monospace', letterSpacing:2 }}/>
@@ -143,7 +153,7 @@ export default function PaymentSection({
           </div>
           {showPaidAmount && (
             <div style={{ marginTop:8 }}>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('實際匯款金額')}</label>
+              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('實際匯款金額')} <span style={{ color:'#B3261E' }}>*</span></label>
               <input value={value.paidAmount ?? ''} inputMode="numeric"
                 onChange={e => set({ paidAmount: e.target.value.replace(/\D/g,'') })}
                 placeholder={amount != null ? String(amount) : t('實際匯出的金額')}

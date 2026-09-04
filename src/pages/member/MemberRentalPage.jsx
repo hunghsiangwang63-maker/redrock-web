@@ -9,7 +9,7 @@ import { getRentalSettings, applyRental, getMyRentals, cancelRentalMember, updat
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
-import PaymentSection from '../../components/PaymentSection';
+import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 
@@ -149,7 +149,7 @@ export default function MemberRentalPage() {
   const handleApply = async () => {
     if (!pickupDate) { showMsg('請選擇借出日期', 'red'); return; }
     const { method: payMethod, paymentDate: payDate, bankLastFive, bankName, paidAmount: rentPaidAmount } = paymentData;
-    if (payMethod === 'transfer' && (!bankLastFive?.trim() || !payDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
+    if (!isTransferInfoComplete(paymentData)) { showMsg('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
     setSubmitting(true);
     try {
       const items = rentalMode === 'locker'
@@ -175,7 +175,7 @@ export default function MemberRentalPage() {
           await submitTransferRecord({
             memberId: member.id, memberName: member.name, gymId,
             orderType: 'rental', refId: rentalId, orderName: rentalMode === 'locker' ? '置物櫃月租' : '器材租借',
-            amount: total, bankLastFive, bankName, paymentDate: payDate,
+            amount: total, bankLastFive, bankName, paymentDate: payDate, paidAmount: rentPaidAmount || null,
           });
         } catch (e) { /* 不阻斷申請 */ }
       }
