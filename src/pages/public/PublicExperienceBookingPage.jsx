@@ -110,6 +110,11 @@ export default function PublicExperienceBookingPage() {
         <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免註冊，填表預約即可</div>
       </div>
       <div style={wrap}>
+        {settings.description && (
+          <div style={{ ...card, marginTop: 16, fontSize: 13, color: '#444', lineHeight: 1.8, textAlign: 'left', whiteSpace: 'pre-wrap' }}>
+            {settings.description}
+          </div>
+        )}
         <div style={card}>
           <label style={{ ...label, marginTop: 0 }}>場館</label>
           <select value={gymId} onChange={e => setGymId(e.target.value)} style={input}>

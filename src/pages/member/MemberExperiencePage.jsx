@@ -326,6 +326,12 @@ export default function MemberExperiencePage() {
       <div style={{ padding:'14px 16px' }}>
         {tab==='apply' && (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {/* 課程介紹（僅設定有填寫時顯示） */}
+            {courseSettings?.description && (
+              <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, fontSize:13, color:'#444', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>
+                {courseSettings.description}
+              </div>
+            )}
             {/* 說明 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, fontSize:12, color:'#666', lineHeight:1.9 }}>
               📋 {courseSettings?.notice || '請先透過粉絲頁確認體驗日期、時間及費用後再填寫本預約單'}<br/>
