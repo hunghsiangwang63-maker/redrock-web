@@ -18,10 +18,13 @@ export default function MemberInquiriesPage() {
   const [mineLoading, setMineLoading] = useState(true);
   const [openMineId, setOpenMineId] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [gymId, setGymId] = useState('');
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formMsg, setFormMsg] = useState(null);
+  const GYM_OPTIONS = [{ id: 'gym-hsinchu', label: '新竹館' }, { id: 'gym-shilin', label: '士林館' }];
+  const gymLabel = (id) => GYM_OPTIONS.find(g => g.id === id)?.label || '';
 
   const loadFaq = () => {
     setFaqLoading(true);
@@ -44,11 +47,12 @@ export default function MemberInquiriesPage() {
   };
 
   const submit = async () => {
+    if (!gymId) { setFormMsg({ ok:false, text:'請選擇相關場館' }); return; }
     if (!subject.trim() || !content.trim()) { setFormMsg({ ok:false, text:'請填寫標題與內容' }); return; }
     setSubmitting(true); setFormMsg(null);
     try {
-      await memberClient.post('/member-inquiries', { subject: subject.trim(), content: content.trim() });
-      setSubject(''); setContent(''); setShowForm(false);
+      await memberClient.post('/member-inquiries', { gymId, subject: subject.trim(), content: content.trim() });
+      setGymId(''); setSubject(''); setContent(''); setShowForm(false);
       setFormMsg(null);
       loadMine();
     } catch (e) { setFormMsg({ ok:false, text: e.response?.data?.message || '送出失敗，請稍後再試' }); }
@@ -125,6 +129,17 @@ export default function MemberInquiriesPage() {
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:12 }}>
               <div style={{ fontSize:13, fontWeight:700, color:'#333', marginBottom:10, textAlign:'left' }}>提出問題</div>
               <div style={{ marginBottom:10 }}>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>相關場館</label>
+                <div style={{ display:'flex', gap:8 }}>
+                  {GYM_OPTIONS.map(g => (
+                    <button key={g.id} onClick={() => setGymId(g.id)}
+                      style={{ flex:1, height:38, borderRadius:8, border: gymId===g.id ? '1.5px solid #8B1A1A' : '1px solid #ddd', background: gymId===g.id ? '#FBF0F0' : '#fff', color: gymId===g.id ? '#8B1A1A' : '#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                      {g.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ marginBottom:10 }}>
                 <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>標題</label>
                 <input value={subject} maxLength={60} onChange={e => setSubject(e.target.value)}
                   placeholder="簡短描述您的問題"
@@ -165,6 +180,7 @@ export default function MemberInquiriesPage() {
                         {statusBadge(item)}
                       </div>
                       <div style={{ fontSize:10, color:'#bbb', marginTop:4, textAlign:'left' }}>
+                        {gymLabel(item.gymId) && `${gymLabel(item.gymId)} · `}
                         {item.createdAt?._seconds ? new Date(item.createdAt._seconds * 1000).toLocaleDateString('zh-TW') : ''}
                       </div>
                     </div>

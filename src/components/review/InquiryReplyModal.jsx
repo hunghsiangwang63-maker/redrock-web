@@ -9,6 +9,7 @@ export default function InquiryReplyModal({ record, onClose, onDone }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const already = record.status === 'replied';
+  const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
   const submit = async () => {
     if (!reply.trim()) { setError('請填寫回覆內容'); return; }
@@ -22,7 +23,10 @@ export default function InquiryReplyModal({ record, onClose, onDone }) {
   return (
     <Modal title="會員問題諮詢" onClose={onClose} width={440}>
       <div style={{ background:'#F7F3F3', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
-        <div style={{ fontSize:11, color:'#999', marginBottom:4 }}>{record.memberName}{record.memberPhone ? `（${record.memberPhone}）` : ''}</div>
+        <div style={{ fontSize:11, color:'#999', marginBottom:4 }}>
+          {record.memberName}{record.memberPhone ? `（${record.memberPhone}）` : ''}
+          {GYM_LABEL[record.gymId] && <span style={{ marginLeft:8, padding:'1px 7px', borderRadius:6, background:'#F3EEF9', color:'#5B2D8B', fontWeight:600 }}>{GYM_LABEL[record.gymId]}</span>}
+        </div>
         <div style={{ fontSize:13, fontWeight:700, color:'#333', marginBottom:6 }}>{record.subject}</div>
         <div style={{ fontSize:12, color:'#555', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{record.content}</div>
       </div>
