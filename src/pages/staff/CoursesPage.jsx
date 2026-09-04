@@ -281,31 +281,51 @@ export default function CoursesPage({ embedded = false }) {
     finally { setReminderSending(false); }
   };
 
-  // 開課前通知：櫃檯編輯草稿後直接發送給該梯次目前有效（非取消）報名者（完整比照 CompetitionsPage.jsx 的賽前通知）
-  const [noticeModal, setNoticeModal] = useState(null); // 目前開啟通知 Modal 的梯次物件
+  // 開課前通知：櫃檯編輯草稿後直接發送給梯次目前有效（非取消）報名者（完整比照 CompetitionsPage.jsx 的賽前通知）
+  // noticeModal.courses 一律為陣列——單一梯次時長度 1，勾選多梯次（如小蜘蛛人一次要發 10 梯）時長度 N，
+  // 名單/發送皆走同一套邏輯（後端 courseIds.length===1 用單梯 API、否則用合併去重的 batch API）
+  const [noticeModal, setNoticeModal] = useState(null); // null | { courses: [課程物件, ...] }
   const [noticeSubject, setNoticeSubject] = useState('');
   const [noticeBody, setNoticeBody] = useState('');
   const [noticeRecipients, setNoticeRecipients] = useState(null); // null=載入中 | {recipients,count} | {error:true}
   const [noticeSending, setNoticeSending] = useState(false);
-  const openCourseNotice = async (c) => {
-    setNoticeModal(c);
-    setNoticeSubject(`【紅石攀岩】${c.name} 開課前提醒`);
-    setNoticeBody(`您好，\n\n「${c.name}」即將於 ${c.startDate} 開課，提醒您：\n\n・請提前 10 分鐘完成報到\n・請攜帶合適裝備、輕便服裝\n・如有請假需求請透過會員 App 提前申請\n・如有任何問題請聯繫櫃檯\n\n紅石攀岩館 敬上`);
-    setNoticeRecipients(null);
-    try {
-      const r = await client.get(`/courses/${c.id}/participant-emails`);
-      setNoticeRecipients(r.data);
-    } catch (e) { setNoticeRecipients({ recipients: [], count: 0, error: true }); }
+  const [onlyNewNotice, setOnlyNewNotice] = useState(false); // 只寄給「上次通知後才報名」的人，避免舊生重複收到
+  const [selectedNoticeCourseIds, setSelectedNoticeCourseIds] = useState(new Set()); // 第二層梯次列表勾選中的梯次
+  useEffect(() => { setSelectedNoticeCourseIds(new Set()); }, [selectedCategory]); // 切換班別清空勾選，避免帶錯梯次
+
+  const openCourseNotice = (courses) => {
+    setNoticeModal({ courses });
+    setOnlyNewNotice(false);
+    if (courses.length === 1) {
+      setNoticeSubject(`【紅石攀岩】${courses[0].name} 開課前提醒`);
+      setNoticeBody(`您好，\n\n「${courses[0].name}」即將於 ${courses[0].startDate} 開課，提醒您：\n\n・請提前 10 分鐘完成報到\n・請攜帶合適裝備、輕便服裝\n・如有請假需求請透過會員 App 提前申請\n・如有任何問題請聯繫櫃檯\n\n紅石攀岩館 敬上`);
+    } else {
+      setNoticeSubject(`【紅石攀岩】開課前提醒`);
+      setNoticeBody(`您好，\n\n您報名的課程即將開課，提醒您：\n\n・請提前 10 分鐘完成報到\n・請攜帶合適裝備、輕便服裝\n・如有請假需求請透過會員 App 提前申請\n・如有任何問題請聯繫櫃檯\n\n紅石攀岩館 敬上`);
+    }
   };
+  useEffect(() => {
+    if (!noticeModal) return;
+    setNoticeRecipients(null);
+    const ids = noticeModal.courses.map(c => c.id);
+    const req = ids.length === 1
+      ? client.get(`/courses/${ids[0]}/participant-emails`, { params: onlyNewNotice ? { onlyNew: '1' } : {} })
+      : client.get('/courses/participant-emails-batch', { params: { courseIds: ids.join(','), ...(onlyNewNotice ? { onlyNew: '1' } : {}) } });
+    req.then(r => setNoticeRecipients(r.data)).catch(() => setNoticeRecipients({ recipients: [], count: 0, error: true }));
+  }, [noticeModal, onlyNewNotice]);
   const sendCourseNoticeEmail = async () => {
     if (!noticeSubject.trim() || !noticeBody.trim()) { showMsg('請填寫主旨與內容', 'red'); return; }
     setNoticeSending(true);
     try {
       const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       const html = noticeBody.split('\n').map(line => line.trim() ? `<p style="margin:0 0 8px">${esc(line)}</p>` : '<br/>').join('');
-      const r = await client.post(`/courses/${noticeModal.id}/send-notice`, { subject: noticeSubject, body: html });
+      const ids = noticeModal.courses.map(c => c.id);
+      const r = ids.length === 1
+        ? await client.post(`/courses/${ids[0]}/send-notice`, { subject: noticeSubject, body: html, onlyNew: onlyNewNotice })
+        : await client.post('/courses/send-notice-batch', { courseIds: ids, subject: noticeSubject, body: html, onlyNew: onlyNewNotice });
       showMsg(r.data.message || '已發送');
       setNoticeModal(null);
+      setSelectedNoticeCourseIds(new Set());
     } catch (e) { showMsg(e.response?.data?.message || '發送失敗', 'red'); }
     finally { setNoticeSending(false); }
   };
@@ -1113,13 +1133,31 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
         const _statusRank = (c) => ({ ongoing:0, starting_soon:1, full:1, enrolling:1, ended:2, cancelled:3 })[c.statusLabel] ?? 1;
         const list = [...(groups[selectedCategory] || [])].sort((a, b) =>
           _statusRank(a) - _statusRank(b) || (a.startDate || '').localeCompare(b.startDate || '') || (a.name || '').localeCompare(b.name || '', 'zh-Hant'));
+        const selectableIds = list.filter(c => c.status !== 'cancelled').map(c => c.id);
+        const allNoticeSelected = selectableIds.length > 0 && selectableIds.every(id => selectedNoticeCourseIds.has(id));
         return (
           <>
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14, flexWrap:'wrap' }}>
               <button onClick={() => setSelectedCategory(null)}
                 style={{ height:32, padding:'0 12px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>← 返回課程總頁</button>
               <div style={{ fontWeight:700, fontSize:16 }}>{(() => { const ids = [...new Set(list.map(c => c.gymId))]; return ids.length === 1 ? gymPrefix(ids[0]) : ''; })()}{selectedCategory}</div>
               <span style={{ fontSize:12, color:'#999' }}>{list.length} 梯</span>
+              {selectableIds.length > 1 && (
+                <button onClick={() => setSelectedNoticeCourseIds(allNoticeSelected ? new Set() : new Set(selectableIds))}
+                  style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
+                  {allNoticeSelected ? '取消全選' : '全選勾選開課通知'}
+                </button>
+              )}
+              <div style={{ flex:1 }} />
+              {selectedNoticeCourseIds.size > 0 && (
+                <>
+                  <span style={{ fontSize:12, color:'#8B4513' }}>已勾選 {selectedNoticeCourseIds.size} 梯</span>
+                  <button onClick={() => openCourseNotice(list.filter(c => selectedNoticeCourseIds.has(c.id)))}
+                    style={{ height:32, padding:'0 14px', borderRadius:8, background:'#FBF5F5', border:'0.5px solid #D4B896', color:'#8B4513', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                    📧 一起發送開課通知（{selectedNoticeCourseIds.size} 梯）
+                  </button>
+                </>
+              )}
             </div>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
               {list.length === 0 && (
@@ -1134,6 +1172,16 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 return (
                   <div key={c.id} onClick={() => c.status !== 'cancelled' && handleEditCourse(c)}
                     style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom:'0.5px solid #F5EFEF', cursor: c.status !== 'cancelled' ? 'pointer' : 'default', opacity: inactive ? 0.55 : 1, flexWrap:'wrap' }}>
+                    {c.status !== 'cancelled' && (
+                      <input type="checkbox" checked={selectedNoticeCourseIds.has(c.id)} title="勾選以一起發送開課通知"
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => setSelectedNoticeCourseIds(prev => {
+                          const next = new Set(prev);
+                          if (e.target.checked) next.add(c.id); else next.delete(c.id);
+                          return next;
+                        })}
+                        style={{ width:16, height:16, cursor:'pointer', flexShrink:0 }} />
+                    )}
                     <div style={{ flex:'1 1 220px', minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                         <span style={{ fontWeight:600, fontSize:14 }}>{gymPrefix(c.gymId)}{c.name}</span>
@@ -1171,7 +1219,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #E8B4B4', color:'#8B1A1A', fontSize:11, cursor:'pointer' }}>🔔 首頁提醒</button>
                       )}
                       {c.status !== 'cancelled' && (
-                      <button onClick={() => openCourseNotice(c)} title={c.lastNoticeSentAt ? '可再發送一次' : undefined}
+                      <button onClick={() => openCourseNotice([c])} title={c.lastNoticeSentAt ? '可再發送一次' : undefined}
                         style={{ height:28, padding:'0 10px', borderRadius:6, background:'#FBF5F5', border:'0.5px solid #D4B896', color:'#8B4513', fontSize:11, cursor:'pointer' }}>
                         {c.lastNoticeSentAt ? `📧 ${dayjs(c.lastNoticeSentAt._seconds ? c.lastNoticeSentAt._seconds*1000 : c.lastNoticeSentAt).format('MM/DD')} 已發送開課通知` : '📧 開課前通知'}
                       </button>
@@ -2987,13 +3035,24 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
         </Modal>
       )}
 
-      {/* 開課前通知 Modal：編輯草稿 → 發送給該梯次目前有效（非取消）報名者（BCC，彼此不見信箱） */}
+      {/* 開課前通知 Modal：編輯草稿 → 發送給梯次目前有效（非取消）報名者（BCC，彼此不見信箱）；courses.length>1 為多梯次合併發送 */}
       {noticeModal && (
-        <Modal title={`開課前通知 — ${noticeModal.name}`} onClose={() => setNoticeModal(null)} width={640}>
+        <Modal title={`開課前通知 — ${noticeModal.courses.length === 1 ? noticeModal.courses[0].name : `已選 ${noticeModal.courses.length} 個梯次`}`} onClose={() => setNoticeModal(null)} width={640}>
+          {noticeModal.courses.length > 1 && (
+            <div style={{ fontSize:12, color:'#666', marginBottom:10, display:'flex', flexWrap:'wrap', gap:6 }}>
+              {noticeModal.courses.map(c => (
+                <span key={c.id} style={{ background:'#F5EFEF', borderRadius:6, padding:'2px 8px' }}>{c.name}</span>
+              ))}
+            </div>
+          )}
+          <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12, color:'#666', marginBottom:10, cursor:'pointer' }}>
+            <input type="checkbox" checked={onlyNewNotice} onChange={e => setOnlyNewNotice(e.target.checked)} style={{ width:15, height:15, cursor:'pointer' }} />
+            只寄給「上次通知後才新加入」的學員（避免舊生重複收到；從未發送過此梯次通知則視同全部）
+          </label>
           <div style={{ fontSize:12, color:'#666', marginBottom:12, background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
             {noticeRecipients === null ? '載入收件人中…' :
               noticeRecipients.error ? <span style={{ color:'#A32D2D' }}>載入收件人清單失敗，請關閉重試</span> :
-              noticeRecipients.count === 0 ? <span style={{ color:'#A32D2D' }}>目前沒有可寄送的學員信箱（報名可能都還未填 email 或皆已取消）</span> :
+              noticeRecipients.count === 0 ? <span style={{ color:'#A32D2D' }}>{onlyNewNotice ? '目前沒有「上次通知後新加入」的學員可寄送' : '目前沒有可寄送的學員信箱（報名可能都還未填 email 或皆已取消）'}</span> :
               `將以密件副本(BCC)寄給 ${noticeRecipients.count} 位有效報名者，彼此不會看到對方信箱`}
           </div>
           {noticeRecipients?.count > 0 && (
