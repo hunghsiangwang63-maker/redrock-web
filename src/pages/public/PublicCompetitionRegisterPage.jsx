@@ -103,7 +103,7 @@ export default function PublicCompetitionRegisterPage() {
     } finally { setSubmitting(false); }
   };
 
-  const wrap = { maxWidth: 480, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
+  const wrap = { maxWidth: 600, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
   const label = { fontSize: 13, fontWeight: 600, color: '#555', display: 'block', marginBottom: 6, marginTop: 16 };
   const input = { width: '100%', minWidth: 0, height: 44, borderRadius: 10, border: '1px solid #E0D4D4', padding: '0 12px', fontSize: 15, boxSizing: 'border-box', outline: 'none', background: '#fff' };
   const dinput = { ...input, width: '100%', maxWidth: 220 };
