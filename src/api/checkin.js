@@ -32,6 +32,10 @@ export const createCheckinInvoice = (checkInId, data) =>
 export const voidCheckinInvoice = (id, voidReason) =>
   client.post(`/checkin/invoices/${id}/void`, { voidReason });
 
+// 更正入場付款方式（僅管理員；一併同步交易記錄/已開立發票，今日已結帳快照也會精確回補）
+export const correctCheckInPaymentMethod = (checkInId, paymentMethod, reason) =>
+  client.put(`/checkin/${checkInId}/payment-method`, { paymentMethod, reason });
+
 // 補租器材開立發票（手動記帳版；作廢共用上面 voidCheckinInvoice，不分 sourceType）
 export const getRentalAddonInvoices = (addonId) =>
   client.get(`/checkin/add-rental/${addonId}/invoices`);

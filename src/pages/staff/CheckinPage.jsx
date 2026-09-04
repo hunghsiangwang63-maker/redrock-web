@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
-import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon, getRentalAddonInvoices, createRentalAddonInvoice } from '../../api/checkin';
+import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon, getRentalAddonInvoices, createRentalAddonInvoice, correctCheckInPaymentMethod } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -157,6 +157,12 @@ export default function CheckinPage() {
   const [confirmedCheckIn, setConfirmedCheckIn] = useState(null);
   const [checkinInvoiceTarget, setCheckinInvoiceTarget] = useState(null); // 入場「開立發票」modal 目標（checkIn 物件）
   const [checkinInvRefresh, setCheckinInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
+  // 更正入場付款方式（2026-09-04，僅管理員）：{id, memberName, paymentMethod, amountPaid}
+  const [pmCorrectTarget, setPmCorrectTarget] = useState(null);
+  const [pmCorrectValue, setPmCorrectValue] = useState('cash');
+  const [pmCorrectReason, setPmCorrectReason] = useState('');
+  const [pmCorrectSaving, setPmCorrectSaving] = useState(false);
+  const [pmCorrectResult, setPmCorrectResult] = useState(null); // 更正成功後顯示回補結果（settlementPatched/skippedReason）
   const [renewalInvoiceTarget, setRenewalInvoiceTarget] = useState(null); // 定期票線上續約待開發票 modal 目標
   const [renewalInvRefresh, setRenewalInvRefresh] = useState(0);
   const [courseInvoiceTarget, setCourseInvoiceTarget] = useState(null); // 今日課程學員「最後一堂」開立課程發票 modal 目標
@@ -330,6 +336,29 @@ export default function CheckinPage() {
     client.get('/invoices/active', { params: { sourceType: 'checkin', refId: checkInId } })
       .then(r => setCancelConfirm(prev => (prev && prev.checkInId === checkInId) ? { ...prev, invoice: r.data.invoice || null, checking: false } : prev))
       .catch(() => setCancelConfirm(prev => (prev && prev.checkInId === checkInId) ? { ...prev, invoice: null, checking: false } : prev));
+  };
+
+  // 更正入場付款方式（僅管理員）：開啟彈窗時預帶目前的付款方式方便對照
+  const openPmCorrect = (c) => {
+    setPmCorrectTarget(c);
+    setPmCorrectValue(c.paymentMethod || 'cash');
+    setPmCorrectReason('');
+  };
+  const submitPmCorrect = async () => {
+    if (!pmCorrectTarget) return;
+    setPmCorrectSaving(true);
+    try {
+      const res = await correctCheckInPaymentMethod(pmCorrectTarget.id, pmCorrectValue, pmCorrectReason.trim() || undefined);
+      const { noChange, settlementPatched, settlementSkippedReason } = res.data;
+      const applyLocal = (list) => list.map(x => x.id === pmCorrectTarget.id ? { ...x, paymentMethod: pmCorrectValue } : x);
+      setTodayCheckIns(applyLocal);
+      setHistoryCheckIns(applyLocal);
+      setCheckinInvRefresh(v => v + 1);
+      setPmCorrectTarget(null);
+      if (!noChange) setPmCorrectResult({ settlementPatched, settlementSkippedReason });
+    } catch (err) {
+      alert(err.response?.data?.message || '更正失敗');
+    } finally { setPmCorrectSaving(false); }
   };
 
   // 共用掃描邏輯（掃描槍輸入框 / 相機掃碼皆走此）
@@ -1478,6 +1507,12 @@ export default function CheckinPage() {
                         <InvoiceButtonAuto sourceType="competition" refId={c.competitionInvoice.registrationId} refreshToken={compInvRefresh}
                           onClick={() => setCompInvoiceTarget({ ...c.competitionInvoice, gymId: c.gymId })} />
                       )}
+                      {isManagerOnly && c.amountPaid > 0 && (
+                        <button onClick={() => openPmCorrect(c)}
+                          style={{ height:32, padding:'0 12px', borderRadius:8, background:'#fff', color:'#6b6b6b', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                          更正付款方式
+                        </button>
+                      )}
                       {canCancel && (
                         <button onClick={() => openCancelConfirm(c.id)} disabled={cancellingId === c.id}
                           style={{ height:32, padding:'0 12px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'0.5px solid #F5C6C6', fontSize:12, cursor:'pointer', flexShrink:0 }}>
@@ -1554,6 +1589,12 @@ export default function CheckinPage() {
                     {(c.amountPaid > 0 || c.onlineTicket?.amount > 0) && (
                       <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                         onClick={() => setCheckinInvoiceTarget(c)} />
+                    )}
+                    {isManagerOnly && c.amountPaid > 0 && (
+                      <button onClick={() => openPmCorrect(c)}
+                        style={{ height:32, padding:'0 12px', borderRadius:8, background:'#fff', color:'#6b6b6b', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                        更正付款方式
+                      </button>
                     )}
                     {isSuperAdmin && (
                       <button onClick={() => openCancelConfirm(c.id, true)} disabled={cancellingId === c.id}
@@ -1800,6 +1841,56 @@ export default function CheckinPage() {
               </div>
             </>
           )}
+        </Modal>
+      )}
+
+      {/* 更正入場付款方式（僅管理員，2026-09-04）：一併同步交易記錄/已開立發票，今日已結帳快照
+          在非手動輸入模式下也會精確回補現金/電子支付分類，見 checkin/flow.js correctPaymentMethod */}
+      {pmCorrectTarget && (
+        <Modal title="更正入場付款方式" onClose={() => !pmCorrectSaving && setPmCorrectTarget(null)}>
+          <div style={{ fontSize:13, color:'#444', marginBottom:14, lineHeight:1.7 }}>
+            {pmCorrectTarget.memberName}　NT${pmCorrectTarget.amountPaid}
+            <br />目前記錄：{PAYMENT_LABEL[pmCorrectTarget.paymentMethod] || pmCorrectTarget.paymentMethod || '現金'}
+          </div>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:14 }}>
+            {['cash', 'linepay', 'jkopay', 'taiwanpay'].map(m => (
+              <button key={m} onClick={() => setPmCorrectValue(m)}
+                style={{ height:36, padding:'0 16px', borderRadius:8, cursor:'pointer', fontSize:13,
+                  background: pmCorrectValue === m ? '#8B1A1A' : '#fff',
+                  color: pmCorrectValue === m ? '#fff' : '#444',
+                  border: pmCorrectValue === m ? '1px solid #8B1A1A' : '0.5px solid #E8D5D5' }}>
+                {PAYMENT_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>更正原因（選填）</label>
+          <textarea value={pmCorrectReason} onChange={e => setPmCorrectReason(e.target.value)} rows={2}
+            placeholder="例：會員改用現金付款，忘記同步更正"
+            style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, color:'#1a1a1a', boxSizing:'border-box', marginBottom:16, resize:'vertical' }} />
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setPmCorrectTarget(null)} disabled={pmCorrectSaving}
+              style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>
+              取消
+            </button>
+            <button onClick={submitPmCorrect} disabled={pmCorrectSaving || pmCorrectValue === (pmCorrectTarget.paymentMethod || 'cash')}
+              style={{ flex:2, height:40, borderRadius:9, background: pmCorrectValue === (pmCorrectTarget.paymentMethod || 'cash') ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: pmCorrectValue === (pmCorrectTarget.paymentMethod || 'cash') ? 'not-allowed' : 'pointer' }}>
+              {pmCorrectSaving ? '更正中...' : '確定更正'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {pmCorrectResult && (
+        <Modal title="已更正付款方式" onClose={() => setPmCorrectResult(null)}>
+          <div style={{ fontSize:13, color:'#444', lineHeight:1.7, marginBottom:16 }}>
+            {pmCorrectResult.settlementPatched
+              ? '✅ 今日已結帳的快照已同步精確回補現金／電子支付分類，差異已重新計算。'
+              : `ℹ️ ${pmCorrectResult.settlementSkippedReason || '入場記錄與交易/發票已更正。'}`}
+          </div>
+          <button onClick={() => setPmCorrectResult(null)}
+            style={{ width:'100%', height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+            知道了
+          </button>
         </Modal>
       )}
     </div>
