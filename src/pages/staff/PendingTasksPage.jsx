@@ -147,6 +147,10 @@ export default function PendingTasksPage() {
   const [notifs, setNotifs] = useState(null);                // 通知（系統未讀）
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifCat, setNotifCat] = useState('');              // 類別過濾
+  const [inquiries, setInquiries] = useState(null);           // 問題諮詢記錄（含已回覆——通知已讀後就從
+                                                                // 「🔔通知」消失、pending 任務回覆後也離開主清單，
+                                                                // 這裡是唯一能回頭查歷史的地方）
+  const [inquiriesLoading, setInquiriesLoading] = useState(false);
 
   // ── 權限分隔（對齊後端權威）：依角色決定每類動作可否操作 ──
   const isManager = isAdmin;                          // super_admin / gym_manager
@@ -226,7 +230,7 @@ export default function PendingTasksPage() {
   const enabledPay = useEnabledPayments();
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
-  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassCompleted(); if (trackView === 'notif') loadNotifs(); };
+  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassCompleted(); if (trackView === 'notif') loadNotifs(); if (trackView === 'inquiry') loadInquiries(); };
 
   // 課程：已完成（已核准/已拒絕）退費/暫停
   // 同 load()／loadNotifs()：afterDone() 與切換分頁都可能觸發，快速連續處理時用序號擋過期回應。
@@ -268,6 +272,14 @@ export default function PendingTasksPage() {
     } catch (e) { if (seq === notifReqSeq.current) setNotifs([]); }
     finally { if (seq === notifReqSeq.current) setNotifLoading(false); }
   };
+  const loadInquiries = async () => {
+    setInquiriesLoading(true);
+    try {
+      const res = await client.get('/member-inquiries');
+      setInquiries(res.data.items || []);
+    } catch (e) { setInquiries([]); }
+    finally { setInquiriesLoading(false); }
+  };
   // 追蹤面板切換（互斥；再點一次收合）
   const openTrack = (view) => {
     const next = trackView === view ? null : view;
@@ -275,6 +287,7 @@ export default function PendingTasksPage() {
     if (next === 'course' && completed === null) loadCompleted();
     if (next === 'pass' && passCompleted === null) loadPassCompleted();
     if (next === 'notif' && notifs === null) loadNotifs();
+    if (next === 'inquiry' && inquiries === null) loadInquiries();
   };
 
   const primaryBtn = (bg) => ({ height:34, padding:'0 14px', borderRadius:8, background:bg, color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer', flexShrink:0 });
@@ -402,6 +415,10 @@ export default function PendingTasksPage() {
               🔔 通知
             </button>
           )}
+          <button onClick={() => openTrack('inquiry')}
+            style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='inquiry' ? '#0E7C86' : '#fff', color: trackView==='inquiry' ? '#fff' : '#0E7C86', border:'0.5px solid #0E7C86', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+            ❓ 問題諮詢記錄
+          </button>
           {!isRestrictedPartTime && (
             <button onClick={() => openTrack('returned')}
               style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='returned' ? '#A32D2D' : '#fff', color: trackView==='returned' ? '#fff' : '#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
@@ -558,10 +575,11 @@ export default function PendingTasksPage() {
         const notifItems = (notifs || [])
           .filter(n => !n.createdAt?._seconds || n.createdAt._seconds >= cutoff)
           .map(n => ({ key: 'n_' + n.id, notifId: n.id, cat: notifCatOf(n.type), title: n.title || '通知', message: n.message || n.body, ts: n.createdAt?._seconds || 0, link: resolveNotifLink(n), catLabel: NOTIF_CATS.find(c => c.key === notifCatOf(n.type))?.label || '系統', canRead: true,
-            // 單次入場券審核／比賽退費：實際處理 UI 就在本頁「🔍 需審核」／「💰 待收款」區塊（無其他頁可導），
-            // link 落回 /staff/pending-tasks 等於原地不動的死連結——改成直接開對應的處理 modal。
+            // 單次入場券審核／比賽退費／會員問題諮詢：實際處理 UI 就在本頁「🔍 需審核」／「💰 待收款」／
+            // 「回覆」按鈕（無其他頁可導），link 落回 /staff/pending-tasks 等於原地不動的死連結——改成直接開對應的處理 modal。
             ticketRef: n.type === 'single_entry_ticket_approval' ? n.referenceId : null,
-            compRefundRef: n.type === 'competition_refund_request' ? n.referenceId : null }));
+            compRefundRef: n.type === 'competition_refund_request' ? n.referenceId : null,
+            inquiryRef: n.type === 'member_inquiry' ? n.referenceId : null }));
         const regItems = (registrations || []).map(r => ({ key: 'r_' + r.id, cat: 'report', title: `${r.memberName} 報名 ${r.name}`, message: [r.detail, REG_CAT[r.regType]].filter(Boolean).join(' · ') + (r.gymId === 'gym-hsinchu' ? ' · 新竹館' : r.gymId === 'gym-shilin' ? ' · 士林館' : ''), ts: r.createdAt || 0, link: r.link, catLabel: '報名', canRead: false }));
         const feed = [...notifItems, ...regItems].filter(i => !notifCat || i.cat === notifCat).sort((a, b) => b.ts - a.ts);
         return (
@@ -611,6 +629,12 @@ export default function PendingTasksPage() {
                           if (found) setModal({ kind:'competition-refund', record: found.record });
                           else showToast('此筆退費已處理或找不到');
                         }} style={ghostBtn}>前往</button>
+                      ) : i.inquiryRef ? (
+                        <button onClick={() => {
+                          const found = tasks.find(t => t.type === 'member_inquiry' && t.targetId === i.inquiryRef);
+                          if (found) setModal({ kind:'inquiry', record: found.record });
+                          else showToast('此提問已回覆或找不到');
+                        }} style={ghostBtn}>前往</button>
                       ) : (i.link && <button onClick={() => navigate(i.link)} style={ghostBtn}>{i.canRead ? '前往' : '查看'}</button>)}
                       {i.canRead && <button onClick={async () => { await markAsRead(i.notifId); loadNotifs(); }} style={{ ...ghostBtn, color:'#854F0B' }}>已讀</button>}
                     </div>
@@ -621,6 +645,52 @@ export default function PendingTasksPage() {
           </div>
         );
       })()}
+
+      {/* 問題諮詢記錄：待回覆＋已回覆都在——通知已讀後就從「🔔通知」消失、待辦任務回覆後也離開主清單，
+          這裡是唯一能回頭查歷史的地方（點任一筆都開同一個 InquiryReplyModal，該元件本就依 status 自動切
+          待回覆表單／已回覆唯讀顯示，兩種狀態不用另外做畫面）。 */}
+      {trackView === 'inquiry' && (
+        <div style={{ marginTop:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px' }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>❓ 問題諮詢記錄（待回覆／已回覆）</div>
+            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{inquiries ? `${inquiries.length} 筆` : ''}</div>
+          </div>
+          {inquiriesLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+          {!inquiriesLoading && inquiries && inquiries.length === 0 && (
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
+              目前沒有會員提問記錄
+            </div>
+          )}
+          {!inquiriesLoading && inquiries && inquiries.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {inquiries.map(item => {
+                const replied = item.status === 'replied';
+                const gymLabel = item.gymId === 'gym-hsinchu' ? '新竹館' : item.gymId === 'gym-shilin' ? '士林館' : '';
+                const badge = replied ? { bg:'#E6F4EB', color:'#2D7D46', label:'已回覆' } : { bg:'#F0EDED', color:'#999', label:'待回覆' };
+                const dateStr = item.createdAt?._seconds ? dayjs(item.createdAt._seconds * 1000).format('YYYY-MM-DD') : '';
+                return (
+                  <div key={item.id} onClick={() => setModal({ kind:'inquiry', record: item })}
+                    style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', cursor:'pointer' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+                      <div style={{ minWidth:0, flex:1 }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{item.memberName}{item.memberPhone ? `（${item.memberPhone}）` : ''}{gymLabel ? ` · ${gymLabel}` : ''}</div>
+                        <div style={{ fontSize:12, color:'#333', marginTop:3, fontWeight:500 }}>{item.subject}</div>
+                        <div style={{ fontSize:11, color:'#999', marginTop:2, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.content}</div>
+                        {replied && item.reply && (
+                          <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>回覆{item.repliedByName ? `（${item.repliedByName}）` : ''}：{item.reply}</div>
+                        )}
+                        {dateStr && <div style={{ fontSize:11, color:'#bbb', marginTop:3 }}>{dateStr}</div>}
+                      </div>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background:badge.bg, color:badge.color, flexShrink:0 }}>{badge.label}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {trackView === 'returned' && (
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:16 }}>
