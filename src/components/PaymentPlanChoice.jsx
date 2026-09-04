@@ -67,6 +67,10 @@ export default function PaymentPlanChoice({ installment, price, plan, paymentMet
               </div>
             );
           })}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0 0', marginTop: 4, borderTop: '0.5px solid #E0C4C4' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#B3261E' }}>應繳總額（全額）</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#B3261E' }}>NT${rows.reduce((s, r) => s + r.amt, 0).toLocaleString()}</span>
+          </div>
           {hideMethod
             ? <div style={{ fontSize: 11, color: '#854F0B', marginTop: 8 }}>選擇分期後，下方付款即為「第一期（頭款）」金額；其餘各期依上表到期繳交。</div>
             : (

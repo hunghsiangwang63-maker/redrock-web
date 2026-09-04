@@ -1302,10 +1302,9 @@ export default function MemberCoursesPage() {
                 const fee = quote?.fee ?? 0;
                 const teamDiscount = quote?.teamDiscount ?? 0;
                 const renewalDiscount = quote?.renewalDiscount ?? 0;
-                // 此課程有開分期＝一律強制分期（無「一次付清」選項，見 PaymentPlanChoice）：
-                // 「應繳」改顯示簽約當下實收的第一期金額，並附註全期總額，避免誤導成要一次繳全額
+                // 此課程有開分期＝一律強制分期（無「一次付清」選項，見 PaymentPlanChoice）；
+                // 這裡的「應繳」維持顯示總額不變，只附註提醒有分期，詳細各期金額在報名 modal 內顯示
                 const instPeriods = (selectedCourse?.installment?.enabled && selectedCourse.installment.periods?.length >= 2) ? selectedCourse.installment.periods : null;
-                const firstDue = instPeriods ? Math.round(fee * (Number(instPeriods[0]?.percent) || 0) / 100) : fee;
                 // 名額是否已滿（正取）→ 報名將進候補
                 const capRemaining = (selectedCourse.maxStudents || 0) - (selectedCourse.enrolledCount || 0);
                 const isCourseFull = selectedCourse.statusLabel === 'full' || capRemaining <= 0;
@@ -1383,11 +1382,11 @@ export default function MemberCoursesPage() {
                           </div>
                         )}
                         <div style={{ borderTop:'0.5px solid #E0E0E0', marginTop:6, paddingTop:6, display:'flex', justifyContent:'space-between', fontWeight:700, color:'#8B1A1A' }}>
-                          <span>{instPeriods ? '應繳（簽約當下・第1期）' : '應繳'}</span>
-                          <span style={{ fontFamily:'monospace' }}>NT${firstDue.toLocaleString()}</span>
+                          <span>應繳</span>
+                          <span style={{ fontFamily:'monospace' }}>NT${fee.toLocaleString()}</span>
                         </div>
                         {instPeriods && (
-                          <div style={{ fontSize:11, color:'#999', textAlign:'right', marginTop:2 }}>此課程僅提供分期・共 {instPeriods.length} 期・全期總額 NT${fee.toLocaleString()}</div>
+                          <div style={{ fontSize:11, color:'#999', textAlign:'right', marginTop:2 }}>此課程提供分期付款・共 {instPeriods.length} 期</div>
                         )}
                       </div>
                     )}
@@ -1401,8 +1400,8 @@ export default function MemberCoursesPage() {
                         {!feeReady ? (
                           <span style={{ fontSize:14, color:'#999', fontFamily:'inherit' }}>費用計算中…</span>
                         ) : (<>
-                          <span style={{ fontSize:13, color:'#666', fontFamily:'inherit', fontWeight:600, marginRight:8 }}>{instPeriods && !isCourseFull ? '應繳（第1期）' : '應繳'}</span>
-                          NT${(instPeriods && !isCourseFull ? firstDue : fee).toLocaleString()}
+                          <span style={{ fontSize:13, color:'#666', fontFamily:'inherit', fontWeight:600, marginRight:8 }}>應繳</span>
+                          NT${fee.toLocaleString()}
                           {isCourseFull && <span style={{ fontSize:12, color:'#999', fontFamily:'inherit', marginLeft:8 }}>（遞補後收費）</span>}
                         </>)}
                       </div>
@@ -1413,7 +1412,7 @@ export default function MemberCoursesPage() {
                       )}
                     </div>
                     {feeReady && instPeriods && !isCourseFull && (
-                      <div style={{ fontSize:11, color:'#999', marginBottom:12, marginTop:-8 }}>此課程僅提供分期付款・共 {instPeriods.length} 期・全期總額 NT${fee.toLocaleString()}</div>
+                      <div style={{ fontSize:11, color:'#999', marginBottom:12, marginTop:-8 }}>此課程提供分期付款・共 {instPeriods.length} 期</div>
                     )}
                     {alreadyEnrolled ? (
                       <div style={{ textAlign:'center', padding:'10px 0', color:'#2D7D46', fontWeight:600, fontSize:14 }}>
