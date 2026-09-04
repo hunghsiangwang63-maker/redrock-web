@@ -36,7 +36,7 @@ export default function PublicCourseCategoryPage() {
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
       <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center' }}>
         <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>紅石攀岩 · {category.name}</div>
-        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免註冊，選擇梯次後填表報名即可</div>
+        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免登入即可瀏覽，選擇梯次後登入或註冊會員即可報名</div>
       </div>
       <div style={wrap}>
         {(category.imageUrl || category.description) && (
