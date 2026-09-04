@@ -2296,7 +2296,9 @@ export default function MemberCoursesPage() {
                   {(enrollSession?.fee ?? selectedCourse?.price) != null ? <><br/><span style={{ fontSize:12, color:'#999' }}>遞補後費用約 NT${((enrollSession?.fee ?? selectedCourse?.price) || 0).toLocaleString()}（依實際堂數計算）</span></> : null}
                 </div>
               ) : (<>
-              <PaymentPlanChoice installment={selectedCourse?.installment} price={enrollSession?.fee ?? selectedCourse?.price}
+              <PaymentPlanChoice mode="session"
+                sessionDates={sessions.filter(s => s.courseId === selectedCourse?.id && s.status !== 'cancelled' && s.date >= dayjs().format('YYYY-MM-DD')).map(s => s.date).sort()}
+                installment={selectedCourse?.installment} price={enrollSession?.fee ?? selectedCourse?.price}
                 plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
               {Number(selectedCourse?.depositAmount) > 0 && (
                 <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#8B6914', lineHeight:1.7, textAlign:'left' }}>

@@ -2155,7 +2155,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           )}
           <div style={{ marginTop:14 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>是否分期（分期付款規則）</label>
-            <InstallmentRuleEditor value={courseForm.installment} price={courseForm.type === 'workshop' ? courseForm.price : (Number(courseForm.pricePerSession)||0) * estimateWeeklySessionCount(courseForm.startDate, courseForm.endDate, courseForm.weekdays)}
+            <InstallmentRuleEditor mode="session" value={courseForm.installment} price={courseForm.type === 'workshop' ? courseForm.price : (Number(courseForm.pricePerSession)||0) * estimateWeeklySessionCount(courseForm.startDate, courseForm.endDate, courseForm.weekdays)}
               onChange={v => setCourseForm({...courseForm, installment: v})} />
           </div>
           {/* 覆寫班別規則（收合；空＝用班別預設）*/}
@@ -2458,7 +2458,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             </div>
           </div>
 
-          <PaymentPlanChoice installment={selectedCourse?.installment} price={selectedCourse?.price}
+          <PaymentPlanChoice mode="session"
+            sessionDates={(sessions || []).filter(s => s.courseId === selectedCourse?.id && s.status !== 'cancelled' && s.date >= dayjs().format('YYYY-MM-DD')).map(s => s.date).sort()}
+            installment={selectedCourse?.installment} price={selectedCourse?.price}
             plan={enrollPaymentPlan} paymentMethod={enrollPayment}
             onChange={({ plan, paymentMethod }) => { setEnrollPaymentPlan(plan); if (paymentMethod) setEnrollPayment(paymentMethod); }} />
 
@@ -2642,7 +2644,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           )}
           <div style={{ marginTop:16 }}>
             <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>分期付款規則</label>
-            <InstallmentRuleEditor value={editForm.installment} price={editForm.price}
+            <InstallmentRuleEditor mode="session" value={editForm.installment} price={editForm.price}
               onChange={v => setEditForm({...editForm, installment: v})} />
           </div>
           {editForm.type === 'workshop' && (

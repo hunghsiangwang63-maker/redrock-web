@@ -1,10 +1,12 @@
 // 報名/購買時的「一次付清 / 分期」選擇（僅在該課程/票種有開分期規則時顯示）
-// 用法：<PaymentPlanChoice installment={course.installment} price={fee} plan={plan} paymentMethod={pm} onChange={({plan,paymentMethod})=>...} />
+// 用法（定期票，預設 mode='days'）：<PaymentPlanChoice installment={pt.installment} price={fee} plan={plan} paymentMethod={pm} onChange={...} />
+// 用法（課程，mode='session'）：<PaymentPlanChoice installment={course.installment} price={fee} mode="session" sessionDates={futureSessions.map(s=>s.date)} .../>
 import { useEnabledPayments, filterPayments } from '../utils/paymentMethods';
+import dayjs from 'dayjs';
 
 const PAY = [{ k: 'cash', l: '現金' }, { k: 'transfer', l: '轉帳' }, { k: 'linepay', l: 'Line Pay' }, { k: 'jkopay', l: '街口支付' }, { k: 'taiwanpay', l: '台灣Pay' }];
 
-function previewPeriods(installment, price) {
+function previewPeriods(installment, price, mode, sessionDates) {
   const p = Number(price) || 0;
   const per = (installment?.periods || []).filter(x => (Number(x.percent) || 0) > 0);
   let alloc = 0;
@@ -12,15 +14,21 @@ function previewPeriods(installment, price) {
     const isLast = i === per.length - 1;
     const amt = isLast ? (p - alloc) : Math.round(p * (Number(x.percent) || 0) / 100);
     alloc += amt;
+    if (mode === 'session') {
+      const n = Number(x.dueAtSession) || 0;
+      const dates = Array.isArray(sessionDates) ? sessionDates.filter(Boolean) : [];
+      const date = (n > 0 && dates.length) ? dates[Math.min(n, dates.length) - 1] : null;
+      return { amt, sessionN: n, date };
+    }
     return { amt, days: Number(x.dueOffsetDays) || 0 };
   });
 }
 
-export default function PaymentPlanChoice({ installment, price, plan, paymentMethod, onChange, hideMethod = false }) {
+export default function PaymentPlanChoice({ installment, price, plan, paymentMethod, onChange, hideMethod = false, mode = 'days', sessionDates }) {
   const enabledPay = useEnabledPayments();
   const has = installment?.enabled && (installment.periods?.length >= 2);
   if (!has) return null;
-  const rows = previewPeriods(installment, price);
+  const rows = previewPeriods(installment, price, mode, sessionDates);
   return (
     <div style={{ border: '0.5px solid #E8D5D5', borderRadius: 8, padding: 12, background: '#FBF5F5', marginBottom: 12 }}>
       <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>付款方式（此項目可分期）</div>
@@ -32,12 +40,22 @@ export default function PaymentPlanChoice({ installment, price, plan, paymentMet
       </div>
       {plan === 'installment' && (
         <div>
-          {rows.map((r, i) => (
-            <div key={i} style={{ fontSize: 12, color: '#555', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-              <span>第 {i + 1} 期{i === 0 ? '（簽約當下收）' : `（${r.days} 天後到期）`}</span>
-              <span style={{ fontWeight: 600 }}>NT${r.amt.toLocaleString()}</span>
-            </div>
-          ))}
+          {rows.map((r, i) => {
+            let label;
+            if (mode === 'session') {
+              label = r.sessionN <= 0
+                ? '（簽約當下收）'
+                : `（第${r.sessionN}堂課到期${r.date ? `・${dayjs(r.date).format('M/D')}` : ''}）`;
+            } else {
+              label = i === 0 ? '（簽約當下收）' : `（${r.days} 天後到期）`;
+            }
+            return (
+              <div key={i} style={{ fontSize: 12, color: '#555', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                <span>第 {i + 1} 期{label}</span>
+                <span style={{ fontWeight: 600 }}>NT${r.amt.toLocaleString()}</span>
+              </div>
+            );
+          })}
           {hideMethod
             ? <div style={{ fontSize: 11, color: '#854F0B', marginTop: 8 }}>選擇分期後，下方付款即為「第一期（頭款）」金額；其餘各期依上表到期繳交。</div>
             : (
