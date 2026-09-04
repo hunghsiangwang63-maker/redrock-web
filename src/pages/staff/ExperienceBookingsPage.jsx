@@ -298,6 +298,8 @@ export default function ExperienceBookingsPage() {
     try {
       const r = await client.post(`/experience-bookings/${b.id}/send-insurance-email`);
       showMsg('📧 ' + (r.data.message || '已寄送'));
+      // 樂觀更新：按鈕立即顯示「MM/DD 已寄保險」，不用等下次整批重新載入才反映
+      setBookings(list => list.map(x => x.id === b.id ? { ...x, lastInsuranceSentAt: { _seconds: Math.floor(Date.now()/1000) } } : x));
       if (tab==='history') loadHistory();
     } catch(e) { showMsg(e.response?.data?.message || '寄送失敗','red'); }
     finally { setSendingId(null); }
@@ -431,7 +433,10 @@ export default function ExperienceBookingsPage() {
                         <button onClick={()=>downloadInsurance(b.id)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>📋 保險名冊</button>
                       )}
                       {b.status!=='cancelled' && b.needsInsurance!==false && ctNeedsInsurance(b.courseType) && (
-                        <button disabled={sendingId===b.id} onClick={()=>sendInsurance(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:sendingId===b.id?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{sendingId===b.id?'寄送中…':'📧 寄送保險'}</button>
+                        <button disabled={sendingId===b.id} onClick={()=>sendInsurance(b)} title={b.lastInsuranceSentAt ? '可再發送一次' : undefined}
+                          style={{ height:28, padding:'0 12px', borderRadius:6, background:sendingId===b.id?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
+                          {sendingId===b.id ? '寄送中…' : b.lastInsuranceSentAt?._seconds ? `📧 ${dayjs(b.lastInsuranceSentAt._seconds*1000).format('MM/DD')} 已寄保險` : '📧 寄送保險'}
+                        </button>
                       )}
                       {b.status!=='cancelled' && (b.needsInsurance===false || !ctNeedsInsurance(b.courseType)) && <span style={{ fontSize:11, color:'#999' }}>{b.kind==='trial'?'試上免保險':'此課程免保險'}</span>}
                       {b.status==='confirmed' && (
