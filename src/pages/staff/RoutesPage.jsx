@@ -3,6 +3,13 @@ import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import { gymLabel } from '../../utils/gymLabel';
 
+// 各館牆面/區域固定選項（+「其他」可自行輸入）
+const AREA_OPTIONS = {
+  'gym-hsinchu': ['A1區','A2區','B區','C區','D區','E區','F區'],
+  'gym-shilin': ['A區','B區','C區','D區','E區','F區','G區','H區','I區','J區','K區'],
+};
+const OTHER_AREA = '__other__';
+
 // 抱石路線管理（2026-08-29 新增）：路線 CRUD＋IG 示範影片連結＋下架保留成績。
 // 編輯權限＝管理員/場館電腦(值班)/正職（後端 routeEditorGate 權威，此處僅同步顯示）。
 
@@ -32,6 +39,30 @@ const Modal = ({ title, onClose, children }) => (
 const inputStyle = { width:'100%', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, boxSizing:'border-box', color:'#333', background:'#fff' };
 const labelStyle = { fontSize:12, color:'#666', fontWeight:600, marginBottom:4, display:'block' };
 
+// 牆面/區域下拉（依館別給固定選項＋「其他」可輸入）。customMode 為獨立內部狀態（不能單靠 value 是否
+// 為空來推斷，否則剛選「其他」、還沒打字時 value='' 會誤判回「請選擇」，選取狀態就跳掉了）。
+function AreaSelect({ gymId, value, onChange }) {
+  const presets = AREA_OPTIONS[gymId] || [];
+  const [customMode, setCustomMode] = useState(!!value && !presets.includes(value));
+  return (
+    <>
+      <select style={inputStyle} value={customMode ? OTHER_AREA : value}
+        onChange={e => {
+          const v = e.target.value;
+          if (v === OTHER_AREA) { setCustomMode(true); onChange(''); }
+          else { setCustomMode(false); onChange(v); }
+        }}>
+        <option value="">請選擇</option>
+        {presets.map(a => <option key={a} value={a}>{a}</option>)}
+        <option value={OTHER_AREA}>其他（自行輸入）</option>
+      </select>
+      {customMode && (
+        <input style={{ ...inputStyle, marginTop:6 }} value={value} onChange={e => onChange(e.target.value)} placeholder="請輸入區域名稱" />
+      )}
+    </>
+  );
+}
+
 export default function RoutesPage() {
   const { staff, operator, activeGymId, viewGym } = useAuth();
   const role = operator?.role || staff?.role;
@@ -58,6 +89,7 @@ export default function RoutesPage() {
       .finally(() => setLoading(false));
   };
   useEffect(load, [effectiveGymId]);
+  useEffect(() => { setSelected(new Set()); }, [effectiveGymId]); // 切館清空選取，避免殘留跨館 id
   useEffect(() => { client.get('/climbing-routes/scoring-config').then(r => setScoring(r.data)).catch(() => {}); }, []);
 
   const [items, setItems] = useState([emptyItem()]);     // 批次新增：每條路線（顏色/難度/名稱）
@@ -111,6 +143,34 @@ export default function RoutesPage() {
     } catch (e) { setMsg({ ok:false, text: e.response?.data?.message || '刪除失敗' }); setDeleteTarget(null); }
   };
 
+  // 批次刪除：整區全選或勾選部分路線一起刪除
+  const [selected, setSelected] = useState(new Set());
+  const toggleOne = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleGroup = (ids, checked) => setSelected(s => {
+    const n = new Set(s);
+    ids.forEach(id => checked ? n.add(id) : n.delete(id));
+    return n;
+  });
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const doBulkDelete = async () => {
+    setBulkBusy(true);
+    try {
+      const ids = [...selected];
+      const res = await client.post('/climbing-routes/bulk-delete', { ids });
+      const { deletedCount, skipped } = res.data;
+      const skippedAscents = skipped.filter(s => s.reason === 'ROUTE_HAS_ASCENTS').length;
+      setMsg({
+        ok: true,
+        text: skipped.length
+          ? `已刪除 ${deletedCount} 條；${skipped.length} 條略過${skippedAscents ? `（${skippedAscents} 條已有完攀記錄，請改用「下架」）` : ''}`
+          : `已刪除 ${deletedCount} 條路線`,
+      });
+      setSelected(new Set()); setBulkConfirm(false); load();
+    } catch (e) { setMsg({ ok:false, text: e.response?.data?.message || '批次刪除失敗' }); setBulkConfirm(false); }
+    finally { setBulkBusy(false); }
+  };
+
   const active = routes.filter(r => r.status !== 'archived');
   const archived = routes.filter(r => r.status === 'archived');
   // 依區域分組
@@ -118,6 +178,9 @@ export default function RoutesPage() {
 
   const RouteRow = ({ r, isArchived }) => (
     <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', opacity: isArchived ? .55 : 1 }}>
+      {canEdit && (
+        <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleOne(r.id)} style={{ width:16, height:16, cursor:'pointer', flexShrink:0 }} />
+      )}
       <span style={{ fontSize:12, fontWeight:700, color:'#fff', background: GRADE_COLORS[r.grade]||'#666', padding:'3px 9px', borderRadius:8, minWidth:30, textAlign:'center' }}>{r.grade}</span>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>
@@ -178,26 +241,53 @@ export default function RoutesPage() {
           尚無路線——點右上「＋ 新增路線」建立第一條
         </div>
       ) : (
-        Object.entries(byArea).map(([area, list]) => (
-          <div key={area} style={{ marginBottom:16 }}>
-            <div style={{ fontSize:12, fontWeight:700, color:'#8B1A1A', marginBottom:6 }}>{area}（{list.length}）</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-              {list.map(r => <RouteRow key={r.id} r={r} />)}
+        Object.entries(byArea).map(([area, list]) => {
+          const ids = list.map(r => r.id);
+          const allChecked = ids.every(id => selected.has(id));
+          return (
+            <div key={area} style={{ marginBottom:16 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                {canEdit && (
+                  <input type="checkbox" checked={allChecked} onChange={e => toggleGroup(ids, e.target.checked)}
+                    style={{ width:16, height:16, cursor:'pointer' }} title="全選本區" />
+                )}
+                <div style={{ fontSize:12, fontWeight:700, color:'#8B1A1A' }}>{area}（{list.length}）</div>
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {list.map(r => <RouteRow key={r.id} r={r} />)}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
 
       {archived.length > 0 && (
         <div style={{ marginTop:20 }}>
-          <div onClick={() => setShowArchived(v => !v)} style={{ fontSize:12, fontWeight:600, color:'#999', cursor:'pointer', marginBottom:6 }}>
-            {showArchived ? '▼' : '▶'} 已下架（{archived.length}）
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+            <div onClick={() => setShowArchived(v => !v)} style={{ fontSize:12, fontWeight:600, color:'#999', cursor:'pointer' }}>
+              {showArchived ? '▼' : '▶'} 已下架（{archived.length}）
+            </div>
+            {showArchived && canEdit && (
+              <input type="checkbox" checked={archived.every(r => selected.has(r.id))}
+                onChange={e => toggleGroup(archived.map(r => r.id), e.target.checked)}
+                style={{ width:16, height:16, cursor:'pointer' }} title="全選已下架" />
+            )}
           </div>
           {showArchived && (
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
               {archived.map(r => <RouteRow key={r.id} r={r} isArchived />)}
             </div>
           )}
+        </div>
+      )}
+
+      {selected.size > 0 && (
+        <div style={{ position:'sticky', bottom:16, marginTop:16, background:'#fff', border:'1px solid #E8D5D5', borderRadius:12, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', boxShadow:'0 2px 10px rgba(0,0,0,.08)' }}>
+          <div style={{ fontSize:13, color:'#444' }}>已選取 {selected.size} 條路線</div>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={() => setSelected(new Set())} style={{ fontSize:12, padding:'7px 12px', borderRadius:8, border:'1px solid #ddd', background:'#fff', cursor:'pointer', color:'#666' }}>取消選取</button>
+            <button onClick={() => setBulkConfirm(true)} style={{ fontSize:12, padding:'7px 12px', borderRadius:8, border:'none', background:'#A32D2D', color:'#fff', fontWeight:600, cursor:'pointer' }}>刪除選取</button>
+          </div>
         </div>
       )}
 
@@ -208,7 +298,7 @@ export default function RoutesPage() {
               <div>
                 <label style={labelStyle}>館別 *</label>
                 {isSuperAdmin ? (
-                  <select style={inputStyle} value={formGym} onChange={e => setFormGym(e.target.value)}>
+                  <select style={inputStyle} value={formGym} onChange={e => { setFormGym(e.target.value); setForm(f => ({ ...f, area:'' })); }}>
                     {GYM_OPTIONS.map(g => <option key={g.id} value={g.id}>{g.label}</option>)}
                   </select>
                 ) : (
@@ -217,7 +307,7 @@ export default function RoutesPage() {
               </div>
               <div>
                 <label style={labelStyle}>牆面/區域 *</label>
-                <input style={inputStyle} value={form.area} onChange={e => setForm(f => ({ ...f, area:e.target.value }))} placeholder="例：B區、斜板牆" />
+                <AreaSelect gymId={formGym} value={form.area} onChange={v => setForm(f => ({ ...f, area:v }))} />
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
@@ -283,7 +373,7 @@ export default function RoutesPage() {
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
               <div>
                 <label style={labelStyle}>牆面/區域 *</label>
-                <input style={inputStyle} value={form.area} onChange={e => setForm(f => ({ ...f, area:e.target.value }))} placeholder="例：B區、斜板牆" />
+                <AreaSelect gymId={editTarget?.gymId} value={form.area} onChange={v => setForm(f => ({ ...f, area:v }))} />
               </div>
               <div>
                 <label style={labelStyle}>岩點顏色 *</label>
@@ -342,6 +432,21 @@ export default function RoutesPage() {
           <div style={{ display:'flex', gap:10, marginTop:18 }}>
             <button onClick={() => setDeleteTarget(null)} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #ddd', background:'#fff', fontSize:13, cursor:'pointer', color:'#666' }}>取消</button>
             <button onClick={doDelete} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background:'#A32D2D', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>確定刪除</button>
+          </div>
+        </Modal>
+      )}
+
+      {bulkConfirm && (
+        <Modal title="批次刪除路線" onClose={() => !bulkBusy && setBulkConfirm(false)}>
+          <div style={{ fontSize:13, color:'#444', lineHeight:1.7, textAlign:'left' }}>
+            確定要永久刪除已選取的 <b>{selected.size}</b> 條路線？<br/>
+            其中已有會員完攀記錄的路線會自動略過（請改用「下架」保留成績），不影響其餘路線刪除。
+          </div>
+          <div style={{ display:'flex', gap:10, marginTop:18 }}>
+            <button onClick={() => setBulkConfirm(false)} disabled={bulkBusy} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'1px solid #ddd', background:'#fff', fontSize:13, cursor: bulkBusy?'default':'pointer', color:'#666' }}>取消</button>
+            <button onClick={doBulkDelete} disabled={bulkBusy} style={{ flex:1, padding:'10px 0', borderRadius:10, border:'none', background: bulkBusy?'#ccc':'#A32D2D', color:'#fff', fontSize:13, fontWeight:600, cursor: bulkBusy?'default':'pointer' }}>
+              {bulkBusy ? '刪除中...' : '確定刪除'}
+            </button>
           </div>
         </Modal>
       )}
