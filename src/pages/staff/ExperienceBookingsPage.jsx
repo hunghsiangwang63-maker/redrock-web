@@ -305,6 +305,19 @@ export default function ExperienceBookingsPage() {
     finally { setSendingId(null); }
   };
 
+  // 要保書收件狀態：0=待收要保書（預設）／1=已有要保書／2=無需保險（人工覆寫）
+  const updateInsuranceFormStatus = async (b, status) => {
+    const prev = b.insuranceFormStatus ?? 0;
+    if (status === prev) return;
+    setBookings(list => list.map(x => x.id === b.id ? { ...x, insuranceFormStatus: status } : x)); // 樂觀更新
+    try {
+      await client.post(`/experience-bookings/${b.id}/insurance-form-status`, { status });
+    } catch (e) {
+      setBookings(list => list.map(x => x.id === b.id ? { ...x, insuranceFormStatus: prev } : x)); // 失敗回復
+      showMsg(e.response?.data?.message || '更新失敗','red');
+    }
+  };
+
   // ⚠️ 由寄送保險名冊、分頁切換、館別篩選、手動按鈕四處觸發，序號防過期回應覆蓋。
   const historySeqRef = useRef(0);
   const loadHistory = async (g) => {
@@ -437,6 +450,14 @@ export default function ExperienceBookingsPage() {
                           style={{ height:28, padding:'0 12px', borderRadius:6, background:sendingId===b.id?'#9CB9A6':'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
                           {sendingId===b.id ? '寄送中…' : b.lastInsuranceSentAt?._seconds ? `📧 ${dayjs(b.lastInsuranceSentAt._seconds*1000).format('MM/DD')} 已寄保險` : '📧 寄送保險'}
                         </button>
+                      )}
+                      {b.status!=='cancelled' && b.needsInsurance!==false && ctNeedsInsurance(b.courseType) && (
+                        <select value={b.insuranceFormStatus ?? 0} onChange={e=>updateInsuranceFormStatus(b, Number(e.target.value))}
+                          style={{ height:28, padding:'0 6px', borderRadius:6, border:'0.5px solid #CCC', fontSize:12, color:'#333', background:'#fff', cursor:'pointer' }}>
+                          <option value={0}>待收要保書</option>
+                          <option value={1}>已有要保書</option>
+                          <option value={2}>無需保險</option>
+                        </select>
                       )}
                       {b.status!=='cancelled' && (b.needsInsurance===false || !ctNeedsInsurance(b.courseType)) && <span style={{ fontSize:11, color:'#999' }}>{b.kind==='trial'?'試上免保險':'此課程免保險'}</span>}
                       {b.status==='confirmed' && (
