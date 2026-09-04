@@ -1,6 +1,7 @@
 // 報名/購買時的「一次付清 / 分期」選擇（僅在該課程/票種有開分期規則時顯示）
 // 用法（定期票，預設 mode='days'）：<PaymentPlanChoice installment={pt.installment} price={fee} plan={plan} paymentMethod={pm} onChange={...} />
 // 用法（課程，mode='session'）：<PaymentPlanChoice installment={course.installment} price={fee} mode="session" sessionDates={futureSessions.map(s=>s.date)} .../>
+import { useEffect } from 'react';
 import { useEnabledPayments, filterPayments } from '../utils/paymentMethods';
 import dayjs from 'dayjs';
 
@@ -27,18 +28,28 @@ function previewPeriods(installment, price, mode, sessionDates) {
 export default function PaymentPlanChoice({ installment, price, plan, paymentMethod, onChange, hideMethod = false, mode = 'days', sessionDates }) {
   const enabledPay = useEnabledPayments();
   const has = installment?.enabled && (installment.periods?.length >= 2);
+  // 課程分期一律強制分期（不提供一次付清選項）；定期票維持可自由選擇一次付清/分期
+  const forceInstallment = mode === 'session' && has;
+  useEffect(() => {
+    if (forceInstallment && plan !== 'installment') onChange({ plan: 'installment', paymentMethod: paymentMethod || 'cash' });
+  }, [forceInstallment, plan]);
   if (!has) return null;
   const rows = previewPeriods(installment, price, mode, sessionDates);
+  const effectivePlan = forceInstallment ? 'installment' : plan;
   return (
     <div style={{ border: '0.5px solid #E8D5D5', borderRadius: 8, padding: 12, background: '#FBF5F5', marginBottom: 12 }}>
-      <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>付款方式（此項目可分期）</div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: plan === 'installment' ? 10 : 0 }}>
-        {[{ k: 'full', l: '一次付清' }, { k: 'installment', l: `分期（${rows.length} 期）` }].map(o => (
-          <button key={o.k} type="button" onClick={() => onChange({ plan: o.k, paymentMethod: paymentMethod || 'cash' })}
-            style={{ flex: 1, height: 36, borderRadius: 8, border: `0.5px solid ${plan === o.k ? '#8B1A1A' : '#E8D5D5'}`, background: plan === o.k ? '#8B1A1A' : '#fff', color: plan === o.k ? '#fff' : '#666', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{o.l}</button>
-        ))}
+      <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+        {forceInstallment ? `此課程僅提供分期付款（分 ${rows.length} 期）` : '付款方式（此項目可分期）'}
       </div>
-      {plan === 'installment' && (
+      {!forceInstallment && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: plan === 'installment' ? 10 : 0 }}>
+          {[{ k: 'full', l: '一次付清' }, { k: 'installment', l: `分期（${rows.length} 期）` }].map(o => (
+            <button key={o.k} type="button" onClick={() => onChange({ plan: o.k, paymentMethod: paymentMethod || 'cash' })}
+              style={{ flex: 1, height: 36, borderRadius: 8, border: `0.5px solid ${plan === o.k ? '#8B1A1A' : '#E8D5D5'}`, background: plan === o.k ? '#8B1A1A' : '#fff', color: plan === o.k ? '#fff' : '#666', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{o.l}</button>
+          ))}
+        </div>
+      )}
+      {effectivePlan === 'installment' && (
         <div>
           {rows.map((r, i) => {
             let label;
@@ -61,7 +72,7 @@ export default function PaymentPlanChoice({ installment, price, plan, paymentMet
             : (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 11, color: '#666', marginBottom: 4 }}>頭款（第一期）收款方式</div>
-                <select value={paymentMethod || 'cash'} onChange={e => onChange({ plan, paymentMethod: e.target.value })}
+                <select value={paymentMethod || 'cash'} onChange={e => onChange({ plan: effectivePlan, paymentMethod: e.target.value })}
                   style={{ width: '100%', height: 34, borderRadius: 7, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, background: '#fff', color: '#1a1a1a' }}>
                   {filterPayments(PAY, enabledPay).map(m => <option key={m.k} value={m.k}>{m.l}</option>)}
                 </select>
