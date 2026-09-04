@@ -57,7 +57,7 @@ function RefundRulesBox({ course }) {
     );
   }
   const _r = Math.round(((course?.refundFeeRate ?? 0.2)) * 100);
-  const _p = Math.round(((course?.refundPreStartFeeRate ?? 0.05)) * 100);
+  const _p = Math.round(((course?.refundPreStartFeeRate ?? 0)) * 100);
   const _exFee = Math.round(6000 * _r / 100);
   return (
     <div style={RULE_BOX_STYLE}>

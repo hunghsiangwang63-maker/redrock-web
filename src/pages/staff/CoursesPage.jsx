@@ -112,7 +112,7 @@ export default function CoursesPage({ embedded = false }) {
   const EMPTY_CAT_FORM = {
     name: '', group: 'adult', description: '', color: '#8B1A1A', makeupTypeIds: [], makeupSelfType: '',
     allowTrial: false, trialPrice: '', leaveDeadlineHours: 2, maxLeaves: 2,
-    allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 20, preStartFeeRate: 5,
+    allowMakeup: true, makeupDeadlineDays: 60, perSessionDeduction: 850, handlingFeeRate: 20, preStartFeeRate: 0,
   };
   const [categoryForm, setCategoryForm] = useState(EMPTY_CAT_FORM);
   const [catImageFile, setCatImageFile] = useState(null);      // 班別廣告照片（建立/編輯後上傳）
@@ -419,7 +419,7 @@ export default function CoursesPage({ embedded = false }) {
       allowMakeup: c.allowMakeup !== false, makeupDeadlineDays: c.makeupDeadlineDays ?? 60,
       perSessionDeduction: c.perSessionDeduction ?? 850,
       handlingFeeRate: c.handlingFeeRate != null ? Math.round(c.handlingFeeRate * 100) : 20,
-      preStartFeeRate: c.preStartFeeRate != null ? Math.round(c.preStartFeeRate * 100) : 5,
+      preStartFeeRate: c.preStartFeeRate != null ? Math.round(c.preStartFeeRate * 100) : 0,
     });
   };
   const handleUpdateCategory = async () => {
@@ -1824,7 +1824,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                             )}
                           </div>
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {g === 'workshop' ? (c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`) : `一律開放・結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費 開課前{Math.round((c.preStartFeeRate ?? 0.05) * 100)}%/開課後{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
+                            請假 前{c.leaveDeadlineHours ?? 2}h/上限{c.maxLeaves ?? 2}次 · 補課 {g === 'workshop' ? (c.allowMakeup === false ? '關閉' : `結束後${c.makeupDeadlineDays ?? 60}天`) : `一律開放・結束後${c.makeupDeadlineDays ?? 60}天`} · 退費手續費 開課前{Math.round((c.preStartFeeRate ?? 0) * 100)}%/開課後{Math.round((c.handlingFeeRate ?? 0.2) * 100)}%
                           </div>
                         </div>
                       </div>
@@ -2177,7 +2177,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     { label:'舊生續報開始日（選填）', key:'alumniOpenDate', p: '', dtype:'date' },
                     { label:'公開報名開始日（選填）', key:'enrollOpenDate', p: '', dtype:'date' },
                     { label:'續報截止日（選填）', key:'renewalDeadline', p: '', dtype:'date' },
-                    { label:'退費：開課前手續費率（%）', key:'preStartFeeRate', p: `班別預設 ${Math.round((cat.preStartFeeRate ?? 0.05) * 100)}` },
+                    { label:'退費：開課前手續費率（%）', key:'preStartFeeRate', p: `班別預設 ${Math.round((cat.preStartFeeRate ?? 0) * 100)}` },
                     { label:'退費：開課後手續費率（%）', key:'handlingFeeRate', p: `班別預設 ${Math.round((cat.handlingFeeRate ?? 0.2) * 100)}` },
                   ].map(f => (
                     <div key={f.key}>
