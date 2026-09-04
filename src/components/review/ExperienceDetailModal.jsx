@@ -21,12 +21,15 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
   if (!record) return null;
 
   const participants = Array.isArray(record.participants) ? record.participants : [];
+  const isTrial = record.kind === 'trial';
   const confirm = async () => {
     setBusy(true); setError('');
     try {
+      // 課程試上走既有課程/場次報名（後端 kind==='trial' 分支完全不讀 coachId/coachName），
+      // 該堂課本身早就有自己的教練，這裡不用也不會另外指定/建排班
       await client.post(`/experience-bookings/${record.id}/confirm`,
-        coach.coachName ? { coachId: coach.coachId || undefined, coachName: coach.coachName } : {});
-      onDone?.(coach.coachName ? '已確認預約並排課/排班' : '已確認預約');
+        (!isTrial && coach.coachName) ? { coachId: coach.coachId || undefined, coachName: coach.coachName } : {});
+      onDone?.((!isTrial && coach.coachName) ? '已確認預約並排課/排班' : '已確認預約');
     } catch (e) {
       setError(e.response?.data?.message || '確認失敗，請重試');
       setBusy(false);
@@ -37,7 +40,7 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, backdropFilter: 'blur(3px)' }}>
       <div style={{ background: '#fff', borderRadius: 16, padding: 24, width: '100%', maxWidth: 460, maxHeight: '88vh', overflowY: 'auto', border: '0.5px solid #E8D5D5' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>🧗 體驗預約詳情</div>
+          <div style={{ fontSize: 16, fontWeight: 600 }}>🧗 {isTrial ? '課程試上詳情' : '體驗預約詳情'}</div>
           <span onClick={onClose} style={{ cursor: 'pointer', color: '#999', fontSize: 18 }}>×</span>
         </div>
 
@@ -46,6 +49,7 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
           {record.contactEmail && <Row label="Email">{record.contactEmail}</Row>}
           <Row label="體驗日期">{record.bookingDate || '—'}{record.bookingTime ? ` ${record.bookingTime}` : ''}</Row>
           <Row label="課程類型">{record.courseTypeName || record.courseType || '—'}</Row>
+          {record.kind === 'trial' && record.courseName && <Row label="試上課程">{record.courseName}</Row>}
           <Row label="人數">{record.numParticipants || participants.length || '—'} 人</Row>
           <Row label="費用"><strong style={{ color: '#A32D2D' }}>NT${(record.totalFee || 0).toLocaleString()}</strong></Row>
           <Row label="館別">{GYM_LABEL[record.gymId] || record.gymId || '—'}</Row>
@@ -72,11 +76,13 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
           </div>
         )}
 
+        {!isTrial && (
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, fontWeight: 600, color: '#666', marginBottom: 6 }}>指定教練（選填）</div>
           <CoachSelect gymId={record.gymId} value={coach} onChange={setCoach} style={fieldStyle} />
           <div style={{ fontSize: 11, color: '#999', marginTop: 5 }}>指定後將自動建立體驗課程與該教練當日排班；不指定則僅確認收款。</div>
         </div>
+        )}
 
         {error && <div style={{ background: '#FCEBEB', borderRadius: 8, padding: '8px 12px', fontSize: 13, color: '#A32D2D', marginBottom: 12 }}>{error}</div>}
 
