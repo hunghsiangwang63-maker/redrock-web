@@ -168,7 +168,7 @@ export default function MemberRoutesPage() {
       const isPhone = /^[0-9+]+$/.test(q);
       const res = await memberClient.get('/climbing-routes/search-member', { params: { ...(isPhone ? { phone: q } : { name: q }), excludeMemberId: effectiveViewAsId } });
       const results = (res.data.results || []).filter(m => !tagSelected.some(s => s.id === m.id));
-      if (!results.length) setTagSearchErr('查無符合的會員（電話需完整、姓名需完全一致）');
+      if (!results.length) setTagSearchErr('查無符合的會員（電話需完整、姓名或暱稱需完全一致）');
       setTagResults(results);
     } catch (e) { setTagSearchErr(e.response?.data?.message || '搜尋失敗'); }
     finally { setTagSearching(false); }
@@ -609,7 +609,7 @@ export default function MemberRoutesPage() {
             <div style={{ display:'flex', gap:6, marginBottom:8 }}>
               <input value={tagQuery} onChange={e => setTagQuery(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') searchTagFriends(); }}
-                placeholder="輸入電話或完整姓名搜尋"
+                placeholder="輸入電話、完整姓名或暱稱搜尋"
                 style={{ flex:1, boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
               <button onClick={searchTagFriends} disabled={tagSearching || !tagQuery.trim()}
                 style={{ padding:'0 16px', borderRadius:8, border:'none', background: tagSearching ? '#ccc' : '#8B1A1A', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
