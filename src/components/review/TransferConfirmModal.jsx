@@ -72,6 +72,9 @@ export default function TransferConfirmModal({ record, onClose, onDone }) {
             </Row>
           )}
           <Row label="應收金額"><strong style={{ color: '#A32D2D' }}>NT${(record.amount || 0).toLocaleString()}</strong></Row>
+          {record.courseFeeCalc?.note && (
+            <Row label="計算過程"><span style={{ color: '#2D7D46' }}>{record.courseFeeCalc.note}</span></Row>
+          )}
           <Row label="會員填實際匯款">{record.paidAmount != null
             ? <strong style={{ color: Number(record.paidAmount) !== Number(record.amount||0) ? '#B45309' : '#2D7D46' }}>NT${Number(record.paidAmount).toLocaleString()}{Number(record.paidAmount) !== Number(record.amount||0) && '（與應收不符）'}</strong>
             : <span style={{ color: '#bbb' }}>未填</span>}</Row>

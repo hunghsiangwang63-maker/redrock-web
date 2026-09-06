@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { createInstallmentPlan, markInstallmentPaid, getAllInstallments, runOverdueCheck, sendInstallmentReminders } from '../../api/installments';
+import { createInstallmentPlan, markInstallmentPaid, markInstallmentPaidInFull, getAllInstallments, runOverdueCheck, sendInstallmentReminders } from '../../api/installments';
 import { searchMembers } from '../../api/members';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -64,6 +64,12 @@ export default function InstallmentsPage({ embedded = false }) {
   const [payingSeq, setPayingSeq] = useState(null);
   const [payMethod, setPayMethod] = useState('cash');
   const [paying, setPaying] = useState(false);
+
+  // 整筆標記已一次繳清（實際上非依原分期時間分次繳，管理員直接登記結清）
+  const [fullPayPlan, setFullPayPlan] = useState(null);
+  const [fullPayMethod, setFullPayMethod] = useState('cash');
+  const [fullPayNote, setFullPayNote] = useState('');
+  const [fullPaying, setFullPaying] = useState(false);
 
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 4000); };
 
@@ -172,6 +178,20 @@ export default function InstallmentsPage({ embedded = false }) {
     } finally { setPaying(false); }
   };
 
+  const openFullPayModal = (plan) => { setFullPayPlan(plan); setFullPayMethod('cash'); setFullPayNote(''); };
+
+  const handleMarkPaidInFull = async () => {
+    setFullPaying(true);
+    try {
+      const res = await markInstallmentPaidInFull(fullPayPlan.id, fullPayMethod, fullPayNote.trim() || undefined);
+      showMsg(res.data.message);
+      setFullPayPlan(null);
+      await loadPlans();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '標記失敗', 'red');
+    } finally { setFullPaying(false); }
+  };
+
   const handleRunOverdueCheck = async () => {
     try {
       const res = await runOverdueCheck();
@@ -244,7 +264,15 @@ export default function InstallmentsPage({ embedded = false }) {
                       {p.relatedType === 'course' ? '課程報名' : '定期票'} · 總額 NT${p.totalAmount.toLocaleString()} · 已繳 {paidCount}/{p.installments.length} 期
                     </div>
                   </div>
-                  <Tag type={st.type}>{st.label}</Tag>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <Tag type={st.type}>{st.label}</Tag>
+                    {(p.status === 'active' || p.status === 'overdue') && (
+                      <button onClick={() => openFullPayModal(p)}
+                        style={{ height:26, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:11, cursor:'pointer', whiteSpace:'nowrap' }}>
+                        整筆標記已繳清
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                   {p.installments.map(i => (
@@ -411,6 +439,46 @@ export default function InstallmentsPage({ embedded = false }) {
           </div>
         </Modal>
       )}
+      {/* 整筆標記已繳清 Modal：實際上非依原分期時間分次繳、已一次性收款時使用 */}
+      {fullPayPlan && (() => {
+        const unpaid = fullPayPlan.installments.filter(i => i.status !== 'paid');
+        const unpaidTotal = unpaid.reduce((s, i) => s + (i.amount || 0), 0);
+        return (
+          <Modal title="整筆標記已繳清" onClose={() => setFullPayPlan(null)} width={420}>
+            <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:16, fontSize:13, lineHeight:1.7 }}>
+              {fullPayPlan.memberName} — {fullPayPlan.itemName}<br/>
+              未繳 {unpaid.length} 期，合計 <strong>NT${unpaidTotal.toLocaleString()}</strong>
+            </div>
+            <div style={{ background:'#FAEEDA', border:'0.5px solid #EAD3A0', borderRadius:8, padding:'8px 12px', marginBottom:16, fontSize:12, color:'#854F0B', lineHeight:1.7 }}>
+              用於「實際上會員已一次性繳清、不依原訂各期日期分次繳」的情況——確認後未繳清的各期會一次全部標記已收款並補記帳，計畫狀態轉為已結清，之後<strong>不會再發送任何分期到期／逾期提醒</strong>。
+            </div>
+            <div style={{ marginBottom:16 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8 }}>實際收款方式</label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {filterPayments(PAY_METHODS, enabledPay).map(pm => (
+                  <button key={pm.key} onClick={() => setFullPayMethod(pm.key)}
+                    style={{ height:38, borderRadius:8, border: fullPayMethod===pm.key?'none':'0.5px solid #E8D5D5', background: fullPayMethod===pm.key?'#8B1A1A':'#fff', color: fullPayMethod===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                    {pm.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ marginBottom:20 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
+              <input value={fullPayNote} onChange={e => setFullPayNote(e.target.value)} placeholder="例如：現場一次現金繳清"
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={() => setFullPayPlan(null)}
+                style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+              <button onClick={handleMarkPaidInFull} disabled={fullPaying}
+                style={{ flex:2, height:42, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+                {fullPaying ? '處理中...' : '確認整筆已繳清'}
+              </button>
+            </div>
+          </Modal>
+        );
+      })()}
     </div>
   );
 }
