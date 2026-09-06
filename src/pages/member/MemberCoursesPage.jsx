@@ -89,6 +89,61 @@ function RefundRulesBox({ course }) {
     </div>
   );
 }
+// 課程服務同意書完整條款（報名步驟「合約條款」專用，僅週課出現）——文字須與後端 courseContractPdf.js 的
+// termsBlock() 逐字同步：改其中一邊要跟著改另一邊，前者是報名當下給會員看的版本、後者是報名完成後
+// 產生 PDF 寄送存證的版本，兩者內容必須完全一致（僅退費費率兩個百分比為動態值，算法相同）。
+function FullContractTermsBox({ course }) {
+  const postRate = Math.round(((course?.refundFeeRate ?? 0.2)) * 100);
+  const preRate = Math.round(((course?.refundPreStartFeeRate ?? 0)) * 100);
+  const S = { ...RULE_BOX_STYLE, lineHeight: 1.6, fontSize: 11.5 };
+  const sub = { paddingLeft: 14 };
+  return (
+    <div style={S}>
+      <div>1. 課程與服務相關條款皆有三天審閱期，未開始上課前可全額退費，未能依課程安排期限內使用完畢可依請假規定辦理暫停、延期。</div>
+      <div style={{ marginTop: 8 }}>2. 若遇以下事項可辦理展延或退費，須事先提出相關文件證明，釋明下列事由之一者：</div>
+      <div style={sub}>
+        ・出國逾一個月。<br/>
+        ・受傷、疾病或身體不適致不宜運動。<br/>
+        ・懷孕、育嬰、侍親之需要。<br/>
+        ・服兵役致難以履約。<br/>
+        ・職務異動或遷居致難以履約。<br/>
+        ・或是其他事由致難以履約。
+      </div>
+      <div style={{ marginTop: 8 }}>3. 終止課程、轉讓與解約</div>
+      <div style={sub}>
+        ・課程可於當期期限內轉讓（限一次），轉讓費為 600 元。<br/>
+        ・若甲方因個人因素終止本課程，得申請退費：
+        <div style={{ ...sub, marginTop: 4 }}>
+          (1) 退費金額計算公式：
+          <div style={sub}>
+            ・退費金額＝剩餘堂數價金－手續費<br/>
+            ・每堂單價：課程費用÷總堂數<br/>
+            ・剩餘堂數：總堂數－已開課堂數（不論學員實際有無出席或請假，皆以已開課天數計算）。
+          </div>
+          (2) 手續費比例：
+          <div style={sub}>
+            ・開課前申請退費：{preRate > 0 ? `收取總課程費用之 ${preRate}%。` : '不收取手續費。'}<br/>
+            ・開課後申請退費：收取剩餘堂數價金之 {postRate}%。
+          </div>
+        </div>
+      </div>
+      <div style={{ marginTop: 8 }}>4. 乙方服務之異動通知：乙方所提供服務內容與時間如有異動，須事先通知，且應與原定開始服務時間相距24個小時以上，其通知方式約定如下：</div>
+      <div style={sub}>
+        ・公告於乙方網站：app.redrocktaiwan.com<br/>
+        ・若乙方未依前項約定時間方式通知，甲方得請求乙方於限期 7 日內提供甲方同意之補課方案。
+      </div>
+      <div style={{ marginTop: 8 }}>5. 不可歸責雙方事由之終止與效果：因天災、戰亂、政府法令之新增或變更等不可抗力或其他不可歸責於雙方當事人之事由，致難以完成本契約之服務時，任何一方得終止契約，乙方應依未服務之堂數（含所贈與服務堂數）計算餘額退還予甲方，不得收取手續費、違約金或任何名目費用。</div>
+      <div style={{ marginTop: 8 }}>6. 不可歸責乙方事由之終止與效果：甲方有影響乙方營運之不當行為情節重大，經勸告無效者，乙方得終止契約，並應依未服務之堂數（含所贈與服務堂數）計算餘額退還予甲方，不得收取手續費用、違約金或任何名目費用。</div>
+      <div style={{ marginTop: 8 }}>7. 可歸責乙方事由之終止與效果：可歸責乙方之事由致無法繼續提供約定服務（含所贈與服務堂數），應依未服務之堂數計算餘額退還予甲方，不得收取手續費、違約金或任何名目之扣費。</div>
+      <div style={{ marginTop: 8 }}>8. 甲方是否需預約才可消費？</div>
+      <div style={sub}>・甲方參加教練服務之時需依照課程已排定之時段準時參加。</div>
+      <div style={{ marginTop: 8 }}>9. 若甲方無法依約定時間參加教練服務時，須事先通知，甲方若未依前項約定時間方式通知，乙方則能不予補課。</div>
+      <div style={{ marginTop: 8 }}>10. 贈品約款及其效果：一定期間免費入場。</div>
+      <div style={{ marginTop: 8 }}>11. 消費資訊及廣告：乙方之廣告，均為契約內容。乙方應確保其廣告內容真實，其對甲方所應負義務不得低於前項廣告內容。</div>
+      <div style={{ marginTop: 8 }}>12. 合意管轄：因本契約發生訴訟時，雙方同意以新竹地方法院為第一審管轄法院，但不得排除消費者保護法第四十七條或民事訴訟法第二十八條第二項、第四百三十六條之九規定之小額訴訟管轄法院之適用。</div>
+    </div>
+  );
+}
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import { isUnder4 } from '../../utils/age';
@@ -145,6 +200,7 @@ export default function MemberCoursesPage() {
   const [confirmedLeavePolicy, setConfirmedLeavePolicy] = useState(false);
   const [confirmedExtensionPolicy, setConfirmedExtensionPolicy] = useState(false);
   const [confirmedRefundPolicy, setConfirmedRefundPolicy] = useState(false);
+  const [confirmedContractTerms, setConfirmedContractTerms] = useState(false); // 合約完整條款（僅週課步驟出現）
   const [portraitSig, setPortraitSig] = useState(null);
   const [guardianSig, setGuardianSig] = useState(null);
   const [massageGender, setMassageGender] = useState('');   // 客製報名：性別
@@ -306,6 +362,13 @@ export default function MemberCoursesPage() {
   // 小蜘蛛人/青少年（班別大類 group==='youth'）限未滿18歲——一選好課程/報名對象就提醒，
   // 避免家長忘記切換成子女、填完整份報名表最後才被後端擋下（友善提示，後端 handleEnrollAll/handleTrialBooking 仍為權威）
   const youthAgeBlocked = selectedCourse?.categoryGroup === 'youth' && !targetIsMinor;
+  // 報名步驟序列：合約條款（完整條款內容）僅週課出現（工作坊不產生合約 PDF，見 courseContractService）；
+  // 肖像授權(簽名)依 selectedCourse.skipSignature 決定要不要出現——步驟數與內容一律依此陣列驅動，
+  // 避免用寫死的數字判斷（哪個 key 對應第幾步會依課程類型而不同，數字硬寫容易錯位）。
+  const enrollStepKeys = ['pay', 'health', 'rules',
+    ...(selectedCourse?.type !== 'workshop' ? ['contract'] : []),
+    ...(selectedCourse?.skipSignature ? [] : ['sign'])];
+  const enrollStepKey = enrollStepKeys[enrollStep - 1];
 
   useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, [member?.id]);
 
@@ -497,6 +560,7 @@ export default function MemberCoursesPage() {
     setConfirmedLeavePolicy(false);
     setConfirmedExtensionPolicy(false);
     setConfirmedRefundPolicy(false);
+    setConfirmedContractTerms(false);
     setPortraitSig(null);
     setMassageGender(''); setMassageAge(''); setMassageNote('');
     setGuardianSig(null);
@@ -520,6 +584,7 @@ export default function MemberCoursesPage() {
         confirmedLeavePolicy,
         confirmedExtensionPolicy,
         confirmedRefundPolicy,
+        confirmedContractTerms,
         portraitSignature: selectedCourse?.skipSignature ? null : (portraitSig || null),
         guardianSignature: selectedCourse?.skipSignature ? null : (guardianSig || null),
         enrollGender: massageGender || null,
@@ -2275,11 +2340,11 @@ export default function MemberCoursesPage() {
                 <button onClick={resetEnrollModal} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
               </div>
               <div style={{ display:'flex', gap:6 }}>
-                {[(enrollSession.isWaitlist ? '候補說明' : '付款資訊'),'健康備註','規則確認',...(selectedCourse?.skipSignature ? [] : ['肖像授權'])].map((s,i) => (
+                {enrollStepKeys.map((_,i) => (
                   <div key={i} style={{ flex:1, height:3, borderRadius:2, background: enrollStep > i+1 ? '#2D7D46' : enrollStep === i+1 ? '#8B1A1A' : '#E8D5D5' }} />
                 ))}
               </div>
-              <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'center' }}>步驟 {enrollStep} / {selectedCourse?.skipSignature ? 3 : 4}</div>
+              <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'center' }}>步驟 {enrollStep} / {enrollStepKeys.length}</div>
             </div>
 
             {/* Scrollable content */}
@@ -2297,7 +2362,7 @@ export default function MemberCoursesPage() {
             )}
 
             {/* Step 1: 付款資訊 */}
-            {enrollStep === 1 && (<>
+            {enrollStepKey === 'pay' && (<>
               {/* 為誰報名 */}
               {familyMembers.length > 0 && (
                 <div style={{ marginBottom:14 }}>
@@ -2361,7 +2426,7 @@ export default function MemberCoursesPage() {
             </>)}
 
             {/* Step 2: 健康備註 + 得知管道 */}
-            {enrollStep === 2 && (<>
+            {enrollStepKey === 'health' && (<>
               {selectedCourse?.collectGenderAge && (
                 <div style={{ display:'flex', gap:10, marginBottom:14 }}>
                   <div style={{ flex:1, minWidth:0 }}>
@@ -2409,7 +2474,7 @@ export default function MemberCoursesPage() {
             </>)}
 
             {/* Step 3: 規則確認 */}
-            {enrollStep === 3 && (<>
+            {enrollStepKey === 'rules' && (<>
               {selectedCourse.type !== 'workshop' && (
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假、補課方式</div>
@@ -2438,8 +2503,23 @@ export default function MemberCoursesPage() {
               </div>
             </>)}
 
+            {/* Step: 合約條款（完整內容，僅週課出現；工作坊不產生合約書、無此步驟） */}
+            {enrollStepKey === 'contract' && (<>
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>📜 課程服務同意書 完整條款內容</div>
+                <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
+                  以下為「紅石攀岩館 抱石課程服務同意書」完整條款內容（符合111年體育局所制定定型化契約內容相關規範），請詳閱後勾選同意；完整合約書將於報名完成後以 PDF 寄送至您的信箱留存。
+                </div>
+                <FullContractTermsBox course={selectedCourse}/>
+                <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedContractTerms?'#2D7D46':'#E8D5D5'}`, background: confirmedContractTerms?'#E6F4EB':'#fff', cursor:'pointer', marginTop:10 }}>
+                  <input type="checkbox" checked={confirmedContractTerms} onChange={e => setConfirmedContractTerms(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
+                  <span style={{ fontSize:13, fontWeight:500, color: confirmedContractTerms?'#2D7D46':'#444' }}>我已詳閱並同意本課程服務同意書之完整條款內容</span>
+                </label>
+              </div>
+            </>)}
+
             {/* Step 4: 肖像授權 */}
-            {enrollStep === 4 && (<>
+            {enrollStepKey === 'sign' && (<>
               <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:16, fontSize:12, color:'#444', lineHeight:1.8 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>【肖像權授權同意聲明】</div>
                 本課程進行期間，紅石攀岩館將不定期進行拍攝或攝影。學員報名本課程，即視為同意授權紅石攀岩館得將含有學員肖像之照片、影像及聲音，基於課程招生或活動宣傳目的，進行編輯、重製，並公開發表於官方網站、社群平台等宣傳管道。若有不便入鏡之需求，請於課程開始時主動告知。
@@ -2479,20 +2559,27 @@ export default function MemberCoursesPage() {
                   style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>← 上一步</button>
               )}
               {(() => {
-                const _lastStep = selectedCourse?.skipSignature ? 3 : 4;
-                const _step2Ok = () => {
-                  if (selectedCourse?.collectGenderAge && (!massageGender || !massageAge)) { showMsg('請填寫性別與年齡', 'red'); return false; }
-                  if (selectedCourse?.enrollNoteRequired && !massageNote.trim()) { showMsg(`請填寫「${selectedCourse.enrollNoteLabel || '備註'}」`, 'red'); return false; }
+                const _lastStep = enrollStepKeys.length;
+                // 逐步驗證：抽成單一函式供「下一步」與「確認報名」兩個按鈕共用（原本兩處各自複製一份同樣的
+                // 檢查，改一處容易漏改另一處——見本專案歷次「同段邏輯平行複製」教訓，此次順手收斂）。
+                const _validateStep = () => {
+                  if (enrollStepKey === 'health') {
+                    if (selectedCourse?.collectGenderAge && (!massageGender || !massageAge)) { showMsg('請填寫性別與年齡', 'red'); return false; }
+                    if (selectedCourse?.enrollNoteRequired && !massageNote.trim()) { showMsg(`請填寫「${selectedCourse.enrollNoteLabel || '備註'}」`, 'red'); return false; }
+                  }
+                  if (enrollStepKey === 'rules' && (!confirmedRefundPolicy || !confirmedExtensionPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
+                    showMsg(selectedCourse.type === 'workshop' ? '請確認展延、退費方式' : '請確認請假、展延與退費方式', 'red'); return false;
+                  }
+                  if (enrollStepKey === 'contract' && !confirmedContractTerms) {
+                    showMsg('請詳閱並勾選同意課程服務同意書之完整條款內容', 'red'); return false;
+                  }
                   return true;
                 };
                 const _sigOk = selectedCourse?.skipSignature || (portraitSig && (!targetIsMinor || guardianSig));
                 const _submitDisabled = loading || targetUnder4 || youthAgeBlocked || !_sigOk;
                 return enrollStep < _lastStep ? (
                   <button onClick={() => {
-                    if (enrollStep === 2 && !_step2Ok()) return;
-                    if (enrollStep === 3 && (!confirmedRefundPolicy || !confirmedExtensionPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
-                      showMsg(selectedCourse.type === 'workshop' ? '請確認展延、退費方式' : '請確認請假、展延與退費方式', 'red'); return;
-                    }
+                    if (!_validateStep()) return;
                     setEnrollStep(s => s+1);
                   }}
                     style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
@@ -2500,10 +2587,7 @@ export default function MemberCoursesPage() {
                   </button>
                 ) : (
                   <button onClick={() => {
-                    if (enrollStep === 2 && !_step2Ok()) return;
-                    if (enrollStep === 3 && (!confirmedRefundPolicy || !confirmedExtensionPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
-                      showMsg(selectedCourse.type === 'workshop' ? '請確認展延、退費方式' : '請確認請假、展延與退費方式', 'red'); return;
-                    }
+                    if (!_validateStep()) return;
                     handleEnroll();
                   }} disabled={_submitDisabled}
                     style={{ flex:2, height:44, borderRadius:10, background: _submitDisabled ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: _submitDisabled ? 'not-allowed' : 'pointer' }}>
