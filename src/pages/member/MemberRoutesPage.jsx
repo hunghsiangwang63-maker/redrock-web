@@ -65,6 +65,18 @@ export default function MemberRoutesPage() {
   const [tagSubmitting, setTagSubmitting] = useState(false);
   const [tagMsg, setTagMsg] = useState(null);
 
+  // 排列方式（2026-09-07 新增）：區域(預設，現況)/難度/推薦度(=既有讚數)/分享次數/被標記次數(=既有tag朋友功能)。
+  // 區域/難度是「分組」顯示（各自的區塊標題）；推薦度/分享次數/被標記次數是「熱門度」，做成無分組的排序清單。
+  const [sortMode, setSortMode] = useState(() => localStorage.getItem('memberRouteSort') || 'area');
+  const changeSortMode = (m) => { setSortMode(m); localStorage.setItem('memberRouteSort', m); };
+  const SORT_MODES = [
+    { key: 'area', label: '📍 區域' },
+    { key: 'grade', label: '🎯 難度' },
+    { key: 'likes', label: '❤️ 推薦度' },
+    { key: 'shares', label: '🔗 分享次數' },
+    { key: 'tags', label: '👥 被標記次數' },
+  ];
+
   const changeGym = (g) => { setGymId(g); localStorage.setItem('memberRouteGym', g); };
 
   const load = () => {
@@ -121,22 +133,35 @@ export default function MemberRoutesPage() {
     } catch (e) { setPrefMsg(e.response?.data?.message || '儲存失敗'); }
     finally { setPrefSaving(false); }
   };
+  // 分享次數 +1（2026-09-07 新增）：只在分享動作真的成功時才計入（原生分享面板被使用者取消不算、
+  // catch 區塊不會走到這裡）；本地樂觀更新 shareCount，供「依分享次數」排序即時反映，不特別重載整頁。
+  const bumpShareCount = (routeId) => {
+    memberClient.post(`/climbing-routes/${routeId}/share`)
+      .then(res => setData(d => d && {
+        ...d,
+        routes: d.routes.map(x => x.id === routeId ? { ...x, shareCount: res.data.shareCount } : x),
+      }))
+      .catch(() => {}); // 計數失敗不影響分享本身已完成的事實，靜默即可
+  };
   const shareIg = async (r) => {
     const title = `${r.area || ''} ${r.color || ''} ${r.grade} 路線示範`.trim();
     try {
-      if (navigator.share) { await navigator.share({ title, url: r.igUrl }); return; }
+      if (navigator.share) { await navigator.share({ title, url: r.igUrl }); bumpShareCount(r.id); return; }
       await navigator.clipboard.writeText(r.igUrl);
+      bumpShareCount(r.id);
       setShareToast('已複製示範影片連結'); setTimeout(() => setShareToast(''), 2000);
     } catch (e) { /* 使用者取消分享等，靜默 */ }
   };
 
-  // 分享「這條路線」本身（深連結，不限有無 IG 示範影片；跟上面 shareIg 分享 IG 連結是兩個獨立功能）
+  // 分享「這條路線」本身（深連結，不限有無 IG 示範影片；跟上面 shareIg 分享 IG 連結是兩個獨立功能，
+  // 但計數共用同一個 shareCount——兩者都代表「這條路線被分享出去」，排序熱門度不需要拆開看）
   const shareRoute = async (r) => {
     const title = `${r.area || ''} ${r.color || ''} ${r.grade}${r.name ? ' · ' + r.name : ''}`.trim();
     const url = `${window.location.origin}/member/routes?route=${r.id}`;
     try {
-      if (navigator.share) { await navigator.share({ title: `紅石路線攻略：${title}`, url }); return; }
+      if (navigator.share) { await navigator.share({ title: `紅石路線攻略：${title}`, url }); bumpShareCount(r.id); return; }
       await navigator.clipboard.writeText(url);
+      bumpShareCount(r.id);
       setShareToast('已複製路線連結'); setTimeout(() => setShareToast(''), 2000);
     } catch (e) { /* 使用者取消分享等，靜默 */ }
   };
@@ -198,7 +223,22 @@ export default function MemberRoutesPage() {
   const routes = data?.routes || [];
   const myAscents = data?.myAscents || {};
   const checkedIn = !!data?.checkedInToday;
-  const byArea = routes.reduce((m, r) => { (m[r.area || '未分區'] = m[r.area || '未分區'] || []).push(r); return m; }, {});
+  // 依排列方式產生區塊清單：區域/難度＝分組（各自區塊標題，label 有值）；推薦度/分享次數/被標記次數＝
+  // 無分組的單一熱門度排序清單（label 為 null，畫面不顯示區塊標題列，直接列出排序後的路線）。
+  const GRADE_ORDER = Object.keys(GRADE_COLORS); // V0..V10，沿用既有顏色表的既定順序，避免重複定義
+  const buildGroups = (list, mode) => {
+    if (mode === 'grade') {
+      const byGrade = list.reduce((m, r) => { (m[r.grade] = m[r.grade] || []).push(r); return m; }, {});
+      return GRADE_ORDER.filter(g => byGrade[g]?.length).map(g => [g, byGrade[g]]);
+    }
+    if (mode === 'likes') return [[null, [...list].sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))]];
+    if (mode === 'shares') return [[null, [...list].sort((a, b) => (b.shareCount || 0) - (a.shareCount || 0))]];
+    if (mode === 'tags') return [[null, [...list].sort((a, b) => (b.tagCount || 0) - (a.tagCount || 0))]];
+    // 預設：依區域分組（沿用原本邏輯與順序）
+    const byArea = list.reduce((m, r) => { (m[r.area || '未分區'] = m[r.area || '未分區'] || []).push(r); return m; }, {});
+    return Object.entries(byArea);
+  };
+  const groupedRoutes = buildGroups(routes, sortMode);
   const tierLabel = (key) => tiers.find(t => t.key === key)?.label || key;
 
   const openRecord = (r) => {
@@ -321,6 +361,20 @@ export default function MemberRoutesPage() {
             )
           )}
 
+          {/* 排列方式（2026-09-07 新增）：區域/難度＝分組顯示；推薦度/分享次數/被標記次數＝熱門度排序 */}
+          {!loading && !loadErr && routes.length > 0 && (
+            <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap' }}>
+              {SORT_MODES.map(m => (
+                <button key={m.key} onClick={() => changeSortMode(m.key)}
+                  style={{ padding:'6px 11px', borderRadius:20, fontSize:12, fontWeight:600, cursor:'pointer',
+                    border: sortMode === m.key ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
+                    background: sortMode === m.key ? '#8B1A1A' : '#fff', color: sortMode === m.key ? '#fff' : '#666' }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {loading ? (
             <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center' }}>載入中...</div>
           ) : loadErr ? (
@@ -332,13 +386,15 @@ export default function MemberRoutesPage() {
               此館尚未建立路線資料
             </div>
           ) : (
-            Object.entries(byArea).map(([area, list]) => (
-              <div key={area} style={{ marginBottom:16 }}>
+            groupedRoutes.map(([label, list], gi) => (
+              <div key={label || `flat-${gi}`} style={{ marginBottom:16 }}>
+                {label && (
                 <div style={{ display:'flex', alignItems:'center', gap:8, background:'linear-gradient(135deg,#8B1A1A,#6B1414)', borderRadius:10, padding:'10px 14px', marginBottom:8 }}>
-                  <span style={{ fontSize:16 }}>📍</span>
-                  <span style={{ fontSize:15, fontWeight:700, color:'#fff', flex:1, textAlign:'left' }}>{area}</span>
+                  <span style={{ fontSize:16 }}>{sortMode === 'grade' ? '🎯' : '📍'}</span>
+                  <span style={{ fontSize:15, fontWeight:700, color:'#fff', flex:1, textAlign:'left' }}>{label}</span>
                   <span style={{ fontSize:11, color:'rgba(255,255,255,.85)', fontWeight:600, flexShrink:0 }}>{list.length} 條</span>
                 </div>
+                )}
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                   {list.map(r => {
                     const mine = myAscents[r.id];
@@ -388,11 +444,11 @@ export default function MemberRoutesPage() {
                           <button onClick={() => shareRoute(r)} aria-label="分享路線"
                             style={{ display:'flex', alignItems:'center', gap:3, fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                            分享
+                            分享{r.shareCount > 0 ? ` ${r.shareCount}` : ''}
                           </button>
                           <button onClick={() => openTagModal(r)}
                             style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
-                            👥 標記朋友
+                            👥 標記朋友{r.tagCount > 0 ? ` ${r.tagCount}` : ''}
                           </button>
                         </div>
                         {r.tags && r.tags.length > 0 && (
