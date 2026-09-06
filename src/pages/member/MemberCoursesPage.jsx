@@ -329,7 +329,11 @@ export default function MemberCoursesPage() {
     if (tab === 'calendar') loadCalendarSessions();
     if (tab === 'trial') {
       memberClient.get('/courses/trial-sessions').then(r => setTrialSessions(r.data.sessions || [])).catch(() => setTrialSessions([]));
-      if (!trialBankInfo) memberClient.get('/experience-bookings/settings').then(r => setTrialBankInfo(r.data.settings?.bankInfo || {})).catch(() => setTrialBankInfo({}));
+      // ⚠️ 後端 GET /experience-bookings/settings 直接回傳整份設定文件（res.json(doc.data())，
+      // 無外層 settings 包裝，比照 MemberExperiencePage.jsx/ExperienceBookingsPage.jsx 的讀法）——
+      // 原本誤讀 r.data.settings?.bankInfo（該路徑恆為 undefined）導致 trialBankInfo 永遠是空物件，
+      // 試上報名不論選哪一館，付款畫面都顯示下方寫死的「士林館富邦銀行」帳號（2026-09-06 查獲）。
+      if (!trialBankInfo) memberClient.get('/experience-bookings/settings').then(r => setTrialBankInfo(r.data?.bankInfo || {})).catch(() => setTrialBankInfo({}));
     }
   }, [tab, calendarMonth]);
 
@@ -1645,8 +1649,10 @@ export default function MemberCoursesPage() {
               </div>
             )}
             <div style={{ marginBottom:12 }}>
+              {/* bank.bankName 缺（設定尚未載入或該館未設定）就不顯示帳號區塊——絕不能 fallback 成
+                  另一館的真實帳號（2026-09-06 修復前的舊行為即是硬編另一館帳號，曾誤導會員匯錯館） */}
               <PaymentSection value={trialPay} onChange={setTrialPay} methods={['transfer']}
-                bankInfo={{ bankName: bank.bankName||'富邦銀行(012)', branch: bank.branch||'竹北分行', account: bank.account||'746102003014', accountName: bank.accountName||'紅石攀岩有限公司' }}/>
+                bankInfo={bank.bankName ? { bankName: bank.bankName, branch: bank.branch || '', account: bank.account, accountName: bank.accountName } : null}/>
             </div>
             <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'#444', cursor:'pointer', marginBottom:14, lineHeight:1.6 }}>
               <input type="checkbox" checked={trialConsent} onChange={e=>setTrialConsent(e.target.checked)} style={{ marginTop:2 }}/>
