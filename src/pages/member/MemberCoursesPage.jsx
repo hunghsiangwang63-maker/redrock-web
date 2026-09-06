@@ -144,6 +144,33 @@ function FullContractTermsBox({ course }) {
     </div>
   );
 }
+// 場館合約基本資料（報名步驟「合約條款」專用；欄位順序與後端 courseContractPdf.js 的 gymInfoBlock()
+// 一致，資料來源 GET /settings/gym-contracts/member，即時讀取非快照——比照 PDF 產生時的既有作法）。
+function GymContractInfoBox({ contract }) {
+  const g = contract || {};
+  const rows = [
+    ['場所名稱', g.venueName],
+    ['負責人', g.personInCharge],
+    ['履約地點', g.contractLocation],
+    ['坪數', g.areaPing],
+    ['場館可容納人數', g.maxCapacity],
+    ['預計招收會員人數', g.expectedMembers],
+    ['聯絡電話', g.contactPhone],
+    ['電子信箱', g.contactEmail],
+    ['公司登記或行號證明', g.businessRegistrationNo],
+    ['公共意外責任險額度與效期', g.liabilityInsurancePeriod],
+    ['每一人體傷責任', g.perPersonInjuryLiability],
+  ];
+  return (
+    <div style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:8, padding:'10px 14px', marginBottom:10, fontSize:11.5, color:'#444', textAlign:'left' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 12px' }}>
+        {rows.map(([label, val], i) => (
+          <div key={i}><span style={{ color:'#999' }}>{label}：</span>{val || '－'}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import { isUnder4 } from '../../utils/age';
@@ -208,6 +235,7 @@ export default function MemberCoursesPage() {
   const [massageNote, setMassageNote] = useState('');       // 客製報名：自訂必填備註（如想特別處理的部位）
   const [leaveReason, setLeaveReason] = useState('');
   const [bankAccounts, setBankAccounts] = useState({});
+  const [gymContracts, setGymContracts] = useState({}); // 場館合約基本資料（依 gymId），供報名步驟「合約條款」顯示
   const [screenshot, setScreenshot] = useState(null);
   const [uploadDone, setUploadDone] = useState(false);
   const [makeupRights, setMakeupRights] = useState([]);
@@ -370,7 +398,7 @@ export default function MemberCoursesPage() {
     ...(selectedCourse?.skipSignature ? [] : ['sign'])];
   const enrollStepKey = enrollStepKeys[enrollStep - 1];
 
-  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); }, [member?.id]);
+  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); loadGymContracts(); }, [member?.id]);
 
   // 深連結報名：?course=<id> → 課程載入後自動切到課程總覽並開啟該課報名頁（供分享報名連結；只開一次）
   const _deepLinkDone = useRef(false);
@@ -659,6 +687,13 @@ export default function MemberCoursesPage() {
     try {
       const res = await memberClient.get('/settings/bank-accounts/member');
       setBankAccounts(res.data.bankAccounts || {});
+    } catch (e) {}
+  };
+
+  const loadGymContracts = async () => {
+    try {
+      const res = await memberClient.get('/settings/gym-contracts/member');
+      setGymContracts(res.data.contracts || {});
     } catch (e) {}
   };
 
@@ -2508,8 +2543,10 @@ export default function MemberCoursesPage() {
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>📜 課程服務同意書 完整條款內容</div>
                 <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
-                  以下為「紅石攀岩館 抱石課程服務同意書」完整條款內容（符合111年體育局所制定定型化契約內容相關規範），請詳閱後勾選同意；完整合約書將於報名完成後以 PDF 寄送至您的信箱留存。
+                  以下為「紅石攀岩館 抱石課程服務同意書」完整內容（符合111年體育局所制定定型化契約內容相關規範），請詳閱後勾選同意；完整合約書將於報名完成後以 PDF 寄送至您的信箱留存。
                 </div>
+                <div style={{ fontWeight:600, fontSize:12, marginBottom:6, color:'#666' }}>場館合約基本資料</div>
+                <GymContractInfoBox contract={gymContracts[selectedCourse?.gymId]}/>
                 <FullContractTermsBox course={selectedCourse}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedContractTerms?'#2D7D46':'#E8D5D5'}`, background: confirmedContractTerms?'#E6F4EB':'#fff', cursor:'pointer', marginTop:10 }}>
                   <input type="checkbox" checked={confirmedContractTerms} onChange={e => setConfirmedContractTerms(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
