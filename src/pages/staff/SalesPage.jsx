@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory } from '../../api/products';
+import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory, getStocktakeDraft, saveStocktakeDraft, clearStocktakeDraft } from '../../api/products';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 import { searchMembers } from '../../api/members';
@@ -178,7 +178,12 @@ export default function SalesPage({ embedded = false }) {
   const [stocktakeResult, setStocktakeResult] = useState(null);
   const [stocktakeHistory, setStocktakeHistory] = useState([]);
   const [historyDetailModal, setHistoryDetailModal] = useState(null); // 點某次歷史盤點日期→跳出該次差異明細
-  const [stocktakeCatFilter, setStocktakeCatFilter] = useState(''); // 盤點清單依類別篩選（僅畫面顯示，勾選完成度仍看全部品項）
+  // 盤點清單改「類別→品牌」分層瀏覽（比照銷售頁 renderDrill），搜尋時比照銷售頁改顯示扁平搜尋結果
+  const [stocktakeCategory, setStocktakeCategory] = useState(null);
+  const [stocktakeBrand, setStocktakeBrand] = useState(null);
+  const [stocktakeSearch, setStocktakeSearch] = useState('');
+  const [stocktakeDraftInfo, setStocktakeDraftInfo] = useState(null); // 已載入的暫存資訊 {count, updatedAt}，供畫面提示「已載入上次暫存」
+  const [savingDraft, setSavingDraft] = useState(false);
   const [restockVariantId, setRestockVariantId] = useState('');
   const [restockQty, setRestockQty] = useState('');
   const [restockNote, setRestockNote] = useState('');
@@ -353,16 +358,52 @@ export default function SalesPage({ embedded = false }) {
         });
       });
     });
-    setStocktakeItems(items);
     setStocktakeResult(null);
     setStocktakeHistory([]);
     setHistoryDetailModal(null);
-    setStocktakeCatFilter('');
+    setStocktakeCategory(null);
+    setStocktakeBrand(null);
+    setStocktakeSearch('');
+    setStocktakeDraftInfo(null);
     setShowStocktake(true);
+    // 讀取上次暫存，把已核對的品項覆蓋回清單（暫存只存已核對的品項；新增的商品/未在暫存中的維持預設未核對）
+    try {
+      const draftRes = await getStocktakeDraft(targetGymId);
+      const draft = draftRes.data.draft;
+      const draftItems = draft?.items || [];
+      if (draftItems.length) {
+        const draftMap = {};
+        draftItems.forEach(d => { draftMap[d.variantId] = d; });
+        setStocktakeItems(items.map(it => draftMap[it.variantId] ? { ...it, actualStock: draftMap[it.variantId].actualStock, checked: true } : it));
+        setStocktakeDraftInfo({ count: draftItems.length, updatedAt: draft.updatedAt, staffName: draft.staffName });
+      } else {
+        setStocktakeItems(items);
+      }
+    } catch (e) { setStocktakeItems(items); /* 暫存載入失敗不影響開啟盤點，改用全新清單 */ }
     try {
       const res = await getStocktakeHistory(targetGymId);
       setStocktakeHistory(res.data.sessions || []);
     } catch (e) { /* 歷史紀錄載入失敗不影響本次盤點 */ }
+  };
+
+  // 暫存目前進度：只送「已核對」的品項（例：已盤點10項，只存這10項），未核對的不佔暫存空間
+  const handleSaveStocktakeDraft = async () => {
+    const checkedItems = stocktakeItems.filter(it => it.checked);
+    setSavingDraft(true);
+    try {
+      const res = await saveStocktakeDraft(targetGymId, checkedItems.map(i => ({ productId: i.productId, variantId: i.variantId, actualStock: i.actualStock })));
+      showMsg(res.data.message);
+      setStocktakeDraftInfo({ count: checkedItems.length, updatedAt: new Date().toISOString(), staffName: staff?.name || '' });
+    } catch (err) { showMsg(err.response?.data?.message || '暫存失敗', 'red'); }
+    finally { setSavingDraft(false); }
+  };
+
+  const handleClearStocktakeDraft = async () => {
+    try {
+      await clearStocktakeDraft(targetGymId);
+      setStocktakeDraftInfo(null);
+      showMsg('已清除暫存');
+    } catch (err) { showMsg('清除暫存失敗', 'red'); }
   };
 
   const handleStocktake = async () => {
@@ -375,6 +416,7 @@ export default function SalesPage({ embedded = false }) {
         }))
       });
       setStocktakeResult(res.data);
+      setStocktakeDraftInfo(null); // 後端已於確認盤點成功後清掉暫存，畫面同步不再顯示「已載入暫存」提示
       showMsg(res.data.message, res.data.discrepancies?.length > 0 ? 'red' : 'ok');
       await loadProducts();
     } catch (err) { showMsg(err.response?.data?.message || '盤點失敗', 'red'); }
@@ -443,6 +485,38 @@ export default function SalesPage({ embedded = false }) {
   const productsInCatBrand = (cat, brand) => products
     .filter(p => (p.category || '其他') === cat && (p.brand || '無品牌') === brand)
     .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-Hant'));
+
+  // 庫存盤點清單分層（類別→品牌→品項），排序方式比照銷售頁同一套（類別依品項數多到少、品牌/品項依名稱）——
+  // stocktakeItems 是「每筆一個變體」的扁平清單（非商品巢狀 variants），分組/排序邏輯獨立於上面銷售頁用的版本。
+  const stocktakeCategories = () => {
+    const m = {};
+    stocktakeItems.forEach(it => {
+      const c = it.category || '其他';
+      if (!m[c]) m[c] = { name: c, count: 0, checkedCount: 0 };
+      m[c].count++;
+      if (it.checked) m[c].checkedCount++;
+    });
+    return Object.values(m).sort((a, b) => b.count - a.count);
+  };
+  const stocktakeBrandsInCat = (cat) => {
+    const m = {};
+    stocktakeItems.filter(it => (it.category || '其他') === cat).forEach(it => {
+      const b = it.brand || '無品牌';
+      if (!m[b]) m[b] = { name: b, count: 0, checkedCount: 0 };
+      m[b].count++;
+      if (it.checked) m[b].checkedCount++;
+    });
+    return Object.values(m).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
+  };
+  const stocktakeItemsInCatBrand = (cat, brand) => stocktakeItems
+    .filter(it => (it.category || '其他') === cat && (it.brand || '無品牌') === brand)
+    .sort((a, b) => (a.productName || '').localeCompare(b.productName || '', 'zh-Hant') || (sizeNum(a.size) - sizeNum(b.size)));
+  const stocktakeSearchResults = stocktakeItems.filter(it => {
+    const q = stocktakeSearch.trim().toLowerCase();
+    if (!q) return false;
+    const hay = `${it.productName} ${it.brand} ${it.category} ${it.size} ${it.color}`.toLowerCase();
+    return hay.includes(q);
+  });
 
   const listCard = { background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' };
   const emptyCard = (t) => <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>{t}</div>;
@@ -1149,10 +1223,45 @@ export default function SalesPage({ embedded = false }) {
                   return null;
                 };
                 const TIER_COLOR = { today: '#A32D2D', recent: '#185FA5' };
-                const stocktakeCatCounts = {};
-                stocktakeItems.forEach(it => { stocktakeCatCounts[it.category] = (stocktakeCatCounts[it.category] || 0) + 1; });
-                const stocktakeCatOptions = Object.entries(stocktakeCatCounts).sort((a, b) => b[1] - a[1]);
-                const visibleStocktakeItems = stocktakeCatFilter ? stocktakeItems.filter(it => it.category === stocktakeCatFilter) : stocktakeItems;
+                // 依「類別→品牌」下鑽到底才顯示的品項清單（搜尋中改走 stocktakeSearchResults，見下方 render 分支）
+                const drilledItems = (stocktakeCategory && stocktakeBrand) ? stocktakeItemsInCatBrand(stocktakeCategory, stocktakeBrand) : [];
+                const stocktakeRow = (item) => {
+                  const hasDiff = parseInt(item.actualStock) !== item.systemStock;
+                  const tier = countedTier(item.variantId);
+                  const tierColor = tier ? TIER_COLOR[tier] : null;
+                  return (
+                    <div key={item.variantId} style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
+                      background: hasDiff ? '#FFF5E8' : (item.checked ? '#F0F8F2' : 'none') }}>
+                      <input type="checkbox" checked={!!item.checked}
+                        onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, checked: e.target.checked} : it))}
+                        style={{ width:18, height:18, cursor:'pointer' }}/>
+                      <div style={{ color: tierColor || 'inherit' }}>
+                        {item.brand && <div style={{ fontSize:10, color: tierColor || '#999' }}>{item.brand}</div>}
+                        <div>{item.productName}</div>
+                      </div>
+                      <span style={{ color: tierColor || '#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
+                      <span style={{ color:'#999' }}>{item.systemStock}</span>
+                      <input type="number" value={item.actualStock}
+                        onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, actualStock: e.target.value} : it))}
+                        style={{ width:'100%', height:32, borderRadius:6, color:'#1a1a1a', border: hasDiff ? '1px solid #F5A623' : '0.5px solid #E8D5D5',
+                          padding:'0 8px', fontSize:13, outline:'none', textAlign:'center', background: hasDiff ? '#FFF9F0' : '#fff' }}/>
+                    </div>
+                  );
+                };
+                const itemListHeader = (
+                  <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'6px 10px', fontSize:11, color:'#999', fontWeight:600, background:'#FBF5F5', borderRadius:6, marginBottom:6 }}>
+                    <span></span><span>商品</span><span>規格</span><span>帳面</span><span>盤點數量</span>
+                  </div>
+                );
+                const drillRow = (label, count, checkedCount, onClick) => (
+                  <div key={label} onClick={onClick}
+                    style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'13px 12px', borderBottom:'0.5px solid #F5EFEF', cursor:'pointer' }}>
+                    <div style={{ fontWeight:700, fontSize:15 }}>{label}</div>
+                    <div style={{ fontSize:12, color: checkedCount === count ? '#2D7D46' : '#888' }}>
+                      已核對 {checkedCount}/{count}　<span style={{ color:'#8B1A1A', fontSize:15 }}>›</span>
+                    </div>
+                  </div>
+                );
                 const olderSessions = stocktakeHistory.slice(1);
                 const historyRow = (s, i) => (
                   <div key={i} onClick={() => setHistoryDetailModal(s)}
@@ -1167,12 +1276,22 @@ export default function SalesPage({ embedded = false }) {
                     <div style={{ display:'flex', gap:8, marginBottom:16 }}>
                       <button onClick={() => setShowStocktake(false)}
                         style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
+                      <button onClick={handleSaveStocktakeDraft} disabled={savingDraft}
+                        style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #185FA5', background:'#fff', color:'#185FA5', fontSize:13, fontWeight:500, cursor: savingDraft ? 'not-allowed' : 'pointer' }}>
+                        {savingDraft ? '暫存中...' : '💾 暫存'}
+                      </button>
                       <button onClick={handleStocktake} disabled={loading || stocktakeItems.length === 0}
                         style={{ flex:2, height:40, borderRadius:9, background: '#854F0B', color:'#fff', border:'none', fontSize:13, fontWeight:500,
                           cursor: !loading ? 'pointer' : 'not-allowed' }}>
                         {loading ? '盤點中...' : uncheckedCount > 0 ? `確認盤點（尚有 ${uncheckedCount} 項未核對）` : '確認盤點'}
                       </button>
                     </div>
+                    {stocktakeDraftInfo && (
+                      <div style={{ background:'#E6F1FB', borderRadius:8, padding:'8px 14px', marginBottom:12, fontSize:12, color:'#185FA5', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6 }}>
+                        <span>📥 已載入上次暫存（{stocktakeDraftInfo.count} 項{stocktakeDraftInfo.staffName ? `・${stocktakeDraftInfo.staffName}` : ''}{stocktakeDraftInfo.updatedAt ? `・${dayjs(stocktakeDraftInfo.updatedAt).format('MM/DD HH:mm')}` : ''}）</span>
+                        <span onClick={handleClearStocktakeDraft} style={{ textDecoration:'underline', cursor:'pointer', flexShrink:0 }}>清除暫存重新開始</span>
+                      </div>
+                    )}
                     <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:12 }}>
                       <div style={{ fontSize:12, color:'#666', marginBottom: stocktakeHistory.length > 0 ? 4 : 0 }}>上次盤點時間：</div>
                       {stocktakeHistory.length > 0 ? historyRow(stocktakeHistory[0], 'latest') : <span style={{ fontSize:12, color:'#999' }}>尚無盤點紀錄</span>}
@@ -1186,50 +1305,35 @@ export default function SalesPage({ embedded = false }) {
                       )}
                     </div>
                     <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
-                      請逐項核對實際盤點數量並勾選「已核對」（無須全部核對即可送出）
+                      請逐項核對實際盤點數量並勾選「已核對」（無須全部核對即可送出；中途離開請按「暫存」，下次打開會自動接續）
                       {uncheckedCount > 0 && <span style={{ color:'#854F0B' }}>（全部尚有 {uncheckedCount} 項未核對）</span>}
                       {' '}<span style={{ color:'#A32D2D' }}>紅字＝一天內已盤點過</span>
                       {' '}<span style={{ color:'#185FA5' }}>藍字＝兩週內已盤點過</span>
                     </div>
-                    <select value={stocktakeCatFilter} onChange={e => setStocktakeCatFilter(e.target.value)}
-                      style={{ width:'100%', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:13, padding:'0 8px', background:'#fff', marginBottom:10 }}>
-                      <option value="">全部類別（{stocktakeItems.length} 項）</option>
-                      {stocktakeCatOptions.map(([name, count]) => (
-                        <option key={name} value={name}>{name}（{count} 項）</option>
-                      ))}
-                    </select>
-                    {stocktakeCatFilter && (
-                      <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
-                        「{stocktakeCatFilter}」已核對 {visibleStocktakeItems.filter(it => it.checked).length}/{visibleStocktakeItems.length}
+                    <input value={stocktakeSearch} onChange={e => setStocktakeSearch(e.target.value)} placeholder="🔍 搜尋商品名稱／品牌／規格..."
+                      style={{ width:'100%', height:36, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:13, padding:'0 10px', background:'#fff', marginBottom:10, boxSizing:'border-box', outline:'none' }}/>
+                    {/* 分層瀏覽麵包屑（搜尋中不顯示，比照銷售頁 drillBack） */}
+                    {!stocktakeSearch.trim() && stocktakeCategory && (
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, flexWrap:'wrap' }}>
+                        <button onClick={() => stocktakeBrand ? setStocktakeBrand(null) : setStocktakeCategory(null)}
+                          style={{ height:30, padding:'0 10px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', flexShrink:0 }}>
+                          ← {stocktakeBrand ? '品牌' : '類別'}
+                        </button>
+                        <span style={{ fontSize:14, fontWeight:700, color:'#8B1A1A' }}>{stocktakeCategory}{stocktakeBrand ? ` › ${stocktakeBrand}` : ''}</span>
                       </div>
                     )}
                     <div style={{ maxHeight:400, overflowY:'auto' }}>
-                      <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'6px 10px', fontSize:11, color:'#999', fontWeight:600, background:'#FBF5F5', borderRadius:6, marginBottom:6 }}>
-                        <span></span><span>商品</span><span>規格</span><span>帳面</span><span>盤點數量</span>
-                      </div>
-                      {visibleStocktakeItems.map((item) => {
-                        const hasDiff = parseInt(item.actualStock) !== item.systemStock;
-                        const tier = countedTier(item.variantId);
-                        const tierColor = tier ? TIER_COLOR[tier] : null;
-                        return (
-                          <div key={item.variantId} style={{ display:'grid', gridTemplateColumns:'36px 1fr 1fr 80px 80px', gap:8, padding:'8px 10px', fontSize:13, borderBottom:'0.5px solid #F5EFEF', alignItems:'center',
-                            background: hasDiff ? '#FFF5E8' : (item.checked ? '#F0F8F2' : 'none') }}>
-                            <input type="checkbox" checked={!!item.checked}
-                              onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, checked: e.target.checked} : it))}
-                              style={{ width:18, height:18, cursor:'pointer' }}/>
-                            <div style={{ color: tierColor || 'inherit' }}>
-                              {item.brand && <div style={{ fontSize:10, color: tierColor || '#999' }}>{item.brand}</div>}
-                              <div>{item.productName}</div>
-                            </div>
-                            <span style={{ color: tierColor || '#666', fontSize:12 }}>{[item.size, item.color].filter(Boolean).join('/') || '標準'}</span>
-                            <span style={{ color:'#999' }}>{item.systemStock}</span>
-                            <input type="number" value={item.actualStock}
-                              onChange={e => setStocktakeItems(stocktakeItems.map(it => it.variantId === item.variantId ? {...it, actualStock: e.target.value} : it))}
-                              style={{ width:'100%', height:32, borderRadius:6, color:'#1a1a1a', border: hasDiff ? '1px solid #F5A623' : '0.5px solid #E8D5D5',
-                                padding:'0 8px', fontSize:13, outline:'none', textAlign:'center', background: hasDiff ? '#FFF9F0' : '#fff' }}/>
-                          </div>
-                        );
-                      })}
+                      {stocktakeSearch.trim() ? (
+                        stocktakeSearchResults.length === 0 ? (
+                          <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>找不到符合的品項</div>
+                        ) : (<>{itemListHeader}{stocktakeSearchResults.map(stocktakeRow)}</>)
+                      ) : !stocktakeCategory ? (
+                        stocktakeCategories().map(c => drillRow(c.name, c.count, c.checkedCount, () => { setStocktakeCategory(c.name); setStocktakeBrand(null); }))
+                      ) : !stocktakeBrand ? (
+                        stocktakeBrandsInCat(stocktakeCategory).map(b => drillRow(b.name, b.count, b.checkedCount, () => setStocktakeBrand(b.name)))
+                      ) : (
+                        <>{itemListHeader}{drilledItems.map(stocktakeRow)}</>
+                      )}
                     </div>
                   </>
                 );

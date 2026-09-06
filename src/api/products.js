@@ -46,3 +46,13 @@ export const voidSaleInvoice = (id, voidReason) =>
 
 export const getStocktakeHistory = (gymId) =>
   client.get('/products/stocktake/history', { params: gymId ? { gymId } : {} });
+
+// 盤點暫存（一館一份）：只存已核對的品項，供中途離開後續盤
+export const getStocktakeDraft = (gymId) =>
+  client.get('/products/stocktake/draft', { params: gymId ? { gymId } : {} });
+
+export const saveStocktakeDraft = (gymId, items) =>
+  client.put('/products/stocktake/draft', { gymId, items });
+
+export const clearStocktakeDraft = (gymId) =>
+  client.delete('/products/stocktake/draft', { params: gymId ? { gymId } : {} });

@@ -63,6 +63,7 @@ export default function InstallmentsPage({ embedded = false }) {
   const [payingPlan, setPayingPlan] = useState(null);
   const [payingSeq, setPayingSeq] = useState(null);
   const [payMethod, setPayMethod] = useState('cash');
+  const [payNote, setPayNote] = useState('');
   const [paying, setPaying] = useState(false);
 
   // 整筆標記已一次繳清（實際上非依原分期時間分次繳，管理員直接登記結清）
@@ -163,13 +164,13 @@ export default function InstallmentsPage({ embedded = false }) {
   };
 
   const openPayModal = (plan, seq) => {
-    setPayingPlan(plan); setPayingSeq(seq); setPayMethod('cash');
+    setPayingPlan(plan); setPayingSeq(seq); setPayMethod('cash'); setPayNote('');
   };
 
   const handleMarkPaid = async () => {
     setPaying(true);
     try {
-      const res = await markInstallmentPaid(payingPlan.id, payingSeq, payMethod);
+      const res = await markInstallmentPaid(payingPlan.id, payingSeq, payMethod, payNote.trim() || undefined);
       showMsg(res.data.message);
       setPayingPlan(null); setPayingSeq(null);
       await loadPlans();
@@ -281,7 +282,7 @@ export default function InstallmentsPage({ embedded = false }) {
                         第 {i.seq} 期 · NT${i.amount.toLocaleString()} · 到期 {i.dueDate}
                         {i.status === 'paid' && i.paidAt && (
                           <span style={{ color:'#999', marginLeft:6 }}>
-                            （{dayjs(i.paidAt?._seconds ? i.paidAt._seconds*1000 : i.paidAt).format('MM/DD')} 已收 · {PAY_METHODS.find(m=>m.key===i.paymentMethod)?.label || i.paymentMethod}）
+                            （{dayjs(i.paidAt?._seconds ? i.paidAt._seconds*1000 : i.paidAt).format('MM/DD')} 已收 · {PAY_METHODS.find(m=>m.key===i.paymentMethod)?.label || i.paymentMethod}{i.note ? `・${i.note}` : ''}）
                           </span>
                         )}
                       </div>
@@ -428,6 +429,11 @@ export default function InstallmentsPage({ embedded = false }) {
                 </button>
               ))}
             </div>
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填，如匯款銀行名稱）</label>
+            <input value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="例如：國泰世華匯款"
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => { setPayingPlan(null); setPayingSeq(null); }}

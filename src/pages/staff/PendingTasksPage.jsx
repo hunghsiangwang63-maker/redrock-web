@@ -20,7 +20,7 @@ import { getAllPassRequests } from '../../api/passAdjustments';
 import { getNotifications, markAsRead, markAllAsRead } from '../../api/notifications';
 import { getMyUpcomingShifts } from '../../api/schedule';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
-import { markInstallmentPaid } from '../../api/installments';
+import { markInstallmentPaid, getAllInstallments } from '../../api/installments';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 
 // 通知 type → 類別（待辦頁通知面板過濾用）
@@ -144,6 +144,8 @@ export default function PendingTasksPage() {
   const [completedLoading, setCompletedLoading] = useState(false);
   const [passCompleted, setPassCompleted] = useState(null);  // 定期票：已核准/已拒絕（展延/退費/轉讓）
   const [passCompletedLoading, setPassCompletedLoading] = useState(false);
+  const [installmentPlans, setInstallmentPlans] = useState(null);  // 分期資訊：進行中/有逾期的分期計畫（各期繳款狀態）
+  const [installmentPlansLoading, setInstallmentPlansLoading] = useState(false);
   const [notifs, setNotifs] = useState(null);                // 通知（系統未讀）
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifCat, setNotifCat] = useState('');              // 類別過濾
@@ -231,7 +233,7 @@ export default function PendingTasksPage() {
   const enabledPay = useEnabledPayments();
   const [toast, setToast] = useState('');
   const showToast = (m) => { setToast(m); setTimeout(() => setToast(''), 3000); };
-  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassCompleted(); if (trackView === 'notif') loadNotifs(); if (trackView === 'inquiry') loadInquiries(); };
+  const afterDone = (msg) => { setModal(null); showToast(msg); load(); if (trackView === 'course') loadCompleted(); if (trackView === 'pass') loadPassCompleted(); if (trackView === 'installment') loadInstallmentPlans(); if (trackView === 'notif') loadNotifs(); if (trackView === 'inquiry') loadInquiries(); };
 
   // 課程：已完成（已核准/已拒絕）退費/暫停
   // 同 load()／loadNotifs()：afterDone() 與切換分頁都可能觸發，快速連續處理時用序號擋過期回應。
@@ -257,6 +259,19 @@ export default function PendingTasksPage() {
       setPassCompleted((res.data.requests || []).filter(r => r.status !== 'pending'));
     } catch (e) { if (seq === passCompletedReqSeq.current) setPassCompleted([]); }
     finally { if (seq === passCompletedReqSeq.current) setPassCompletedLoading(false); }
+  };
+  // 分期資訊：進行中（active）＋有逾期（overdue）的分期計畫，供快速查每一期是否已繳／繳款方式
+  // 對不對——已結清(completed)/已取消(cancelled)不在此列，完整歷史請至「分期付款管理」頁查看。
+  const installmentPlansReqSeq = useRef(0);
+  const loadInstallmentPlans = async () => {
+    const seq = ++installmentPlansReqSeq.current;
+    setInstallmentPlansLoading(true);
+    try {
+      const [activeRes, overdueRes] = await Promise.all([getAllInstallments('active'), getAllInstallments('overdue')]);
+      if (seq !== installmentPlansReqSeq.current) return;
+      setInstallmentPlans([...(activeRes.data.plans || []), ...(overdueRes.data.plans || [])]);
+    } catch (e) { if (seq === installmentPlansReqSeq.current) setInstallmentPlans([]); }
+    finally { if (seq === installmentPlansReqSeq.current) setInstallmentPlansLoading(false); }
   };
   // 通知：載入系統未讀通知
   // ⚠️ 頁面內多處會觸發 loadNotifs()（手動點已讀/全部已讀、afterDone() 完成其他審核動作時），
@@ -287,6 +302,7 @@ export default function PendingTasksPage() {
     setTrackView(next);
     if (next === 'course' && completed === null) loadCompleted();
     if (next === 'pass' && passCompleted === null) loadPassCompleted();
+    if (next === 'installment' && installmentPlans === null) loadInstallmentPlans();
     if (next === 'notif' && notifs === null) loadNotifs();
     if (next === 'inquiry' && inquiries === null) loadInquiries();
   };
@@ -408,6 +424,12 @@ export default function PendingTasksPage() {
             <button onClick={() => openTrack('pass')}
               style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='pass' ? '#5B2D8B' : '#fff', color: trackView==='pass' ? '#fff' : '#5B2D8B', border:'0.5px solid #5B2D8B', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               🎫 定期票相關
+            </button>
+          )}
+          {perm.installment && (
+            <button onClick={() => openTrack('installment')}
+              style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='installment' ? '#185FA5' : '#fff', color: trackView==='installment' ? '#fff' : '#185FA5', border:'0.5px solid #185FA5', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+              📅 分期資訊
             </button>
           )}
           {!isRestrictedPartTime && (
@@ -569,6 +591,62 @@ export default function PendingTasksPage() {
           )}
         </div>
       )}
+
+      {/* 分期資訊（進行中／有逾期，各期繳款狀態一覽；完整歷史含已結清/已取消請至「分期付款管理」頁） */}
+      {trackView === 'installment' && (() => {
+        const PM_LABEL = { cash:'現金', transfer:'轉帳', linepay:'Line Pay', jkopay:'街口', taiwanpay:'台灣Pay' };
+        return (
+        <div style={{ marginTop:8 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, margin:'8px 0 12px', flexWrap:'wrap' }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>📅 分期資訊 · 進行中／有逾期</div>
+            <div style={{ flex:1, height:1, background:'#E8D5D5' }}/>
+            <div style={{ fontSize:12, color:'#999' }}>{installmentPlans ? `${installmentPlans.length} 筆` : ''}</div>
+            <button onClick={() => navigate('/staff/installments')}
+              style={{ height:26, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:11, cursor:'pointer' }}>
+              前往分期付款管理
+            </button>
+          </div>
+          {installmentPlansLoading && <div style={{ textAlign:'center', color:'#999', padding:24 }}>載入中...</div>}
+          {!installmentPlansLoading && installmentPlans && installmentPlans.length === 0 && (
+            <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:24, textAlign:'center', color:'#999', fontSize:13 }}>
+              目前沒有進行中或逾期的分期計畫
+            </div>
+          )}
+          {!installmentPlansLoading && installmentPlans && installmentPlans.length > 0 && (
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {installmentPlans.map(p => {
+                const paidCount = (p.installments || []).filter(i => i.status === 'paid').length;
+                return (
+                  <div key={p.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8, marginBottom:8 }}>
+                      <div style={{ minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{p.memberName} — {p.itemName}</div>
+                        <div style={{ fontSize:11, color:'#999', marginTop:2 }}>總額 NT${p.totalAmount.toLocaleString()} · 已繳 {paidCount}/{(p.installments||[]).length} 期</div>
+                      </div>
+                      <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:6, background: p.status==='overdue' ? '#FCEBEB' : '#E6F1FB', color: p.status==='overdue' ? '#A32D2D' : '#185FA5', flexShrink:0 }}>
+                        {p.status==='overdue' ? '有逾期' : '進行中'}
+                      </span>
+                    </div>
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      {(p.installments||[]).map(i => (
+                        <div key={i.seq} style={{ fontSize:11.5, color: i.status==='overdue' ? '#A32D2D' : '#666', display:'flex', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
+                          <span>第{i.seq}期 · NT${i.amount.toLocaleString()} · 到期{i.dueDate}</span>
+                          <span>
+                            {i.status === 'paid'
+                              ? `已收（${dayjs(i.paidAt?._seconds ? i.paidAt._seconds*1000 : i.paidAt).format('MM/DD')} · ${PM_LABEL[i.paymentMethod] || i.paymentMethod || '—'}${i.note ? `・${i.note}` : ''}）`
+                              : i.status === 'overdue' ? '逾期未繳' : '尚未到期'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        );
+      })()}
 
       {/* 通知 = 近 7 天統一動態（系統未讀通知 + 近 7 天報名）+ 類別過濾 */}
       {trackView === 'notif' && (() => {
