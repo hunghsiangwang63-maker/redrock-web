@@ -858,6 +858,11 @@ export default function PendingTasksPage() {
               const payTag = isPayTask ? PAY_TAG[task.method || task.record?.paymentMethod] : null;
               // 比賽報名友館優惠：直接標出選了哪個友館，方便快速審核（不用點進去才知道）
               const partnerGymTag = task.partnerGym || task.record?.partnerGym;
+              // 轉帳待確認（涵蓋課程/體驗/試上/租借/攀岩隊，皆共用 transferRecords 這條路徑）：
+              // 金額＋末五碼獨立成不會被 desc 省略號截斷的徽章，一眼就看得到，不用點開才知道
+              // （原本嵌在 desc 文字裡，姓名/課程名一長就被 ellipsis 蓋掉）。
+              const amountTag = task.type === 'transfer_confirm' ? task.record?.amount : null;
+              const bankLastFiveTag = task.type === 'transfer_confirm' ? task.record?.bankLastFive : null;
               return (
                 <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12 }}>
                   <div style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, minWidth:0 }}>
@@ -871,6 +876,8 @@ export default function PendingTasksPage() {
                         <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color, flexShrink:0 }}>{badgeLabel}</span>
                         <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
                         {payTag && <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:payTag.bg, color:payTag.color, flexShrink:0 }}>{payTag.label}</span>}
+                        {amountTag != null && <span style={{ fontSize:10, fontWeight:700, padding:'1px 7px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', flexShrink:0 }}>NT${amountTag.toLocaleString()}</span>}
+                        {bankLastFiveTag && <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:'#E6F1FB', color:'#185FA5', flexShrink:0 }}>末五碼 {bankLastFiveTag}</span>}
                         {partnerGymTag && <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:'#EFEAF8', color:'#533AB7', flexShrink:0 }}>🧗 友館：{partnerGymTag}</span>}
                       </div>
                       <div style={{ fontSize:12, color:'#666', ...(isMobile ? { lineHeight:1.5, wordBreak:'break-word' } : { overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }) }}>{task.desc}</div>
