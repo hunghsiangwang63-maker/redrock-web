@@ -55,6 +55,13 @@ export default function GymsPage({ embedded = false }) {
   const [bankForm, setBankForm] = useState({ bankName:'', accountNumber:'', accountName:'', notes:'' });
   const [bankSaving, setBankSaving] = useState(false);
   const [bankMsg, setBankMsg] = useState('');
+  // 場館合約基本資料（履約地點/坪數/容納人數/公共意外責任險等，純文字參考記錄，比照銀行帳號同一套存取方式）
+  const [contracts, setContracts] = useState({});
+  const [showEditContract, setShowEditContract] = useState(false);
+  const CONTRACT_FIELDS_EMPTY = { venueName:'', personInCharge:'', contractLocation:'', areaPing:'', maxCapacity:'', expectedMembers:'', contactPhone:'', contactEmail:'', businessRegistrationNo:'', liabilityInsurancePeriod:'', perPersonInjuryLiability:'' };
+  const [contractForm, setContractForm] = useState(CONTRACT_FIELDS_EMPTY);
+  const [contractSaving, setContractSaving] = useState(false);
+  const [contractMsg, setContractMsg] = useState('');
 
   // ⚠️ 由 mount effect 與儲存銀行帳號動作觸發，序號防過期回應覆蓋。
   const bankSeqRef = useRef(0);
@@ -67,10 +74,22 @@ export default function GymsPage({ embedded = false }) {
     } catch (e) {}
   };
 
+  // 合約基本資料（同一套序號防過期回應覆蓋模式）
+  const contractSeqRef = useRef(0);
+  const loadContracts = async () => {
+    const seq = ++contractSeqRef.current;
+    try {
+      const res = await client.get('/settings/gym-contracts');
+      if (seq !== contractSeqRef.current) return;
+      setContracts(res.data.contracts || {});
+    } catch (e) {}
+  };
+
   // ⚠️ 由 mount effect 與 reloadGyms()（儲存場館/營業時間後）共用同一組序號，防過期回應覆蓋 gyms/selected。
   const gymsSeqRef = useRef(0);
   useEffect(() => {
     loadBank();
+    loadContracts();
     const seq = ++gymsSeqRef.current;
     Promise.all([getGyms(), getAnnouncements()])
       .then(([gRes, aRes]) => {
@@ -241,6 +260,25 @@ const runAffectClosure = async () => {
     } finally { setBankSaving(false); }
   };
 
+  const openEditContract = () => {
+    const c = contracts[selected.id] || {};
+    setContractForm({ ...CONTRACT_FIELDS_EMPTY, ...c });
+    setContractMsg('');
+    setShowEditContract(true);
+  };
+
+  const handleSaveContract = async () => {
+    setContractSaving(true);
+    try {
+      await client.put(`/settings/gym-contracts/${selected.id}`, contractForm);
+      setContractMsg('已儲存');
+      await loadContracts();
+      setTimeout(() => setShowEditContract(false), 600);
+    } catch (e) {
+      setContractMsg(e.response?.data?.message || '儲存失敗');
+    } finally { setContractSaving(false); }
+  };
+
   const annTypeLabel = (type) => ({
     closure:'休館', special_hours:'特殊時間', route_change:'路線更換', general:'一般公告'
   }[type] || type);
@@ -361,6 +399,34 @@ const runAffectClosure = async () => {
                 <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid #F5EFEF', fontSize:13 }}>
                   <span style={{ color:'#999' }}>{k}</span>
                   <span style={{ fontWeight:500, fontFamily: k==='帳號' ? 'monospace' : 'inherit', letterSpacing: k==='帳號' ? 1 : 0 }}>{v}</span>
+                </div>
+              ));
+            })()}
+          </div>
+        )}
+
+        {/* 合約基本資料（僅 super_admin，純文字參考記錄：履約地點/坪數/容納人數/公共意外責任險等）*/}
+        {selected && !annOnly && (
+          <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16, marginTop:16 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+              <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>
+                {selected.shortName} 合約基本資料
+              </span>
+              <button onClick={openEditContract} style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor: isSuperAdmin ? 'pointer' : 'not-allowed', opacity: isSuperAdmin ? 1 : 0.4 }} disabled={!isSuperAdmin}>修改</button>
+            </div>
+            {(() => {
+              const info = contracts[selected.id];
+              if (!info?.venueName) return <div style={{ fontSize:13, color:'#999', padding:'8px 0' }}>尚未設定</div>;
+              const rows = [
+                ['場所名稱', info.venueName], ['負責人', info.personInCharge], ['履約地點', info.contractLocation],
+                ['坪數', info.areaPing], ['場館可容納人數', info.maxCapacity], ['預計招收會員人數', info.expectedMembers],
+                ['聯絡電話', info.contactPhone], ['電子信箱', info.contactEmail], ['公司登記或行號證明', info.businessRegistrationNo],
+                ['公共意外責任險額度與效期', info.liabilityInsurancePeriod], ['每一人體傷責任', info.perPersonInjuryLiability],
+              ].filter(([, v]) => v);
+              return rows.map(([k, v]) => (
+                <div key={k} style={{ display:'flex', justifyContent:'space-between', gap:12, padding:'8px 0', borderBottom:'1px solid #F5EFEF', fontSize:13 }}>
+                  <span style={{ color:'#999', flexShrink:0 }}>{k}</span>
+                  <span style={{ fontWeight:500, textAlign:'right', wordBreak:'break-word' }}>{v}</span>
                 </div>
               ));
             })()}
@@ -598,6 +664,44 @@ const runAffectClosure = async () => {
               <button onClick={handleSaveBank} disabled={bankSaving}
                 style={{ flex:2, height:40, borderRadius:8, background: bankSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: bankSaving?'not-allowed':'pointer' }}>
                 {bankSaving ? '儲存中...' : '儲存變更'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 修改合約基本資料 Modal */}
+      {showEditContract && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:460, maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch' }}>
+            <div style={{ fontWeight:600, fontSize:16, marginBottom:20 }}>合約基本資料 — {selected?.name}</div>
+            {contractMsg && <div style={{ background: contractMsg==='已儲存' ? '#E6F4EB' : '#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color: contractMsg==='已儲存' ? '#2D7D46' : '#A32D2D', marginBottom:12 }}>{contractMsg}</div>}
+            {[
+              { label:'場所名稱', key:'venueName', placeholder:'例：紅石攀岩館' },
+              { label:'負責人', key:'personInCharge', placeholder:'例：王宏祥' },
+              { label:'履約地點', key:'contractLocation', placeholder:'例：紅石攀岩館士林館：台北市士林區承德路四段261號B1' },
+              { label:'坪數', key:'areaPing', placeholder:'例：95坪' },
+              { label:'場館可容納人數', key:'maxCapacity', placeholder:'例：50人' },
+              { label:'預計招收會員人數', key:'expectedMembers', placeholder:'例：無會員制/單次入場' },
+              { label:'聯絡電話', key:'contactPhone', placeholder:'例：(02)2883-7591' },
+              { label:'電子信箱', key:'contactEmail', placeholder:'例：redrocktaiwan@gmail.com' },
+              { label:'公司登記或行號證明', key:'businessRegistrationNo', placeholder:'統一編號' },
+              { label:'公共意外責任險額度與效期', key:'liabilityInsurancePeriod', placeholder:'例：富邦產險 114/07/10~115/07/10' },
+              { label:'每一人體傷責任', key:'perPersonInjuryLiability', placeholder:'例：NTD:6,000,000' },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom:12 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
+                <input value={contractForm[f.key]} placeholder={f.placeholder}
+                  onChange={e => setContractForm(p => ({...p, [f.key]: e.target.value}))}
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+              </div>
+            ))}
+            <div style={{ display:'flex', gap:8, marginTop:8 }}>
+              <button onClick={() => setShowEditContract(false)}
+                style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={handleSaveContract} disabled={contractSaving}
+                style={{ flex:2, height:40, borderRadius:8, background: contractSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: contractSaving?'not-allowed':'pointer' }}>
+                {contractSaving ? '儲存中...' : '儲存變更'}
               </button>
             </div>
           </div>
