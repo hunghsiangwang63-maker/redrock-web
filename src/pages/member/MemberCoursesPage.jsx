@@ -671,6 +671,9 @@ export default function MemberCoursesPage() {
       const enrInfo = enrollSession.isCourse
         ? { id: res.data.enrollmentId, fee: res.data.fee }
         : { id: res.data.enrollment?.id, fee: res.data.enrollment?.enrollmentFee };
+      // 工作坊保證金（免費工作坊也可收）：只併入這次實際要收的轉帳金額，不改 enrInfo.fee 本身
+      // （enrInfo.fee 下面 setPayFor 線上付款流程另有用途，避免牽動）。
+      const depositAmt = enrollSession.isCourse ? 0 : (Number(res.data.enrollment?.depositAmount) || 0);
       // 轉帳付款：一律建立 transferRecords（截圖或填末五碼皆可）→ 待辦頁確認收款（候補不收款、跳過）
       if (!isWaitlisted && paymentMethod === 'transfer' && enrInfo.id) {
         try {
@@ -683,7 +686,7 @@ export default function MemberCoursesPage() {
           formData.append('refId', enrInfo.id);
           formData.append('orderName', selectedCourse?.name || '');
           formData.append('courseName', selectedCourse?.name || '');
-          formData.append('amount', enrInfo.fee ?? selectedCourse?.price ?? 0);
+          formData.append('amount', (Number(enrInfo.fee ?? selectedCourse?.price ?? 0)) + depositAmt);
           // 轉帳模式下匯款資訊來自 PaymentSection 的 paymentData（含銀行名稱/末五碼/日期）
           if (paymentData.bankLastFive) formData.append('bankLastFive', paymentData.bankLastFive);
           if (paymentData.bankName) formData.append('bankName', paymentData.bankName);
