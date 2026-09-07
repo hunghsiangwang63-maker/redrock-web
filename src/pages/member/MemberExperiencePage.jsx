@@ -151,7 +151,7 @@ export default function MemberExperiencePage() {
       const res = await memberClient.post('/experience-bookings', {
         memberId: member.id, trialSessionId: trialModal.id, consentSigned: true,
         ...(trialFor !== 'self' ? { childMemberId: trialFor } : {}),
-        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, paidAmount: trialPay.paidAmount || null,
+        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, bankName: trialPay.bankName, paidAmount: trialPay.paidAmount || null,
       });
       if (res.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); setTrialModal(null); return; }
       const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
@@ -162,7 +162,7 @@ export default function MemberExperiencePage() {
           fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive||'');
           fd.append('paymentDate', trialPay.paymentDate||''); fd.append('bankName', trialPay.bankName||'');
           if (trialPay.paidAmount) fd.append('paidAmount', trialPay.paidAmount);
-          await memberClient.post('/transfers', fd, { headers:{ 'Content-Type':'multipart/form-data' } });
+          await memberClient.post('/transfers/upload', fd, { headers:{ 'Content-Type':'multipart/form-data' } });
         } catch(e) { /* 不阻斷 */ }
       }
       setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });

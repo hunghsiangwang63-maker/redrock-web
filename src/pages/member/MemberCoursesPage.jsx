@@ -333,7 +333,10 @@ export default function MemberCoursesPage() {
       const res = await memberClient.post('/experience-bookings', {
         memberId: member.id, trialSessionId: trialModal.id, consentSigned: true,
         ...(trialFor !== 'self' ? { childMemberId: trialFor } : {}),
-        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, paidAmount: trialPay.paidAmount || null,
+        // 2026-09-07 修復：漏帶 bankName——後端 handleTrialBooking 本就支援直接存這欄位，
+        // 之前只靠下面那段（網址打錯，見下）另外送，一旦那段失敗預約本身就永遠沒有銀行名稱可看
+        // （真實案例：朱智萩試上已填匯款銀行，但員工端確認收款彈窗顯示空白）。
+        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, bankName: trialPay.bankName, paidAmount: trialPay.paidAmount || null,
       });
       const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
       if (trialPay.method === 'transfer' && bookingId) {
@@ -343,7 +346,9 @@ export default function MemberCoursesPage() {
           fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive || '');
           fd.append('paymentDate', trialPay.paymentDate || ''); fd.append('bankName', trialPay.bankName || '');
           if (trialPay.paidAmount) fd.append('paidAmount', trialPay.paidAmount);
-          await memberClient.post('/transfers', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+          // 2026-09-07 修復：原本打成 '/transfers'（無 /upload），正確路徑 404 被下面的靜默 catch 吞掉，
+          // 導致從未真正建立過 transferRecords（轉帳待收款佇列查不到、也無法之後補正重傳）。
+          await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         } catch (e) { /* 不阻斷 */ }
       }
       setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });

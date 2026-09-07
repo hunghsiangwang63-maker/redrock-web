@@ -56,6 +56,15 @@ export default function ExperienceDetailModal({ record, onClose, onDone }) {
           <Row label="匯款銀行">{record.bankName || <span style={{ color: '#bbb' }}>—</span>}</Row>
           <Row label="匯款末五碼">{record.bankLastFive ? <strong>{record.bankLastFive}</strong> : <span style={{ color: '#bbb' }}>—</span>}</Row>
           <Row label="匯款日期">{record.paymentDate || '—'}</Row>
+          {/* 會員自填實際匯款金額（與上方應繳費用核對用，2026-09-07 補齊——原本完全沒有顯示這欄，
+              員工無從核對會員是否少匯/多匯）；不等於應繳金額時顯示紅字提醒 */}
+          <Row label="會員填匯款額">
+            {record.memberPaidAmount != null
+              ? <strong style={{ color: record.memberPaidAmount !== record.totalFee ? '#C0392B' : '#1a1a1a' }}>
+                  NT${Number(record.memberPaidAmount).toLocaleString()}{record.memberPaidAmount !== record.totalFee ? '（與應繳金額不符）' : ''}
+                </strong>
+              : <span style={{ color: '#bbb' }}>—</span>}
+          </Row>
           <Row label="FB 名稱">{record.facebookName || <span style={{ color: '#bbb' }}>—</span>}</Row>
           {record.notes && <Row label="會員備註">{record.notes}</Row>}
         </div>
