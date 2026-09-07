@@ -88,7 +88,12 @@ export default function MemberExperiencePage() {
       .then(r => { if (seq === bookingsSeqRef.current) setMyBookings(r.data.bookings||[]); })
       .catch(() => { if (seq === bookingsSeqRef.current) setMyBookings([]); });
   };
-  const bkPaid = (b) => ['confirmed','paid'].includes(b.paymentStatus) && (b.totalFee||0) > 0;
+  // ⚠️ 2026-09-07 修復（既有問題，非本次新增）：不能讀 b.paymentStatus——experienceBookings 文件
+  // 本身只有走轉帳待收款佇列確認收款才會寫入這欄位，員工按「確認收款」按鈕（一般體驗最常用的路徑）
+  // 完全不會寫這欄位，導致這條路徑確認過款的預約取消時恆判為未付款、不會要求填退款帳號。改用
+  // status==='confirmed'（兩條確認路徑皆會設定，是唯一可靠的「已確認收款」訊號；後端 member-cancel
+  // 已同步改用同一判斷）。
+  const bkPaid = (b) => b.status === 'confirmed' && (b.totalFee||0) > 0;
   const bkEditable = (b) => ['pending','confirmed'].includes(b.status) && b.bookingDate && dayjs().format('YYYY-MM-DD') < b.bookingDate;
   const doBkCancel = async () => {
     if (!bkCancel) return;

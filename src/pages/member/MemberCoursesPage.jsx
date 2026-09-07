@@ -364,7 +364,11 @@ export default function MemberCoursesPage() {
       .then(r => setMyTrialBookings((r.data.bookings || []).filter(b => b.kind === 'trial' && b.status !== 'cancelled')))
       .catch(() => setMyTrialBookings([]));
   };
-  const trialBkPaid = (b) => ['confirmed', 'paid'].includes(b.paymentStatus) && (b.totalFee || 0) > 0;
+  // ⚠️ 2026-09-07 修復：不能讀 b.paymentStatus——experienceBookings 文件本身只有走轉帳待收款佇列
+  // 確認收款才會寫入這欄位，員工按「確認收款」按鈕（試上唯一路徑）只會寫進關聯的 courseEnrollments
+  // 文件，booking 本身沒有這欄位，導致此判斷恆為 false（真實案例：朱智萩已繳費試上取消時沒被要求
+  // 填退款帳號）。改用 status==='confirmed'（後端 member-cancel 已同步改用這個唯一可靠訊號）。
+  const trialBkPaid = (b) => b.status === 'confirmed' && (b.totalFee || 0) > 0;
   const trialBkEditable = (b) => ['pending', 'confirmed'].includes(b.status) && b.bookingDate && dayjs().format('YYYY-MM-DD') < b.bookingDate;
   const doTrialBkCancel = async () => {
     if (!trialBkCancel) return;
