@@ -2186,7 +2186,24 @@ export default function MemberCoursesPage() {
               if (!byCourse[key]) byCourse[key] = { courseName: e.courseName, courseId: e.courseId, gymId: e.gymId, memberId: e.memberId, memberName: e.memberName, sessions: [] };
               byCourse[key].sessions.push(e);
             });
-            return Object.values(byCourse).map(group => {
+            // 排序＋分段標題（比照 staff CoursesPage.jsx 課程列表：進行中→即將開始(報名中/即將開始/已滿)→
+            // 已結束→已取消，同段內依課程開課日→課名排序）
+            const MY_COURSE_SECTION = { ongoing:'進行中', starting_soon:'即將開始', full:'即將開始', enrolling:'即將開始', ended:'已結束', cancelled:'已取消' };
+            const MY_COURSE_RANK = { ongoing:0, starting_soon:1, full:1, enrolling:1, ended:2, cancelled:3 };
+            const statusOf = (group) => {
+              const hasActive = group.sessions.some(s => ['confirmed','leave','waitlist'].includes(s.status));
+              if (!hasActive) return 'cancelled'; // 逾期未付款自動取消的幽靈卡固定歸「已取消」段
+              return courses.find(c => c.id === group.courseId)?.statusLabel || 'ongoing';
+            };
+            const sortedGroups = Object.values(byCourse).sort((a, b) => {
+              const ra = MY_COURSE_RANK[statusOf(a)] ?? 1, rb = MY_COURSE_RANK[statusOf(b)] ?? 1;
+              if (ra !== rb) return ra - rb;
+              const da = courses.find(c => c.id === a.courseId)?.startDate || '';
+              const db = courses.find(c => c.id === b.courseId)?.startDate || '';
+              return da.localeCompare(db) || (a.courseName || '').localeCompare(b.courseName || '', 'zh-Hant');
+            });
+            let lastSection = null;
+            return sortedGroups.flatMap(group => {
               const confirmed = group.sessions.filter(s => s.status === 'confirmed');
               const onLeave = group.sessions.filter(s => s.status === 'leave');
               const waitlist = group.sessions.filter(s => s.status === 'waitlist');
@@ -2207,11 +2224,16 @@ export default function MemberCoursesPage() {
               // 全數已取消/失效 → 一般不顯示幽靈卡；但「因逾期未付款自動取消」需回饋給會員（顯示已取消卡）
               if (confirmed.length === 0 && onLeave.length === 0 && waitlist.length === 0) {
                 const expiredCancel = group.sessions.some(s => s.status === 'cancelled' && s.cancelReason === 'payment_expired');
-                if (!expiredCancel) return null;
+                if (!expiredCancel) return null; // 真正隱藏，不佔用/觸發分段標題
                 const grpKey = `${group.courseId}__${group.memberId}`;
                 const eName = (familyMembers.find(c => c.id === group.memberId)?.name) || group.memberName;
                 const showChild = group.memberId && member?.id && group.memberId !== member.id;
-                return (
+                const showSectionHeader = '已取消' !== lastSection;
+                lastSection = '已取消';
+                const sectionHeader = showSectionHeader ? (
+                  <div key={`sec-cancelled-${grpKey}`} style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'16px 0 8px', textAlign:'left' }}>已取消</div>
+                ) : null;
+                return [sectionHeader, (
                   <div key={grpKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, opacity:0.75 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                       <div style={{ fontWeight:600, fontSize:15, color:'#666' }}>
@@ -2222,7 +2244,7 @@ export default function MemberCoursesPage() {
                     </div>
                     <div style={{ fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.6 }}>因逾期未付款，此報名已自動取消、名額已釋出。如仍要上課請重新報名。</div>
                   </div>
-                );
+                )].filter(Boolean);
               }
               const today = dayjs().format('YYYY-MM-DD');
               const future = confirmed.filter(s => s.date >= today).sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||''));
@@ -2232,6 +2254,12 @@ export default function MemberCoursesPage() {
               const leaveRemaining = group.sessions.find(s => s.leaveRemaining != null)?.leaveRemaining ?? Math.max(0, leaveLimit - onLeave.length);
               // 課程起迄日：優先課程設定，否則用本人場次最早/最晚日
               const gCourse = courses.find(c => c.id === group.courseId);
+              const mySection = MY_COURSE_SECTION[gCourse?.statusLabel] || '即將開始';
+              const showSectionHeader = mySection !== lastSection;
+              lastSection = mySection;
+              const sectionHeader = showSectionHeader ? (
+                <div key={`sec-${mySection}-${groupKey}`} style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'16px 0 8px', textAlign:'left' }}>{mySection}</div>
+              ) : null;
               const isWorkshop = gCourse?.type === 'workshop'; // 工作坊不提供請假功能
               const _dates = group.sessions.map(s => s.date).filter(Boolean).sort();
               const rangeStart = gCourse?.startDate || _dates[0];
@@ -2261,7 +2289,7 @@ export default function MemberCoursesPage() {
               // 提供自行補填入口，避免無限期卡住（見 2026-08-14 周詠弈案例）。
               const needsInitialTransferInfo = !isWaitlistGroup && !isRejected && !isPromoted &&
                 primary?.paymentMethod === 'transfer' && primary?.paymentStatus === 'pending' && (primary?.enrollmentFee || 0) > 0;
-              return (
+              return [sectionHeader, (
                 <div key={groupKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
                     onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
@@ -2531,7 +2559,7 @@ export default function MemberCoursesPage() {
                     ) : null
                   )}
                 </div>
-              );
+              )].filter(Boolean);
             });
           })()}
         </div>
