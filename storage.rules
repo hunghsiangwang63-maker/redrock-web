@@ -1,0 +1,14 @@
+rules_version = '2';
+
+// 這個專案完全不使用瀏覽器/App 直接存取 Cloud Storage（redrock-web 前端從未 import
+// firebase/storage）；所有需要 Storage 的功能（課程海報、定期票展延證明文件、合約 PDF 存檔）
+// 都是後端 redrock-api 用 Admin SDK 存取，不受這份規則管轄（Admin SDK 走服務帳戶權限，
+// 完全繞過用戶端安全規則）。這裡明確設為一律拒絕用戶端存取，關閉 Firebase 主控台持續跳出的
+// 「測試模式規則已過期」警告，且不影響任何現有功能。
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
