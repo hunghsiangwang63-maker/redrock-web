@@ -11,6 +11,8 @@ import dayjs from 'dayjs';
 import { isChild } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
+import PassContractReview from '../../components/PassContractReview';
+import { isMinor } from '../../utils/age';
 import { useOnlineFlowEnabled, useEnabledPayments } from '../../utils/paymentMethods';
 
 // 支援線上付款（pay-first）的入館身份——純付費身份（黑卡/紅利/單次券皆有自己的免費入場路徑，
@@ -67,6 +69,9 @@ export default function MemberQRPage() {
   const [onlinePaySuccess, setOnlinePaySuccess] = useState(false); // 付款完成提示（導回選身分，改選「使用單次入場券」領取）
   const [autoGenQR, setAutoGenQR] = useState(false); // 線上付款導回：selectedEntry 就緒後自動產生 QR（跳過租借器材/選付款方式，直接出現可掃碼 QR）
   const [confirmingPayment, setConfirmingPayment] = useState(false); // loading 畫面文案用：是否正在等待剛付款的票券開通（見 doVerify 的重試邏輯）
+  const passContractRef = useRef(null); // 定期票服務同意書（合約）條款檢閱＋簽名步驟（僅 buy_pass 適用）
+  const [passContractData, setPassContractData] = useState(null); // 離開 pass_contract 步驟時存下（元件會 unmount，需先取出資料）
+  const [passContractErr, setPassContractErr] = useState(false);
 
   // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
   const [children, setChildren] = useState([]);
@@ -265,6 +270,13 @@ export default function MemberQRPage() {
       if (selectedEntry.buyPassTypeId) {
         payload.buyPassTypeId = selectedEntry.buyPassTypeId;
         payload.paymentPlan = buyPassPlan; // 'full' | 'installment'（後端權威依票種 installment 決定是否真分期）
+        // 定期票服務同意書（合約）簽名——於 pass_contract 步驟收集，此為現金/一般付款方式的即建路徑
+        // （/checkin/qr/create → confirmCheckIn 立即建票）；選線上金流(entry orderType)另走票券延後
+        // 兌換流程，簽名暫無法帶入，屬已知範圍外缺口（見 checkin/flow.js buy_pass 分支註解）。
+        if (passContractData) {
+          payload.passContractPortraitSignature = passContractData.portraitSignature;
+          payload.passContractGuardianSignature = passContractData.guardianSignature;
+        }
       }
       const cardId = selectedEntry.cardId || selectedCard;
       if (cardId) {
@@ -572,7 +584,10 @@ export default function MemberQRPage() {
       setSelectedEntry({ kind:'buyPass', type:'buy_pass', buyPassTypeId:pt.id, baseEntryType:st.type,
         label:`${t('購買定期票')}：${pt.name}`, note:[dur, scopeLabel].filter(Boolean).join('・'),
         price:pt.price, discountedPrice:pt.price, freeEntry:false, requiresPayment:true,
-        installment:pt.installment || null });
+        installment:pt.installment || null,
+        // 供「定期票服務同意書」條款檢閱步驟顯示用（PassContractReview）
+        passTypeName: pt.name, passScope: pt.scope, passTargetGymId: pt.targetGymId || null,
+        passDurationMonths: pt.durationMonths || null, passDurationDays: pt.durationDays || null });
       setSelectedPayment(null);
       setStep('shoes'); // 先問租借器材，付費方式改到租借之後
     };
@@ -875,9 +890,9 @@ export default function MemberQRPage() {
             const needsMainPayment = selectedEntry?.requiresPayment && !selectedEntry?.freeEntry;
             if (needsMainPayment) {
               return (
-                <button onClick={() => setStep('select_payment')} disabled={loading}
+                <button onClick={() => setStep(selectedEntry?.type === 'buy_pass' ? 'pass_contract' : 'select_payment')} disabled={loading}
                   style={{ width:'100%', height:50, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor:'pointer' }}>
-                  {t('下一步：選擇付款方式 →')}
+                  {selectedEntry?.type === 'buy_pass' ? t('下一步：合約條款 →') : t('下一步：選擇付款方式 →')}
                 </button>
               );
             }
@@ -899,6 +914,51 @@ export default function MemberQRPage() {
       </div>
     </>
   );
+
+  // 定期票服務同意書（合約）條款檢閱＋簽名——僅 buy_pass（入場當下購買定期票）適用，插在
+  // 租借器材與選擇付款方式之間；離開此步驟時把簽名資料存進 passContractData（元件會 unmount）。
+  if (step === 'pass_contract') {
+    const bpDur = selectedEntry?.passDurationMonths
+      ? dayjs().add(selectedEntry.passDurationMonths, 'month')
+      : (selectedEntry?.passDurationDays ? dayjs().add(selectedEntry.passDurationDays, 'day') : null);
+    const bpStart = dayjs().format('YYYY-MM-DD');
+    const bpEnd = bpDur ? bpDur.format('YYYY-MM-DD') : '';
+    const entrantIsMinor = isMinor(entrant);
+    return wrap(
+      <>
+        <Header title={t('合約條款')} onBack={() => setStep('shoes')} />
+        <div style={{ padding:20 }}>
+          <div style={{ background:'#fff', borderRadius:16, border:'0.5px solid #E8D5D5', padding:24 }}>
+            <PassContractReview
+              ref={passContractRef}
+              gymId={gymId}
+              passTypeName={selectedEntry?.passTypeName}
+              scope={selectedEntry?.passScope}
+              targetGymId={selectedEntry?.passTargetGymId}
+              startDate={bpStart}
+              endDate={bpEnd}
+              totalFee={selectedEntry?.price}
+              isMinor={entrantIsMinor}
+              t={t}
+            />
+            {passContractErr && (
+              <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px', textAlign:'left' }}>
+                {t('請詳閱並勾選同意，並完成簽名後才能繼續')}
+              </div>
+            )}
+            <button onClick={() => {
+              if (!passContractRef.current?.isValid()) { setPassContractErr(true); return; }
+              setPassContractErr(false);
+              setPassContractData(passContractRef.current.getData());
+              setStep('select_payment');
+            }} style={{ width:'100%', height:50, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:16, fontWeight:600, cursor:'pointer' }}>
+              {t('確認並繼續 →')}
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (step === 'qr') {
     // 分期購定期票：本次只收「第一期（頭款）」，合計顯示頭款而非全額（與後端一致）

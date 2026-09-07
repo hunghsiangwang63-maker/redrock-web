@@ -7,7 +7,9 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { getMemberReasons, uploadEvidence, createPassRequest, getMyPassRequests } from '../../api/passAdjustments';
 import PaymentFlow from '../../components/PaymentFlow';
+import PassContractReview from '../../components/PassContractReview';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
+import { isMinor } from '../../utils/age';
 import dayjs from 'dayjs';
 
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
@@ -338,6 +340,11 @@ export default function MemberPassesPage() {
   const [suspendEnd, setSuspendEnd] = useState('');      // 展延：停用結束日
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
+  // 持有人（本人＋子女）生日對照表——供「定期票服務同意書」判斷續約對象是否未成年（需法定代理人簽名）
+  const [ownerBirthdays, setOwnerBirthdays] = useState({});
+  const [passContractFor, setPassContractFor] = useState(null); // 續約合約條款確認 Modal 開關（先於 renewFor 付款 Modal）
+  const passContractRenewRef = useRef(null);
+  const [passContractRenewErr, setPassContractRenewErr] = useState(false);
 
   // 轉讓：輸入電話 → 查該電話的會員（含家庭成員），供選定接收對象（排除本人）
   useEffect(() => {
@@ -377,6 +384,10 @@ export default function MemberPassesPage() {
         { id: member.id, name: member.name, isSelf: true },
         ...children.map(c => ({ id: c.id, name: c.name, isSelf: false })),
       ];
+      setOwnerBirthdays({
+        [member.id]: member.birthday || null,
+        ...Object.fromEntries(children.map(c => [c.id, c.birthday || null])),
+      });
       const perOwner = await Promise.all(owners.map(async (o) => {
         const [p, dc, bc, ldc, se, bn, reqs] = await Promise.all([
           memberClient.get(`/passes/member/${o.id}`).catch(() => ({ data: { passes: [] } })),
@@ -673,7 +684,12 @@ export default function MemberPassesPage() {
               {p.renewalInfo.renewalDiscount && <span style={{ fontSize:11, color:'#A32D2D', marginLeft:6 }}>續約優惠</span>}
             </div>
             {onlineRenewEnabled ? (
-              <button onClick={() => setRenewFor({ passId: p.id, amount: p.renewalInfo.renewalPrice, gymId: p.gymId || p.targetGymId || null, passTypeName: p.passTypeName, newEndDate: p.renewalInfo.newEndDate })}
+              <button onClick={() => setPassContractFor({
+                passId: p.id, amount: p.renewalInfo.renewalPrice, gymId: p.gymId || p.targetGymId || null,
+                passTypeName: p.passTypeName, newEndDate: p.renewalInfo.newEndDate,
+                scope: p.scope, targetGymId: p.targetGymId, startDate: p.startDate,
+                ownerId: p._ownerId, ownerName: p._ownerName,
+              })}
                 style={{ width:'100%', height:36, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>
                 線上續約（NT${p.renewalInfo.renewalPrice.toLocaleString()}）
               </button>
@@ -782,6 +798,50 @@ export default function MemberPassesPage() {
 
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+      {/* 定期票服務同意書（合約）續約條款確認 Modal——先於付款 Modal，比照入場當下購買定期票
+          （MemberQRPage.jsx buy_pass）同一套 PassContractReview 元件；確認後把簽名資料併入
+          renewFor 開啟付款 Modal（此元件會 unmount，需先取出資料）。*/}
+      {passContractFor && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:420, maxHeight:'88vh', overflowY:'auto', padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+              <div style={{ fontWeight:600, fontSize:15 }}>合約條款確認 — {passContractFor.passTypeName}</div>
+              <button onClick={() => { setPassContractFor(null); setPassContractRenewErr(false); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+            </div>
+            <PassContractReview
+              ref={passContractRenewRef}
+              gymId={passContractFor.gymId}
+              passTypeName={passContractFor.passTypeName}
+              scope={passContractFor.scope}
+              targetGymId={passContractFor.targetGymId}
+              startDate={passContractFor.startDate}
+              endDate={passContractFor.newEndDate}
+              totalFee={passContractFor.amount}
+              isMinor={isMinor(ownerBirthdays[passContractFor.ownerId])}
+              t={t}
+            />
+            {passContractRenewErr && (
+              <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px', textAlign:'left' }}>
+                請詳閱並勾選同意，並完成簽名後才能繼續
+              </div>
+            )}
+            <button onClick={() => {
+              if (!passContractRenewRef.current?.isValid()) { setPassContractRenewErr(true); return; }
+              const data = passContractRenewRef.current.getData();
+              setRenewFor({
+                passId: passContractFor.passId, amount: passContractFor.amount, gymId: passContractFor.gymId,
+                passTypeName: passContractFor.passTypeName, newEndDate: passContractFor.newEndDate,
+                portraitSignature: data.portraitSignature, guardianSignature: data.guardianSignature,
+                confirmedContractTerms: data.confirmedContractTerms,
+              });
+              setPassContractFor(null);
+              setPassContractRenewErr(false);
+            }} style={{ width:'100%', height:44, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              確認並繼續付款 →
+            </button>
+          </div>
+        </div>
+      )}
       {/* 定期票線上續約付款 Modal（見 renderPassCard 續約區塊；成功後刷新票券列表帶回新到期日）*/}
       {renewFor && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
@@ -793,7 +853,12 @@ export default function MemberPassesPage() {
             <PaymentFlow
               client={memberClient}
               orderType="pass_renewal"
-              orderRef={{ passId: renewFor.passId }}
+              orderRef={{
+                passId: renewFor.passId,
+                portraitSignature: renewFor.portraitSignature,
+                guardianSignature: renewFor.guardianSignature,
+                confirmedContractTerms: renewFor.confirmedContractTerms,
+              }}
               amount={renewFor.amount}
               gymId={renewFor.gymId}
               onPaid={() => { setRenewFor(null); setMsg(`續約成功！效期已延長至 ${renewFor.newEndDate}`); reloadCards(); }}
