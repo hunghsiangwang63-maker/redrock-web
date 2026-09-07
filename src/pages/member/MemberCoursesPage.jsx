@@ -420,7 +420,9 @@ export default function MemberCoursesPage() {
     ...(selectedCourse?.skipSignature ? [] : ['sign'])];
   const enrollStepKey = enrollStepKeys[enrollStep - 1];
 
-  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); loadGymContracts(); loadContractTerms(); }, [member?.id]);
+  // loadMyTrialBookings 也放這裡（非只在切到試上分頁才載）——讓「課程試上 (N)」分頁角標一進頁就看得到，
+  // 不用先點進試上分頁才會出現數字（比照「我的課程 (N)」角標本就是進頁即載入）。
+  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); loadGymContracts(); loadContractTerms(); loadMyTrialBookings(); }, [member?.id]);
 
   // 深連結報名：?course=<id> → 課程載入後自動切到課程總覽並開啟該課報名頁（供分享報名連結；只開一次）
   const _deepLinkDone = useRef(false);
@@ -1213,7 +1215,7 @@ export default function MemberCoursesPage() {
 
       {/* Tabs */}
       <div style={{ display:'flex', margin:'12px 16px 0', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>
-        {[{key:'browse',icon:'📚',label:'課程總覽'},{key:'trial',icon:'🧗',label:'課程試上'},{key:'my',icon:'📖',label:`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`},{key:'calendar',icon:'📅',label:'課程月曆'}].map(t => (
+        {[{key:'browse',icon:'📚',label:'課程總覽'},{key:'trial',icon:'🧗',label:`課程試上${myTrialBookings.length > 0 ? ` (${myTrialBookings.length})` : ''}`},{key:'my',icon:'📖',label:`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`},{key:'calendar',icon:'📅',label:'課程月曆'}].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
             style={{ flex:1, minHeight:44, padding:'5px 2px', borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:11, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, lineHeight:1.2 }}>
             <span style={{ fontSize:15 }}>{t.icon}</span>
