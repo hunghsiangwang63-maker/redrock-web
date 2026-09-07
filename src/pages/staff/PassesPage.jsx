@@ -925,6 +925,9 @@ export default function PassesPage() {
               <span>會員：<strong>{selectedMember.name}</strong>（{selectedMember.phone}）</span>
               <span onClick={() => { setSelectedMember(null); setMemberResults([]); setMemberQuery(''); }} style={{ color:'#8B1A1A', cursor:'pointer' }}>更換</span>
             </div>
+            <div style={{ background:'#FAEEDA', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:12, color:'#854F0B' }}>
+              ⚠ 此方式建立的定期票<strong>不會</strong>產生服務同意書合約 PDF（僅入場當下購買 / App 內線上續約才會自動產生並寄送合約）。若需要完整合約，請引導會員改由 App 自行購買/續約。
+            </div>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>票種</label>
               <select value={addForm.passTypeId} onChange={e => setAddForm({...addForm, passTypeId:e.target.value})} required
