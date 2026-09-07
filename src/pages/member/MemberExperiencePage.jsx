@@ -45,6 +45,8 @@ export default function MemberExperiencePage() {
   const location = useLocation();
   const onlinePayEnabled = useOnlineFlowEnabled('experience');
   const [myBookings, setMyBookings] = useState([]);
+  // 課程試上（kind==='trial'）已改顯示於「課程總覽 → 課程試上」，此頁「我的預約」分頁與計數只算一般體驗（2026-09-07）
+  const generalBookingsCount = myBookings.filter(b => b.kind !== 'trial').length;
   const [reupTarget, setReupTarget] = useState(null);
   const [bkCancel, setBkCancel] = useState(null);   // 取消預約：{ b, form:{bankCode,account,accountName} }
   const [bkEdit, setBkEdit] = useState(null);       // 修改預約：{ b, form }
@@ -314,7 +316,7 @@ export default function MemberExperiencePage() {
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'apply',label:'填寫預約'},{key:'my',label:`我的預約${myBookings.length?` (${myBookings.length})`:''}`}].map(t=>(
+        {[{key:'apply',label:'填寫預約'},{key:'my',label:`我的預約${generalBookingsCount?` (${generalBookingsCount})`:''}`}].map(t=>(
           <button key={t.key} onClick={()=>setTab(t.key)}
             style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
             {t.label}
@@ -474,15 +476,19 @@ export default function MemberExperiencePage() {
           </div>
         )}
 
-        {tab==='my' && (
+        {tab==='my' && (() => {
+          // 課程試上（kind==='trial'）改顯示於「課程總覽 → 課程試上」分頁上方，這裡只留一般體驗預約
+          // （2026-09-07）；myBookings 底層仍抓兩者一起，僅在此渲染層過濾，取消/修改等既有邏輯不受影響。
+          const generalBookings = myBookings.filter(b => b.kind !== 'trial');
+          return (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {myBookings.length>0 && (
+            {generalBookings.length>0 && (
               <div style={{ background:'#FBF5E9', border:'0.5px solid #EBD9B0', borderRadius:12, padding:'12px 14px', fontSize:12.5, color:'#7A5A12', lineHeight:1.6, textAlign:'left' }}>
                 📢 <strong>提醒</strong>：請所有參加體驗課程的朋友先註冊紅石會員，以加速入場流程（需完成<strong>風險安全聲明書</strong>及<strong>墜落測驗同意書</strong>簽署）。
               </div>
             )}
-            {myBookings.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無預約記錄</div>}
-            {myBookings.map(b=>{
+            {generalBookings.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無預約記錄</div>}
+            {generalBookings.map(b=>{
               const sl = { pending:{bg:'#FAEEDA',color:'#854F0B',text:'待確認'}, confirmed:{bg:'#E6F4EB',color:'#2D7D46',text:'已確認'}, cancelled:{bg:'#FCEBEB',color:'#A32D2D',text:'已取消'} }[b.status]||{bg:'#F0EDED',color:'#666',text:b.status};
               return (
                 <div key={b.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
@@ -524,7 +530,8 @@ export default function MemberExperiencePage() {
               );
             })}
           </div>
-        )}
+          );
+        })()}
       </div>
       {/* 取消預約（已繳費需退款帳號、扣手續費退回） */}
       {bkCancel && (() => {

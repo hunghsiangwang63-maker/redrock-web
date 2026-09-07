@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { requestCourseRefund, requestCoursePause, requestCourseTransfer, getCourseAdjustmentReasons } from '../../api/courseAdjustments';
+import TransferReuploadModal from '../../components/TransferReuploadModal';
 
 // ── 課程規則共用元件（報名步驟3「規則確認」與 我的課程「📋 課程規則」modal 共用；改這裡兩邊連動）──
 const RULE_BOX_STYLE = { background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' };
@@ -117,7 +118,8 @@ export default function MemberCoursesPage() {
   const location = useLocation();
   const onlinePayEnabled = useOnlineFlowEnabled('course');
 
-  const [tab, setTab] = useState('my'); // browse | my
+  // ?tab=trial 深連結（供首頁「近一週提醒」試上卡片導向；其餘情況維持預設『我的課程』不受影響）
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'trial' ? 'trial' : 'my'); // browse | trial | my | calendar
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState(null); // 兩層式：先選類別（同課多梯次）再選梯次
@@ -300,9 +302,20 @@ export default function MemberCoursesPage() {
   const [trialPay, setTrialPay] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
   const [trialSubmitting, setTrialSubmitting] = useState(false);
   const [trialBankInfo, setTrialBankInfo] = useState(null);   // /experience-bookings/settings bankInfo
+  const [trialRefundFee, setTrialRefundFee] = useState(100);  // 試上取消手續費（/experience-bookings/settings refundHandlingFee）
+  // 已預約試上（2026-09-07 起：原本顯示在 MemberExperiencePage.jsx「體驗預約→我的預約」，改移到這裡、
+  // 放在館別選單上方——試上本就是這裡報名的，查看/改期/取消也理應在同一頁）
+  const [myTrialBookings, setMyTrialBookings] = useState([]);
+  const [trialBkCancel, setTrialBkCancel] = useState(null);   // 取消試上：{ b, form:{bankCode,account,accountName} }
+  const [trialBkEdit, setTrialBkEdit] = useState(null);       // 試上改期（換場次）：{ b, form:{sessionId} }
+  const [trialBkSaving, setTrialBkSaving] = useState(false);
+  const [trialReupTarget, setTrialReupTarget] = useState(null); // 試上轉帳被退回→重新上傳
 
   const [errorModal, setErrorModal] = useState(null); // 通知彈窗（成功/錯誤一律彈窗）
   const showMsg = (text, type='ok') => setErrorModal({ message: text, type });
+
+  // 只列有名額（含候補未滿）的場次——供試上分頁清單與「改期」候選場次共用
+  const openTrialSessions = trialSessions.filter(sx => !sx.isFull && (sx.remaining == null || sx.remaining > 0));
 
   // 試上報名對象（本人/子女）＋送出
   const trialTarget = trialFor === 'self' ? member : familyMembers.find(c => c.id === trialFor);
@@ -335,13 +348,45 @@ export default function MemberCoursesPage() {
       }
       setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
       memberClient.get('/courses/trial-sessions').then(r => setTrialSessions(r.data.sessions || [])).catch(() => {});
+      loadMyTrialBookings();
       if (res.data.isWaitlist) showMsg('此場次已額滿，已為您排入候補；名額釋出將依序轉正', 'orange');
       else {
         const dl = res.data.paymentDeadline ? dayjs(res.data.paymentDeadline).format('MM/DD HH:mm') : '';
-        showMsg(`試上名額已保留！請於${dl ? ` ${dl} 前` : '期限內'}完成付款（可至體驗課程「我的預約」查看），逾期名額將釋出`);
+        showMsg(`試上名額已保留！請於${dl ? ` ${dl} 前` : '期限內'}完成付款（可至上方「已預約試上」查看），逾期名額將釋出`);
       }
     } catch (e) { showMsg(e.response?.data?.message || '送出失敗', 'red'); }
     finally { setTrialSubmitting(false); }
+  };
+
+  // ── 已預約試上（承接自 MemberExperiencePage.jsx「我的預約」，2026-09-07 移至此頁館別選單上方）──
+  const loadMyTrialBookings = () => {
+    memberClient.get('/experience-bookings/my')
+      .then(r => setMyTrialBookings((r.data.bookings || []).filter(b => b.kind === 'trial' && b.status !== 'cancelled')))
+      .catch(() => setMyTrialBookings([]));
+  };
+  const trialBkPaid = (b) => ['confirmed', 'paid'].includes(b.paymentStatus) && (b.totalFee || 0) > 0;
+  const trialBkEditable = (b) => ['pending', 'confirmed'].includes(b.status) && b.bookingDate && dayjs().format('YYYY-MM-DD') < b.bookingDate;
+  const doTrialBkCancel = async () => {
+    if (!trialBkCancel) return;
+    const { b, form } = trialBkCancel;
+    if (trialBkPaid(b) && (!form.bankCode || !form.account)) { showMsg('請填寫退款銀行代碼與帳號', 'red'); return; }
+    setTrialBkSaving(true);
+    try {
+      const res = await memberClient.post(`/experience-bookings/${b.id}/member-cancel`,
+        trialBkPaid(b) ? { refundBankCode: form.bankCode, refundAccount: form.account, refundAccountName: form.accountName || '' } : {});
+      showMsg(res.data?.message || '試上預約已取消'); setTrialBkCancel(null); loadMyTrialBookings();
+    } catch (err) { showMsg(err.response?.data?.message || '取消失敗', 'red'); }
+    finally { setTrialBkSaving(false); }
+  };
+  const doTrialBkEdit = async () => {
+    if (!trialBkEdit) return;
+    const { b, form } = trialBkEdit;
+    setTrialBkSaving(true);
+    try {
+      const res = await memberClient.put(`/experience-bookings/${b.id}/member-edit`, { sessionId: form.sessionId });
+      showMsg(res.data?.message || '已改期'); setTrialBkEdit(null); loadMyTrialBookings();
+    } catch (err) { showMsg(err.response?.data?.message || '改期失敗', 'red'); }
+    finally { setTrialBkSaving(false); }
   };
 
   // 報名對象（本人或子會員）；未成年判定以「報名對象」為準，非登入者
@@ -403,7 +448,8 @@ export default function MemberCoursesPage() {
       // 無外層 settings 包裝，比照 MemberExperiencePage.jsx/ExperienceBookingsPage.jsx 的讀法）——
       // 原本誤讀 r.data.settings?.bankInfo（該路徑恆為 undefined）導致 trialBankInfo 永遠是空物件，
       // 試上報名不論選哪一館，付款畫面都顯示下方寫死的「士林館富邦銀行」帳號（2026-09-06 查獲）。
-      if (!trialBankInfo) memberClient.get('/experience-bookings/settings').then(r => setTrialBankInfo(r.data?.bankInfo || {})).catch(() => setTrialBankInfo({}));
+      if (!trialBankInfo) memberClient.get('/experience-bookings/settings').then(r => { setTrialBankInfo(r.data?.bankInfo || {}); setTrialRefundFee(Number(r.data?.refundHandlingFee ?? 100)); }).catch(() => setTrialBankInfo({}));
+      loadMyTrialBookings();
     }
   }, [tab, calendarMonth]);
 
@@ -1640,13 +1686,55 @@ export default function MemberCoursesPage() {
       {tab === 'trial' && (() => {
         const inp = { width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' };
         // 只列有名額（含候補未滿）的場次
-        const openSessions = trialSessions.filter(sx => !sx.isFull && (sx.remaining == null || sx.remaining > 0));
-        const list = trialGymId ? openSessions.filter(sx => sx.gymId === trialGymId) : openSessions;
+        const list = trialGymId ? openTrialSessions.filter(sx => sx.gymId === trialGymId) : openTrialSessions;
         return (
           <div style={{ padding:'12px 16px' }}>
             <div style={{ fontSize:12, color:'#8A5A00', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:10, padding:'10px 12px', margin:'0 0 12px', lineHeight:1.7, textAlign:'left' }}>
               🧗 試上為常態課程單堂體驗、另收試上費、<strong>保險自理</strong>；僅開放<strong>報名日 2 週內</strong>的場次，額滿不顯示。
             </div>
+            {/* 已預約試上（在館別選單上方） */}
+            {myTrialBookings.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>已預約試上</div>
+                {myTrialBookings.map(b => {
+                  const sl = { pending: { bg: '#FAEEDA', color: '#854F0B', text: '待確認' }, confirmed: { bg: '#E6F4EB', color: '#2D7D46', text: '已確認' } }[b.status] || { bg: '#F0EDED', color: '#666', text: b.status };
+                  return (
+                    <div key={b.id} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8D5D5', padding: 14, marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{gymPrefix(b.gymId)}{b.courseName}</div>
+                          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{dayjs(b.bookingDate).format('YYYY/MM/DD')}（{WEEKDAYS[dayjs(b.bookingDate).day()]}）{b.bookingTime}</div>
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0 }}>{sl.text}</span>
+                      </div>
+                      {b.paymentStatus === 'transfer_rejected' && (
+                        <div style={{ marginTop: 10, background: '#FCEBEB', border: '0.5px solid #EEC1C1', borderRadius: 8, padding: '8px 12px' }}>
+                          <div style={{ fontSize: 12, color: '#A32D2D', fontWeight: 600, textAlign: 'left' }}>轉帳被退回{b.paymentRejectReason ? `：${b.paymentRejectReason}` : ''}</div>
+                          <button onClick={() => setTrialReupTarget({ orderType: 'experience', refId: b.id, orderName: `試上 ${b.courseName}`, amount: b.totalFee, gymId: b.gymId, reason: b.paymentRejectReason })}
+                            style={{ marginTop: 6, height: 30, padding: '0 14px', borderRadius: 6, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>
+                            重新上傳轉帳
+                          </button>
+                        </div>
+                      )}
+                      {b.paymentStatus === 'pending_confirm' && (
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#854F0B' }}>轉帳已重新送出，等待館方確認</div>
+                      )}
+                      {trialBkEditable(b) && (
+                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                          <button onClick={() => setTrialBkEdit({ b, form: { sessionId: '' } })}
+                            style={{ height: 30, padding: '0 14px', borderRadius: 8, background: '#fff', border: '0.5px solid #E8D5D5', color: '#444', fontSize: 12, cursor: 'pointer' }}>改期</button>
+                          <button onClick={() => setTrialBkCancel({ b, form: { bankCode: '', account: '', accountName: '' } })}
+                            style={{ height: 30, padding: '0 14px', borderRadius: 8, background: '#fff', border: '0.5px solid #C0392B', color: '#C0392B', fontSize: 12, cursor: 'pointer' }}>取消預約</button>
+                        </div>
+                      )}
+                      {['pending', 'confirmed'].includes(b.status) && !trialBkEditable(b) && (
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#999' }}>活動一天前已鎖定，如需異動請洽櫃檯</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
             {/* 第一層：館別 + 班別 */}
             {!trialCategory && !trialCourseId && (<>
               <div style={{ display:'flex', gap:8, marginBottom:12 }}>
@@ -1722,6 +1810,88 @@ export default function MemberCoursesPage() {
           </div>
         );
       })()}
+
+      {/* 取消已預約試上（已繳費需退款帳號、扣手續費退回） */}
+      {trialBkCancel && (() => {
+        const b = trialBkCancel.b;
+        const fee = trialRefundFee;
+        const refund = Math.max(0, (b.totalFee || 0) - fee);
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => { if (!trialBkSaving) setTrialBkCancel(null); }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '24px 22px', width: 330, maxWidth: '92vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,.18)' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8, textAlign: 'left' }}>取消試上預約</div>
+              <div style={{ fontSize: 13, color: '#666', lineHeight: 1.7, marginBottom: 12, textAlign: 'left' }}>
+                確定取消 {dayjs(b.bookingDate).format('YYYY/MM/DD')} {b.bookingTime} 的試上預約嗎？
+              </div>
+              {trialBkPaid(b) ? (
+                <>
+                  <div style={{ background: '#FBF5F5', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#444', lineHeight: 1.8, textAlign: 'left' }}>
+                    已繳金額 NT${(b.totalFee || 0).toLocaleString()} − 手續費 NT${fee.toLocaleString()} ＝ <strong style={{ color: '#8B1A1A' }}>預計退款 NT${refund.toLocaleString()}</strong><br />
+                    退款將由館方匯至您提供的帳號。
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8, marginBottom: 8 }}>
+                    <input value={trialBkCancel.form.bankCode} onChange={e => setTrialBkCancel(t => ({ ...t, form: { ...t.form, bankCode: e.target.value.replace(/\D/g, '').slice(0, 3) } }))}
+                      placeholder="銀行代碼 *" style={{ height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+                    <input value={trialBkCancel.form.account} onChange={e => setTrialBkCancel(t => ({ ...t, form: { ...t.form, account: e.target.value.replace(/\D/g, '').slice(0, 16) } }))}
+                      placeholder="退款帳號 *" style={{ height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+                  </div>
+                  <input value={trialBkCancel.form.accountName} onChange={e => setTrialBkCancel(t => ({ ...t, form: { ...t.form, accountName: e.target.value } }))}
+                    placeholder="戶名（選填）" style={{ width: '100%', height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box', marginBottom: 14 }} />
+                </>
+              ) : (
+                <div style={{ fontSize: 12, color: '#999', marginBottom: 14, textAlign: 'left' }}>尚未繳費，取消後無需退款。</div>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setTrialBkCancel(null)} disabled={trialBkSaving}
+                  style={{ flex: 1, height: 44, borderRadius: 12, border: '0.5px solid #E8D5D5', background: '#fff', fontSize: 14, color: '#6b6b6b', cursor: 'pointer' }}>返回</button>
+                <button onClick={doTrialBkCancel} disabled={trialBkSaving}
+                  style={{ flex: 1, height: 44, borderRadius: 12, background: '#C0392B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{trialBkSaving ? '處理中...' : '確定取消'}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 試上改期（換場次，須同館同試上費） */}
+      {trialBkEdit && (() => {
+        const b = trialBkEdit.b;
+        const candidates = openTrialSessions.filter(sx => sx.gymId === b.gymId && sx.id !== b.sessionId && sx.date > dayjs().format('YYYY-MM-DD') && (sx.trialPrice || 0) === (b.totalFee || 0));
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
+            onClick={() => { if (!trialBkSaving) setTrialBkEdit(null); }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '22px 20px', width: 330, maxWidth: '92vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,.18)' }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 12, textAlign: 'left' }}>試上改期（換場次）</div>
+              {candidates.length === 0 ? (
+                <div style={{ fontSize: 13, color: '#999', marginBottom: 14, textAlign: 'left' }}>目前沒有其他可改期的同價場次；如需變更請取消後重新報名。</div>
+              ) : (
+                <div style={{ marginBottom: 14 }}>
+                  {candidates.map(sx => (
+                    <label key={sx.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${trialBkEdit.form.sessionId === sx.id ? '#8B1A1A' : '#EDE5E5'}`, marginBottom: 6, cursor: 'pointer', fontSize: 13 }}>
+                      <input type="radio" name="trialBkEditSession" checked={trialBkEdit.form.sessionId === sx.id}
+                        onChange={() => setTrialBkEdit(t => ({ ...t, form: { sessionId: sx.id } }))} style={{ accentColor: '#8B1A1A' }} />
+                      <span style={{ textAlign: 'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setTrialBkEdit(null)} disabled={trialBkSaving}
+                  style={{ flex: 1, height: 44, borderRadius: 12, border: '0.5px solid #E8D5D5', background: '#fff', fontSize: 14, color: '#6b6b6b', cursor: 'pointer' }}>返回</button>
+                <button onClick={doTrialBkEdit} disabled={trialBkSaving || !trialBkEdit.form.sessionId}
+                  style={{ flex: 2, height: 44, borderRadius: 12, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: (trialBkSaving || !trialBkEdit.form.sessionId) ? 'not-allowed' : 'pointer', opacity: (trialBkSaving || !trialBkEdit.form.sessionId) ? .6 : 1 }}>
+                  {trialBkSaving ? '儲存中...' : '確認修改'}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {trialReupTarget && (
+        <TransferReuploadModal target={trialReupTarget} memberName={member?.name}
+          onClose={() => setTrialReupTarget(null)}
+          onDone={() => { setTrialReupTarget(null); showMsg('已重新送出，等待館方確認收款'); loadMyTrialBookings(); }} />
+      )}
 
       {/* 試上報名 Modal */}
       {trialModal && (() => {

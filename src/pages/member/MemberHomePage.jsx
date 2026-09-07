@@ -504,10 +504,11 @@ export default function MemberHomePage() {
               );
             })() })),
             ...myExperiences.map(b => ({ sortKey: b.bookingDate, node: (
-              <div key={`x-${b.id}`} onClick={() => navigate('/member/experience?tab=my')}
+              // 課程試上（kind==='trial'）已改顯示於「課程總覽 → 課程試上」，不再是「體驗預約」（2026-09-07）
+              <div key={`x-${b.id}`} onClick={() => navigate(b.kind==='trial' ? '/member/courses?tab=trial' : '/member/experience?tab=my')}
                 style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
                 <div>
-                  <div style={{ fontWeight:600, fontSize:14 }}>🧗 體驗課程預約</div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>🧗 {b.kind==='trial' ? (b.courseName || '課程試上') : '體驗課程預約'}</div>
                   <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
                     {b.bookingDate} {b.bookingTime} · {b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · {b.numParticipants}人
                   </div>
