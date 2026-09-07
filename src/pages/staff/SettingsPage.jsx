@@ -1440,7 +1440,11 @@ export default function SettingsPage() {
             <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:14 }}>
               課程／定期票服務同意書的完整條款內容，二館共用；報名/購票流程請詳閱步驟與完成後寄送的合約 PDF 皆讀取此處內容，改一次兩邊自動同步。
               直接編輯整段條款文字：「空一行」分段、「・」開頭的行會顯示為條列項目、行首「數字. 」（如「1. 服務審閱期」）會自動呈現為段落標題樣式。
-              可使用樣板變數：課程條款 <code>{'{{transferFee}}'}</code>（轉讓費）／<code>{'{{preStartFeeRate}}'}</code>、<code>{'{{postStartFeeRate}}'}</code>（開課前/後退費費率百分比，依課程各自設定自動代入）；定期票條款 <code>{'{{transferFee}}'}</code>／<code>{'{{refundFee}}'}</code>。
+            </div>
+            <div style={{ fontSize:12, color:'#8B6914', background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'10px 12px', lineHeight:1.7, marginBottom:16 }}>
+              條款裡遇到下列「樣板變數」請保留、不要改成固定數字——系統送出合約 PDF 時會自動代入當下正確的金額／費率：<br/>
+              ・課程條款：<code>{'{{transferFee}}'}</code> 轉讓費（目前 600 元）／<code>{'{{preStartFeeRate}}'}</code>、<code>{'{{postStartFeeRate}}'}</code> 開課前／開課後退費手續費率——<strong>每門課設定的費率可能不同</strong>，若寫死一個數字，對費率不同的課程會顯示錯誤的百分比。<br/>
+              ・定期票條款：<code>{'{{transferFee}}'}</code> 轉讓費／<code>{'{{refundFee}}'}</code> 提前解約手續費（皆目前 600 元，全站統一、非依票種各異）。
             </div>
             <div style={{ display:'flex', gap:8, marginBottom:16 }}>
               {[{ k:'course', l:'課程服務同意書' }, { k:'pass', l:'定期票服務同意書' }].map(o => (
@@ -1451,8 +1455,8 @@ export default function SettingsPage() {
               ))}
             </div>
             <textarea value={contractTerms[contractTermsType] || ''} onChange={e => updateContractText(contractTermsType, e.target.value)}
-              rows={26} placeholder="整段條款文字（空一行分段，「・」開頭轉條列，行首「數字. 」視為段落標題）"
-              style={{ ...s.input, width:'100%', resize:'vertical', fontFamily:'inherit', color:'#1a1a1a', boxSizing:'border-box', lineHeight:1.7 }} />
+              placeholder="整段條款文字（空一行分段，「・」開頭轉條列，行首「數字. 」視為段落標題）"
+              style={{ ...s.input, width:'100%', height:'10cm', resize:'vertical', fontFamily:'inherit', color:'#1a1a1a', boxSizing:'border-box', lineHeight:1.7 }} />
           </div>
         </div>
       )}
