@@ -12,6 +12,14 @@ export const requestCourseRefund = (enrollmentId, data) =>
 export const requestCoursePause = (enrollmentId, data) =>
   memberClient.post(`/course-adjustments/enrollments/${enrollmentId}/pause-request`, data);
 
+// 會員申請轉讓（2026-09-07 新增，比照定期票轉讓）
+export const requestCourseTransfer = (enrollmentId, data) =>
+  memberClient.post(`/course-adjustments/enrollments/${enrollmentId}/transfer-request`, data);
+
+// 暫停/退費/轉讓理由清單（與定期票共用同一份）
+export const getCourseAdjustmentReasons = () =>
+  memberClient.get('/course-adjustments/reasons');
+
 // 員工核准
 export const approveCourseAdjustment = (requestId, data) =>
   client.post(`/course-adjustments/requests/${requestId}/approve`, data);

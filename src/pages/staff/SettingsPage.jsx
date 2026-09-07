@@ -38,6 +38,7 @@ const TAB_GROUPS = [
       { key: 'partnerGymMember',icon: '🧗', label: '友館隊員優惠', superAdminOnly: true },
       { key: 'partnerGyms',  icon: '🧗', label: '友館折扣清單', superAdminOnly: true },
       { key: 'paymentMethods',icon: '💳', label: '付款方式', superAdminOnly: true },
+      { key: 'contractTerms',icon: '📜', label: '合約條款', superAdminOnly: true },
     ],
   },
   {
@@ -194,6 +195,7 @@ export default function SettingsPage() {
     if (activeTab === 'partnerGymMember' && isSuperAdmin) loadPartnerGymMember();
     if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
     if (activeTab === 'paymentMethods' && isSuperAdmin) loadPayMethods();
+    if (activeTab === 'contractTerms' && isSuperAdmin) loadContractTerms();
     if (activeTab === 'invoicePrinting' && isSuperAdmin) loadInvoicePrinting(invoicePrintingGym);
     if (activeTab === 'invoiceNumbers' && canManageInvoiceNumbers) { loadInvState(invNumGym); loadTodayInvoices(invNumGym); }
     if (activeTab === 'teamFees' && isManagerPlus) loadTeamFees();
@@ -450,6 +452,53 @@ export default function SettingsPage() {
       const res = await client.put('/settings/bonus', { validityMonths: Number(bonus.validityMonths) });
       setBonus({ validityMonths: res.data.validityMonths }); setBonusDirty(false);
       showMsg('紅利使用期限已儲存');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+
+  // ─── 合約條款內容（課程/定期票服務同意書，二館共用，2026-09-07 新增）─────
+  const [contractTerms, setContractTerms] = useState({ course: [], pass: [] });
+  const [contractTermsType, setContractTermsType] = useState('course'); // 子分頁：course | pass
+  const [contractTermsDirty, setContractTermsDirty] = useState(false);
+  const loadContractTerms = async () => {
+    try {
+      const res = await client.get('/settings/contract-terms');
+      setContractTerms({ course: res.data.course || [], pass: res.data.pass || [] });
+      setContractTermsDirty(false);
+    } catch (e) {}
+  };
+  const updateContractSection = (type, idx, field, value) => {
+    setContractTerms(prev => {
+      const arr = [...(prev[type] || [])];
+      arr[idx] = { ...arr[idx], [field]: value };
+      return { ...prev, [type]: arr };
+    });
+    setContractTermsDirty(true);
+  };
+  const addContractSection = (type) => {
+    setContractTerms(prev => ({ ...prev, [type]: [...(prev[type] || []), { title: '', body: '' }] }));
+    setContractTermsDirty(true);
+  };
+  const removeContractSection = (type, idx) => {
+    setContractTerms(prev => ({ ...prev, [type]: prev[type].filter((_, i) => i !== idx) }));
+    setContractTermsDirty(true);
+  };
+  const moveContractSection = (type, idx, dir) => {
+    setContractTerms(prev => {
+      const arr = [...prev[type]];
+      const j = idx + dir;
+      if (j < 0 || j >= arr.length) return prev;
+      [arr[idx], arr[j]] = [arr[j], arr[idx]];
+      return { ...prev, [type]: arr };
+    });
+    setContractTermsDirty(true);
+  };
+  const handleSaveContractTerms = async () => {
+    setLoading(true);
+    try {
+      await client.put('/settings/contract-terms', { course: contractTerms.course, pass: contractTerms.pass });
+      setContractTermsDirty(false);
+      showMsg('合約條款已儲存');
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -1398,6 +1447,50 @@ export default function SettingsPage() {
                 style={{ ...s.input, width:'100%' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 1～60 個月，預設 6 個月。</div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'contractTerms' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>📜 合約條款內容（二館共用）</span>
+            <SaveButton onSave={handleSaveContractTerms} isDirty={contractTermsDirty} label='儲存合約條款' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:14 }}>
+              課程／定期票服務同意書的完整條款內容，二館共用；報名/購票流程請詳閱步驟與完成後寄送的合約 PDF 皆讀取此處內容，改一次兩邊自動同步。
+              條款內容以「空一行」分段、「・」開頭的行會顯示為條列項目。可使用樣板變數：課程條款 <code>{'{{transferFee}}'}</code>（轉讓費）／<code>{'{{preStartFeeRate}}'}</code>、<code>{'{{postStartFeeRate}}'}</code>（開課前/後退費費率百分比，依課程各自設定自動代入）；定期票條款 <code>{'{{transferFee}}'}</code>／<code>{'{{refundFee}}'}</code>。
+            </div>
+            <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+              {[{ k:'course', l:'課程服務同意書' }, { k:'pass', l:'定期票服務同意書' }].map(o => (
+                <button key={o.k} onClick={() => setContractTermsType(o.k)}
+                  style={{ height:34, padding:'0 16px', borderRadius:8, border: contractTermsType===o.k ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5', background: contractTermsType===o.k ? '#FBF5F5' : '#fff', color: contractTermsType===o.k ? '#8B1A1A' : '#666', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+                  {o.l}
+                </button>
+              ))}
+            </div>
+            {(contractTerms[contractTermsType] || []).map((sec, idx) => (
+              <div key={idx} style={{ border:'0.5px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:10 }}>
+                <div style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
+                  <input value={sec.title} onChange={e => updateContractSection(contractTermsType, idx, 'title', e.target.value)}
+                    placeholder="條款標題（如：1. 服務審閱期）" style={{ ...s.input, flex:1, fontWeight:600, color:'#1a1a1a' }} />
+                  <button onClick={() => moveContractSection(contractTermsType, idx, -1)} disabled={idx===0} title="上移"
+                    style={{ width:30, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color: idx===0 ? '#ccc' : '#666', cursor: idx===0 ? 'not-allowed' : 'pointer' }}>↑</button>
+                  <button onClick={() => moveContractSection(contractTermsType, idx, 1)} disabled={idx===(contractTerms[contractTermsType]||[]).length-1} title="下移"
+                    style={{ width:30, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color: idx===(contractTerms[contractTermsType]||[]).length-1 ? '#ccc' : '#666', cursor: idx===(contractTerms[contractTermsType]||[]).length-1 ? 'not-allowed' : 'pointer' }}>↓</button>
+                  <button onClick={() => removeContractSection(contractTermsType, idx)} title="刪除此條款"
+                    style={{ width:30, height:30, borderRadius:6, border:'0.5px solid #E8B5B5', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>✕</button>
+                </div>
+                <textarea value={sec.body} onChange={e => updateContractSection(contractTermsType, idx, 'body', e.target.value)}
+                  rows={4} placeholder="條款內容（空一行分段，「・」開頭轉條列）"
+                  style={{ ...s.input, width:'100%', resize:'vertical', fontFamily:'inherit', color:'#1a1a1a', boxSizing:'border-box' }} />
+              </div>
+            ))}
+            <button onClick={() => addContractSection(contractTermsType)}
+              style={{ width:'100%', height:40, borderRadius:8, border:'1px dashed #8B1A1A', background:'#fff', color:'#8B1A1A', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+              ＋ 新增條款
+            </button>
           </div>
         </div>
       )}

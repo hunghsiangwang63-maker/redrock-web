@@ -938,6 +938,7 @@ export default function MemberQRPage() {
               startDate={bpStart}
               endDate={bpEnd}
               totalFee={selectedEntry?.price}
+              installmentPeriods={buyPassPlan === 'installment' ? selectedEntry?.installment?.periods : null}
               isMinor={entrantIsMinor}
               t={t}
             />

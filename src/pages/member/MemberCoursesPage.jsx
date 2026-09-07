@@ -6,7 +6,7 @@ import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
-import { requestCourseRefund, requestCoursePause } from '../../api/courseAdjustments';
+import { requestCourseRefund, requestCoursePause, requestCourseTransfer, getCourseAdjustmentReasons } from '../../api/courseAdjustments';
 
 // ── 課程規則共用元件（報名步驟3「規則確認」與 我的課程「📋 課程規則」modal 共用；改這裡兩邊連動）──
 const RULE_BOX_STYLE = { background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' };
@@ -89,88 +89,6 @@ function RefundRulesBox({ course }) {
     </div>
   );
 }
-// 課程服務同意書完整條款（報名步驟「合約條款」專用，僅週課出現）——文字須與後端 courseContractPdf.js 的
-// termsBlock() 逐字同步：改其中一邊要跟著改另一邊，前者是報名當下給會員看的版本、後者是報名完成後
-// 產生 PDF 寄送存證的版本，兩者內容必須完全一致（僅退費費率兩個百分比為動態值，算法相同）。
-function FullContractTermsBox({ course }) {
-  const postRate = Math.round(((course?.refundFeeRate ?? 0.2)) * 100);
-  const preRate = Math.round(((course?.refundPreStartFeeRate ?? 0)) * 100);
-  const S = { ...RULE_BOX_STYLE, lineHeight: 1.6, fontSize: 11.5 };
-  const sub = { paddingLeft: 14 };
-  return (
-    <div style={S}>
-      <div>1. 課程與服務相關條款皆有三天審閱期，未開始上課前可全額退費，未能依課程安排期限內使用完畢可依請假規定辦理暫停、延期。</div>
-      <div style={{ marginTop: 8 }}>2. 若遇以下事項可辦理展延或退費，須事先提出相關文件證明，釋明下列事由之一者：</div>
-      <div style={sub}>
-        ・出國逾一個月。<br/>
-        ・受傷、疾病或身體不適致不宜運動。<br/>
-        ・懷孕、育嬰、侍親之需要。<br/>
-        ・服兵役致難以履約。<br/>
-        ・職務異動或遷居致難以履約。<br/>
-        ・或是其他事由致難以履約。
-      </div>
-      <div style={{ marginTop: 8 }}>3. 終止課程、轉讓與解約</div>
-      <div style={sub}>
-        ・課程可於當期期限內轉讓（限一次），轉讓費為 600 元。<br/>
-        ・若甲方因個人因素終止本課程，得申請退費：
-        <div style={{ ...sub, marginTop: 4 }}>
-          (1) 退費金額計算公式：
-          <div style={sub}>
-            ・退費金額＝剩餘堂數價金－手續費<br/>
-            ・每堂單價：課程費用÷總堂數<br/>
-            ・剩餘堂數：總堂數－已開課堂數（不論學員實際有無出席或請假，皆以已開課天數計算）。
-          </div>
-          (2) 手續費比例：
-          <div style={sub}>
-            ・開課前申請退費：{preRate > 0 ? `收取總課程費用之 ${preRate}%。` : '不收取手續費。'}<br/>
-            ・開課後申請退費：收取剩餘堂數價金之 {postRate}%。
-          </div>
-        </div>
-      </div>
-      <div style={{ marginTop: 8 }}>4. 乙方服務之異動通知：乙方所提供服務內容與時間如有異動，須事先通知，且應與原定開始服務時間相距24個小時以上，其通知方式約定如下：</div>
-      <div style={sub}>
-        ・公告於乙方網站：app.redrocktaiwan.com<br/>
-        ・若乙方未依前項約定時間方式通知，甲方得請求乙方於限期 7 日內提供甲方同意之補課方案。
-      </div>
-      <div style={{ marginTop: 8 }}>5. 不可歸責雙方事由之終止與效果：因天災、戰亂、政府法令之新增或變更等不可抗力或其他不可歸責於雙方當事人之事由，致難以完成本契約之服務時，任何一方得終止契約，乙方應依未服務之堂數（含所贈與服務堂數）計算餘額退還予甲方，不得收取手續費、違約金或任何名目費用。</div>
-      <div style={{ marginTop: 8 }}>6. 不可歸責乙方事由之終止與效果：甲方有影響乙方營運之不當行為情節重大，經勸告無效者，乙方得終止契約，並應依未服務之堂數（含所贈與服務堂數）計算餘額退還予甲方，不得收取手續費用、違約金或任何名目費用。</div>
-      <div style={{ marginTop: 8 }}>7. 可歸責乙方事由之終止與效果：可歸責乙方之事由致無法繼續提供約定服務（含所贈與服務堂數），應依未服務之堂數計算餘額退還予甲方，不得收取手續費、違約金或任何名目之扣費。</div>
-      <div style={{ marginTop: 8 }}>8. 甲方是否需預約才可消費？</div>
-      <div style={sub}>・甲方參加教練服務之時需依照課程已排定之時段準時參加。</div>
-      <div style={{ marginTop: 8 }}>9. 若甲方無法依約定時間參加教練服務時，須事先通知，甲方若未依前項約定時間方式通知，乙方則能不予補課。</div>
-      <div style={{ marginTop: 8 }}>10. 贈品約款及其效果：一定期間免費入場。</div>
-      <div style={{ marginTop: 8 }}>11. 消費資訊及廣告：乙方之廣告，均為契約內容。乙方應確保其廣告內容真實，其對甲方所應負義務不得低於前項廣告內容。</div>
-      <div style={{ marginTop: 8 }}>12. 合意管轄：因本契約發生訴訟時，雙方同意以新竹地方法院為第一審管轄法院，但不得排除消費者保護法第四十七條或民事訴訟法第二十八條第二項、第四百三十六條之九規定之小額訴訟管轄法院之適用。</div>
-    </div>
-  );
-}
-// 場館合約基本資料（報名步驟「合約條款」專用；欄位順序與後端 courseContractPdf.js 的 gymInfoBlock()
-// 一致，資料來源 GET /settings/gym-contracts/member，即時讀取非快照——比照 PDF 產生時的既有作法）。
-function GymContractInfoBox({ contract }) {
-  const g = contract || {};
-  const rows = [
-    ['場所名稱', g.venueName],
-    ['負責人', g.personInCharge],
-    ['履約地點', g.contractLocation],
-    ['坪數', g.areaPing],
-    ['場館可容納人數', g.maxCapacity],
-    ['預計招收會員人數', g.expectedMembers],
-    ['聯絡電話', g.contactPhone],
-    ['電子信箱', g.contactEmail],
-    ['公司登記或行號證明', g.businessRegistrationNo],
-    ['公共意外責任險額度與效期', g.liabilityInsurancePeriod],
-    ['每一人體傷責任', g.perPersonInjuryLiability],
-  ];
-  return (
-    <div style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:8, padding:'10px 14px', marginBottom:10, fontSize:11.5, color:'#444', textAlign:'left' }}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'4px 12px' }}>
-        {rows.map(([label, val], i) => (
-          <div key={i}><span style={{ color:'#999' }}>{label}：</span>{val || '－'}</div>
-        ))}
-      </div>
-    </div>
-  );
-}
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import { isUnder4 } from '../../utils/age';
@@ -180,6 +98,16 @@ import PaymentSection, { isTransferInfoComplete } from '../../components/Payment
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
+import { GymContractInfoBox, ContractTermsSections } from '../../components/ContractTermsSections.jsx';
+
+// 課程服務同意書完整條款（報名步驟「合約條款」專用，僅週課出現）——條款文字改由設定頁提供
+// （GET /settings/contract-terms/member，見 loadContractTerms），與後端產生 PDF 時讀的是同一份
+// 資料來源，兩者自動同步；此處只負責把課程本身的動態值（退費費率）代入樣板變數。
+function FullContractTermsBox({ course, sections }) {
+  const postRate = Math.round(((course?.refundFeeRate ?? 0.2)) * 100);
+  const preRate = Math.round(((course?.refundPreStartFeeRate ?? 0)) * 100);
+  return <ContractTermsSections sections={sections} vars={{ postStartFeeRate: postRate, preStartFeeRate: preRate, transferFee: 600 }} />;
+}
 
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
 
@@ -238,6 +166,7 @@ export default function MemberCoursesPage() {
   const [leaveReason, setLeaveReason] = useState('');
   const [bankAccounts, setBankAccounts] = useState({});
   const [gymContracts, setGymContracts] = useState({}); // 場館合約基本資料（依 gymId），供報名步驟「合約條款」顯示
+  const [contractTerms, setContractTerms] = useState({ course: [] }); // 合約條款文字（二館共用，設定頁可編輯）
   const [screenshot, setScreenshot] = useState(null);
   const [uploadDone, setUploadDone] = useState(false);
   const [makeupRights, setMakeupRights] = useState([]);
@@ -261,6 +190,30 @@ export default function MemberCoursesPage() {
   const adjKey = (courseId, memberId) => `${courseId}__${memberId}`;
   const [adjustReason, setAdjustReason] = useState('');
   const [adjustLoading, setAdjustLoading] = useState(false);
+  // 退費/暫停/轉讓理由（2026-09-07 改結構化，同定期票 REQUEST_REASONS 六項共用清單）
+  const [adjustReasons, setAdjustReasons] = useState([]);
+  const [adjustReasonKey, setAdjustReasonKey] = useState('');
+  useEffect(() => { getCourseAdjustmentReasons().then(r => setAdjustReasons(r.data.reasons || [])).catch(() => {}); }, []);
+  // 轉讓：接收對象電話查詢（同一套 /ticket-transfers/recipients，比照定期票轉讓）
+  const [transferPhone, setTransferPhone] = useState('');
+  const [transferRecipients, setTransferRecipients] = useState([]);
+  const [transferPickId, setTransferPickId] = useState('');
+  useEffect(() => {
+    if (adjustModal?.type !== 'transfer') return;
+    const phone = transferPhone.trim();
+    if (phone.length < 7) { setTransferRecipients([]); setTransferPickId(''); return; }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await memberClient.get('/ticket-transfers/recipients', { params: { phone } });
+        if (cancelled) return;
+        const list = (res.data.recipients || []).filter(r => r.id !== adjustModal?.memberId);
+        setTransferRecipients(list);
+        setTransferPickId(list.length ? list[0].id : '');
+      } catch { if (!cancelled) { setTransferRecipients([]); setTransferPickId(''); } }
+    }, 400);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [transferPhone, adjustModal?.type, adjustModal?.memberId]);
   // 退費指定帳戶（2026-08-24 新增，比照比賽退費）：可能與當初付款帳戶不同，獨立收集
   const [refundBankCode, setRefundBankCode] = useState('');
   const [refundBankName, setRefundBankName] = useState('');
@@ -280,29 +233,39 @@ export default function MemberCoursesPage() {
     setRefundBankCode(''); setRefundBankName(''); setRefundAccount(''); setRefundAccountName('');
   };
 
+  const resetAdjustFields = () => {
+    setAdjustReasonKey(''); setAdjustReason('');
+    setTransferPhone(''); setTransferRecipients([]); setTransferPickId('');
+    resetRefundAccountFields();
+  };
+
   const handleAdjustSubmit = async () => {
-    if (!adjustReason.trim()) { showMsg('請填寫原因', 'red'); return; }
+    if (!adjustReasonKey) { showMsg('請選擇事由', 'red'); return; }
+    if (adjustModal.type === 'transfer' && !transferPickId) { showMsg('請輸入接收對象電話並選定', 'red'); return; }
     // 已付費的退費申請，前端先擋（後端仍為權威——若判定與此處猜測不同，見下方 catch 對 MISSING_REFUND_ACCOUNT 的處理）
     if (adjustModal.type === 'refund' && adjustModal.paid && (!refundBankCode.trim() || !refundAccount.trim())) {
       showMsg('請填寫退款銀行代碼與帳號', 'red'); return;
     }
     setAdjustLoading(true);
     try {
+      const reasonPayload = { reasonKey: adjustReasonKey, reasonDetail: adjustReason.trim(), memberId: adjustModal.memberId };
       if (adjustModal.type === 'refund') {
         const res = await requestCourseRefund(adjustModal.enrollmentId, {
-          reason: adjustReason, memberId: adjustModal.memberId,
+          ...reasonPayload,
           ...(refundBankCode.trim() || refundAccount.trim() ? { refundBankCode, refundBankName, refundAccount, refundAccountName } : {}),
         });
         showMsg(`退費申請已送出（建議退款 NT$${res.data.suggestedRefund}），等待管理員審核`);
+      } else if (adjustModal.type === 'transfer') {
+        await requestCourseTransfer(adjustModal.enrollmentId, { ...reasonPayload, transferToMemberId: transferPickId });
+        showMsg('轉讓申請已送出，等待管理員審核');
       } else {
-        await requestCoursePause(adjustModal.enrollmentId, { reason: adjustReason, memberId: adjustModal.memberId });
+        await requestCoursePause(adjustModal.enrollmentId, reasonPayload);
         showMsg('暫停申請已送出，等待管理員審核');
       }
       // 記錄已申請，禁止重複申請（key 含報名對象，家長/子女分開）
       setPendingAdjust(prev => new Map(prev).set(adjKey(adjustModal.enrollmentId, adjustModal.memberId), adjustModal.type));
       setAdjustModal(null);
-      setAdjustReason('');
-      resetRefundAccountFields();
+      resetAdjustFields();
       loadMyEnrollments(); // 退費凍結旗標已寫入 → 重載讓請假/補課等 UI 即時隱藏
     } catch (err) {
       showMsg(err.response?.data?.message || '申請失敗', 'red');
@@ -310,8 +273,7 @@ export default function MemberCoursesPage() {
       // 不清空原因，避免打回重打；其餘錯誤維持原行為（關閉 modal，避免卡住）
       if (err.response?.data?.error !== 'MISSING_REFUND_ACCOUNT') {
         setAdjustModal(null);
-        setAdjustReason('');
-        resetRefundAccountFields();
+        resetAdjustFields();
       } else if (adjustModal) {
         setAdjustModal({ ...adjustModal, paid: true }); // 更正猜測，讓帳戶欄位改為必填顯示
       }
@@ -400,7 +362,7 @@ export default function MemberCoursesPage() {
     ...(selectedCourse?.skipSignature ? [] : ['sign'])];
   const enrollStepKey = enrollStepKeys[enrollStep - 1];
 
-  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); loadGymContracts(); }, [member?.id]);
+  useEffect(() => { loadCourses(); loadMyEnrollments(); loadMakeupRights(); loadBankAccounts(); loadGymContracts(); loadContractTerms(); }, [member?.id]);
 
   // 深連結報名：?course=<id> → 課程載入後自動切到課程總覽並開啟該課報名頁（供分享報名連結；只開一次）
   const _deepLinkDone = useRef(false);
@@ -697,6 +659,13 @@ export default function MemberCoursesPage() {
     try {
       const res = await memberClient.get('/settings/gym-contracts/member');
       setGymContracts(res.data.contracts || {});
+    } catch (e) {}
+  };
+
+  const loadContractTerms = async () => {
+    try {
+      const res = await memberClient.get('/settings/contract-terms/member');
+      setContractTerms(res.data || { course: [] });
     } catch (e) {}
   };
 
@@ -2229,6 +2198,11 @@ export default function MemberCoursesPage() {
                       style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#8B6914', border:`0.5px solid ${dis ? '#ccc' : '#8B6914'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
                       {adjType === 'pause' ? '暫停審核中' : '申請暫停'}
                     </button>
+                    <button onClick={() => setAdjustModal({ type:'transfer', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
+                      disabled={dis}
+                      style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#185FA5', border:`0.5px solid ${dis ? '#ccc' : '#185FA5'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
+                      {adjType === 'transfer' ? '轉讓審核中' : '申請轉讓'}
+                    </button>
                     </>); })()}
                   </div>
                   )}
@@ -2561,7 +2535,7 @@ export default function MemberCoursesPage() {
                 </div>
                 <div style={{ fontWeight:600, fontSize:12, marginBottom:6, color:'#666' }}>場館合約基本資料</div>
                 <GymContractInfoBox contract={gymContracts[selectedCourse?.gymId]}/>
-                <FullContractTermsBox course={selectedCourse}/>
+                <FullContractTermsBox course={selectedCourse} sections={contractTerms.course}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedContractTerms?'#2D7D46':'#E8D5D5'}`, background: confirmedContractTerms?'#E6F4EB':'#fff', cursor:'pointer', marginTop:10 }}>
                   <input type="checkbox" checked={confirmedContractTerms} onChange={e => setConfirmedContractTerms(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedContractTerms?'#2D7D46':'#444' }}>我已詳閱並同意本課程服務同意書之完整條款內容</span>
@@ -2735,11 +2709,15 @@ export default function MemberCoursesPage() {
       )}
 
       {/* 退費/暫停申請 Modal */}
-      {adjustModal && (
+      {adjustModal && (() => {
+        const _adjCourse = courses.find(c => c.id === adjustModal.enrollmentId);
+        const _youthCourse = _adjCourse?.categoryGroup === 'youth';
+        const _pickedRecipient = transferRecipients.find(r => r.id === transferPickId);
+        return (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:400, maxHeight:'85vh', overflowY:'auto', boxSizing:'border-box' }}>
             <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>
-              {adjustModal.type === 'refund' ? '申請退費' : '申請暫停課程'}
+              {adjustModal.type === 'refund' ? '申請退費' : adjustModal.type === 'transfer' ? '申請轉讓' : '申請暫停課程'}
             </div>
             <div style={{ fontSize:13, color:'#999', marginBottom:16 }}>{adjustModal.courseName}</div>
             {adjustModal.type === 'pause' && (
@@ -2747,9 +2725,42 @@ export default function MemberCoursesPage() {
                 ⚠ 暫停期間將移除課程學員入場資格，恢復後由管理員重新加回
               </div>
             )}
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>原因</label>
+            {adjustModal.type === 'transfer' && (
+              <div style={{ background:'#EAF2FB', border:'0.5px solid #B7D3EF', borderRadius:8, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#185FA5', textAlign:'left' }}>
+                ⚠ 轉讓費 NT$600（現場另行收取，不透過本申請扣款）；僅「尚未上課」的堂數會過戶給接收對象，已上過的堂維持原紀錄。
+              </div>
+            )}
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>事由 *</label>
+            <select value={adjustReasonKey} onChange={e => setAdjustReasonKey(e.target.value)}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:10, background:'#fff', color:'#1a1a1a' }}>
+              <option value="">請選擇事由</option>
+              {adjustReasons.map(r => (<option key={r.key} value={r.key}>{r.label}</option>))}
+            </select>
+            {adjustModal.type === 'transfer' && (
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>接收對象電話 *</label>
+                <input value={transferPhone} onChange={e => setTransferPhone(e.target.value)} placeholder="請輸入對方手機號碼"
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:8 }} />
+                {transferRecipients.length > 1 && (
+                  <select value={transferPickId} onChange={e => setTransferPickId(e.target.value)}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:8 }}>
+                    {transferRecipients.map(r => (<option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（家庭成員）' : ''}</option>))}
+                  </select>
+                )}
+                {transferPhone.trim().length >= 7 && transferRecipients.length === 0 && (
+                  <div style={{ fontSize:12, color:'#A32D2D' }}>查無此電話對應的會員，請確認</div>
+                )}
+                {_pickedRecipient && (
+                  <div style={{ fontSize:12, color:'#2D7D46' }}>✓ 接收對象：{_pickedRecipient.name}</div>
+                )}
+                {_youthCourse && _pickedRecipient && !_pickedRecipient.isChildAccount && (
+                  <div style={{ fontSize:12, color:'#A32D2D', marginTop:4 }}>⚠ 此課程限未滿 18 歲學員，請確認接收對象是否符合資格（後端仍會權威覆核）</div>
+                )}
+              </div>
+            )}
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>補充說明（選填）</label>
             <textarea value={adjustReason} onChange={e => setAdjustReason(e.target.value)} rows={3}
-              placeholder={adjustModal.type === 'refund' ? '請說明退費原因' : '請說明暫停原因（如長期出差、受傷等）'}
+              placeholder="如有其他需說明事項請填寫"
               style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box' }} />
             {adjustModal.type === 'refund' && (
               <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginTop:14 }}>
@@ -2779,16 +2790,17 @@ export default function MemberCoursesPage() {
               </div>
             )}
             <div style={{ display:'flex', gap:10, marginTop:14 }}>
-              <button onClick={() => { setAdjustModal(null); setAdjustReason(''); resetRefundAccountFields(); }}
+              <button onClick={() => { setAdjustModal(null); resetAdjustFields(); }}
                 style={{ flex:1, height:42, borderRadius:10, background:'#fff', color:'#666', border:'0.5px solid #E8D5D5', fontSize:14, cursor:'pointer' }}>取消</button>
               <button onClick={handleAdjustSubmit} disabled={adjustLoading}
-                style={{ flex:2, height:42, borderRadius:10, background: adjustModal.type === 'refund' ? '#A32D2D' : '#8B6914', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
+                style={{ flex:2, height:42, borderRadius:10, background: adjustModal.type === 'refund' ? '#A32D2D' : adjustModal.type === 'transfer' ? '#185FA5' : '#8B6914', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
                 {adjustLoading ? '送出中...' : '送出申請'}
               </button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       <MemberLogoutButton />
       <NavBar />
