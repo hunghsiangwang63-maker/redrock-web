@@ -197,6 +197,8 @@ export default function MemberCoursesPage() {
   const [sessionsLoading, setSessionsLoading] = useState(false); // 場次載入中→插班費用尚未算好，先鎖住報名鈕避免溢繳
   const [quote, setQuote] = useState(null);          // 後端權威報價（插班×續報/舊生×隊員折）＝實收
   const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteError, setQuoteError] = useState(null); // 報價失敗原因——與 quoteLoading 分開，避免「失敗」跟「還在算」都顯示同一句「費用計算中…」讓人以為卡住
+  const [quoteRetryKey, setQuoteRetryKey] = useState(0); // 點「重新整理」時 +1，觸發下方 effect 重新請求
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myMakeups, setMyMakeups] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -417,15 +419,16 @@ export default function MemberCoursesPage() {
   // 後端權威報價（插班×續報/舊生×隊員折）＝實收：週課依「報名對象」取，切課/切對象重取
   useEffect(() => {
     setQuote(null);
+    setQuoteError(null);
     if (!selectedCourse || selectedCourse.type !== 'weekly') return;
     const targetId = enrollForMemberId || member?.id;
     if (!targetId) return;
     setQuoteLoading(true);
     memberClient.get(`/courses/${selectedCourse.id}/quote`, { params: { memberId: targetId } })
       .then(r => setQuote(r.data))
-      .catch(() => setQuote(null))
+      .catch(err => { setQuote(null); setQuoteError(err.response?.data?.message || err.message || '無法取得費用，請重試'); })
       .finally(() => setQuoteLoading(false));
-  }, [selectedCourse, enrollForMemberId, member?.id]);
+  }, [selectedCourse, enrollForMemberId, member?.id, quoteRetryKey]);
   // 報價更新時，同步報名 modal 已捕捉的費用（切換報名對象後付款金額跟著對）
   useEffect(() => {
     if (quote && showEnrollModal) setEnrollSession(prev => (prev && prev.isCourse && !prev.isWaitlist) ? { ...prev, fee: quote.fee } : prev);
@@ -1519,7 +1522,9 @@ export default function MemberCoursesPage() {
                     )}
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                       <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
-                        {!feeReady ? (
+                        {quoteError ? (
+                          <span style={{ fontSize:13, color:'#A32D2D', fontFamily:'inherit' }}>費用計算失敗</span>
+                        ) : !feeReady ? (
                           <span style={{ fontSize:14, color:'#999', fontFamily:'inherit' }}>費用計算中…</span>
                         ) : (<>
                           <span style={{ fontSize:13, color:'#666', fontFamily:'inherit', fontWeight:600, marginRight:8 }}>應繳</span>
@@ -1533,6 +1538,15 @@ export default function MemberCoursesPage() {
                         </span>
                       )}
                     </div>
+                    {quoteError && (
+                      <div style={{ background:'#FCEBEB', border:'0.5px solid #E8B5B5', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#A32D2D', textAlign:'left' }}>
+                        {quoteError}
+                        <button onClick={() => setQuoteRetryKey(k => k + 1)}
+                          style={{ display:'block', marginTop:6, background:'#fff', border:'0.5px solid #E8B5B5', borderRadius:6, padding:'4px 10px', fontSize:12, color:'#A32D2D', cursor:'pointer' }}>
+                          重新整理費用
+                        </button>
+                      </div>
+                    )}
                     {feeReady && instPeriods && !isCourseFull && (
                       <div style={{ fontSize:11, color:'#999', marginBottom:12, marginTop:-8 }}>此課程提供分期付款・共 {instPeriods.length} 期</div>
                     )}
@@ -1549,7 +1563,7 @@ export default function MemberCoursesPage() {
                         setShowEnrollModal(true);
                       }}
                         style={{ width:'100%', height:44, borderRadius:10, background: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'not-allowed':'pointer' }}>
-                        {!feeReady ? '費用計算中…' : youthAgeBlocked ? '報名對象不符資格' : !enrollOpenNow ? '尚未開放報名' : (isCourseFull ? '加入候補名單' : '報名課程')}
+                        {quoteError ? '費用計算失敗' : !feeReady ? '費用計算中…' : youthAgeBlocked ? '報名對象不符資格' : !enrollOpenNow ? '尚未開放報名' : (isCourseFull ? '加入候補名單' : '報名課程')}
                       </button>
                     )}
                   </div>
