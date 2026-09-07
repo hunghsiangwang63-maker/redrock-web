@@ -341,13 +341,17 @@ export default function MemberCoursesPage() {
       const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
       if (trialPay.method === 'transfer' && bookingId) {
         try {
+          // 2026-09-07 修復：原本欄位名打成 type/referenceId（後端讀的是 orderType/refId，未帶入
+          // 恆為 undefined）、且網址漏了 /upload（404 被靜默 catch 吞掉）、還漏帶 memberId/memberName/
+          // gymId/orderName——導致 transferRecords 從未真正建立過（轉帳待收款佇列查不到、也無法之後
+          // 補正重傳），改對齊本檔案週課報名同一段正確寫法（handleEnroll 附近）。
           const fd = new FormData();
-          fd.append('type', 'experience'); fd.append('referenceId', bookingId);
+          fd.append('memberId', member.id); fd.append('memberName', member.name || '');
+          fd.append('gymId', trialModal.gymId || ''); fd.append('orderType', 'experience'); fd.append('refId', bookingId);
+          fd.append('orderName', `試上 ${trialModal.courseName || ''}`);
           fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive || '');
           fd.append('paymentDate', trialPay.paymentDate || ''); fd.append('bankName', trialPay.bankName || '');
           if (trialPay.paidAmount) fd.append('paidAmount', trialPay.paidAmount);
-          // 2026-09-07 修復：原本打成 '/transfers'（無 /upload），正確路徑 404 被下面的靜默 catch 吞掉，
-          // 導致從未真正建立過 transferRecords（轉帳待收款佇列查不到、也無法之後補正重傳）。
           await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
         } catch (e) { /* 不阻斷 */ }
       }

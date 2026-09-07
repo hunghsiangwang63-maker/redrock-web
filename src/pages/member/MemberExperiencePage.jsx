@@ -157,8 +157,11 @@ export default function MemberExperiencePage() {
       const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
       if (trialPay.method==='transfer' && bookingId) {
         try {
+          // 欄位對齊 api/transfers.js submitTransferRecord 的正確命名（orderType/refId，非 type/referenceId）
           const fd = new FormData();
-          fd.append('type','experience'); fd.append('referenceId',bookingId);
+          fd.append('memberId', member.id); fd.append('memberName', member.name || '');
+          fd.append('gymId', trialModal.gymId || ''); fd.append('orderType','experience'); fd.append('refId',bookingId);
+          fd.append('orderName', `試上 ${trialModal.courseName || ''}`);
           fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive||'');
           fd.append('paymentDate', trialPay.paymentDate||''); fd.append('bankName', trialPay.bankName||'');
           if (trialPay.paidAmount) fd.append('paidAmount', trialPay.paidAmount);
