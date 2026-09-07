@@ -103,10 +103,10 @@ import { GymContractInfoBox, ContractTermsSections } from '../../components/Cont
 // 課程服務同意書完整條款（報名步驟「合約條款」專用，僅週課出現）——條款文字改由設定頁提供
 // （GET /settings/contract-terms/member，見 loadContractTerms），與後端產生 PDF 時讀的是同一份
 // 資料來源，兩者自動同步；此處只負責把課程本身的動態值（退費費率）代入樣板變數。
-function FullContractTermsBox({ course, sections }) {
+function FullContractTermsBox({ course, text }) {
   const postRate = Math.round(((course?.refundFeeRate ?? 0.2)) * 100);
   const preRate = Math.round(((course?.refundPreStartFeeRate ?? 0)) * 100);
-  return <ContractTermsSections sections={sections} vars={{ postStartFeeRate: postRate, preStartFeeRate: preRate, transferFee: 600 }} />;
+  return <ContractTermsSections text={text} vars={{ postStartFeeRate: postRate, preStartFeeRate: preRate, transferFee: 600 }} />;
 }
 
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
@@ -166,7 +166,7 @@ export default function MemberCoursesPage() {
   const [leaveReason, setLeaveReason] = useState('');
   const [bankAccounts, setBankAccounts] = useState({});
   const [gymContracts, setGymContracts] = useState({}); // 場館合約基本資料（依 gymId），供報名步驟「合約條款」顯示
-  const [contractTerms, setContractTerms] = useState({ course: [] }); // 合約條款文字（二館共用，設定頁可編輯）
+  const [contractTerms, setContractTerms] = useState({ course: '' }); // 合約條款文字（二館共用，設定頁可編輯）
   const [screenshot, setScreenshot] = useState(null);
   const [uploadDone, setUploadDone] = useState(false);
   const [makeupRights, setMakeupRights] = useState([]);
@@ -665,7 +665,7 @@ export default function MemberCoursesPage() {
   const loadContractTerms = async () => {
     try {
       const res = await memberClient.get('/settings/contract-terms/member');
-      setContractTerms(res.data || { course: [] });
+      setContractTerms(res.data || { course: '' });
     } catch (e) {}
   };
 
@@ -2535,7 +2535,7 @@ export default function MemberCoursesPage() {
                 </div>
                 <div style={{ fontWeight:600, fontSize:12, marginBottom:6, color:'#666' }}>場館合約基本資料</div>
                 <GymContractInfoBox contract={gymContracts[selectedCourse?.gymId]}/>
-                <FullContractTermsBox course={selectedCourse} sections={contractTerms.course}/>
+                <FullContractTermsBox course={selectedCourse} text={contractTerms.course}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedContractTerms?'#2D7D46':'#E8D5D5'}`, background: confirmedContractTerms?'#E6F4EB':'#fff', cursor:'pointer', marginTop:10 }}>
                   <input type="checkbox" checked={confirmedContractTerms} onChange={e => setConfirmedContractTerms(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedContractTerms?'#2D7D46':'#444' }}>我已詳閱並同意本課程服務同意書之完整條款內容</span>

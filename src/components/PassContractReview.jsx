@@ -58,7 +58,7 @@ const PassContractReview = forwardRef(function PassContractReview(
   ref,
 ) {
   const [gymContracts, setGymContracts] = useState({});
-  const [passTerms, setPassTerms] = useState([]);
+  const [passTerms, setPassTerms] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const portraitRef = useRef(null);
   const guardianRef = useRef(null);
@@ -68,7 +68,7 @@ const PassContractReview = forwardRef(function PassContractReview(
       .then(r => setGymContracts(r.data?.contracts || {}))
       .catch(() => {});
     memberClient.get('/settings/contract-terms/member')
-      .then(r => setPassTerms(r.data?.pass || []))
+      .then(r => setPassTerms(r.data?.pass || ''))
       .catch(() => {});
   }, []);
 
@@ -89,7 +89,7 @@ const PassContractReview = forwardRef(function PassContractReview(
       <GymContractInfoBox contract={gymContracts[gymId]} />
       <PassContentSummary passTypeName={passTypeName} scope={scope} targetGymId={targetGymId} startDate={startDate} endDate={endDate} totalFee={totalFee} />
       <InstallmentNote periods={installmentPeriods} />
-      <ContractTermsSections sections={passTerms} vars={{ refundFee: 600, transferFee: 600 }} />
+      <ContractTermsSections text={passTerms} vars={{ refundFee: 600, transferFee: 600 }} />
       <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 10, border: `1.5px solid ${confirmed ? '#2D7D46' : '#E8D5D5'}`, background: confirmed ? '#F3FAF4' : '#fff', cursor: 'pointer', marginTop: 6, marginBottom: 16 }}>
         <input type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} style={{ marginTop: 2 }} />
         <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'left' }}>{t('我已詳閱並同意本定期票服務同意書之完整條款內容')}</span>

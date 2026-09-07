@@ -37,33 +37,24 @@ export function GymContractInfoBox({ contract }) {
   );
 }
 
-// 動態合約條款區塊——sections: [{title, body}]，body 支援換行分段＋「・」開頭轉條列（與後端
-// contractPdfShared.js termsSections() 完全對應的排版慣例），vars 供 {{token}} 樣板變數代入。
-export function ContractTermsSections({ sections, vars }) {
-  const list = Array.isArray(sections) ? sections : [];
+// 動態合約條款區塊——text 為整段純文字（設定頁單一大文字框編輯），換行斷行＋「・」開頭轉
+// 條列＋空白行斷段（與後端 contractPdfShared.js termsSections() 完全對應的排版慣例；行首「數字. 」
+// 視為段落標題，僅字級/上邊距略大，不加粗——純樣式判斷，非結構化欄位），vars 供 {{token}} 樣板變數代入。
+export function ContractTermsSections({ text, vars }) {
   const S = { background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' };
   const sub = { paddingLeft: 14 };
-  return (
-    <div style={{ ...S, fontSize: 11.5 }}>
-      {list.map((s, i) => {
-        const bodyLines = fillTemplate(s.body, vars).split('\n');
-        const blocks = [];
-        let bulletBuf = [];
-        const flush = () => { if (bulletBuf.length) { blocks.push(<div key={`b${blocks.length}`} style={sub}>{bulletBuf.map((b, j) => (<span key={j}>・{b}<br/></span>))}</div>); bulletBuf = []; } };
-        bodyLines.forEach(line => {
-          const trimmed = line.trim();
-          if (!trimmed) return;
-          if (trimmed.startsWith('・')) bulletBuf.push(trimmed.slice(1).trim());
-          else { flush(); blocks.push(<div key={`p${blocks.length}`} style={{ marginTop: blocks.length ? 4 : 0 }}>{trimmed}</div>); }
-        });
-        flush();
-        return (
-          <div key={i} style={{ marginTop: i ? 8 : 0 }}>
-            <div style={{ fontWeight: 600 }}>{fillTemplate(s.title, vars)}</div>
-            {blocks}
-          </div>
-        );
-      })}
-    </div>
-  );
+  const lines = fillTemplate(text, vars).split('\n');
+  const blocks = [];
+  let bulletBuf = [];
+  const flush = () => { if (bulletBuf.length) { blocks.push(<div key={`b${blocks.length}`} style={sub}>{bulletBuf.map((b, j) => (<span key={j}>・{b}<br/></span>))}</div>); bulletBuf = []; } };
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return; // 空白行僅斷段，靠下一個標題行自帶的上邊距呈現段落間距
+    if (trimmed.startsWith('・')) { bulletBuf.push(trimmed.slice(1).trim()); return; }
+    flush();
+    const isHeading = /^\d+[.、]/.test(trimmed);
+    blocks.push(<div key={`p${blocks.length}`} style={{ marginTop: isHeading && blocks.length ? 10 : 2 }}>{trimmed}</div>);
+  });
+  flush();
+  return <div style={{ ...S, fontSize: 11.5 }}>{blocks}</div>;
 }

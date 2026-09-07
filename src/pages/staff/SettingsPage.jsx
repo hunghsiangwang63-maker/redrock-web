@@ -456,41 +456,20 @@ export default function SettingsPage() {
     finally { setLoading(false); }
   };
 
-  // ─── 合約條款內容（課程/定期票服務同意書，二館共用，2026-09-07 新增）─────
-  const [contractTerms, setContractTerms] = useState({ course: [], pass: [] });
+  // ─── 合約條款內容（課程/定期票服務同意書，二館共用，2026-09-07 新增；同日改版：
+  // 課程/定期票各自只用「一個大文字框」整段編輯，不再拆逐條 title/body 管理）─────
+  const [contractTerms, setContractTerms] = useState({ course: '', pass: '' });
   const [contractTermsType, setContractTermsType] = useState('course'); // 子分頁：course | pass
   const [contractTermsDirty, setContractTermsDirty] = useState(false);
   const loadContractTerms = async () => {
     try {
       const res = await client.get('/settings/contract-terms');
-      setContractTerms({ course: res.data.course || [], pass: res.data.pass || [] });
+      setContractTerms({ course: res.data.course || '', pass: res.data.pass || '' });
       setContractTermsDirty(false);
     } catch (e) {}
   };
-  const updateContractSection = (type, idx, field, value) => {
-    setContractTerms(prev => {
-      const arr = [...(prev[type] || [])];
-      arr[idx] = { ...arr[idx], [field]: value };
-      return { ...prev, [type]: arr };
-    });
-    setContractTermsDirty(true);
-  };
-  const addContractSection = (type) => {
-    setContractTerms(prev => ({ ...prev, [type]: [...(prev[type] || []), { title: '', body: '' }] }));
-    setContractTermsDirty(true);
-  };
-  const removeContractSection = (type, idx) => {
-    setContractTerms(prev => ({ ...prev, [type]: prev[type].filter((_, i) => i !== idx) }));
-    setContractTermsDirty(true);
-  };
-  const moveContractSection = (type, idx, dir) => {
-    setContractTerms(prev => {
-      const arr = [...prev[type]];
-      const j = idx + dir;
-      if (j < 0 || j >= arr.length) return prev;
-      [arr[idx], arr[j]] = [arr[j], arr[idx]];
-      return { ...prev, [type]: arr };
-    });
+  const updateContractText = (type, value) => {
+    setContractTerms(prev => ({ ...prev, [type]: value }));
     setContractTermsDirty(true);
   };
   const handleSaveContractTerms = async () => {
@@ -1460,7 +1439,8 @@ export default function SettingsPage() {
           <div style={{ padding:16 }}>
             <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:14 }}>
               課程／定期票服務同意書的完整條款內容，二館共用；報名/購票流程請詳閱步驟與完成後寄送的合約 PDF 皆讀取此處內容，改一次兩邊自動同步。
-              條款內容以「空一行」分段、「・」開頭的行會顯示為條列項目。可使用樣板變數：課程條款 <code>{'{{transferFee}}'}</code>（轉讓費）／<code>{'{{preStartFeeRate}}'}</code>、<code>{'{{postStartFeeRate}}'}</code>（開課前/後退費費率百分比，依課程各自設定自動代入）；定期票條款 <code>{'{{transferFee}}'}</code>／<code>{'{{refundFee}}'}</code>。
+              直接編輯整段條款文字：「空一行」分段、「・」開頭的行會顯示為條列項目、行首「數字. 」（如「1. 服務審閱期」）會自動呈現為段落標題樣式。
+              可使用樣板變數：課程條款 <code>{'{{transferFee}}'}</code>（轉讓費）／<code>{'{{preStartFeeRate}}'}</code>、<code>{'{{postStartFeeRate}}'}</code>（開課前/後退費費率百分比，依課程各自設定自動代入）；定期票條款 <code>{'{{transferFee}}'}</code>／<code>{'{{refundFee}}'}</code>。
             </div>
             <div style={{ display:'flex', gap:8, marginBottom:16 }}>
               {[{ k:'course', l:'課程服務同意書' }, { k:'pass', l:'定期票服務同意書' }].map(o => (
@@ -1470,27 +1450,9 @@ export default function SettingsPage() {
                 </button>
               ))}
             </div>
-            {(contractTerms[contractTermsType] || []).map((sec, idx) => (
-              <div key={idx} style={{ border:'0.5px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:10 }}>
-                <div style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
-                  <input value={sec.title} onChange={e => updateContractSection(contractTermsType, idx, 'title', e.target.value)}
-                    placeholder="條款標題（如：1. 服務審閱期）" style={{ ...s.input, flex:1, fontWeight:600, color:'#1a1a1a' }} />
-                  <button onClick={() => moveContractSection(contractTermsType, idx, -1)} disabled={idx===0} title="上移"
-                    style={{ width:30, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color: idx===0 ? '#ccc' : '#666', cursor: idx===0 ? 'not-allowed' : 'pointer' }}>↑</button>
-                  <button onClick={() => moveContractSection(contractTermsType, idx, 1)} disabled={idx===(contractTerms[contractTermsType]||[]).length-1} title="下移"
-                    style={{ width:30, height:30, borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color: idx===(contractTerms[contractTermsType]||[]).length-1 ? '#ccc' : '#666', cursor: idx===(contractTerms[contractTermsType]||[]).length-1 ? 'not-allowed' : 'pointer' }}>↓</button>
-                  <button onClick={() => removeContractSection(contractTermsType, idx)} title="刪除此條款"
-                    style={{ width:30, height:30, borderRadius:6, border:'0.5px solid #E8B5B5', background:'#fff', color:'#A32D2D', cursor:'pointer' }}>✕</button>
-                </div>
-                <textarea value={sec.body} onChange={e => updateContractSection(contractTermsType, idx, 'body', e.target.value)}
-                  rows={4} placeholder="條款內容（空一行分段，「・」開頭轉條列）"
-                  style={{ ...s.input, width:'100%', resize:'vertical', fontFamily:'inherit', color:'#1a1a1a', boxSizing:'border-box' }} />
-              </div>
-            ))}
-            <button onClick={() => addContractSection(contractTermsType)}
-              style={{ width:'100%', height:40, borderRadius:8, border:'1px dashed #8B1A1A', background:'#fff', color:'#8B1A1A', fontWeight:600, fontSize:13, cursor:'pointer' }}>
-              ＋ 新增條款
-            </button>
+            <textarea value={contractTerms[contractTermsType] || ''} onChange={e => updateContractText(contractTermsType, e.target.value)}
+              rows={26} placeholder="整段條款文字（空一行分段，「・」開頭轉條列，行首「數字. 」視為段落標題）"
+              style={{ ...s.input, width:'100%', resize:'vertical', fontFamily:'inherit', color:'#1a1a1a', boxSizing:'border-box', lineHeight:1.7 }} />
           </div>
         </div>
       )}
