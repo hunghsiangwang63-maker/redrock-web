@@ -137,6 +137,7 @@ export default function MemberCoursesPage() {
   const [enrollSuccess, setEnrollSuccess] = useState(false); // 報名成功確認彈窗
   const [enrollWaitlisted, setEnrollWaitlisted] = useState(false); // 該次報名是否為候補
   const [cancelWaitlistTarget, setCancelWaitlistTarget] = useState(null); // 取消候補確認對象
+  const [cancelWorkshopTarget, setCancelWorkshopTarget] = useState(null); // 取消工作坊報名確認對象（尚未付款）
   const [showEnrollModal, setShowEnrollModal] = useState(false);
   const [enrollSession, setEnrollSession] = useState(null);
   const [payFor, setPayFor] = useState(null); // { enrollmentId, fee, gymId }
@@ -895,6 +896,20 @@ export default function MemberCoursesPage() {
     } finally { setLoading(false); }
   };
 
+  // 工作坊取消報名（尚未付款；已付款請走「申請退費」）
+  const handleCancelWorkshopEnrollment = async (target) => {
+    setLoading(true);
+    try {
+      await memberClient.post(`/courses/enrollments/${target.enrollmentId}/cancel`, { memberId: target.memberId });
+      showMsg('已取消報名，名額已釋出');
+      setCancelWorkshopTarget(null);
+      setMyEnrollments(prev => prev.filter(e => e.courseId !== target.courseId || e.memberId !== target.memberId));
+      await loadMyEnrollments();
+    } catch (err) {
+      showMsg(err.response?.data?.message || '取消報名失敗', 'red');
+    } finally { setLoading(false); }
+  };
+
   const isEnrolled = (sessionId) => myEnrollments.some(e => e.sessionId === sessionId && e.status !== 'cancelled');
 
   // Firestore Timestamp（{_seconds}）或 ISO 字串 → dayjs；無則 null
@@ -1015,6 +1030,27 @@ export default function MemberCoursesPage() {
               <button onClick={() => setCancelWaitlistTarget(null)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
               <button onClick={() => handleCancelWaitlist(cancelWaitlistTarget)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
+                {loading ? '處理中...' : '確定取消'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 取消工作坊報名確認彈窗（尚未付款） */}
+      {cancelWorkshopTarget && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
+          onClick={() => { if (!loading) setCancelWorkshopTarget(null); }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消報名</div>
+            <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
+              確定要取消「{cancelWorkshopTarget.courseName}」的報名嗎？取消後名額將立即釋出，若要再參加需重新報名。
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setCancelWorkshopTarget(null)} disabled={loading}
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+              <button onClick={() => handleCancelWorkshopEnrollment(cancelWorkshopTarget)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
                 {loading ? '處理中...' : '確定取消'}
               </button>
@@ -2417,6 +2453,23 @@ export default function MemberCoursesPage() {
                     </div>
                   ) : makeupOnly ? (
                     <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'left' }}>補課場次：如無法出席請於上課一天前「取消補課」；不可申請退費／暫停／請假。</div>
+                  ) : isWorkshop ? (
+                    // 工作坊（單日場次）：暫停／轉讓對單場活動無意義，僅提供 取消報名(未付款、立即生效) 或 申請退費(已付款、依退費分級審核)
+                    <div style={{ display:'flex', gap:6, marginTop:8 }}>
+                      {pConfirmed ? (
+                        <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId, paid: pConfirmed })}
+                          disabled={!!adjType || refundFrozen}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: (adjType||refundFrozen) ? '#ccc' : '#A32D2D', border:`0.5px solid ${(adjType||refundFrozen) ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: (adjType||refundFrozen) ? 'not-allowed' : 'pointer' }}>
+                          {refundFrozen ? '退費審核中' : '申請退費'}
+                        </button>
+                      ) : (
+                        <button onClick={() => setCancelWorkshopTarget({ enrollmentId: confirmed[0]?.id, courseId: group.courseId, memberId: group.memberId, courseName: group.courseName })}
+                          disabled={loading || !confirmed[0]?.id || !!adjType || refundFrozen}
+                          style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: (!!adjType||refundFrozen) ? '#ccc' : '#A32D2D', border:`0.5px solid ${(!!adjType||refundFrozen) ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: loading?'not-allowed':'pointer' }}>
+                          取消報名
+                        </button>
+                      )}
+                    </div>
                   ) : (
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
                     {(() => { const dis = !!adjType || refundFrozen; return (<>
