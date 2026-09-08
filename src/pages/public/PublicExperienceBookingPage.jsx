@@ -16,6 +16,7 @@ export default function PublicExperienceBookingPage() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [facebookName, setFacebookName] = useState('');
+  const [bankName, setBankName] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
@@ -61,15 +62,18 @@ export default function PublicExperienceBookingPage() {
     if (participants.some(p => !p.idNumber?.trim())) return setErr('請填寫每位參加者身分證字號／護照號碼（投保用）');
     if (participants.some(p => !p.birthday)) return setErr('請填寫每位參加者生日');
     if (anyUnder4) return setErr('未滿 4 歲無法報名體驗');
+    if (!bankName.trim()) return setErr('請填寫匯款銀行名稱');
+    if (!paymentDate) return setErr('請填寫匯款日期');
     if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
+    if (!(Number(paidAmount) > 0)) return setErr('請填寫實際匯款金額');
     if (!agreedTerms) return setErr('請閱讀並勾選同意注意事項');
     setSubmitting(true);
     try {
       const res = await publicClient.post('/experience-bookings/public', {
         gymId, courseType, bookingDate, bookingTime,
         contactName, contactPhone, contactEmail, facebookName,
-        participants, bankLastFive, paymentDate,
-        paidAmount: paidAmount || null, notes, agreedTerms: true,
+        participants, bankName, bankLastFive, paymentDate,
+        paidAmount, notes, agreedTerms: true,
       });
       setDone({ totalFee: res.data.totalFee });
     } catch (e) {
@@ -179,10 +183,14 @@ export default function PublicExperienceBookingPage() {
               </div>
             ) : null;
           })()}
+          <label style={label}>您的匯款銀行名稱 *</label>
+          <input value={bankName} onChange={e => setBankName(e.target.value)} style={input} placeholder="如：台新銀行" />
           <label style={label}>匯款帳號末五碼 *</label>
           <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={dinput} inputMode="numeric" placeholder="12345" />
-          <label style={label}>匯款日期（選填）</label>
+          <label style={label}>匯款日期 *</label>
           <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={dinput} />
+          <label style={label}>實際匯款金額 *</label>
+          <input value={paidAmount} onChange={e => setPaidAmount(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" placeholder={String(totalFee)} />
         </div>
 
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 18, cursor: 'pointer', fontSize: 13, color: '#444', lineHeight: 1.6 }}>

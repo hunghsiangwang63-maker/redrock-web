@@ -19,6 +19,7 @@ export default function PublicTrialBookingPage() {
   const [guestPhone, setGuestPhone] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
   const [guestBirthday, setGuestBirthday] = useState('');
+  const [bankName, setBankName] = useState('');
   const [bankLastFive, setBankLastFive] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
@@ -48,7 +49,10 @@ export default function PublicTrialBookingPage() {
     if (under4(guestBirthday)) return setErr('未滿 4 歲無法報名試上');
     if (!sigRef.current || sigRef.current.isEmpty()) return setErr('請完成簽名');
     if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr('未滿 18 歲需法定代理人簽名');
+    if (!bankName.trim()) return setErr('請填寫匯款銀行名稱');
+    if (!paymentDate) return setErr('請填寫匯款日期');
     if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
+    if (!(Number(paidAmount) > 0)) return setErr('請填寫實際匯款金額');
     setSubmitting(true);
     try {
       const res = await publicClient.post('/experience-bookings/public', {
@@ -56,7 +60,7 @@ export default function PublicTrialBookingPage() {
         guestName, guestPhone, guestEmail, guestBirthday,
         signatureData: sigRef.current.toDataURL(),
         guardianSignature: isMinor ? guardianSigRef.current.toDataURL() : null,
-        bankLastFive, paymentDate, paidAmount: paidAmount || null,
+        bankName, bankLastFive, paymentDate, paidAmount,
       });
       setDone(res.data);
     } catch (e) {
@@ -147,12 +151,14 @@ export default function PublicTrialBookingPage() {
               {bank.notes && <div style={{ color: '#999' }}>{bank.notes}</div>}
             </div>
           ) : null}
+          <label style={label}>您的匯款銀行名稱 *</label>
+          <input value={bankName} onChange={e => setBankName(e.target.value)} style={input} placeholder="如：台新銀行" />
           <label style={label}>匯款帳號末五碼 *</label>
           <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={dinput} inputMode="numeric" placeholder="12345" />
-          <label style={label}>匯款日期（選填）</label>
+          <label style={label}>匯款日期 *</label>
           <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={dinput} />
-          <label style={label}>實際匯款金額（選填）</label>
-          <input value={paidAmount} onChange={e => setPaidAmount(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" />
+          <label style={label}>實際匯款金額 *</label>
+          <input value={paidAmount} onChange={e => setPaidAmount(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" placeholder={String(info.trialPrice || '')} />
         </div>
 
         {err && <div style={{ color: '#A32D2D', fontSize: 14, marginTop: 14, textAlign: 'center' }}>{err}</div>}
