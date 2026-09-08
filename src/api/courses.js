@@ -90,3 +90,7 @@ export const refundDeposit = (enrollmentId) =>
 
 export const forfeitDeposit = (enrollmentId, reason) =>
   client.post(`/courses/enrollments/${enrollmentId}/forfeit-deposit`, { reason });
+
+// 工作坊友館隊員價：人工核對（比照比賽 verifyCompetitionPartnerGym）
+export const verifyCoursePartnerGym = (enrollmentId, approved) =>
+  client.post(`/courses/enrollments/${enrollmentId}/verify-partner-gym`, { approved });

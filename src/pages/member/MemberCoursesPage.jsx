@@ -222,6 +222,17 @@ export default function MemberCoursesPage() {
   const [refundAccount, setRefundAccount] = useState('');
   const [refundAccountName, setRefundAccountName] = useState('');
   const [enrollForMemberId, setEnrollForMemberId] = useState(null); // null = 本人
+  // 工作坊友館隊員價（選填，僅工作坊、非隊員身分時顯示；比照比賽報名同一套友館清單，擇一不疊加隊員價）
+  const [enrollPartnerGymId, setEnrollPartnerGymId] = useState('');
+  const [partnerGymList, setPartnerGymList] = useState([]);
+  useEffect(() => { memberClient.get('/settings/partner-gyms').then(r => setPartnerGymList(r.data.gyms || [])).catch(() => {}); }, []);
+  // 工作坊三級收費（隊員／一般／友館）擇一——隊員身分優先於友館選擇（與後端 enrollCourse 判斷一致，僅供前端預覽，
+  // 實際收費以後端權威計算為準）；只有選了友館清單中的一間、且該工作坊有開放友館價時才生效。
+  const workshopEffectiveFee = () => {
+    const base = enrollSession?.fee ?? selectedCourse?.price;
+    if (!member?.isTeamMember && enrollPartnerGymId && selectedCourse?.partnerGymPrice != null) return selectedCourse.partnerGymPrice;
+    return base;
+  };
   const [familyMembers, setFamilyMembers] = useState([]);
   const [reuploadTarget, setReuploadTarget] = useState(null); // 重新上傳轉帳：{ enrollmentId, courseName, amount, memberId, gymId }
   const [reuploadData, setReuploadData] = useState({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
@@ -603,6 +614,7 @@ export default function MemberCoursesPage() {
   const resetEnrollModal = () => {
     setShowEnrollModal(false); // 關閉報名 Modal（原本漏了此行 → 送出成功後只重置到步驟1、Modal 不關 → 使用者以為失敗重複送出、造成重複報名/重複收費）
     setEnrollSession(null);
+    setEnrollPartnerGymId('');
     setEnrollStep(1);
     setPaymentMethod(defaultCoursePaymentMethod(selectedCourse));
     setPaymentData({ method: defaultCoursePaymentMethod(selectedCourse), paymentDate:'', bankLastFive:'' });
@@ -662,6 +674,7 @@ export default function MemberCoursesPage() {
           memberId: targetId,
           gymId: enrollGymId,
           paymentMethod,
+          partnerGymId: enrollPartnerGymId || undefined,
           ...extraFields,
         });
       }
@@ -1673,6 +1686,9 @@ export default function MemberCoursesPage() {
                         {_staged && _hasTeamPrice && !_wsTeam && (
                           <div style={{ fontSize:11, color:'#999', marginTop:2 }}>隊員價 NT${selectedCourse.teamPrice}</div>
                         )}
+                        {!_wsTeam && selectedCourse.partnerGymPrice != null && (
+                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>友館隊員價 NT${selectedCourse.partnerGymPrice}（報名時選填）</div>
+                        )}
                         {_staged && !_myOpen && (
                           <div style={{ fontSize:11, color:'#B5651D', marginTop:3 }}>⏳ {_notOpenMsg}</div>
                         )}
@@ -2633,13 +2649,24 @@ export default function MemberCoursesPage() {
                   {(enrollSession?.fee ?? selectedCourse?.price) != null ? <><br/><span style={{ fontSize:12, color:'#999' }}>遞補後費用約 NT${((enrollSession?.fee ?? selectedCourse?.price) || 0).toLocaleString()}（依實際堂數計算）</span></> : null}
                 </div>
               ) : (<>
+              {!enrollSession.isCourse && !member?.isTeamMember && selectedCourse?.partnerGymPrice != null && partnerGymList.length > 0 && (
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>友館隊員優惠（NT${selectedCourse.partnerGymPrice}，選填）</label>
+                  <select value={enrollPartnerGymId} onChange={e=>setEnrollPartnerGymId(e.target.value)}
+                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}>
+                    <option value=''>不使用（非友館隊員）</option>
+                    {partnerGymList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                  </select>
+                  <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>選擇後套用友館價，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回一般價。</div>
+                </div>
+              )}
               <PaymentPlanChoice mode="session"
                 sessionDates={sessions.filter(s => s.courseId === selectedCourse?.id && s.status !== 'cancelled' && s.date >= dayjs().format('YYYY-MM-DD')).map(s => s.date).sort()}
-                installment={selectedCourse?.installment} price={enrollSession?.fee ?? selectedCourse?.price}
+                installment={selectedCourse?.installment} price={workshopEffectiveFee()}
                 plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
-              {Number(selectedCourse?.depositAmount) > 0 && (
+              {!!member?.isTeamMember && Number(selectedCourse?.teamDepositAmount) > 0 && (
                 <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#8B6914', lineHeight:1.7, textAlign:'left' }}>
-                  本次報名須另收<b>保證金 NT${Number(selectedCourse.depositAmount).toLocaleString()}</b>，<b>當天報到後全額退還</b>；未出席則保證金沒收。
+                  本次報名須另收<b>保證金 NT${Number(selectedCourse.teamDepositAmount).toLocaleString()}</b>，<b>當天報到後全額退還</b>；未出席則保證金沒收。
                 </div>
               )}
               <PaymentSection
@@ -2647,10 +2674,11 @@ export default function MemberCoursesPage() {
                 methods={selectedCourse?.paymentMethods?.length ? selectedCourse.paymentMethods : ['cash','transfer']} /* 課程端隱藏電子支付；課程可覆寫(如運動按摩只現金) */
                 onChange={d => { setPaymentData(d); setPaymentMethod(d.method); }}
                 amount={(() => {
-                  const full = enrollSession?.fee ?? selectedCourse?.price ?? 0;
+                  const full = workshopEffectiveFee() ?? 0;
                   const fp = (selectedCourse?.installment?.periods||[])[0]?.percent;
                   const feeToPay = (enrollPlan==='installment' && fp) ? Math.round(full*(Number(fp)||0)/100) : full;
-                  return feeToPay + (Number(selectedCourse?.depositAmount) || 0); // 保證金一律全額隨本次繳清，不併入分期
+                  const deposit = (member?.isTeamMember && Number(selectedCourse?.teamDepositAmount)) || 0;
+                  return feeToPay + deposit; // 保證金一律全額隨本次繳清，不併入分期
                 })()}
                 bankInfo={(() => { const bk = bankAccounts[selectedCourse?.gymId || enrollSession?.gymId || gymId]; return bk ? { bankName: bk.bankName, branch: bk.branch||'', account: bk.accountNumber, accountName: bk.accountName } : null; })()}
               />

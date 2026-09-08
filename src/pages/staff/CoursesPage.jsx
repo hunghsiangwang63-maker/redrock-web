@@ -3,7 +3,7 @@ import { getCategories, createCategory, updateCategory, deleteCategory } from '.
 import { getCourses, createCourse, getSessions, createSession,
          getSessionRoster, enrollCourse, markAttendance,
          generateWeeklySessions, updateSession, setSessionSubstitute, clearSessionSubstitute, deleteCourse, reopenCourse, permanentDeleteCourse,
-         refundDeposit, forfeitDeposit } from '../../api/courses';
+         refundDeposit, forfeitDeposit, verifyCoursePartnerGym } from '../../api/courses';
 import { searchMembers } from '../../api/members';
 import client from '../../api/client';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
@@ -156,7 +156,7 @@ export default function CoursesPage({ embedded = false }) {
     cohortName: '', name: '', price: '', pricePerSession: '', maxStudents: 6, maxWaitlist: 2, categoryId: '',
     type: 'weekly', totalSessions: '', startDate: '', endDate: '',
     startTime: '', endTime: '', instructor: '',
-    gymAccessDays: 60, midpointSurcharge: 1.05, refundTiers: null, depositAmount: 0,
+    gymAccessDays: 60, midpointSurcharge: 1.05, refundTiers: null,
     // 覆寫班別規則（空字串＝用班別預設；overrideRules 展開才送）
     leaveDeadlineHours: '', maxLeaves: '', allowMakeup: '', makeupDeadlineDays: '',
     allowTrial: '', trialPrice: '', trialTarget: 'auto', makeupTarget: 'auto', perSessionDeduction: '', handlingFeeRate: '', preStartFeeRate: '',
@@ -551,7 +551,6 @@ export default function CoursesPage({ embedded = false }) {
         pricePerSession: isWorkshop ? undefined : (parseInt(courseForm.pricePerSession) || 0),
         midpointSurcharge: isWorkshop ? (parseFloat(courseForm.midpointSurcharge) || 1.05) : undefined,
         refundTiers: isWorkshop ? courseForm.refundTiers : undefined,
-        depositAmount: isWorkshop ? (parseInt(courseForm.depositAmount) || 0) : undefined,
         paymentMethods: (isWorkshop && courseForm.cashOnly) ? ['cash'] : null,
         // 續報/舊生優惠（比率＋開關，週課專用）
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!courseForm.fullTermRenewalDiscountEnabled,
@@ -624,7 +623,11 @@ export default function CoursesPage({ embedded = false }) {
       trialPrice: course.trialPrice ?? '',
       midpointSurcharge: course.midpointSurcharge || 1.05,
       refundTiers: course.refundTiers || null,
-      depositAmount: course.depositAmount || 0,
+      teamDepositAmount: course.teamDepositAmount || 0,
+      partnerGymPrice: course.partnerGymPrice != null ? course.partnerGymPrice : '',
+      teamIncludesEntry: !!course.teamIncludesEntry,
+      generalIncludesEntry: !!course.generalIncludesEntry,
+      partnerGymIncludesEntry: !!course.partnerGymIncludesEntry,
       cashOnly: Array.isArray(course.paymentMethods) && course.paymentMethods.length > 0 && !course.paymentMethods.includes('transfer'),
       type: course.type || 'weekly',
       unlimitedPracticeStart: course.unlimitedPracticeStart || course.startDate || '',
@@ -659,7 +662,11 @@ export default function CoursesPage({ embedded = false }) {
         pricePerSession: isWorkshop ? undefined : (parseInt(editForm.pricePerSession) || 0),
         midpointSurcharge: isWorkshop ? (parseFloat(editForm.midpointSurcharge) || 1.05) : undefined,
         refundTiers: isWorkshop ? editForm.refundTiers : undefined,
-        depositAmount: isWorkshop ? (parseInt(editForm.depositAmount) || 0) : undefined,
+        teamDepositAmount: isWorkshop ? (parseInt(editForm.teamDepositAmount) || 0) : undefined,
+        partnerGymPrice: isWorkshop ? (editForm.partnerGymPrice === '' ? null : parseInt(editForm.partnerGymPrice)) : undefined,
+        teamIncludesEntry: isWorkshop ? !!editForm.teamIncludesEntry : undefined,
+        generalIncludesEntry: isWorkshop ? !!editForm.generalIncludesEntry : undefined,
+        partnerGymIncludesEntry: isWorkshop ? !!editForm.partnerGymIncludesEntry : undefined,
         paymentMethods: (isWorkshop && editForm.cashOnly) ? ['cash'] : null,
         fullTermRenewalDiscountEnabled: isWorkshop ? undefined : !!editForm.fullTermRenewalDiscountEnabled,
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(editForm.fullTermRenewalDiscountRate) || 90) / 100,
@@ -1991,7 +1998,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       gymAccessDays: src.gymAccessDays || 60,
                       midpointSurcharge: src.midpointSurcharge || 1.05,
                       refundTiers: src.refundTiers || null,
-                      depositAmount: src.depositAmount || 0,
                       fullTermRenewalDiscountEnabled: !!src.fullTermRenewalDiscountEnabled,
                       fullTermRenewalDiscountRate: src.fullTermRenewalDiscountRate != null ? Math.round(src.fullTermRenewalDiscountRate * 100) : 90,
                       alumniDiscountEnabled: !!src.alumniDiscountEnabled,
@@ -2135,13 +2141,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             </div>
           )}
           {courseForm.type === 'workshop' && (
-            <div style={{ marginTop:14 }}>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>
-                保證金（選填；免費工作坊也可收，報到後由店員「退還」或未到「沒收」，提前取消依上方退費分級比例部分退還）
-              </label>
-              <input type="number" min="0" value={courseForm.depositAmount} placeholder="0＝不收保證金"
-                onChange={e => setCourseForm({...courseForm, depositAmount: e.target.value})}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            <div style={{ marginTop:14, fontSize:11, color:'#999', lineHeight:1.5 }}>
+              分級收費（隊員/一般/友館價、保證金、含入場設定）建立後於「編輯」開啟。
             </div>
           )}
           {courseForm.type === 'workshop' && (
@@ -2639,7 +2640,32 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   <input type="number" min="0" value={editForm.teamPrice ?? ''} placeholder={`一般價 ${editForm.price||0}`} onChange={e => setEditForm({...editForm, teamPrice:e.target.value})}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
                 </div>
+                <div style={{ flex:'1 1 140px' }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>隊員保證金（NT$，選填）</label>
+                  <input type="number" min="0" value={editForm.teamDepositAmount ?? ''} placeholder="0＝不收保證金" onChange={e => setEditForm({...editForm, teamDepositAmount:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
+                <div style={{ flex:'1 1 140px' }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>友館隊員價（NT$，選填）</label>
+                  <input type="number" min="0" value={editForm.partnerGymPrice ?? ''} placeholder="留空＝不開放友館價" onChange={e => setEditForm({...editForm, partnerGymPrice:e.target.value})}
+                    style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                </div>
               </div>
+              <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginTop:12, paddingTop:10, borderTop:'0.5px solid #E8D5D5' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, cursor:'pointer' }}>
+                  <input type="checkbox" checked={!!editForm.teamIncludesEntry} onChange={e => setEditForm({...editForm, teamIncludesEntry:e.target.checked})} />
+                  隊員價含入場
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, cursor:'pointer' }}>
+                  <input type="checkbox" checked={!!editForm.generalIncludesEntry} onChange={e => setEditForm({...editForm, generalIncludesEntry:e.target.checked})} />
+                  一般價含入場
+                </label>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, cursor:'pointer' }}>
+                  <input type="checkbox" checked={!!editForm.partnerGymIncludesEntry} onChange={e => setEditForm({...editForm, partnerGymIncludesEntry:e.target.checked})} />
+                  友館價含入場
+                </label>
+              </div>
+              <div style={{ fontSize:11, color:'#999', marginTop:8, lineHeight:1.5 }}>「含入場」＝收款確認當下自動發一張當天有效入場券；未勾＝該價格層級不含入場（會員需自行另外入場）。友館隊員價需選定友館清單中的一間、由值班/管理員人工核對。</div>
             </div>
           )}
           <div style={{ marginTop:16 }}>
@@ -2651,16 +2677,6 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             <div style={{ marginTop:16 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>退費分級（整筆退課，依距開課天數比例退費）</label>
               <WorkshopRefundTiersEditor value={editForm.refundTiers} onChange={v => setEditForm({...editForm, refundTiers: v})} />
-            </div>
-          )}
-          {editForm.type === 'workshop' && (
-            <div style={{ marginTop:16 }}>
-              <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>
-                保證金（選填；免費工作坊也可收，報到後由店員「退還」或未到「沒收」，提前取消依上方退費分級比例部分退還）
-              </label>
-              <input type="number" min="0" value={editForm.depositAmount ?? 0} placeholder="0＝不收保證金"
-                onChange={e => setEditForm({...editForm, depositAmount: e.target.value})}
-                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
           )}
           {editForm.type === 'workshop' && (
@@ -2885,7 +2901,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               {!rosterLoading && rosterModal.enrollments?.length > 0 && (() => {
                 const isWorkshop = rosterModal.course?.type === 'workshop'; // 工作坊不提供請假功能，名單不顯示可請假欄位
                 const courseMax = rosterModal.course?.maxLeaves ?? 2;
-                const hasDeposit = isWorkshop && Number(rosterModal.course?.depositAmount) > 0; // 課程本身有設保證金才顯示此欄
+                const hasDeposit = isWorkshop && Number(rosterModal.course?.teamDepositAmount) > 0; // 課程本身有設隊員保證金才顯示此欄
                 // 後端已依會員去重（一人一列，含 count/leaveUsed 聚合），不用再前端 reduce
                 const members = rosterModal.enrollments.filter(m => !m.isWaitlist);
                 const waitlistMembers = rosterModal.enrollments.filter(m => m.isWaitlist)
@@ -2913,6 +2929,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           {m.memberName}
                           <div>
                             <button onClick={() => setRegDetailTarget({
+                              enrollmentId: m.enrollmentId,
                               memberName: m.memberName, memberPhone: m.memberPhone,
                               courseName: rosterModal.course?.name,
                               range: (rosterModal.course?.startDate && rosterModal.course?.endDate)
@@ -2922,6 +2939,8 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                               receivedAmount: m.receivedAmount, receivedAmountOverride: m.receivedAmountOverride,
                               bankLastFive: m.bankLastFive, paymentDate: m.paymentDate,
                               staffNote: m.staffNote, healthNote: m.healthNote, referralSource: m.referralSource, enrollNote: m.enrollNote,
+                              partnerGymApplied: m.partnerGymApplied, partnerGym: m.partnerGym, partnerGymPending: m.partnerGymPending,
+                              needsEntryTicket: m.needsEntryTicket, entryTicketIssued: m.entryTicketIssued,
                             })}
                               style={{ marginTop:4, height:22, padding:'0 8px', borderRadius:6, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:10, fontWeight:600, cursor:'pointer' }}>
                               詳細
@@ -3014,7 +3033,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           </div>
         </div>
       )}
-      {regDetailTarget && <CourseRegDetailModal r={regDetailTarget} onClose={() => setRegDetailTarget(null)} />}
+      {regDetailTarget && <CourseRegDetailModal r={regDetailTarget} onClose={() => setRegDetailTarget(null)}
+        onVerifyPartnerGym={async (approved) => {
+          await verifyCoursePartnerGym(regDetailTarget.enrollmentId, approved);
+          setRegDetailTarget(null);
+          if (rosterModal?.course) await loadCourseRoster(rosterModal.course);
+        }} />}
 
       {/* 首頁提醒推播 Modal：對該梯次目前正取的常態學員（confirmed/leave，不含補課/試上/候補/已取消），各自建一則自訂提醒卡片 */}
       {reminderModal && (

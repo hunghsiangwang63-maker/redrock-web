@@ -6,15 +6,25 @@ import Modal from './Modal';
 // 共用於「會員 → 課程學員」報表（已開課/已過期梯次）與「課程管理 → 報名名單」（尚未開課梯次），資料來源不同、欄位形狀一致。
 // props: r {memberName, memberPhone, courseName, range, enrolledAt, fee, originalFee, feeCalcNote, paymentMethod, paymentStatus,
 //           memberPaidAmount, confirmedAmount, receivedAmount, receivedAmountOverride, bankName, bankLastFive,
-//           paymentDate, staffNote, healthNote, referralSource, enrollNote}
+//           paymentDate, staffNote, healthNote, referralSource, enrollNote, enrollmentId,
+//           partnerGymApplied, partnerGym, partnerGymPending, needsEntryTicket, entryTicketIssued}
 const COURSE_PAY_LABEL = { pending: '待確認', confirmed: '已確認', pending_confirm: '待確認', transfer_rejected: '已退回', na: '—' };
 
 // editable/onSaveAmount（選填）：管理員在彈窗內編輯實收金額——預設檢視模式，按「✏️ 編輯」才出現輸入框
 // （2026-08-27 需求：名單列不再直接編輯、統一進彈窗檢視後按編輯）。不傳＝維持原本純唯讀（CoursesPage 報名名單沿用）。
-export default function CourseRegDetailModal({ r, onClose, editable = false, onSaveAmount }) {
+// onVerifyPartnerGym（選填，(approved:boolean)=>Promise）：友館價人工核對（比照比賽），僅 r.partnerGymPending 時顯示按鈕。
+export default function CourseRegDetailModal({ r, onClose, editable = false, onSaveAmount, onVerifyPartnerGym }) {
   const [editingAmt, setEditingAmt] = useState(false);
   const [amtVal, setAmtVal] = useState(r.receivedAmount ?? 0);
   const [amtSaving, setAmtSaving] = useState(false);
+  const [pgSaving, setPgSaving] = useState(false);
+  const doVerifyPartnerGym = async (approved) => {
+    if (approved === false && !window.confirm('確定取消此友館價、費用改回一般價？')) return;
+    setPgSaving(true);
+    try { await onVerifyPartnerGym(approved); }
+    catch (err) { alert(err?.response?.data?.message || '操作失敗'); }
+    finally { setPgSaving(false); }
+  };
   useEffect(() => { setAmtVal(r.receivedAmount ?? 0); setEditingAmt(false); }, [r.receivedAmount, r.enrollmentId]);
   const saveAmt = async () => {
     const num = Number(amtVal);
@@ -69,12 +79,30 @@ export default function CourseRegDetailModal({ r, onClose, editable = false, onS
         {Row('匯款銀行', r.bankName)}
         {Row('匯款末五碼', r.bankLastFive)}
         {Row('匯款日期', r.paymentDate)}
+        {r.needsEntryTicket && Row('入場券', (
+          <span style={{ color: r.entryTicketIssued ? '#2D7D46' : '#999' }}>
+            {r.entryTicketIssued ? '✓ 已於收款確認時自動發放（當天有效）' : '尚未發放（待收款確認）'}
+          </span>
+        ))}
+        {r.partnerGymApplied && Row('友館價', (
+          <span style={{ color: r.partnerGymPending ? '#854F0B' : '#2D7D46' }}>
+            {r.partnerGym || '友館'}{r.partnerGymPending ? '（⏳ 待核對）' : '（✓ 已核對）'}
+          </span>
+        ))}
         {Row('員工備註', r.staffNote)}
         {Row('健康備註', r.healthNote)}
         {Row('如何得知', r.referralSource)}
         {Row('自訂備註', r.enrollNote)}
       </div>
-      <button onClick={onClose} style={{ marginTop: 14, width: '100%', height: 40, borderRadius: 9, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 13, cursor: 'pointer' }}>關閉</button>
+      {r.partnerGymPending && onVerifyPartnerGym && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          <button onClick={() => doVerifyPartnerGym(true)} disabled={pgSaving}
+            style={{ flex: 1, height: 38, borderRadius: 9, background: '#fff', color: '#2D7D46', border: '1px solid #2D7D46', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>核准友館價</button>
+          <button onClick={() => doVerifyPartnerGym(false)} disabled={pgSaving}
+            style={{ flex: 1, height: 38, borderRadius: 9, background: '#fff', color: '#854F0B', border: '1px solid #854F0B', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>取消友館價</button>
+        </div>
+      )}
+      <button onClick={onClose} style={{ marginTop: 10, width: '100%', height: 40, borderRadius: 9, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 13, cursor: 'pointer' }}>關閉</button>
     </Modal>
   );
 }
