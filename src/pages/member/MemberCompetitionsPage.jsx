@@ -555,10 +555,12 @@ export default function MemberCompetitionsPage() {
                         報名費：NT${r.registrationFee} {r.isEarlyBird?'（早鳥）':''}
                       </div>
                       <div style={{ display:'inline-block', background:ps.bg, color:ps.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:8 }}>{ps.text}</div>
+                      {/* 政策（2026-09-09）：轉帳逾期自動取消已停止排程，逾期不再自動取消——僅存在的
+                          舊資料（此欄位停用前已設定）仍顯示建議繳費時間，但不再宣稱會自動取消。*/}
                       {r.paymentDeadline && r.paymentMethod==='transfer' && r.paymentStatus!=='confirmed' && r.status!=='cancelled' && (() => {
                         const s = r.paymentDeadline?._seconds ?? r.paymentDeadline?.seconds;
                         const dl = s ? dayjs(s*1000).format('YYYY-MM-DD HH:mm') : null;
-                        return dl ? <div style={{ fontSize:11, color:'#A32D2D', marginTop:6, textAlign:'left' }}>⏰ 繳款期限：{dl} 前完成匯款，逾期自動取消（可再重新報名）</div> : null;
+                        return dl ? <div style={{ fontSize:11, color:'#A32D2D', marginTop:6, textAlign:'left' }}>⏰ 建議於 {dl} 前完成匯款，以利館方儘快為您確認</div> : null;
                       })()}
                       {r.paymentMethod==='cash' && r.status !== 'cancelled' && (
                         <div style={{ fontSize:12, color:'#666', marginTop:8, textAlign:'left' }}>
@@ -842,11 +844,12 @@ export default function MemberCompetitionsPage() {
                   {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginBottom:4 }}>費用計算中…</div> : (
                   <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>報名費：<strong style={{ color:'#8B1A1A', fontSize:15 }}>NT${feeInfo?.fee}</strong> {feeInfo?.isEarlyBird?'（早鳥）':''}{feeInfo?.teamApplied?'（隊員優惠）':''}{feeInfo?.partnerApplied?'（友館折扣）':''}</div>
                   )}
+                  {/* 政策（2026-09-09）：轉帳逾期自動取消已停止（sweepExpiredCompetitionPayments
+                      不再排程），改與臨櫃現金一致、一律由館方人工處理，不再宣稱「逾期自動取消」。*/}
                   {(() => { const N = selectedComp?.paymentDeadlineDays ?? 3; const dl = dayjs().add(N,'day').format('YYYY-MM-DD'); return (
                     <div style={{ fontSize:11, color:'#A32D2D', lineHeight:1.6 }}>
-                      ⏰ 繳款期限：請於報名後 {N} 日內（<strong>{dl}</strong> 前）完成繳費。<br/>
-                      · <strong>銀行轉帳</strong>：逾期未匯款將自動取消報名、釋出名額（可再重新報名）。<br/>
-                      · <strong>臨櫃現金</strong>：請於期限前至櫃檯繳費，由櫃檯人工處理（不自動取消）。
+                      ⏰ 建議繳費時間：請於報名後 {N} 日內（<strong>{dl}</strong> 前）完成繳費，以利館方儘快為您確認名額。<br/>
+                      · <strong>銀行轉帳／臨櫃現金</strong>：皆由館方人工核對確認，逾期不會自動取消報名。
                     </div>
                   ); })()}
                 </div>

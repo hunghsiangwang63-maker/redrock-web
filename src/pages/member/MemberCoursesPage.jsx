@@ -371,10 +371,9 @@ export default function MemberCoursesPage() {
       memberClient.get('/courses/trial-sessions').then(r => setTrialSessions(r.data.sessions || [])).catch(() => {});
       loadMyTrialBookings();
       if (res.data.isWaitlist) showMsg('此場次已額滿，已為您排入候補；名額釋出將依序轉正', 'orange');
-      else {
-        const dl = res.data.paymentDeadline ? dayjs(res.data.paymentDeadline).format('MM/DD HH:mm') : '';
-        showMsg(`試上名額已保留！請於${dl ? ` ${dl} 前` : '期限內'}完成付款（可至上方「已預約試上」查看），逾期名額將釋出`);
-      }
+      // 政策（2026-09-09）：試上逾期自動釋出已停止（sweepExpiredTrialPayments 不再排程），
+      // 名額由館方人工確認收款後才完成報名，不再宣稱「逾期名額將釋出」（已非事實）。
+      else showMsg('試上名額已保留！請盡快完成付款（可至上方「已預約試上」查看），館方確認收款後即完成報名');
     } catch (e) { showMsg(e.response?.data?.message || '送出失敗', 'red'); }
     finally { setTrialSubmitting(false); }
   };
