@@ -1091,10 +1091,10 @@ export default function MemberCoursesPage() {
             {rulesModal.course?.type !== 'workshop' && (<>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:8, textAlign:'left' }}>📋 課程請假、補課方式</div>
               <LeaveMakeupRulesBox course={rulesModal.course}/>
+              <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>📝 展延、退費申請</div>
+              <ExtensionRefundApplicationBox/>
             </>)}
-            <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>📝 展延、退費申請</div>
-            <ExtensionRefundApplicationBox/>
-            <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>💰 退費方式（依法令規定）</div>
+            <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>💰 退費方式{rulesModal.course?.type !== 'workshop' ? '（依法令規定）' : ''}</div>
             <RefundRulesBox course={rulesModal.course}/>
             {!rulesModal.course && (
               <div style={{ fontSize:11, color:'#B5651D', textAlign:'left', marginBottom:8 }}>（此課程已下架，以上顯示為預設規則，實際以申請時系統計算為準）</div>
@@ -2795,7 +2795,7 @@ export default function MemberCoursesPage() {
 
             {/* Step 3: 規則確認 */}
             {enrollStepKey === 'rules' && (<>
-              {selectedCourse.type !== 'workshop' && (
+              {selectedCourse.type !== 'workshop' && (<>
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假、補課方式</div>
                 <LeaveMakeupRulesBox course={selectedCourse}/>
@@ -2804,7 +2804,8 @@ export default function MemberCoursesPage() {
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedLeavePolicy?'#2D7D46':'#444' }}>我已了解課程請假/補課方式</span>
                 </label>
               </div>
-              )}
+              {/* 工作坊沒有依法令事由申請展延/退費的正式流程（可無條件依距開課天數比例退費），
+                  此段僅適用有請假/補課制度的週課，見下方 RefundRulesBox 的工作坊專屬退費說明。 */}
               <div style={{ marginBottom:16 }}>
                 <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📝 展延、退費申請</div>
                 <ExtensionRefundApplicationBox/>
@@ -2813,8 +2814,9 @@ export default function MemberCoursesPage() {
                   <span style={{ fontSize:13, fontWeight:500, color: confirmedExtensionPolicy?'#2D7D46':'#444' }}>我已了解展延、退費申請規定</span>
                 </label>
               </div>
+              </>)}
               <div>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式（依法令規定）</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式{selectedCourse.type !== 'workshop' ? '（依法令規定）' : ''}</div>
                 <RefundRulesBox course={selectedCourse}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedRefundPolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedRefundPolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedRefundPolicy} onChange={e => setConfirmedRefundPolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
@@ -2889,8 +2891,9 @@ export default function MemberCoursesPage() {
                     if (selectedCourse?.collectGenderAge && (!massageGender || !massageAge)) { showMsg('請填寫性別與年齡', 'red'); return false; }
                     if (selectedCourse?.enrollNoteRequired && !massageNote.trim()) { showMsg(`請填寫「${selectedCourse.enrollNoteLabel || '備註'}」`, 'red'); return false; }
                   }
-                  if (enrollStepKey === 'rules' && (!confirmedRefundPolicy || !confirmedExtensionPolicy || (selectedCourse.type !== 'workshop' && !confirmedLeavePolicy))) {
-                    showMsg(selectedCourse.type === 'workshop' ? '請確認展延、退費方式' : '請確認請假、展延與退費方式', 'red'); return false;
+                  // 工作坊沒有「展延、退費申請」與「請假/補課」段落（上方 UI 已隱藏），驗證同步跳過這兩項。
+                  if (enrollStepKey === 'rules' && (!confirmedRefundPolicy || (selectedCourse.type !== 'workshop' && (!confirmedExtensionPolicy || !confirmedLeavePolicy)))) {
+                    showMsg(selectedCourse.type === 'workshop' ? '請確認退費方式' : '請確認請假、展延與退費方式', 'red'); return false;
                   }
                   if (enrollStepKey === 'contract' && !confirmedContractTerms) {
                     showMsg('請詳閱並勾選同意課程服務同意書之完整條款內容', 'red'); return false;
