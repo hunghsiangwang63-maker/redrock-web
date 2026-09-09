@@ -182,6 +182,7 @@ export default function SalesPage({ embedded = false }) {
   const [stocktakeCategory, setStocktakeCategory] = useState(null);
   const [stocktakeBrand, setStocktakeBrand] = useState(null);
   const [stocktakeSearch, setStocktakeSearch] = useState('');
+  const [stocktakeFlatMode, setStocktakeFlatMode] = useState(false); // 不分類全展開：跳過類別/品牌分層，直接列出全部品項
   const [stocktakeDraftInfo, setStocktakeDraftInfo] = useState(null); // 已載入的暫存資訊 {count, updatedAt}，供畫面提示「已載入上次暫存」
   const [savingDraft, setSavingDraft] = useState(false);
   const [restockVariantId, setRestockVariantId] = useState('');
@@ -364,6 +365,7 @@ export default function SalesPage({ embedded = false }) {
     setStocktakeCategory(null);
     setStocktakeBrand(null);
     setStocktakeSearch('');
+    setStocktakeFlatMode(false);
     setStocktakeDraftInfo(null);
     setShowStocktake(true);
     // 讀取上次暫存，把已核對的品項覆蓋回清單（暫存只存已核對的品項；新增的商品/未在暫存中的維持預設未核對）
@@ -412,9 +414,26 @@ export default function SalesPage({ embedded = false }) {
       const res = await client.post('/products/stocktake', {
         gymId: targetGymId,
         items: stocktakeItems.map(i => ({
-          productId: i.productId, variantId: i.variantId, actualStock: parseInt(i.actualStock) || 0
+          // systemStock：核對當下記得的帳面庫存，供後端比對是否在核對後又被異動（如售出）——
+          // 若不同，後端會擋下該品項不覆蓋寫入，改要求重新核對（見下方 staleItems 處理）。
+          productId: i.productId, variantId: i.variantId, actualStock: parseInt(i.actualStock) || 0,
+          systemStock: i.systemStock,
         }))
       });
+      const staleItems = res.data.staleItems || [];
+      if (staleItems.length > 0) {
+        // 部分品項在核對後被異動（如售出）——後端已擋下不覆蓋寫入，這裡把這幾項重設回「未核對」
+        // 並更新為最新帳面庫存，留在編輯畫面讓使用者重新核對，不進入「盤點完成」結果畫面。
+        const staleMap = {};
+        staleItems.forEach(s => { staleMap[s.variantId] = s; });
+        setStocktakeItems(stocktakeItems.map(it => staleMap[it.variantId]
+          ? { ...it, systemStock: staleMap[it.variantId].currentStock, actualStock: staleMap[it.variantId].currentStock, checked: false }
+          : it));
+        setStocktakeFlatMode(true); // 展開全部品項，方便直接看到被標記需重新核對的那幾項（會以「未核對」+差異底色顯示）
+        showMsg(res.data.message, 'red');
+        await loadProducts();
+        return;
+      }
       setStocktakeResult(res.data);
       setStocktakeDraftInfo(null); // 後端已於確認盤點成功後清掉暫存，畫面同步不再顯示「已載入暫存」提示
       showMsg(res.data.message, res.data.discrepancies?.length > 0 ? 'red' : 'ok');
@@ -510,6 +529,9 @@ export default function SalesPage({ embedded = false }) {
   };
   const stocktakeItemsInCatBrand = (cat, brand) => stocktakeItems
     .filter(it => (it.category || '其他') === cat && (it.brand || '無品牌') === brand)
+    .sort((a, b) => (a.productName || '').localeCompare(b.productName || '', 'zh-Hant') || (sizeNum(a.size) - sizeNum(b.size)));
+  // 不分類全展開：全部品項一次列出，排序比照分層模式（品名→尺寸），不分類別/品牌
+  const stocktakeAllItemsSorted = [...stocktakeItems]
     .sort((a, b) => (a.productName || '').localeCompare(b.productName || '', 'zh-Hant') || (sizeNum(a.size) - sizeNum(b.size)));
   const stocktakeSearchResults = stocktakeItems.filter(it => {
     const q = stocktakeSearch.trim().toLowerCase();
@@ -1310,10 +1332,18 @@ export default function SalesPage({ embedded = false }) {
                       {' '}<span style={{ color:'#A32D2D' }}>紅字＝一天內已盤點過</span>
                       {' '}<span style={{ color:'#185FA5' }}>藍字＝兩週內已盤點過</span>
                     </div>
-                    <input value={stocktakeSearch} onChange={e => setStocktakeSearch(e.target.value)} placeholder="🔍 搜尋商品名稱／品牌／規格..."
-                      style={{ width:'100%', height:36, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:13, padding:'0 10px', background:'#fff', marginBottom:10, boxSizing:'border-box', outline:'none' }}/>
-                    {/* 分層瀏覽麵包屑（搜尋中不顯示，比照銷售頁 drillBack） */}
-                    {!stocktakeSearch.trim() && stocktakeCategory && (
+                    <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+                      <input value={stocktakeSearch} onChange={e => setStocktakeSearch(e.target.value)} placeholder="🔍 搜尋商品名稱／品牌／規格..."
+                        style={{ flex:1, height:36, borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:13, padding:'0 10px', background:'#fff', boxSizing:'border-box', outline:'none' }}/>
+                      <button onClick={() => { setStocktakeFlatMode(f => !f); setStocktakeCategory(null); setStocktakeBrand(null); }}
+                        style={{ flexShrink:0, height:36, padding:'0 12px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+                          border: stocktakeFlatMode ? '1px solid #8B1A1A' : '0.5px solid #E8D5D5',
+                          background: stocktakeFlatMode ? '#8B1A1A' : '#fff', color: stocktakeFlatMode ? '#fff' : '#666' }}>
+                        📋 不分類全展開
+                      </button>
+                    </div>
+                    {/* 分層瀏覽麵包屑（搜尋中／不分類全展開時不顯示，比照銷售頁 drillBack） */}
+                    {!stocktakeSearch.trim() && !stocktakeFlatMode && stocktakeCategory && (
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, flexWrap:'wrap' }}>
                         <button onClick={() => stocktakeBrand ? setStocktakeBrand(null) : setStocktakeCategory(null)}
                           style={{ height:30, padding:'0 10px', borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', flexShrink:0 }}>
@@ -1327,6 +1357,8 @@ export default function SalesPage({ embedded = false }) {
                         stocktakeSearchResults.length === 0 ? (
                           <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>找不到符合的品項</div>
                         ) : (<>{itemListHeader}{stocktakeSearchResults.map(stocktakeRow)}</>)
+                      ) : stocktakeFlatMode ? (
+                        <>{itemListHeader}{stocktakeAllItemsSorted.map(stocktakeRow)}</>
                       ) : !stocktakeCategory ? (
                         stocktakeCategories().map(c => drillRow(c.name, c.count, c.checkedCount, () => { setStocktakeCategory(c.name); setStocktakeBrand(null); }))
                       ) : !stocktakeBrand ? (
