@@ -23,6 +23,7 @@ import WorkshopRefundTiersEditor from '../../components/WorkshopRefundTiersEdito
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import CourseRegDetailModal from '../../components/CourseRegDetailModal';
 import { broadcastCourseReminder, uploadReminderImage } from '../../api/memberReminders';
+import { getScheduleEvents } from '../../api/schedule';
 import ReminderFormFields from '../../components/ReminderFormFields';
 import dayjs from 'dayjs';
 
@@ -124,6 +125,7 @@ export default function CoursesPage({ embedded = false }) {
   const [sessions, setSessions] = useState([]);
   const [calendarMonth, setCalendarMonth] = useState(dayjs().format('YYYY-MM'));
   const [calendarSessions, setCalendarSessions] = useState([]);
+  const [calendarHolidays, setCalendarHolidays] = useState({}); // { 'YYYY-MM-DD': title }（純視覺提醒，來自排班行事曆「重要事項」休館類別，不觸發任何實際停課/補償）
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarSelectedDate, setCalendarSelectedDate] = useState(null);
   const [rosterSession, setRosterSession] = useState(null);
@@ -483,6 +485,15 @@ export default function CoursesPage({ embedded = false }) {
       setCalendarSessions(res.data.sessions || []);
     } catch (e) { setCalendarSessions([]); }
     finally { setCalendarLoading(false); }
+    // 國定假日純視覺提醒（來自排班行事曆「重要事項」休館類別，全館共用、不影響上方場次資料）——
+    // 後端要求帶 gymId 才能查（無關資料本身，假日事項一律 gymId:null 全館皆回），super_admin
+    // 未選檢視館別時退回隨便一個有效值即可湊滿條件。
+    try {
+      const evRes = await getScheduleEvents(effectiveGymId || 'gym-hsinchu', calendarMonth);
+      const map = {};
+      (evRes.data.events || []).filter(e => e.category === 'closure').forEach(e => { map[e.date] = e.title; });
+      setCalendarHolidays(map);
+    } catch (e) { setCalendarHolidays({}); }
   };
 
   // ⚠️ 由多個場次名單點擊入口觸發，快速切換不同場次時序號防過期回應覆蓋（避免顯示錯的名單）。
@@ -1326,6 +1337,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           {date && (
                             <>
                               <div style={{ fontSize:11, color: isToday ? '#8B1A1A' : '#999', fontWeight: isToday ? 700 : 400, marginBottom:4 }}>{dayjs(date).date()}</div>
+                              {calendarHolidays[date] && (
+                                <div title={calendarHolidays[date]} style={{ fontSize:9, color:'#A32D2D', fontWeight:600, marginBottom:3, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>⛔ {calendarHolidays[date]}</div>
+                              )}
                               {daySessions.length > 0 && (
                                 <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
                                   {[...daySessions].sort(sortSessionsByStartThenStroke).map(s => {
