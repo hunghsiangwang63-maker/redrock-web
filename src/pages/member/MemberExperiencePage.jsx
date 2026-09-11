@@ -7,7 +7,6 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
-import { isUnder4 } from '../../utils/age';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
@@ -53,6 +52,10 @@ export default function MemberExperiencePage() {
   const [bkSaving, setBkSaving] = useState(false); // 轉帳被退回 → 重新上傳補正
   const [courseSettings, setCourseSettings] = useState(null);
   const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'my' ? 'my' : 'apply');
+  // 進頁選單：有帶 ?tab= 深連結（如首頁提醒卡片 ?tab=my）代表是既有流程直接指名進來，跳過選單；
+  // 無參數（如首頁「體驗課程」快速功能鍵）才先給「專班體驗 / 課程試上」選單（2026-09-13）。
+  const hasTabParam = new URLSearchParams(window.location.search).has('tab');
+  const [view, setView] = useState(hasTabParam ? 'general' : 'choose');
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
   const [payFor, setPayFor] = useState(null); // { bookingId, fee, gymId }
@@ -66,15 +69,6 @@ export default function MemberExperiencePage() {
   const [payment, setPayment] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
   const [participants, setParticipants] = useState([{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
   const [submitting, setSubmitting] = useState(false);
-  // 課程試上
-  const [trialSessions, setTrialSessions] = useState([]);
-  const openTrialSessions = trialSessions.filter(sx => !sx.isFull && (sx.remaining == null || sx.remaining > 0)); // 額滿不列出（政策 2026-07-18）
-  const [trialModal, setTrialModal] = useState(null);          // 選中的可試上場次
-  const [trialConsent, setTrialConsent] = useState(false);
-  const [trialPay, setTrialPay] = useState({ method:'transfer', paymentDate:'', bankLastFive:'' });
-  const [trialSubmitting, setTrialSubmitting] = useState(false);
-  const [children, setChildren] = useState([]);          // 子會員（家長可代報名）
-  const [trialFor, setTrialFor] = useState('self');      // 報名對象：'self' 或子會員 id
 
   const [alertModal, setAlertModal] = useState(null);
   const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
@@ -119,68 +113,10 @@ export default function MemberExperiencePage() {
     finally { setBkSaving(false); }
   };
 
-  // ⚠️ 由 gymId 切換與試上報名成功後觸發，同上採序號防過期回應覆蓋。
-  const trialSeqRef = useRef(0);
-  const loadTrialSessions = () => {
-    const seq = ++trialSeqRef.current;
-    memberClient.get('/courses/trial-sessions', { params:{ gymId } })
-      .then(r => { if (seq === trialSeqRef.current) setTrialSessions(r.data.sessions||[]); })
-      .catch(() => { if (seq === trialSeqRef.current) setTrialSessions([]); });
-  };
-
   useEffect(() => {
     memberClient.get('/experience-bookings/settings').then(r => setCourseSettings(r.data)).catch(()=>{});
-    if (member?.id) {
-      refreshBookings();
-      memberClient.get('/members/my/children').then(r => setChildren(r.data.children||[])).catch(()=>setChildren([]));
-    }
+    if (member?.id) refreshBookings();
   }, [member?.id]);
-
-  useEffect(() => { loadTrialSessions(); }, [gymId]);
-
-  // 試上報名對象（本人或子女）——未滿 4 歲擋（友善提示，後端仍為權威）
-  const trialTarget = trialFor === 'self' ? member : children.find(c => c.id === trialFor);
-  const trialTargetUnder4 = isUnder4(trialTarget);
-
-  const submitTrial = async () => {
-    if (trialTargetUnder4) { showMsg('未滿 4 歲無法報名課程/體驗','red'); return; }
-    if (!trialConsent) { showMsg('請先勾選同意免責同意書','red'); return; }
-    if (!isTransferInfoComplete(trialPay)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額','red'); return; }
-    setTrialSubmitting(true);
-    try {
-      const res = await memberClient.post('/experience-bookings', {
-        memberId: member.id, trialSessionId: trialModal.id, consentSigned: true,
-        ...(trialFor !== 'self' ? { childMemberId: trialFor } : {}),
-        paymentMethod: trialPay.method, paymentDate: trialPay.paymentDate, bankLastFive: trialPay.bankLastFive, bankName: trialPay.bankName, paidAmount: trialPay.paidAmount || null,
-      });
-      if (res.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); setTrialModal(null); return; }
-      const bookingId = res.data.id; const fee = res.data.totalFee || trialModal.trialPrice || 0;
-      if (trialPay.method==='transfer' && bookingId) {
-        try {
-          // 欄位對齊 api/transfers.js submitTransferRecord 的正確命名（orderType/refId，非 type/referenceId）
-          const fd = new FormData();
-          fd.append('memberId', member.id); fd.append('memberName', member.name || '');
-          fd.append('gymId', trialModal.gymId || ''); fd.append('orderType','experience'); fd.append('refId',bookingId);
-          fd.append('orderName', `試上 ${trialModal.courseName || ''}`);
-          fd.append('amount', fee); fd.append('bankLastFive', trialPay.bankLastFive||'');
-          fd.append('paymentDate', trialPay.paymentDate||''); fd.append('bankName', trialPay.bankName||'');
-          if (trialPay.paidAmount) fd.append('paidAmount', trialPay.paidAmount);
-          await memberClient.post('/transfers/upload', fd, { headers:{ 'Content-Type':'multipart/form-data' } });
-        } catch(e) { /* 不阻斷 */ }
-      }
-      setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
-      loadTrialSessions();
-      memberClient.get('/experience-bookings/my').then(r => setMyBookings(r.data.bookings||[])).catch(()=>{});
-      if (trialPay.method==='online' && onlinePayEnabled) setPayFor({ bookingId, fee, gymId: trialModal.gymId });
-      else if (res.data.isWaitlist) showMsg('此場次已額滿，已為您排入候補；名額釋出將依序轉正', 'orange');
-      else {
-        const dl = res.data.paymentDeadline ? dayjs(res.data.paymentDeadline).format('MM/DD HH:mm') : '';
-        showMsg(`名額已保留！請於${dl ? ` ${dl} 前` : '期限內'}完成付款，逾期名額將釋出`);
-      }
-      setTab('my');
-    } catch (e) { showMsg(e.response?.data?.message || '送出失敗','red'); }
-    finally { setTrialSubmitting(false); }
-  };
 
   const addParticipant = () => setParticipants(p=>[...p,{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
   const removeParticipant = (i) => { if (participants.length>1) setParticipants(p=>p.filter((_,idx)=>idx!==i)); };
@@ -264,63 +200,39 @@ export default function MemberExperiencePage() {
         </div>
       )}
 
-      {/* 試上報名 Modal */}
-      {trialModal && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:420, maxHeight:'90vh', overflowY:'auto' }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-              <div style={{ fontWeight:700, fontSize:16 }}>🧗 報名試上</div>
-              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
-            </div>
-            <div style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:14, fontSize:13 }}>
-              <div style={{ fontWeight:600 }}>{trialModal.courseName}</div>
-              <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{['日','一','二','三','四','五','六'][dayjs(trialModal.date).day()]}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?` · 教練 ${trialModal.instructor}`:''}</div>
-              <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>試上費 NT${(trialModal.trialPrice||0).toLocaleString()}</div>
-            </div>
-            {/* 報名對象（有子會員時可代子女報名；券與名單會綁到所選對象）*/}
-            {children.length > 0 && (
-              <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>報名對象</div>
-                <select value={trialFor} onChange={e=>setTrialFor(e.target.value)} style={{ ...inp, width:'100%' }}>
-                  <option value="self">{member?.name || '本人'}（本人）</option>
-                  {children.map(c => <option key={c.id} value={c.id}>{c.name}（子女）</option>)}
-                </select>
-              </div>
-            )}
-            {/* 付款（共用元件，只開放轉帳；與體驗預約一致） */}
-            <div style={{ marginBottom:12 }}>
-              {(() => {
-                const bankKey = trialModal.gymId === 'gym-hsinchu' ? 'hsinchu' : 'shilin';
-                const bank = courseSettings?.bankInfo?.[bankKey] || {};
-                return <PaymentSection value={trialPay} onChange={setTrialPay}
-                  methods={['transfer']}
-                  bankInfo={{ bankName: bank.bankName||'富邦銀行(012)', branch: bank.branch||'竹北分行', account: bank.account||'746102003014', accountName: bank.accountName||'紅石攀岩有限公司' }}/>;
-              })()}
-            </div>
-            {/* 免責同意 */}
-            <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'#444', cursor:'pointer', marginBottom:14, lineHeight:1.6 }}>
-              <input type="checkbox" checked={trialConsent} onChange={e=>setTrialConsent(e.target.checked)} style={{ marginTop:2 }}/>
-              <span>我已閱讀並同意<strong>免責同意書／攀岩活動風險告知</strong>，並瞭解試上為常態課程單堂體驗、保險自理。</span>
-            </label>
-            {trialTargetUnder4 && (
-              <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
-                {trialTarget?.name || '報名對象'} 未滿 4 歲，無法報名課程／體驗。
-              </div>
-            )}
-            <div style={{ display:'flex', gap:8 }}>
-              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={submitTrial} disabled={trialSubmitting || trialTargetUnder4} style={{ flex:2, height:44, borderRadius:10, background:(trialSubmitting||trialTargetUnder4)?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:(trialTargetUnder4?'not-allowed':'pointer') }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
-        <button onClick={()=>navigate('/member/home')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
+        <button onClick={()=>{ if (view==='general' && !hasTabParam) setView('choose'); else navigate('/member/home'); }}
+          style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
         <div style={{ fontSize:18, fontWeight:700 }}>🧗 體驗課程預約</div>
       </div>
 
       <ErrorAlertModal modal={alertModal} onClose={() => setAlertModal(null)} />
+
+      {view==='choose' && (
+        <div style={{ padding:'20px 16px', display:'flex', flexDirection:'column', gap:12 }}>
+          <div style={{ fontSize:13, color:'#666', marginBottom:2 }}>請選擇要進行的項目：</div>
+          <div onClick={()=>setView('general')}
+            style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'18px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ fontSize:28 }}>🧗</div>
+            <div style={{ flex:1, textAlign:'left' }}>
+              <div style={{ fontSize:15, fontWeight:600 }}>抱石體驗課程</div>
+              <div style={{ fontSize:12, color:'#999', marginTop:2 }}>依人數計費的專班體驗，適合初次接觸攀岩</div>
+            </div>
+            <div style={{ fontSize:16, color:'#C9B4B4' }}>›</div>
+          </div>
+          <div onClick={()=>navigate('/member/courses?tab=trial')}
+            style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'18px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:14 }}>
+            <div style={{ fontSize:28 }}>📚</div>
+            <div style={{ flex:1, textAlign:'left' }}>
+              <div style={{ fontSize:15, fontWeight:600 }}>課程試上</div>
+              <div style={{ fontSize:12, color:'#999', marginTop:2 }}>報名某個正在開的週課，單堂體驗</div>
+            </div>
+            <div style={{ fontSize:16, color:'#C9B4B4' }}>›</div>
+          </div>
+        </div>
+      )}
+
+      {view==='general' && (<>
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
@@ -586,9 +498,9 @@ export default function MemberExperiencePage() {
       {/* 修改預約（活動一天前）：體驗改日期/時段、試上換場次 */}
       {bkEdit && (() => {
         const b = bkEdit.b;
-        const candidates = b.kind==='trial'
-          ? openTrialSessions.filter(sx => sx.gymId===b.gymId && sx.id!==b.sessionId && sx.date > dayjs().format('YYYY-MM-DD') && (sx.trialPrice||0)===(b.totalFee||0))
-          : [];
+        // b.kind==='trial' 分支已不可能觸發（generalBookings 已濾除試上預約，這裡的 b 恆為一般體驗），
+        // 保留條件式結構但移除已刪除的 openTrialSessions 參照，避免殘留未定義變數。
+        const candidates = b.kind==='trial' ? [] : [];
         return (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={()=>{ if(!bkSaving) setBkEdit(null); }}>
@@ -637,6 +549,7 @@ export default function MemberExperiencePage() {
           onClose={()=>setReupTarget(null)}
           onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])).catch(()=>{}); }} />
       )}
+      </>)}
       <MemberLogoutButton />
       <NavBar/>
     </div>
