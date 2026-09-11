@@ -425,13 +425,13 @@ export default function MemberHomePage() {
                 {t(f.badge)}
               </div>
             )}
-            {f.img
-              ? <img src={f.img} alt="" style={{ width:25, height:25, objectFit:'contain', borderRadius:5, marginBottom:4 }}/>
-              : f.iconClass
-              ? <div style={{ width:26, height:26, margin:'0 auto 5px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <i className={f.iconClass} style={{ fontSize:24, color:'#fff' }} aria-hidden="true" />
-                </div>
-              : <div style={{ fontSize:22, marginBottom:5 }}>{f.icon}</div>}
+            <div style={{ height:26, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:5 }}>
+              {f.img
+                ? <img src={f.img} alt="" style={{ width:25, height:25, objectFit:'contain', borderRadius:5, display:'block' }}/>
+                : f.iconClass
+                ? <i className={f.iconClass} style={{ fontSize:24, color:'#fff' }} aria-hidden="true" />
+                : <span style={{ fontSize:22, lineHeight:1 }}>{f.icon}</span>}
+            </div>
             <div style={{ fontSize:11, color: f.highlight ? '#fff' : '#6b6b6b', fontWeight: f.highlight ? 700 : 500 }}>{t(f.label)}</div>
           </div>
         ))}
