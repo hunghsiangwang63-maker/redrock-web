@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { memberClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
+import { t } from '../../utils/memberI18n';
 
 export default function ParentWaiverPage() {
   const { token } = useParams();
@@ -26,9 +27,9 @@ export default function ParentWaiverPage() {
     }).catch(err => {
       const code = err.response?.data?.error;
       setErrorMsg(
-        code === 'TOKEN_EXPIRED' ? '此連結已過期（有效期限72小時），請聯絡館方重新發送連結。' :
-        code === 'ALREADY_SIGNED' ? '此聲明書已經完成簽署囉，感謝您！' :
-        '此連結無效，請確認您點選的是正確的Email連結。'
+        code === 'TOKEN_EXPIRED' ? t('此連結已過期（有效期限72小時），請聯絡館方重新發送連結。') :
+        code === 'ALREADY_SIGNED' ? t('此聲明書已經完成簽署囉，感謝您！') :
+        t('此連結無效，請確認您點選的是正確的Email連結。')
       );
       setStatus('error');
     });
@@ -36,8 +37,8 @@ export default function ParentWaiverPage() {
 
   const handleSubmit = async () => {
     setErrorMsg('');
-    if (!agreed) { setErrorMsg('請先閱讀並勾選同意條款'); return; }
-    if (!sigRef.current || sigRef.current.isEmpty()) { setErrorMsg('請先簽名'); return; }
+    if (!agreed) { setErrorMsg(t('請先閱讀並勾選同意條款')); return; }
+    if (!sigRef.current || sigRef.current.isEmpty()) { setErrorMsg(t('請先簽名')); return; }
     setSubmitting(true);
     try {
       await memberClient.post(`/auth/waiver/parent/${token}`, {
@@ -45,7 +46,7 @@ export default function ParentWaiverPage() {
       });
       setStatus('success');
     } catch (err) {
-      setErrorMsg(err.response?.data?.message || '簽署失敗，請再試一次');
+      setErrorMsg(err.response?.data?.message || t('簽署失敗，請再試一次'));
     } finally {
       setSubmitting(false);
     }
@@ -63,8 +64,8 @@ export default function ParentWaiverPage() {
   if (status === 'loading') {
     return (
       <div style={s.page}><div style={s.container}>
-        <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
-        <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>載入中...</div>
+        <div style={s.logo}>{t('紅石攀岩館 RedRock Climbing')}</div>
+        <div style={{ textAlign: 'center', padding: 60, color: '#999' }}>{t('載入中...')}</div>
       </div></div>
     );
   }
@@ -72,7 +73,7 @@ export default function ParentWaiverPage() {
   if (status === 'error') {
     return (
       <div style={s.page}><div style={s.container}>
-        <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
+        <div style={s.logo}>{t('紅石攀岩館 RedRock Climbing')}</div>
         <div style={s.card}>
           <div style={{ ...s.cardPad, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>⚠️</div>
@@ -86,13 +87,13 @@ export default function ParentWaiverPage() {
   if (status === 'success') {
     return (
       <div style={s.page}><div style={s.container}>
-        <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
+        <div style={s.logo}>{t('紅石攀岩館 RedRock Climbing')}</div>
         <div style={s.card}>
           <div style={{ ...s.cardPad, textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
-            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>簽署完成，謝謝您！</div>
+            <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 8 }}>{t('簽署完成，謝謝您！')}</div>
             <div style={{ fontSize: 13, color: '#888', lineHeight: 1.6, textAlign: 'left' }}>
-              {info?.memberName ? `${info.memberName} 的帳號已解除入場限制。` : '帳號已解除入場限制。'}
+              {info?.memberName ? `${info.memberName}${t(' 的帳號已解除入場限制。')}` : t('帳號已解除入場限制。')}
             </div>
           </div>
         </div>
@@ -103,9 +104,9 @@ export default function ParentWaiverPage() {
   // status === 'form'
   return (
     <div style={s.page}><div style={s.container}>
-      <div style={s.logo}>紅石攀岩館 RedRock Climbing</div>
+      <div style={s.logo}>{t('紅石攀岩館 RedRock Climbing')}</div>
       <div style={{ textAlign: 'left', fontSize: 13, color: '#666', marginBottom: 16, lineHeight: 1.6 }}>
-        法定代理人簽署 — 為「{info?.memberName || ''}」簽署<strong>風險安全聲明書</strong>{info?.fallTest ? ' 與 ' : ''}{info?.fallTest ? <strong>墜落測驗同意書</strong> : ''}。於下方簽一次名即可完成{info?.fallTest ? '兩份文件' : ''}。
+        {t('法定代理人簽署 — 為「')}{info?.memberName || ''}{t('」簽署')}<strong>{t('風險安全聲明書')}</strong>{info?.fallTest ? t(' 與 ') : ''}{info?.fallTest ? <strong>{t('墜落測驗同意書')}</strong> : ''}{t('。於下方簽一次名即可完成')}{info?.fallTest ? t('兩份文件') : ''}{t('。')}
       </div>
 
       <div style={s.card}>
@@ -116,23 +117,23 @@ export default function ParentWaiverPage() {
           </div>
         </div>
         <div style={{ padding: '0 18px 18px' }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#8B1A1A', marginBottom: 6 }}>一、風險安全聲明書</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#8B1A1A', marginBottom: 6 }}>{t('一、風險安全聲明書')}</div>
           <div style={{
             maxHeight: 220, overflowY: 'auto', fontSize: 13, lineHeight: 1.7, color: '#333',
             whiteSpace: 'pre-wrap', background: '#FBF5F5', borderRadius: 10, padding: 14,
             border: '0.5px solid #F0E4E4',
           }}>
-            {waiverText[lang] || '（尚未設定聲明書內容，請聯絡館方）'}
+            {waiverText[lang] || t('（尚未設定聲明書內容，請聯絡館方）')}
           </div>
           {info?.fallTest && (
             <>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#8B1A1A', margin: '14px 0 6px' }}>二、墜落測驗同意書</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#8B1A1A', margin: '14px 0 6px' }}>{t('二、墜落測驗同意書')}</div>
               <div style={{
                 maxHeight: 220, overflowY: 'auto', fontSize: 13, lineHeight: 1.7, color: '#333',
                 whiteSpace: 'pre-wrap', background: '#FBF5F5', borderRadius: 10, padding: 14,
                 border: '0.5px solid #F0E4E4',
               }}>
-                {info.fallTest.content?.[lang] || '（尚未設定墜落測驗同意書內容，請聯絡館方）'}
+                {info.fallTest.content?.[lang] || t('（尚未設定墜落測驗同意書內容，請聯絡館方）')}
               </div>
             </>
           )}
@@ -143,20 +144,20 @@ export default function ParentWaiverPage() {
         <div style={s.cardPad}>
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: '#555', marginBottom: 14, cursor: 'pointer' }}>
             <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)} style={{ marginTop: 2, width: 16, height: 16, flexShrink: 0 }} />
-            本人作為法定代理人（家長／監護人），已閱讀並理解上述{info?.fallTest ? '風險安全聲明書與墜落測驗同意書' : '風險安全聲明書'}內容，同意子女承擔攀岩活動之相關風險{info?.fallTest ? '並參加墜落測驗' : ''}。
+            {t('本人作為法定代理人（家長／監護人），已閱讀並理解上述')}{info?.fallTest ? t('風險安全聲明書與墜落測驗同意書') : t('風險安全聲明書')}{info?.fallTest ? t('內容，同意子女承擔攀岩活動之相關風險並參加墜落測驗。') : t('內容，同意子女承擔攀岩活動之相關風險。')}
           </label>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>法定代理人簽名：</div>
+          <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>{t('法定代理人簽名：')}</div>
           <SignaturePad ref={sigRef} height={160} />
-          <button onClick={() => sigRef.current?.clear()} style={{ marginTop: 8, fontSize: 12, color: '#8B1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>清除重簽</button>
+          <button onClick={() => sigRef.current?.clear()} style={{ marginTop: 8, fontSize: 12, color: '#8B1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>{t('清除重簽')}</button>
         </div>
       </div>
 
       {errorMsg && <div style={{ color: '#A32D2D', fontSize: 12, marginBottom: 10, textAlign: 'left' }}>{errorMsg}</div>}
       <button onClick={handleSubmit} disabled={submitting} style={s.btnPrimary}>
-        {submitting ? '送出中...' : '確認簽署'}
+        {submitting ? t('送出中...') : t('確認簽署')}
       </button>
       <div style={{ fontSize: 11, color: '#bbb', textAlign: 'left', marginTop: 10 }}>
-        ⚠ 本聲明書一經簽署即永久生效，不可修改
+        {t('⚠ 本聲明書一經簽署即永久生效，不可修改')}
       </div>
     </div></div>
   );

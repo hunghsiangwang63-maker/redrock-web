@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
+import { t } from '../../utils/memberI18n';
 
 export default function MemberWaiverPage() {
   const [searchParams] = useSearchParams();
@@ -54,9 +55,9 @@ export default function MemberWaiverPage() {
 
   const handleSubmit = async () => {
     setError('');
-    if (!allAgreed) { setError('請閱讀並勾選所有段落後再簽署'); return; }
-    if (!sigRef.current || sigRef.current.isEmpty()) { setError('請先簽名'); return; }
-    if (isMinor && !parentEmail.trim()) { setError('請填寫法定代理人 Email'); return; }
+    if (!allAgreed) { setError(t('請閱讀並勾選所有段落後再簽署')); return; }
+    if (!sigRef.current || sigRef.current.isEmpty()) { setError(t('請先簽名')); return; }
+    if (isMinor && !parentEmail.trim()) { setError(t('請填寫法定代理人 Email')); return; }
 
     setLoading(true);
     try {
@@ -68,7 +69,7 @@ export default function MemberWaiverPage() {
       updateMember({ blockReasons, isBlocked: blockReasons.length > 0 });
       navigate(onboarding ? '/member/home' : '/member/profile');
     } catch (err) {
-      setError(err.response?.data?.message || '簽署失敗，請再試一次');
+      setError(err.response?.data?.message || t('簽署失敗，請再試一次'));
     } finally {
       setLoading(false);
     }
@@ -79,9 +80,9 @@ export default function MemberWaiverPage() {
     setError('');
     try {
       await memberClient.post(`/members/${member.id}/waiver/resend-parent`);
-      alert('已重新發送Email通知法定代理人');
+      alert(t('已重新發送Email通知法定代理人'));
     } catch (err) {
-      setError(err.response?.data?.message || '發送失敗，請稍後再試');
+      setError(err.response?.data?.message || t('發送失敗，請稍後再試'));
     } finally {
       setResending(false);
     }
@@ -106,19 +107,19 @@ export default function MemberWaiverPage() {
       <div style={s.page}>
         <div style={s.header}>
           <div style={s.back} onClick={() => navigate('/member/profile')}>←</div>
-          <div style={s.title}>Waiver 風險安全聲明書</div>
+          <div style={s.title}>{t('Waiver 風險安全聲明書')}</div>
         </div>
         <div style={s.card}>
           <div style={{ ...s.cardPad, textAlign: 'center' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>📧</div>
-            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>已完成您本人的簽署</div>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 8 }}>{t('已完成您本人的簽署')}</div>
             <div style={{ fontSize: 13, color: '#888', lineHeight: 1.6, textAlign: 'left' }}>
-              因您未滿18歲，依規定還需要法定代理人（家長／監護人）共同簽署，才能正式入場。<br />
-              請提醒法定代理人查看Email中的簽署連結（連結有效期限72小時）。
+              {t('因您未滿18歲，依規定還需要法定代理人（家長／監護人）共同簽署，才能正式入場。')}<br />
+              {t('請提醒法定代理人查看Email中的簽署連結（連結有效期限72小時）。')}
             </div>
             {error && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 12 }}>{error}</div>}
             <button onClick={handleResend} disabled={resending} style={{ ...s.btnSecondary, marginTop: 18 }}>
-              {resending ? '發送中...' : '重新發送Email連結'}
+              {resending ? t('發送中...') : t('重新發送Email連結')}
             </button>
           </div>
         </div>
@@ -130,7 +131,7 @@ export default function MemberWaiverPage() {
     <div style={s.page}>
       <div style={s.header}>
         <div style={s.back} onClick={() => navigate('/member/profile')}>←</div>
-        <div style={s.title}>簽署風險安全聲明書</div>
+        <div style={s.title}>{t('簽署風險安全聲明書')}</div>
       </div>
 
       <div style={s.card}>
@@ -142,13 +143,13 @@ export default function MemberWaiverPage() {
         </div>
         <div style={{ padding: '0 16px 16px' }}>
           {!textLoaded ? (
-            <div style={{ textAlign: 'center', color: '#999', fontSize: 13, padding: 20 }}>載入中...</div>
+            <div style={{ textAlign: 'center', color: '#999', fontSize: 13, padding: 20 }}>{t('載入中...')}</div>
           ) : paragraphs.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#999', fontSize: 13, padding: 20 }}>（尚未設定聲明書內容，請聯絡館方）</div>
+            <div style={{ textAlign: 'center', color: '#999', fontSize: 13, padding: 20 }}>{t('（尚未設定聲明書內容，請聯絡館方）')}</div>
           ) : (
             <>
               <div style={{ fontSize: 11, color: '#999', marginBottom: 10, textAlign: 'right' }}>
-                已確認 {agreedParagraphs.size} / {paragraphs.length} 段
+                {t('已確認 ')}{agreedParagraphs.size}{t(' / ')}{paragraphs.length}{t(' 段')}
               </div>
               {paragraphs.map((para, idx) => (
                 <div key={idx} onClick={() => toggleParagraph(idx)}
@@ -173,24 +174,24 @@ export default function MemberWaiverPage() {
       {isMinor && (
         <div style={s.card}>
           <div style={s.cardPad}>
-            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>法定代理人資訊（未成年必填）</div>
+            <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12 }}>{t('法定代理人資訊（未成年必填）')}</div>
             <div style={{ marginBottom: 10 }}>
-              <label style={s.label}>法定代理人 Email（簽署連結將發送至此）*</label>
+              <label style={s.label}>{t('法定代理人 Email（簽署連結將發送至此）*')}</label>
               <input style={s.input} type="email" value={parentEmail} onChange={e => setParentEmail(e.target.value)} placeholder="parent@example.com" />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
               <div>
-                <label style={s.label}>法定代理人姓名</label>
-                <input style={s.input} value={parentName} onChange={e => setParentName(e.target.value)} placeholder="選填" />
+                <label style={s.label}>{t('法定代理人姓名')}</label>
+                <input style={s.input} value={parentName} onChange={e => setParentName(e.target.value)} placeholder={t('選填')} />
               </div>
               <div>
-                <label style={s.label}>關係</label>
-                <input style={s.input} value={parentRelation} onChange={e => setParentRelation(e.target.value)} placeholder="例：父親" />
+                <label style={s.label}>{t('關係')}</label>
+                <input style={s.input} value={parentRelation} onChange={e => setParentRelation(e.target.value)} placeholder={t('例：父親')} />
               </div>
             </div>
             <div>
-              <label style={s.label}>法定代理人聯絡電話</label>
-              <input style={s.input} value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder="選填" />
+              <label style={s.label}>{t('法定代理人聯絡電話')}</label>
+              <input style={s.input} value={parentPhone} onChange={e => setParentPhone(e.target.value)} placeholder={t('選填')} />
             </div>
           </div>
         </div>
@@ -200,18 +201,18 @@ export default function MemberWaiverPage() {
         <div style={s.cardPad}>
           {!allAgreed ? (
             <div style={{ textAlign: 'left', padding: '10px 0', color: '#999', fontSize: 13 }}>
-              請閱讀並勾選上方所有段落後，即可進行簽名
+              {t('請閱讀並勾選上方所有段落後，即可進行簽名')}
             </div>
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#2D7D46', marginBottom: 14, fontWeight: 500 }}>
-                ✓ 已確認閱讀並同意全部條款，請於下方簽名：
+                {t('✓ 已確認閱讀並同意全部條款，請於下方簽名：')}
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 8, textAlign: 'left' }}>
-                {forChildId ? '✍️ 法定代理人簽名' : '✍️ 本人簽名'}
+                {forChildId ? t('✍️ 法定代理人簽名') : t('✍️ 本人簽名')}
               </div>
               <SignaturePad ref={sigRef} height={160} />
-              <button onClick={() => sigRef.current?.clear()} style={{ marginTop: 8, fontSize: 12, color: '#8B1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>清除重簽</button>
+              <button onClick={() => sigRef.current?.clear()} style={{ marginTop: 8, fontSize: 12, color: '#8B1A1A', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>{t('清除重簽')}</button>
             </>
           )}
         </div>
@@ -220,15 +221,15 @@ export default function MemberWaiverPage() {
       <div style={{ margin: '0 20px' }}>
         {error && <div style={{ color: '#A32D2D', fontSize: 12, marginBottom: 10, textAlign: 'left' }}>{error}</div>}
         <button onClick={handleSubmit} disabled={loading || !allAgreed} style={{ ...s.btnPrimary, opacity: allAgreed ? 1 : 0.5, cursor: allAgreed ? 'pointer' : 'not-allowed' }}>
-          {loading ? '送出中...' : '確認簽署'}
+          {loading ? t('送出中...') : t('確認簽署')}
         </button>
         {isMinor && (
           <div style={{ fontSize: 11, color: '#999', textAlign: 'left', marginTop: 10 }}>
-            送出後將發送Email通知法定代理人完成第二階段簽署
+            {t('送出後將發送Email通知法定代理人完成第二階段簽署')}
           </div>
         )}
         <div style={{ fontSize: 11, color: '#bbb', textAlign: 'left', marginTop: 10 }}>
-          ⚠ 本聲明書一經簽署即永久生效，不可修改
+          {t('⚠ 本聲明書一經簽署即永久生效，不可修改')}
         </div>
       </div>
     </div>
