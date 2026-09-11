@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -44,14 +44,14 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
     if (!phone || phone.length < 7) { setRecipient(null); return; }
     let cancelled = false;
     setLooking(true);
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const res = await memberClient.get('/cards/transfers/lookup', { params: { phone } });
         if (!cancelled) setRecipient(res.data);
       } catch { if (!cancelled) setRecipient({ found: false }); }
       finally { if (!cancelled) setLooking(false); }
     }, 400);
-    return () => { cancelled = true; clearTimeout(t); };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [phone]);
 
   // 整張券（紅利/單次券/體驗券）：載入該手機下家庭成員清單，預設家長（後端已家長排前）
@@ -59,7 +59,7 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
     if (isCreditCard) return;
     if (!phone || phone.length < 7) { setRecipients([]); setPickId(''); return; }
     let cancelled = false;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const res = await memberClient.get('/ticket-transfers/recipients', { params: { phone } });
         if (cancelled) return;
@@ -68,18 +68,18 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
         setPickId(list.length ? list[0].id : '');
       } catch { if (!cancelled) { setRecipients([]); setPickId(''); } }
     }, 400);
-    return () => { cancelled = true; clearTimeout(t); };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [phone, isCreditCard]);
 
   const handleTransfer = async () => {
-    if (!phone || phone.length < 7) { setMsg('請輸入有效手機號碼'); return; }
+    if (!phone || phone.length < 7) { setMsg(t('請輸入有效手機號碼')); return; }
     if (isCreditCard) {
-      if (!recipient?.found) { setMsg('查無此手機號碼的會員'); return; }
-      if (recipient.self) { setMsg('不能移轉給自己'); return; }
+      if (!recipient?.found) { setMsg(t('查無此手機號碼的會員')); return; }
+      if (recipient.self) { setMsg(t('不能移轉給自己')); return; }
       const c = parseInt(credits);
-      if (!c || c < 1 || c > maxCredits) { setMsg(`移轉次數需介於 1 ～ ${maxCredits}`); return; }
+      if (!c || c < 1 || c > maxCredits) { setMsg(tt(`移轉次數需介於 1 ～ ${maxCredits}`, `Please enter 1–${maxCredits} credits`, `1〜${maxCredits}回の範囲で入力してください`)); return; }
     } else {
-      if (!pickId) { setMsg('請選擇接收人'); return; }
+      if (!pickId) { setMsg(t('請選擇接收人')); return; }
     }
     setLoading(true);
     try {
@@ -96,16 +96,16 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
         // 批次（僅單次入場券）帶 ticketIds 陣列一次送出，後端一次建一個移轉單、對方一次接收
         await memberClient.post('/ticket-transfers/request', {
           ticketType,
-          ...(isBatch ? { ticketIds: list.map(t => t.id) } : { ticketId: list[0].id }),
+          ...(isBatch ? { ticketIds: list.map(x => x.id) } : { ticketId: list[0].id }),
           targetPhone: phone,
           toMemberId: pickId,
         });
       }
       setSuccess(true);
-      setMsg('移轉申請已送出，等待對方確認');
+      setMsg(t('移轉申請已送出，等待對方確認'));
       onDone?.();
     } catch (e) {
-      setMsg(e.response?.data?.message || '申請失敗');
+      setMsg(e.response?.data?.message || t('申請失敗'));
     } finally { setLoading(false); }
   };
 
@@ -113,51 +113,51 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
       <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 40px', width:'100%' }}>
         <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-        <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>{isCreditCard ? '移轉卡片次數' : isBatch ? `申請票券移轉（共 ${list.length} 張）` : '申請票券移轉'}</div>
-        <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>移轉後對方需在 24 小時內接收，逾期自動回沖；到期日依票券規則計算</div>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:6 }}>{isCreditCard ? t('移轉卡片次數') : isBatch ? tt(`申請票券移轉（共 ${list.length} 張）`, `Transfer Tickets (${list.length})`, `チケット譲渡申請（${list.length}枚）`) : t('申請票券移轉')}</div>
+        <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>{t('移轉後對方需在 24 小時內接收，逾期自動回沖；到期日依票券規則計算')}</div>
         {success ? (
           <div style={{ background:'#E6F4EB', borderRadius:12, padding:16, textAlign:'center', marginBottom:16 }}>
             <div style={{ fontSize:24, marginBottom:8 }}>✅</div>
-            <div style={{ fontSize:14, color:'#2D7D46', fontWeight:500 }}>申請已送出！</div>
-            <div style={{ fontSize:13, color:'#666', marginTop:4 }}>等待對方接受移轉</div>
+            <div style={{ fontSize:14, color:'#2D7D46', fontWeight:500 }}>{t('申請已送出！')}</div>
+            <div style={{ fontSize:13, color:'#666', marginTop:4 }}>{t('等待對方接受移轉')}</div>
           </div>
         ) : (
           <>
             {isCreditCard && (
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>移轉次數（剩餘 {maxCredits} 次）</label>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{tt(`移轉次數（剩餘 ${maxCredits} 次）`, `Transfer Amount (${maxCredits} left)`, `譲渡回数（残り${maxCredits}回）`)}</label>
                 <input type="number" min={1} max={maxCredits} value={credits}
                   onChange={e => setCredits(e.target.value)}
                   style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               </div>
             )}
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>對方手機號碼</label>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('對方手機號碼')}</label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
                 placeholder="0912345678（外籍：+ 開頭國際格式）"
                 style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               {/* 接收人：次數型用 cards lookup；整張券用家庭成員清單（可挑子女）*/}
               {phone.length >= 7 && (isCreditCard ? (
                 looking ? (
-                  <div style={{ fontSize:13, color:'#999', marginTop:8 }}>查詢中…</div>
+                  <div style={{ fontSize:13, color:'#999', marginTop:8 }}>{t('查詢中…')}</div>
                 ) : recipient?.self ? (
-                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>⚠ 這是你自己的號碼，不能移轉給自己</div>
+                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>{t('⚠ 這是你自己的號碼，不能移轉給自己')}</div>
                 ) : recipient?.found ? (
-                  <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>✅ 接收人：{recipient.name}</div>
+                  <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>{tt(`✅ 接收人：${recipient.name}`, `✅ Recipient: ${recipient.name}`, `✅ 受取人：${recipient.name}`)}</div>
                 ) : (
-                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的會員</div>
+                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>{t('查無此手機號碼的會員')}</div>
                 )
               ) : (
                 recipients.length === 0 ? (
-                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的會員</div>
+                  <div style={{ fontSize:13, color:'#A32D2D', marginTop:8 }}>{t('查無此手機號碼的會員')}</div>
                 ) : recipients.length === 1 ? (
-                  <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>✅ 接收人：{recipients[0].name}{recipients[0].isChildAccount ? '（子女）' : ''}</div>
+                  <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>{tt(`✅ 接收人：${recipients[0].name}${recipients[0].isChildAccount ? '（子女）' : ''}`, `✅ Recipient: ${recipients[0].name}${recipients[0].isChildAccount ? ' (Child)' : ''}`, `✅ 受取人：${recipients[0].name}${recipients[0].isChildAccount ? '（お子様）' : ''}`)}</div>
                 ) : (
                   <div style={{ marginTop:8 }}>
-                    <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>此號碼有多個帳號，請選擇接收人</div>
+                    <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>{t('此號碼有多個帳號，請選擇接收人')}</div>
                     <select value={pickId} onChange={e => setPickId(e.target.value)}
                       style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', color:'#1a1a1a', boxSizing:'border-box' }}>
-                      {recipients.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}</option>)}
+                      {recipients.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? t('（子女）') : t('（家長）')}</option>)}
                     </select>
                   </div>
                 )
@@ -170,14 +170,16 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
               return (
                 <button onClick={handleTransfer} disabled={!canSend}
                   style={{ width:'100%', height:50, borderRadius:14, background: canSend?'#8B1A1A':'#ccc', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: canSend?'pointer':'not-allowed', marginBottom:10 }}>
-                  {loading ? '送出中...' : (isCreditCard ? `確認移轉 ${credits} 次${recipient?.name ? ` 給 ${recipient.name}` : ''}` : `確認申請移轉${isBatch ? `（共 ${list.length} 張）` : ''}${pickedName ? ` 給 ${pickedName}` : ''}`)}
+                  {loading ? t('送出中...') : (isCreditCard
+                    ? tt(`確認移轉 ${credits} 次${recipient?.name ? ` 給 ${recipient.name}` : ''}`, `Confirm Transfer ${credits}${recipient?.name ? ` to ${recipient.name}` : ''}`, `${credits}回の譲渡を確認${recipient?.name ? `（${recipient.name}へ）` : ''}`)
+                    : tt(`確認申請移轉${isBatch ? `（共 ${list.length} 張）` : ''}${pickedName ? ` 給 ${pickedName}` : ''}`, `Confirm Transfer Request${isBatch ? ` (${list.length})` : ''}${pickedName ? ` to ${pickedName}` : ''}`, `譲渡申請を確認${isBatch ? `（${list.length}枚）` : ''}${pickedName ? `（${pickedName}へ）` : ''}`))}
                 </button>
               );
             })()}
           </>
         )}
         <button onClick={onClose}
-          style={{ width:'100%', height:48, borderRadius:14, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>關閉</button>
+          style={{ width:'100%', height:48, borderRadius:14, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('關閉')}</button>
       </div>
     </div>
   );
@@ -207,14 +209,14 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
       <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 0', width:'100%', maxHeight:'80vh', display:'flex', flexDirection:'column' }}>
         <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-        <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>票券詳情</div>
+        <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{t('票券詳情')}</div>
         <div style={{ fontSize:13, color:'#666', marginBottom:16 }}>
-          {ticketType === 'discount_card' && `優惠卡 · 剩餘 ${ticket.remainingCredits} 次`}
-          {ticketType === 'legacy_discount' && `舊折扣卡 · 剩餘 ${ticket.remainingCredits} 次`}
-          {ticketType === 'black_card' && `黑卡 · 剩餘 ${ticket.remainingCredits} 次`}
-          {ticketType === 'bonus' && '紅利入場'}
-          {ticketType === 'single_entry' && '單日入場券'}
-          {ticketType === 'pass' && `${ticket.passTypeName || '定期票'} · ${ticket.startDate || ''}～${ticket.endDate || ''}`}
+          {ticketType === 'discount_card' && tt(`優惠卡 · 剩餘 ${ticket.remainingCredits} 次`, `Discount Card · ${ticket.remainingCredits} left`, `割引カード・残り${ticket.remainingCredits}回`)}
+          {ticketType === 'legacy_discount' && tt(`舊折扣卡 · 剩餘 ${ticket.remainingCredits} 次`, `Legacy Discount Card · ${ticket.remainingCredits} left`, `旧割引カード・残り${ticket.remainingCredits}回`)}
+          {ticketType === 'black_card' && tt(`黑卡 · 剩餘 ${ticket.remainingCredits} 次`, `Black Card · ${ticket.remainingCredits} left`, `ブラックカード・残り${ticket.remainingCredits}回`)}
+          {ticketType === 'bonus' && t('紅利入場')}
+          {ticketType === 'single_entry' && t('單日入場券')}
+          {ticketType === 'pass' && `${ticket.passTypeName || t('定期票')} · ${ticket.startDate || ''}～${ticket.endDate || ''}`}
         </div>
 
         <div style={{ flex:1, overflowY:'auto', paddingBottom:120 }}>
@@ -223,11 +225,11 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
             canTransfer ? (
               <button onClick={onTransfer}
                 style={{ width:'100%', height:46, borderRadius:12, border:'0.5px solid #8B1A1A', background:'#fff', color:'#8B1A1A', fontSize:14, fontWeight:500, cursor:'pointer', marginBottom:16 }}>
-                📤 申請移轉給他人
+                {t('📤 申請移轉給他人')}
               </button>
             ) : (
               <div style={{ background:'#F5EFEF', borderRadius:12, padding:'12px 14px', fontSize:12, color:'#999', textAlign:'center', marginBottom:16 }}>
-                家庭成員持有 · 僅供檢視（移轉需由持有者本人操作）
+                {t('家庭成員持有 · 僅供檢視（移轉需由持有者本人操作）')}
               </div>
             )
           )}
@@ -235,19 +237,21 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
           {/* 移轉紀錄（優惠卡/黑卡：轉入/轉出，含對方姓名） */}
           {['discount_card','legacy_discount','black_card'].includes(ticketType) && transfers.length > 0 && (
             <div style={{ marginBottom:16 }}>
-              <div style={{ fontWeight:600, fontSize:13, color:'#666', marginBottom:10 }}>移轉紀錄</div>
-              {transfers.map((t, i) => {
-                const when = tsToDay(t.at);
+              <div style={{ fontWeight:600, fontSize:13, color:'#666', marginBottom:10 }}>{t('移轉紀錄')}</div>
+              {transfers.map((tr, i) => {
+                const when = tsToDay(tr.at);
                 return (
                   <div key={i} style={{ padding:'10px 0', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
-                      <div style={{ fontSize:13, fontWeight:500, color: t.direction==='in' ? '#185FA5' : '#8B1A1A' }}>
-                        {t.direction === 'in' ? `🔽 由 ${t.memberName || '他人'} 轉入` : `🔼 轉出給 ${t.memberName || '他人'}`}
+                      <div style={{ fontSize:13, fontWeight:500, color: tr.direction==='in' ? '#185FA5' : '#8B1A1A' }}>
+                        {tr.direction === 'in'
+                          ? tt(`🔽 由 ${tr.memberName || '他人'} 轉入`, `🔽 From ${tr.memberName || 'someone'}`, `🔽 ${tr.memberName || '他の方'}より受取`)
+                          : tt(`🔼 轉出給 ${tr.memberName || '他人'}`, `🔼 To ${tr.memberName || 'someone'}`, `🔼 ${tr.memberName || '他の方'}へ譲渡`)}
                       </div>
                       <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{when ? when.format('YYYY/MM/DD HH:mm') : '—'}</div>
                     </div>
-                    <span style={{ fontSize:12, fontWeight:600, color: t.direction==='in' ? '#2D7D46' : '#8B1A1A' }}>
-                      {t.direction==='in' ? '+' : '-'}{t.credits} 次
+                    <span style={{ fontSize:12, fontWeight:600, color: tr.direction==='in' ? '#2D7D46' : '#8B1A1A' }}>
+                      {tr.direction==='in' ? '+' : '-'}{tr.credits}
                     </span>
                   </div>
                 );
@@ -257,21 +261,21 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
 
           {/* 使用紀錄（定期票＝入場紀錄，無限次不顯示扣次） */}
           {(() => { const unlimited = ticketType === 'pass'; return (<>
-          <div style={{ fontWeight:600, fontSize:13, color:'#666', marginBottom:10 }}>{unlimited ? '入場紀錄' : '使用紀錄'}</div>
+          <div style={{ fontWeight:600, fontSize:13, color:'#666', marginBottom:10 }}>{unlimited ? t('入場紀錄') : t('使用紀錄')}</div>
           {loading ? (
-            <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:13 }}>載入中...</div>
+            <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:13 }}>{t('載入中...')}</div>
           ) : history.length === 0 ? (
-            <div style={{ textAlign:'center', padding:20, color:'#ccc', fontSize:13 }}>{unlimited ? '尚無入場紀錄' : '尚無使用紀錄'}</div>
+            <div style={{ textAlign:'center', padding:20, color:'#ccc', fontSize:13 }}>{unlimited ? t('尚無入場紀錄') : t('尚無使用紀錄')}</div>
           ) : history.map((r, i) => {
             const cancelled = !!r.isCancelled;
             const when = tsToDay(cancelled ? (r.cancelledAt || r.checkedInAt) : r.checkedInAt);
-            const gymName = GYM_LABEL[r.gymId] || r.gymName || r.gymId || '—';
+            const gymName = t(GYM_LABEL[r.gymId] || r.gymName || r.gymId || '—');
             return (
               <div key={i} style={{ padding:'10px 0', borderBottom:'0.5px solid #F5EFEF', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <div>
                   <div style={{ fontSize:13, fontWeight:500 }}>
                     {gymName}
-                    {cancelled && <span style={{ fontSize:11, fontWeight:600, color:'#B26A00', marginLeft:6 }}>入場取消{unlimited ? '' : '返還'}</span>}
+                    {cancelled && <span style={{ fontSize:11, fontWeight:600, color:'#B26A00', marginLeft:6 }}>{tt(`入場取消${unlimited ? '' : '返還'}`, `Entry Cancelled${unlimited ? '' : ' (Refunded)'}`, `入場キャンセル${unlimited ? '' : '（返還）'}`)}</span>}
                   </div>
                   <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                     {when ? when.format('YYYY/MM/DD HH:mm') : '—'}
@@ -279,10 +283,10 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
                 </div>
                 {!unlimited && (
                   <span style={{ fontSize:12, fontWeight:600, color: cancelled ? '#2D7D46' : '#8B1A1A' }}>
-                    {cancelled ? '+1 次' : '-1 次'}
+                    {tt(cancelled ? '+1 次' : '-1 次', cancelled ? '+1' : '-1', cancelled ? '+1回' : '-1回')}
                   </span>
                 )}
-                {unlimited && cancelled && <span style={{ fontSize:12, fontWeight:600, color:'#999' }}>已取消</span>}
+                {unlimited && cancelled && <span style={{ fontSize:12, fontWeight:600, color:'#999' }}>{t('已取消')}</span>}
               </div>
             );
           })}
@@ -291,7 +295,7 @@ function TicketDetailModal({ ticket, ticketType, onClose, onTransfer, canTransfe
 
         <div style={{ padding:'12px 0 36px', background:'#fff' }}>
           <button onClick={onClose}
-            style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>關閉</button>
+            style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('關閉')}</button>
         </div>
       </div>
     </div>
@@ -352,7 +356,7 @@ export default function MemberPassesPage() {
     const phone = (transferToPhone || '').trim();
     if (phone.length < 7) { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(false); return; }
     let cancelled = false;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const res = await memberClient.get('/ticket-transfers/recipients', { params: { phone } });
         if (cancelled) return;
@@ -363,7 +367,7 @@ export default function MemberPassesPage() {
         setTransferLookupDone(true);
       } catch { if (!cancelled) { setTransferRecipients([]); setTransferPickId(''); setTransferLookupDone(true); } }
     }, 400);
-    return () => { cancelled = true; clearTimeout(t); };
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [transferToPhone, requestType, member?.id]);
 
   // 每筆票券附上持有人資訊（供顯示標籤＋判斷是否本人）
@@ -443,40 +447,40 @@ export default function MemberPassesPage() {
   };
   // 移轉/接收後重新載入：重跑完整合併（含子女），避免只刷新本人卡而漏掉家庭成員票券
   const reloadCards = async () => { await loadAll(); };
-  const acceptXfer = async (t) => {
+  const acceptXfer = async (xf) => {
     setXferBusy(true);
-    try { await memberClient.post(`/cards/transfers/${t.id}/accept`, {}); setMsg('已接收，次數已入卡'); await loadTransfers(); await reloadCards(); }
-    catch (e) { setMsg(e?.response?.data?.message || '接收失敗'); }
+    try { await memberClient.post(`/cards/transfers/${xf.id}/accept`, {}); setMsg(t('已接收，次數已入卡')); await loadTransfers(); await reloadCards(); }
+    catch (e) { setMsg(e?.response?.data?.message || t('接收失敗')); }
     finally { setXferBusy(false); }
   };
-  const cancelXfer = async (t) => {
+  const cancelXfer = async (xf) => {
     setXferBusy(true);
-    try { await memberClient.post(`/cards/transfers/${t.id}/cancel`, {}); setMsg('已取消移轉，次數已回沖'); await loadTransfers(); await reloadCards(); }
-    catch (e) { setMsg(e?.response?.data?.message || '取消失敗'); }
+    try { await memberClient.post(`/cards/transfers/${xf.id}/cancel`, {}); setMsg(t('已取消移轉，次數已回沖')); await loadTransfers(); await reloadCards(); }
+    catch (e) { setMsg(e?.response?.data?.message || t('取消失敗')); }
     finally { setXferBusy(false); }
   };
-  const ticketTypeLabel = (ty) => ({ bonus:'紅利入場', single_entry:'單次入場券', discount_card:'優惠卡', legacy_discount_card:'舊優惠卡', black_card:'黑卡' }[ty] || '票券');
-  const acceptTicketXfer = async (t) => {
+  const ticketTypeLabel = (ty) => t({ bonus:'紅利入場', single_entry:'單次入場券', discount_card:'優惠卡', legacy_discount_card:'舊優惠卡', black_card:'黑卡' }[ty] || '票券');
+  const acceptTicketXfer = async (tk) => {
     setXferBusy(true);
-    try { await memberClient.post(`/ticket-transfers/${t.id}/accept`, { confirmedExpiry: 'true' }); setMsg('已接收此票券'); await loadTransfers(); await reloadCards(); }
-    catch (e) { setMsg(e?.response?.data?.message || '接收失敗'); }
+    try { await memberClient.post(`/ticket-transfers/${tk.id}/accept`, { confirmedExpiry: 'true' }); setMsg(t('已接收此票券')); await loadTransfers(); await reloadCards(); }
+    catch (e) { setMsg(e?.response?.data?.message || t('接收失敗')); }
     finally { setXferBusy(false); }
   };
-  const rejectTicketXfer = async (t) => {
+  const rejectTicketXfer = async (tk) => {
     setXferBusy(true);
-    try { await memberClient.post(`/ticket-transfers/${t.id}/reject`, {}); setMsg('已拒絕此移轉'); await loadTransfers(); }
-    catch (e) { setMsg(e?.response?.data?.message || '拒絕失敗'); }
+    try { await memberClient.post(`/ticket-transfers/${tk.id}/reject`, {}); setMsg(t('已拒絕此移轉')); await loadTransfers(); }
+    catch (e) { setMsg(e?.response?.data?.message || t('拒絕失敗')); }
     finally { setXferBusy(false); }
   };
-  const cardLabel = (ty) => ty === 'black' ? '黑卡' : '優惠卡';
+  const cardLabel = (ty) => t(ty === 'black' ? '黑卡' : '優惠卡');
   const xferDeadline = (iso) => iso ? dayjs(iso).format('MM/DD HH:mm') : '';
 
   const passStatus = (p) => {
-    if (p.status === 'cancelled') return { color:'#999', label:'已取消', bg:'#F0EDED' };
-    if (p.endDate < dayjs().format('YYYY-MM-DD')) return { color:'#A32D2D', label:'已過期', bg:'#FCEBEB' };
+    if (p.status === 'cancelled') return { color:'#999', label:t('已取消'), bg:'#F0EDED' };
+    if (p.endDate < dayjs().format('YYYY-MM-DD')) return { color:'#A32D2D', label:t('已過期'), bg:'#FCEBEB' };
     const d = dayjs(p.endDate).diff(dayjs(), 'day');
-    if (d <= 7) return { color:'#854F0B', label:`剩 ${d} 天`, bg:'#FAEEDA' };
-    return { color:'#2D7D46', label:'有效', bg:'#E6F4EB' };
+    if (d <= 7) return { color:'#854F0B', label:tt(`剩 ${d} 天`, `${d} left`, `残り${d}日`), bg:'#FAEEDA' };
+    return { color:'#2D7D46', label:t('有效'), bg:'#E6F4EB' };
   };
 
   // 定期票申請狀態：只有「核准(佔用限一次額度)」或「審核中(有待審)」才擋再次申請；
@@ -507,23 +511,23 @@ export default function MemberPassesPage() {
 
   const handleSubmitRequest = async () => {
     setRequestError('');
-    if (!reasonKey) { setRequestError('請選擇符合的事由'); return; }
-    if (!evidenceFile) { setRequestError('請上傳證明文件'); return; }
+    if (!reasonKey) { setRequestError(t('請選擇符合的事由')); return; }
+    if (!evidenceFile) { setRequestError(t('請上傳證明文件')); return; }
     if (requestType === 'transfer') {
-      if (!transferToPhone.trim()) { setRequestError('請輸入轉讓對象的手機號碼'); return; }
-      if (!transferPickId) { setRequestError('請確認轉讓對象（查無此電話的會員或尚未選擇）'); return; }
+      if (!transferToPhone.trim()) { setRequestError(t('請輸入轉讓對象的手機號碼')); return; }
+      if (!transferPickId) { setRequestError(t('請確認轉讓對象（查無此電話的會員或尚未選擇）')); return; }
     }
     // 展延：停用期間驗證（後端仍為權威，前端先友善擋）
     if (requestType === 'extension') {
       const today = dayjs().format('YYYY-MM-DD');
-      if (!suspendStart || !suspendEnd) { setRequestError('請填寫停用期間（起訖日）'); return; }
-      if (suspendStart < today) { setRequestError('停用開始日不可早於今天'); return; }
+      if (!suspendStart || !suspendEnd) { setRequestError(t('請填寫停用期間（起訖日）')); return; }
+      if (suspendStart < today) { setRequestError(t('停用開始日不可早於今天')); return; }
       const days = dayjs(suspendEnd).diff(dayjs(suspendStart), 'day');
-      if (days <= 0) { setRequestError('停用結束日必須晚於開始日'); return; }
+      if (days <= 0) { setRequestError(t('停用結束日必須晚於開始日')); return; }
       const origEnd = requestingPass.endDate;
       const newEnd = dayjs(origEnd).add(days, 'day').format('YYYY-MM-DD');
       const maxEnd = dayjs(origEnd).add(6, 'month').format('YYYY-MM-DD');
-      if (newEnd > maxEnd) { setRequestError(`展延後到期日（${newEnd}）不可比原到期日（${origEnd}）晚超過 6 個月`); return; }
+      if (newEnd > maxEnd) { setRequestError(tt(`展延後到期日（${newEnd}）不可比原到期日（${origEnd}）晚超過 6 個月`, `New expiry (${newEnd}) can't be more than 6 months after the original (${origEnd})`, `延長後の期限（${newEnd}）は元の期限（${origEnd}）から6ヶ月を超えることはできません`)); return; }
     }
 
     setRequestSubmitting(true);
@@ -547,12 +551,12 @@ export default function MemberPassesPage() {
         suspendEnd: requestType === 'extension' ? suspendEnd : undefined,
       });
 
-      setMsg('申請已送出，請等待館方審核');
+      setMsg(t('申請已送出，請等待館方審核'));
       setRequestingPass(null);
       const reqs = await getMyPassRequests(member.id);
       setMyRequests(reqs.data.requests || []);
     } catch (err) {
-      setRequestError(err.response?.data?.message || '申請失敗，請再試一次');
+      setRequestError(err.response?.data?.message || t('申請失敗，請再試一次'));
     } finally {
       setRequestSubmitting(false);
       setEvidenceUploading(false);
@@ -573,6 +577,7 @@ export default function MemberPassesPage() {
       default: return true;
     }
   };
+  // 內部判定用中文原始值（分類邏輯依此比對，如 splitInvalid 的 '已使用'/'已用完'）；顯示時另以 t() 翻譯（見 invalidBadge/renderCollapseSection）
   const invalidReason = (item, type) => {
     switch (type) {
       case 'passes': return item.status === 'cancelled' ? '已取消' : ((item.endDate || '') < _today ? '已過期' : '已失效');
@@ -618,7 +623,7 @@ export default function MemberPassesPage() {
   };
   // 失效卡片小標籤（dark：深色卡如優惠卡/黑卡）
   const invalidBadge = (item, type, dark) => (
-    <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background: dark ? 'rgba(255,255,255,.22)' : '#F0EDED', color: dark ? '#fff' : '#999' }}>{invalidReason(item, type)}</span>
+    <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background: dark ? 'rgba(255,255,255,.22)' : '#F0EDED', color: dark ? '#fff' : '#999' }}>{t(invalidReason(item, type))}</span>
   );
 
   const TABS = [
@@ -627,7 +632,7 @@ export default function MemberPassesPage() {
     { key:'black', label:'黑卡', count: splitValid(blackCards, 'black').valid.length },
     { key:'single', label:'單日券', count: splitValid(singleTickets, 'single').valid.length },
     { key:'bonus', label:'紅利', count: splitValid(bonuses, 'bonus').valid.length },
-  ];
+  ]; // label 顯示時走 t() 查字典（見下方 TABS.map），此處保留中文原字串當 key
 
   const handleTicketClick = (ticket, type) => {
     setSelectedTicket(ticket);
@@ -635,10 +640,10 @@ export default function MemberPassesPage() {
   };
 
   // 持有人標籤：本人不標；子女顯示「👦 姓名」。dark=true 用於深色卡片（優惠卡/黑卡）
-  const ownerTag = (t, dark = false) => (t && t._isSelf === false) ? (
+  const ownerTag = (it, dark = false) => (it && it._isSelf === false) ? (
     <span style={{ fontSize:10, fontWeight:600, borderRadius:10, padding:'2px 8px', whiteSpace:'nowrap',
       background: dark ? 'rgba(255,255,255,.22)' : '#E6F1FB', color: dark ? '#fff' : '#185FA5' }}>
-      👦 {t._ownerName}
+      👦 {it._ownerName}
     </span>
   ) : null;
 
@@ -653,7 +658,7 @@ export default function MemberPassesPage() {
         style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12, overflow:'hidden', position:'relative', cursor:'pointer', opacity: dim ? 0.6 : 1 }}>
         <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:st.color }}/>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
-          <div><div style={{ fontWeight:600, fontSize:16 }}>{p.passTypeName}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{p.scope === 'shared' ? '全館適用' : '單館'}</div></div>
+          <div><div style={{ fontWeight:600, fontSize:16 }}>{p.passTypeName}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{p.scope === 'shared' ? t('全館適用') : t('單館')}</div></div>
           <div style={{ display:'flex', gap:6, alignItems:'center' }}>
             {ownerTag(p)}
             {dim ? invalidBadge(p, 'passes') : <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:st.bg, color:st.color }}>{st.label}</span>}
@@ -664,24 +669,28 @@ export default function MemberPassesPage() {
         {/* 轉入註記：這張票是由他人轉讓進來的 */}
         {p.transferredFrom && (
           <div style={{ marginTop:10, fontSize:11, color:'#185FA5', background:'#E6F1FB', borderRadius:6, padding:'5px 9px', display:'inline-block' }}>
-            🔄 由 {p.transferredFromName || '他人'} 轉入{p.transferredAt ? `（${p.transferredAt}）` : ''}
+            {tt(`🔄 由 ${p.transferredFromName || '他人'} 轉入${p.transferredAt ? `（${p.transferredAt}）` : ''}`,
+                `🔄 Transferred from ${p.transferredFromName || 'someone'}${p.transferredAt ? ` (${p.transferredAt})` : ''}`,
+                `🔄 ${p.transferredFromName || '他の方'}より受取${p.transferredAt ? `（${p.transferredAt}）` : ''}`)}
           </div>
         )}
-        {p.credits !== null && <div style={{ marginTop:10, fontSize:13, display:'flex', justifyContent:'space-between' }}><span style={{ color:'#6b6b6b' }}>剩餘次數</span><span style={{ fontWeight:600, fontFamily:'monospace', fontSize:16, color:'#8B1A1A' }}>{p.credits} 次</span></div>}
+        {p.credits !== null && <div style={{ marginTop:10, fontSize:13, display:'flex', justifyContent:'space-between' }}><span style={{ color:'#6b6b6b' }}>{t('剩餘次數')}</span><span style={{ fontWeight:600, fontFamily:'monospace', fontSize:16, color:'#8B1A1A' }}>{tt(`${p.credits} 次`, `${p.credits}`, `${p.credits}回`)}</span></div>}
         {/* 線上續約（到期前 14 天內，getRenewalInfo 才有值）——本人與家庭成員票券皆可（家長可代
             子女續約，見後端 orderResolvers.pass_renewal 說明）；只支援一次付清，分期仍走既有
             「產生入場 QR」流程順便續約。 */}
         {!dim && p.status === 'active' && p.renewalInfo && (
           <div onClick={(e) => e.stopPropagation()} style={{ marginTop:10, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:10, padding:12 }}>
             <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginBottom:4 }}>
-              🔔 剩 {p.renewalInfo.daysLeft} 天到期，可線上續約延長至 {p.renewalInfo.newEndDate}
+              {tt(`🔔 剩 ${p.renewalInfo.daysLeft} 天到期，可線上續約延長至 ${p.renewalInfo.newEndDate}`,
+                  `🔔 Expires in ${p.renewalInfo.daysLeft} days — renew online to extend to ${p.renewalInfo.newEndDate}`,
+                  `🔔 残り${p.renewalInfo.daysLeft}日で期限切れ。オンライン更新で${p.renewalInfo.newEndDate}まで延長できます`)}
             </div>
             <div style={{ fontSize:13, marginBottom:8 }}>
               {p.renewalInfo.renewalPrice < p.renewalInfo.fullPrice && (
                 <span style={{ color:'#bbb', textDecoration:'line-through', marginRight:6 }}>NT${p.renewalInfo.fullPrice.toLocaleString()}</span>
               )}
               <span style={{ color:'#8B1A1A', fontWeight:700 }}>NT${p.renewalInfo.renewalPrice.toLocaleString()}</span>
-              {p.renewalInfo.renewalDiscount && <span style={{ fontSize:11, color:'#A32D2D', marginLeft:6 }}>續約優惠</span>}
+              {p.renewalInfo.renewalDiscount && <span style={{ fontSize:11, color:'#A32D2D', marginLeft:6 }}>{t('續約優惠')}</span>}
             </div>
             {onlineRenewEnabled ? (
               <button onClick={() => setPassContractFor({
@@ -691,29 +700,29 @@ export default function MemberPassesPage() {
                 ownerId: p._ownerId, ownerName: p._ownerName,
               })}
                 style={{ width:'100%', height:36, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-                線上續約（NT${p.renewalInfo.renewalPrice.toLocaleString()}）
+                {tt(`線上續約（NT$${p.renewalInfo.renewalPrice.toLocaleString()}）`, `Renew Online (NT$${p.renewalInfo.renewalPrice.toLocaleString()})`, `オンライン更新（NT$${p.renewalInfo.renewalPrice.toLocaleString()}）`)}
               </button>
             ) : (
-              <div style={{ fontSize:11, color:'#999' }}>如需續約，請於下次到館入場、產生入場 QR 時一併辦理</div>
+              <div style={{ fontSize:11, color:'#999' }}>{t('如需續約，請於下次到館入場、產生入場 QR 時一併辦理')}</div>
             )}
           </div>
         )}
         {!dim && p.status === 'active' && (
           p._isSelf === false ? (
-            <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>家庭成員持有 · 僅供檢視</div>
+            <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>{t('家庭成員持有 · 僅供檢視')}</div>
           ) : (() => {
             const rs = passRequestState(p.id);
-            if (rs === 'used') return <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>已申請過展延/退費/轉讓（限一次）</div>;
-            if (rs === 'pending') return <div style={{ marginTop:10, fontSize:11, color:'#854F0B', textAlign:'center' }}>申請審核中，請等待審核結果</div>;
+            if (rs === 'used') return <div style={{ marginTop:10, fontSize:11, color:'#999', textAlign:'center' }}>{t('已申請過展延/退費/轉讓（限一次）')}</div>;
+            if (rs === 'pending') return <div style={{ marginTop:10, fontSize:11, color:'#854F0B', textAlign:'center' }}>{t('申請審核中，請等待審核結果')}</div>;
             return (
               <button onClick={(e) => { e.stopPropagation(); openRequest(p); }}
                 style={{ width:'100%', marginTop:10, height:34, borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
-                申請展延／退費／轉讓
+                {t('申請展延／退費／轉讓')}
               </button>
             );
           })()
         )}
-        <div style={{ marginTop:8, fontSize:11, color:'#8B1A1A', opacity:.65, textAlign:'right' }}>點擊查看使用紀錄 →</div>
+        <div style={{ marginTop:8, fontSize:11, color:'#8B1A1A', opacity:.65, textAlign:'right' }}>{t('點擊查看使用紀錄 →')}</div>
       </div>
     );
   };
@@ -722,22 +731,27 @@ export default function MemberPassesPage() {
       style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer', opacity: dim ? 0.55 : 1 }}>
       <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-        <div style={{ fontSize:10, opacity:.75, letterSpacing:1 }}>{c.source === 'legacy' ? '舊折扣卡' : c.source === 'transferred' ? '移轉優惠卡' : '優惠卡'}{!dim && c.isExpiringSoon && ' ⚠ 即將到期'}</div>
+        <div style={{ fontSize:10, opacity:.75, letterSpacing:1 }}>{t(c.source === 'legacy' ? '舊折扣卡' : c.source === 'transferred' ? '移轉優惠卡' : '優惠卡')}{!dim && c.isExpiringSoon && ` ${t('⚠ 即將到期')}`}</div>
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           {ownerTag(c, true)}
           {dim && invalidBadge(c, 'discount', true)}
         </div>
       </div>
-      <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
-      <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? `有效至 ${c.expiresAtFormatted}` : '無期限'}</div>
+      <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>{tt('次', '', '回')}</span></div>
+      <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? tt(`有效至 ${c.expiresAtFormatted}`, `Valid until ${c.expiresAtFormatted}`, `有効期限 ${c.expiresAtFormatted}`) : t('無期限')}</div>
       <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${Math.max(0,(c.remainingCredits/10)*100)}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
-      <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}><span>已使用 {Math.max(0, 10 - c.remainingCredits)} 次</span><span>剩餘 {c.remainingCredits}/10</span></div>
+      <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}>
+        <span>{tt(`已使用 ${Math.max(0, 10 - c.remainingCredits)} 次`, `Used ${Math.max(0, 10 - c.remainingCredits)}`, `利用済み${Math.max(0, 10 - c.remainingCredits)}回`)}</span>
+        <span>{tt(`剩餘 ${c.remainingCredits}/10`, `${c.remainingCredits}/10 left`, `残り${c.remainingCredits}/10`)}</span>
+      </div>
       {c.bonusToOriginalOwner && (
         <div style={{ marginTop:8, background:'rgba(255,255,255,.18)', borderRadius:8, padding:'6px 10px', fontSize:11, lineHeight:1.5 }}>
-          🎁 此卡由{c.originalOwnerName ? `「${c.originalOwnerName}」` : '原購買者'}移轉，全部次數用完後紅利歸原購買者所有
+          {tt(`🎁 此卡由${c.originalOwnerName ? `「${c.originalOwnerName}」` : '原購買者'}移轉，全部次數用完後紅利歸原購買者所有`,
+              `🎁 Transferred from ${c.originalOwnerName || 'the original buyer'} — a bonus goes to the original buyer once all credits are used`,
+              `🎁 このカードは${c.originalOwnerName ? `「${c.originalOwnerName}」` : '元の購入者'}より譲渡。全回数使用後、ボーナスは元の購入者へ`)}
         </div>
       )}
-      <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>點擊查看詳情 →</div>
+      <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>{t('點擊查看詳情 →')}</div>
     </div>
   );
   const renderBlackCard = (c, dim) => (
@@ -745,37 +759,40 @@ export default function MemberPassesPage() {
       style={{ background:'linear-gradient(135deg,#1a1a1a,#444)', borderRadius:14, padding:18, color:'#fff', marginBottom:12, position:'relative', overflow:'hidden', cursor:'pointer', opacity: dim ? 0.55 : 1 }}>
       <div style={{ position:'absolute', right:14, top:12, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:15, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-        <div style={{ fontSize:10, opacity:.75, letterSpacing:1 }}>黑卡</div>
+        <div style={{ fontSize:10, opacity:.75, letterSpacing:1 }}>{t('黑卡')}</div>
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           {ownerTag(c, true)}
           {dim && invalidBadge(c, 'black', true)}
         </div>
       </div>
-      <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>次</span></div>
-      <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? `有效至 ${c.expiresAtFormatted}` : '無期限'}</div>
+      <div style={{ fontSize:36, fontWeight:700, marginBottom:4 }}>{c.remainingCredits} <span style={{ fontSize:18, opacity:.8 }}>{tt('次', '', '回')}</span></div>
+      <div style={{ fontSize:12, opacity:.75 }}>{c.expiresAtFormatted ? tt(`有效至 ${c.expiresAtFormatted}`, `Valid until ${c.expiresAtFormatted}`, `有効期限 ${c.expiresAtFormatted}`) : t('無期限')}</div>
       <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,.2)', borderRadius:2, overflow:'hidden' }}><div style={{ height:'100%', width:`${Math.max(0,(c.remainingCredits/12)*100)}%`, background:'rgba(255,255,255,.6)', borderRadius:2 }}/></div>
-      <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}><span>已使用 {Math.max(0, 12 - c.remainingCredits)} 次</span><span>剩餘 {c.remainingCredits}/12</span></div>
-      <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>點擊查看詳情 →</div>
+      <div style={{ marginTop:4, fontSize:11, opacity:.65, display:'flex', justifyContent:'space-between' }}>
+        <span>{tt(`已使用 ${Math.max(0, 12 - c.remainingCredits)} 次`, `Used ${Math.max(0, 12 - c.remainingCredits)}`, `利用済み${Math.max(0, 12 - c.remainingCredits)}回`)}</span>
+        <span>{tt(`剩餘 ${c.remainingCredits}/12`, `${c.remainingCredits}/12 left`, `残り${c.remainingCredits}/12`)}</span>
+      </div>
+      <div style={{ marginTop:10, fontSize:11, opacity:.6, textAlign:'right' }}>{t('點擊查看詳情 →')}</div>
     </div>
   );
   // batchSelectable：僅有效且屬本人的票券在批次模式下可勾選；勾選模式下點卡片切換勾選，非批次模式維持原本開詳情
-  const renderSingleCard = (t, dim, batchSelectable = false) => {
-    const checked = singleBatchIds.includes(t.id);
+  const renderSingleCard = (tk, dim, batchSelectable = false) => {
+    const checked = singleBatchIds.includes(tk.id);
     return (
-    <div key={t.id} onClick={() => batchSelectable ? setSingleBatchIds(ids => checked ? ids.filter(id => id !== t.id) : [...ids, t.id]) : handleTicketClick(t, 'single_entry')}
+    <div key={tk.id} onClick={() => batchSelectable ? setSingleBatchIds(ids => checked ? ids.filter(id => id !== tk.id) : [...ids, tk.id]) : handleTicketClick(tk, 'single_entry')}
       style={{ background:'#fff', borderRadius:14, border: checked ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5', padding:16, marginBottom:12, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', opacity: dim ? 0.6 : 1 }}>
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
         {batchSelectable && (
           <div style={{ width:22, height:22, borderRadius:6, border: checked ? 'none' : '1.5px solid #ccc', background: checked ? '#8B1A1A' : 'transparent', color:'#fff', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{checked ? '✓' : ''}</div>
         )}
         <div>
-          <div style={{ fontWeight:600, fontSize:15 }}>單日入場券</div>
-          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>有效至 {(tsToDay(t.expiresAt)?.format('YYYY/MM/DD')) || '—'}</div>
+          <div style={{ fontWeight:600, fontSize:15 }}>{t('單日入場券')}</div>
+          <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{tt(`有效至 ${(tsToDay(tk.expiresAt)?.format('YYYY/MM/DD')) || '—'}`, `Valid until ${(tsToDay(tk.expiresAt)?.format('YYYY/MM/DD')) || '—'}`, `有効期限 ${(tsToDay(tk.expiresAt)?.format('YYYY/MM/DD')) || '—'}`)}</div>
         </div>
       </div>
       <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-        {ownerTag(t)}
-        {dim ? invalidBadge(t, 'single') : <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>有效</span>}
+        {ownerTag(tk)}
+        {dim ? invalidBadge(tk, 'single') : <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('有效')}</span>}
       </div>
     </div>
     );
@@ -787,12 +804,12 @@ export default function MemberPassesPage() {
         <div style={{ fontSize:18 }}>🎁</div>
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           {ownerTag(b)}
-          {dim ? invalidBadge(b, 'bonus') : <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background: b.isExpiringSoon ? '#FAEEDA' : '#E6F4EB', color: b.isExpiringSoon ? '#854F0B' : '#2D7D46' }}>{b.isExpiringSoon ? `剩 ${b.daysLeft} 天` : '有效'}</span>}
+          {dim ? invalidBadge(b, 'bonus') : <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background: b.isExpiringSoon ? '#FAEEDA' : '#E6F4EB', color: b.isExpiringSoon ? '#854F0B' : '#2D7D46' }}>{b.isExpiringSoon ? tt(`剩 ${b.daysLeft} 天`, `${b.daysLeft} left`, `残り${b.daysLeft}日`) : t('有效')}</span>}
         </div>
       </div>
-      <div style={{ fontWeight:600, fontSize:16, color:'#2D7D46' }}>免費入場 1 次</div>
-      <div style={{ fontSize:12, color:'#6b6b6b', marginTop:4 }}>{b.expiresAtFormatted ? `有效至 ${b.expiresAtFormatted}` : '無期限'}</div>
-      <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'right' }}>點擊查看詳情 →</div>
+      <div style={{ fontWeight:600, fontSize:16, color:'#2D7D46' }}>{t('免費入場 1 次')}</div>
+      <div style={{ fontSize:12, color:'#6b6b6b', marginTop:4 }}>{b.expiresAtFormatted ? tt(`有效至 ${b.expiresAtFormatted}`, `Valid until ${b.expiresAtFormatted}`, `有効期限 ${b.expiresAtFormatted}`) : t('無期限')}</div>
+      <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'right' }}>{t('點擊查看詳情 →')}</div>
     </div>
   );
 
@@ -805,7 +822,7 @@ export default function MemberPassesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:420, maxHeight:'88vh', overflowY:'auto', padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontWeight:600, fontSize:15 }}>合約條款確認 — {passContractFor.passTypeName}</div>
+              <div style={{ fontWeight:600, fontSize:15 }}>{t('合約條款確認')} — {passContractFor.passTypeName}</div>
               <button onClick={() => { setPassContractFor(null); setPassContractRenewErr(false); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <PassContractReview
@@ -822,7 +839,7 @@ export default function MemberPassesPage() {
             />
             {passContractRenewErr && (
               <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px', textAlign:'left' }}>
-                請詳閱並勾選同意，並完成簽名後才能繼續
+                {t('請詳閱並勾選同意，並完成簽名後才能繼續')}
               </div>
             )}
             <button onClick={() => {
@@ -837,7 +854,7 @@ export default function MemberPassesPage() {
               setPassContractFor(null);
               setPassContractRenewErr(false);
             }} style={{ width:'100%', height:44, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-              確認並繼續付款 →
+              {t('確認並繼續付款 →')}
             </button>
           </div>
         </div>
@@ -847,7 +864,7 @@ export default function MemberPassesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontWeight:600, fontSize:15 }}>續約付款 — {renewFor.passTypeName}</div>
+              <div style={{ fontWeight:600, fontSize:15 }}>{t('續約付款')} — {renewFor.passTypeName}</div>
               <button onClick={() => setRenewFor(null)} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <PaymentFlow
@@ -861,7 +878,7 @@ export default function MemberPassesPage() {
               }}
               amount={renewFor.amount}
               gymId={renewFor.gymId}
-              onPaid={() => { setRenewFor(null); setMsg(`續約成功！效期已延長至 ${renewFor.newEndDate}`); reloadCards(); }}
+              onPaid={() => { setRenewFor(null); setMsg(tt(`續約成功！效期已延長至 ${renewFor.newEndDate}`, `Renewal successful! Extended to ${renewFor.newEndDate}`, `更新完了！${renewFor.newEndDate}まで延長されました`)); reloadCards(); }}
               onCancel={() => setRenewFor(null)}
             />
           </div>
@@ -870,16 +887,16 @@ export default function MemberPassesPage() {
       {/* 頂部 */}
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
-        <div style={{ fontWeight:600, fontSize:15 }}>我的票券</div>
+        <div style={{ fontWeight:600, fontSize:15 }}>{t('我的票券')}</div>
       </div>
 
       {/* Tab 列 */}
       <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto', padding:'0 12px' }}>
-        {TABS.map(t => (
-          <div key={t.key} onClick={() => setTab(t.key)}
-            style={{ flexShrink:0, height:44, padding:'0 16px', display:'flex', alignItems:'center', justifyContent:'center', gap:5, cursor:'pointer', fontSize:13, fontWeight: tab===t.key ? 600 : 400, color: tab===t.key ? '#8B1A1A' : '#999', borderBottom: tab===t.key ? '2px solid #8B1A1A' : '2px solid transparent' }}>
-            {t.label}
-            {t.count > 0 && <span style={{ fontSize:10, background: tab===t.key ? '#8B1A1A' : '#E0E0E0', color: tab===t.key ? '#fff' : '#999', borderRadius:10, padding:'1px 6px', fontWeight:600 }}>{t.count}</span>}
+        {TABS.map(tabDef => (
+          <div key={tabDef.key} onClick={() => setTab(tabDef.key)}
+            style={{ flexShrink:0, height:44, padding:'0 16px', display:'flex', alignItems:'center', justifyContent:'center', gap:5, cursor:'pointer', fontSize:13, fontWeight: tab===tabDef.key ? 600 : 400, color: tab===tabDef.key ? '#8B1A1A' : '#999', borderBottom: tab===tabDef.key ? '2px solid #8B1A1A' : '2px solid transparent' }}>
+            {t(tabDef.label)}
+            {tabDef.count > 0 && <span style={{ fontSize:10, background: tab===tabDef.key ? '#8B1A1A' : '#E0E0E0', color: tab===tabDef.key ? '#fff' : '#999', borderRadius:10, padding:'1px 6px', fontWeight:600 }}>{tabDef.count}</span>}
           </div>
         ))}
       </div>
@@ -891,15 +908,15 @@ export default function MemberPassesPage() {
       {/* 待接收的卡片移轉 */}
       {xferIn.length > 0 && (
         <div style={{ margin:'12px 16px 0' }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>🎁 待接收的卡片移轉</div>
-          {xferIn.map(t => (
-            <div key={t.id} style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>{t('🎁 待接收的卡片移轉')}</div>
+          {xferIn.map(xf => (
+            <div key={xf.id} style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
               <div style={{ fontSize:13, color:'#1a1a1a' }}>
-                <div style={{ fontWeight:600 }}>{cardLabel(t.cardType)} {t.credits} 次</div>
-                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>來自 {t.fromMemberName || '會員'} · 請於 {xferDeadline(t.expiresAtISO)} 前接收</div>
+                <div style={{ fontWeight:600 }}>{tt(`${cardLabel(xf.cardType)} ${xf.credits} 次`, `${cardLabel(xf.cardType)} ${xf.credits}`, `${cardLabel(xf.cardType)} ${xf.credits}回`)}</div>
+                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>{tt(`來自 ${xf.fromMemberName || t('會員')} · 請於 ${xferDeadline(xf.expiresAtISO)} 前接收`, `From ${xf.fromMemberName || t('會員')} · Accept by ${xferDeadline(xf.expiresAtISO)}`, `${xf.fromMemberName || t('會員')}より・${xferDeadline(xf.expiresAtISO)}までに受け取り`)}</div>
               </div>
-              <button onClick={() => acceptXfer(t)} disabled={xferBusy}
-                style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>接收</button>
+              <button onClick={() => acceptXfer(xf)} disabled={xferBusy}
+                style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>{t('接收')}</button>
             </div>
           ))}
         </div>
@@ -908,18 +925,18 @@ export default function MemberPassesPage() {
       {/* 待接收的票券移轉（紅利/單次券/體驗券）*/}
       {tXferIn.length > 0 && (
         <div style={{ margin:'12px 16px 0' }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>🎁 待接收的票券移轉</div>
-          {tXferIn.map(t => (
-            <div key={t.id} style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>{t('🎁 待接收的票券移轉')}</div>
+          {tXferIn.map(tx => (
+            <div key={tx.id} style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
               <div style={{ fontSize:13, color:'#1a1a1a' }}>
-                <div style={{ fontWeight:600 }}>{ticketTypeLabel(t.ticketType)}</div>
-                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>來自 {t.fromMemberName || '會員'} · 請於 {xferDeadline(t.expiresAt?._seconds ? new Date(t.expiresAt._seconds*1000).toISOString() : t.expiresAt)} 前接收</div>
+                <div style={{ fontWeight:600 }}>{ticketTypeLabel(tx.ticketType)}</div>
+                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>{(() => { const dl = xferDeadline(tx.expiresAt?._seconds ? new Date(tx.expiresAt._seconds*1000).toISOString() : tx.expiresAt); return tt(`來自 ${tx.fromMemberName || t('會員')} · 請於 ${dl} 前接收`, `From ${tx.fromMemberName || t('會員')} · Accept by ${dl}`, `${tx.fromMemberName || t('會員')}より・${dl}までに受け取り`); })()}</div>
               </div>
               <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                <button onClick={() => rejectTicketXfer(t)} disabled={xferBusy}
-                  style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>拒絕</button>
-                <button onClick={() => acceptTicketXfer(t)} disabled={xferBusy}
-                  style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>接收</button>
+                <button onClick={() => rejectTicketXfer(tx)} disabled={xferBusy}
+                  style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>{t('拒絕')}</button>
+                <button onClick={() => acceptTicketXfer(tx)} disabled={xferBusy}
+                  style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>{t('接收')}</button>
               </div>
             </div>
           ))}
@@ -929,45 +946,45 @@ export default function MemberPassesPage() {
       {/* 我送出的移轉中（可取消） */}
       {xferOut.length > 0 && (
         <div style={{ margin:'12px 16px 0' }}>
-          <div style={{ fontSize:13, fontWeight:600, color:'#854F0B', marginBottom:6 }}>🔄 移轉中（我送出）</div>
-          {xferOut.map(t => (
-            <div key={t.id} style={{ background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#854F0B', marginBottom:6 }}>{t('🔄 移轉中（我送出）')}</div>
+          {xferOut.map(xo => (
+            <div key={xo.id} style={{ background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:12, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
               <div style={{ fontSize:13, color:'#1a1a1a' }}>
-                <div style={{ fontWeight:600 }}>{cardLabel(t.cardType)} {t.credits} 次 → {t.toMemberName || '對方'}</div>
-                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>待接收 · {xferDeadline(t.expiresAtISO)} 前未接收將自動回沖</div>
+                <div style={{ fontWeight:600 }}>{tt(`${cardLabel(xo.cardType)} ${xo.credits} 次 → ${xo.toMemberName || '對方'}`, `${cardLabel(xo.cardType)} ${xo.credits} → ${xo.toMemberName || t('對方')}`, `${cardLabel(xo.cardType)} ${xo.credits}回 → ${xo.toMemberName || t('對方')}`)}</div>
+                <div style={{ fontSize:11, color:'#666', marginTop:2 }}>{(() => { const dl = xferDeadline(xo.expiresAtISO); return tt(`待接收 · ${dl} 前未接收將自動回沖`, `Awaiting acceptance · auto-reversed after ${dl}`, `受け取り待ち・${dl}までに未受領の場合は自動取消`); })()}</div>
               </div>
-              <button onClick={() => cancelXfer(t)} disabled={xferBusy}
-                style={{ height:34, padding:'0 14px', borderRadius:8, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>取消</button>
+              <button onClick={() => cancelXfer(xo)} disabled={xferBusy}
+                style={{ height:34, padding:'0 14px', borderRadius:8, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:13, cursor:'pointer', whiteSpace:'nowrap' }}>{t('取消')}</button>
             </div>
           ))}
         </div>
       )}
 
       <div style={{ padding:16 }}>
-        {loading ? <div style={{ textAlign:'center', padding:40, color:'#999' }}>載入中...</div> : (
+        {loading ? <div style={{ textAlign:'center', padding:40, color:'#999' }}>{t('載入中...')}</div> : (
           <>
             {/* 定期票 */}
             {tab === 'passes' && (() => {
               // 轉出紀錄（本人已核准的轉讓申請）：票已離開帳號、以紀錄呈現
               const transferOut = (myRequests || []).filter(r => r.type === 'transfer' && r.status === 'approved');
-              if (passes.length === 0 && transferOut.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎫</div>目前沒有定期票</div>);
+              if (passes.length === 0 && transferOut.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎫</div>{t('目前沒有定期票')}</div>);
               const { valid, invalid } = splitValid(passes, 'passes');
               const { consumed, dead } = splitInvalid(invalid, 'passes');
               return (<>
-                {passes.length > 0 && valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效定期票</div>}
+                {passes.length > 0 && valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>{t('目前沒有有效定期票')}</div>}
                 {valid.map(p => renderPassCard(p, false))}
-                {renderCollapseSection(sortConsumed(consumed, 'passes'), 'passes', 'used', '已使用', (p) => renderPassCard(p, true))}
-                {renderCollapseSection(dead, 'passes', 'expired', '已失效', (p) => renderPassCard(p, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'passes'), 'passes', 'used', t('已使用'), (p) => renderPassCard(p, true))}
+                {renderCollapseSection(dead, 'passes', 'expired', t('已失效'), (p) => renderPassCard(p, true))}
                 {transferOut.length > 0 && (
                   <div style={{ marginTop:12 }}>
-                    <div style={{ fontSize:12, color:'#999', padding:'12px 6px 8px', borderTop:'0.5px solid #E8D5D5' }}>轉出紀錄（{transferOut.length}）</div>
+                    <div style={{ fontSize:12, color:'#999', padding:'12px 6px 8px', borderTop:'0.5px solid #E8D5D5' }}>{tt(`轉出紀錄（${transferOut.length}）`, `Transfer-Out History (${transferOut.length})`, `譲渡履歴（送信）（${transferOut.length}）`)}</div>
                     {transferOut.map(r => (
                       <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:10, opacity:.85 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                          <span style={{ fontSize:14, fontWeight:600 }}>{r.passTypeName || '定期票'}</span>
-                          <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#F0EDED', color:'#999' }}>已轉出</span>
+                          <span style={{ fontSize:14, fontWeight:600 }}>{r.passTypeName || t('定期票')}</span>
+                          <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#F0EDED', color:'#999' }}>{t('已轉出')}</span>
                         </div>
-                        <div style={{ fontSize:12, color:'#185FA5', marginTop:6 }}>↗ 已轉出給 {r.transferToName || '他人'}{(() => { const d = tsToDay(r.reviewedAt || r.createdAt); return d ? `（${d.format('YYYY/MM/DD')}）` : ''; })()}</div>
+                        <div style={{ fontSize:12, color:'#185FA5', marginTop:6 }}>{(() => { const d = tsToDay(r.reviewedAt || r.createdAt); const dStr = d ? `（${d.format('YYYY/MM/DD')}）` : ''; return tt(`↗ 已轉出給 ${r.transferToName || '他人'}${dStr}`, `↗ Transferred to ${r.transferToName || 'someone'}${dStr}`, `↗ ${r.transferToName || '他の方'}へ譲渡済み${dStr}`); })()}</div>
                       </div>
                     ))}
                   </div>
@@ -977,54 +994,54 @@ export default function MemberPassesPage() {
 
             {/* 優惠卡（含舊折扣卡）*/}
             {tab === 'discount' && (() => {
-              if (discountCards.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🃏</div>目前沒有優惠卡</div>);
+              if (discountCards.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🃏</div>{t('目前沒有優惠卡')}</div>);
               const { valid, invalid } = splitValid(discountCards, 'discount');
               const { consumed, dead } = splitInvalid(invalid, 'discount');
               return (<>
-                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效優惠卡</div>}
+                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>{t('目前沒有有效優惠卡')}</div>}
                 {valid.map(c => renderDiscountCard(c, false))}
-                {renderCollapseSection(sortConsumed(consumed, 'discount'), 'discount', 'used', '已用完', (c) => renderDiscountCard(c, true))}
-                {renderCollapseSection(dead, 'discount', 'expired', '已失效', (c) => renderDiscountCard(c, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'discount'), 'discount', 'used', t('已用完'), (c) => renderDiscountCard(c, true))}
+                {renderCollapseSection(dead, 'discount', 'expired', t('已失效'), (c) => renderDiscountCard(c, true))}
               </>);
             })()}
 
             {/* 黑卡 */}
             {tab === 'black' && (() => {
-              if (blackCards.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🖤</div>目前沒有黑卡</div>);
+              if (blackCards.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🖤</div>{t('目前沒有黑卡')}</div>);
               const { valid, invalid } = splitValid(blackCards, 'black');
               const { consumed, dead } = splitInvalid(invalid, 'black');
               return (<>
-                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效黑卡</div>}
+                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>{t('目前沒有有效黑卡')}</div>}
                 {valid.map(c => renderBlackCard(c, false))}
-                {renderCollapseSection(sortConsumed(consumed, 'black'), 'black', 'used', '已用完', (c) => renderBlackCard(c, true))}
-                {renderCollapseSection(dead, 'black', 'expired', '已失效', (c) => renderBlackCard(c, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'black'), 'black', 'used', t('已用完'), (c) => renderBlackCard(c, true))}
+                {renderCollapseSection(dead, 'black', 'expired', t('已失效'), (c) => renderBlackCard(c, true))}
               </>);
             })()}
 
             {/* 單日入場券 */}
             {tab === 'single' && (() => {
-              if (singleTickets.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎟️</div>目前沒有單日入場券</div>);
+              if (singleTickets.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎟️</div>{t('目前沒有單日入場券')}</div>);
               const { valid, invalid } = splitValid(singleTickets, 'single');
               const { consumed, dead } = splitInvalid(invalid, 'single');
-              const selfValid = valid.filter(t => t._isSelf !== false); // 僅本人票券可批次移轉，家人票券唯讀
+              const selfValid = valid.filter(x => x._isSelf !== false); // 僅本人票券可批次移轉，家人票券唯讀
               return (<>
                 {selfValid.length >= 2 && (
                   <div style={{ display:'flex', justifyContent:'flex-end', marginBottom:10 }}>
                     <button onClick={() => { setSingleBatchMode(m => !m); setSingleBatchIds([]); }}
                       style={{ height:32, padding:'0 12px', borderRadius:8, border:'0.5px solid #8B1A1A', background: singleBatchMode ? '#8B1A1A' : '#fff', color: singleBatchMode ? '#fff' : '#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                      {singleBatchMode ? '取消批次移轉' : '📤 批次移轉給同一人'}
+                      {singleBatchMode ? t('取消批次移轉') : t('📤 批次移轉給同一人')}
                     </button>
                   </div>
                 )}
-                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效單日券</div>}
-                {valid.map(t => renderSingleCard(t, false, singleBatchMode && t._isSelf !== false))}
-                {renderCollapseSection(sortConsumed(consumed, 'single'), 'single', 'used', '已使用', (t) => renderSingleCard(t, true))}
-                {renderCollapseSection(dead, 'single', 'expired', '已失效', (t) => renderSingleCard(t, true))}
+                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>{t('目前沒有有效單日券')}</div>}
+                {valid.map(x => renderSingleCard(x, false, singleBatchMode && x._isSelf !== false))}
+                {renderCollapseSection(sortConsumed(consumed, 'single'), 'single', 'used', t('已使用'), (x) => renderSingleCard(x, true))}
+                {renderCollapseSection(dead, 'single', 'expired', t('已失效'), (x) => renderSingleCard(x, true))}
                 {singleBatchMode && (
                   <div style={{ position:'fixed', left:0, right:0, bottom:60, background:'#fff', borderTop:'0.5px solid #E8D5D5', padding:'10px 16px', paddingBottom:'calc(10px + env(safe-area-inset-bottom))', zIndex:60 }}>
                     <button disabled={singleBatchIds.length === 0} onClick={() => setShowBatchTransfer(true)}
                       style={{ width:'100%', height:46, borderRadius:12, border:'none', background: singleBatchIds.length ? '#8B1A1A' : '#ccc', color:'#fff', fontSize:14, fontWeight:600, cursor: singleBatchIds.length ? 'pointer' : 'not-allowed' }}>
-                      移轉已選 {singleBatchIds.length} 張給同一人
+                      {tt(`移轉已選 ${singleBatchIds.length} 張給同一人`, `Transfer ${singleBatchIds.length} Selected to One Person`, `選択した${singleBatchIds.length}枚を1人にまとめて譲渡`)}
                     </button>
                   </div>
                 )}
@@ -1033,14 +1050,14 @@ export default function MemberPassesPage() {
 
             {/* 紅利 */}
             {tab === 'bonus' && (() => {
-              if (bonuses.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎁</div>目前沒有紅利<br/><span style={{ fontSize:12 }}>優惠卡全部次數用完後即可獲得</span></div>);
+              if (bonuses.length === 0) return (<div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}><div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>🎁</div>{t('目前沒有紅利')}<br/><span style={{ fontSize:12 }}>{t('優惠卡全部次數用完後即可獲得')}</span></div>);
               const { valid, invalid } = splitValid(bonuses, 'bonus');
               const { consumed, dead } = splitInvalid(invalid, 'bonus');
               return (<>
-                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>目前沒有有效紅利</div>}
+                {valid.length === 0 && <div style={{ textAlign:'center', padding:'20px 0', color:'#999', fontSize:13 }}>{t('目前沒有有效紅利')}</div>}
                 {valid.map(b => renderBonusCard(b, false))}
-                {renderCollapseSection(sortConsumed(consumed, 'bonus'), 'bonus', 'used', '已使用', (b) => renderBonusCard(b, true))}
-                {renderCollapseSection(dead, 'bonus', 'expired', '已失效', (b) => renderBonusCard(b, true))}
+                {renderCollapseSection(sortConsumed(consumed, 'bonus'), 'bonus', 'used', t('已使用'), (b) => renderBonusCard(b, true))}
+                {renderCollapseSection(dead, 'bonus', 'expired', t('已失效'), (b) => renderBonusCard(b, true))}
               </>);
             })()}
           </>
@@ -1072,7 +1089,7 @@ export default function MemberPassesPage() {
       {/* 批次移轉 Modal（單次入場券，一次選多張給同一人） */}
       {showBatchTransfer && (
         <TransferModal
-          tickets={singleTickets.filter(t => singleBatchIds.includes(t.id))}
+          tickets={singleTickets.filter(x => singleBatchIds.includes(x.id))}
           ticketType="single_entry"
           memberName={member?.name}
           onClose={() => setShowBatchTransfer(false)}
@@ -1085,41 +1102,41 @@ export default function MemberPassesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 0', width:'100%', maxHeight:'88vh', display:'flex', flexDirection:'column' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:4 }}>申請 — {requestingPass.passTypeName}</div>
-            <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>展延、退費、轉讓三者擇一，且每張定期票限申請一次</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:4 }}>{t('申請')} — {requestingPass.passTypeName}</div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:16 }}>{t('展延、退費、轉讓三者擇一，且每張定期票限申請一次')}</div>
 
             <div style={{ flex:1, overflowY:'auto', paddingBottom:20 }}>
               <div style={{ display:'flex', gap:6, marginBottom:16 }}>
-                {[{key:'extension',label:'展延'},{key:'refund',label:'退費'},{key:'transfer',label:'轉讓'}].map(t => (
-                  <button key={t.key} onClick={() => setRequestType(t.key)}
-                    style={{ flex:1, height:38, borderRadius:8, border: requestType===t.key?'none':'0.5px solid #E8D5D5', background: requestType===t.key?'#8B1A1A':'#fff', color: requestType===t.key?'#fff':'#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-                    {t.label}
+                {[{key:'extension',label:'展延'},{key:'refund',label:'退費'},{key:'transfer',label:'轉讓'}].map(rt => (
+                  <button key={rt.key} onClick={() => setRequestType(rt.key)}
+                    style={{ flex:1, height:38, borderRadius:8, border: requestType===rt.key?'none':'0.5px solid #E8D5D5', background: requestType===rt.key?'#8B1A1A':'#fff', color: requestType===rt.key?'#fff':'#666', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                    {t(rt.label)}
                   </button>
                 ))}
               </div>
 
               {/* 共用：四法定事由 + 需檢附證明、經審核（三種申請皆適用，集中寫一次）*/}
               <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:8, lineHeight:1.6, textAlign:'left' }}>
-                展延／退費／轉讓皆須符合下列法定事由並檢附證明文件，經館方審核通過後生效：
-                ① 出國逾 2 個月以上 ② 傷害／疾病／身體不適不宜運動 ③ 懷孕或育養未逾 6 個月嬰兒 ④ 職務異動或遷居致難以行使權利。
+                {t('展延／退費／轉讓皆須符合下列法定事由並檢附證明文件，經館方審核通過後生效：')}
+                {t('① 出國逾 2 個月以上 ② 傷害／疾病／身體不適不宜運動 ③ 懷孕或育養未逾 6 個月嬰兒 ④ 職務異動或遷居致難以行使權利。')}
               </div>
               {requestType === 'refund' && (
                 <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
-                  退費需持發票正本親至櫃檯辦理，扣除手續費 NT$600 後依剩餘天數比例退費（四捨五入）。經審核通過後由櫃檯人工退款（非即時到帳）；退費核准後，該定期票即失效。
+                  {t('退費需持發票正本親至櫃檯辦理，扣除手續費 NT$600 後依剩餘天數比例退費（四捨五入）。經審核通過後由櫃檯人工退款（非即時到帳）；退費核准後，該定期票即失效。')}
                 </div>
               )}
               {requestType === 'extension' && (
                 <>
                   <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
-                    展延以一次為限。請填寫停用期間（起訖日）：開始日不可早於今天；票期依停用天數自原到期日順延，且展延後到期日不可比原到期日晚超過 6 個月。
+                    {t('展延以一次為限。請填寫停用期間（起訖日）：開始日不可早於今天；票期依停用天數自原到期日順延，且展延後到期日不可比原到期日晚超過 6 個月。')}
                   </div>
                   <div style={{ marginBottom:14 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>停用期間 *</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('停用期間')} *</label>
                     <div style={{ display:'flex', gap:8, alignItems:'center' }}>
                       <input type="date" value={suspendStart} min={dayjs().format('YYYY-MM-DD')}
                         onChange={e => setSuspendStart(e.target.value)}
                         style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
-                      <span style={{ color:'#999', fontSize:13 }}>至</span>
+                      <span style={{ color:'#999', fontSize:13 }}>{t('至')}</span>
                       <input type="date" value={suspendEnd} min={suspendStart || dayjs().format('YYYY-MM-DD')}
                         onChange={e => setSuspendEnd(e.target.value)}
                         style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
@@ -1131,8 +1148,8 @@ export default function MemberPassesPage() {
                       const over = newEnd > dayjs(origEnd).add(6, 'month').format('YYYY-MM-DD');
                       return (
                         <div style={{ fontSize:11.5, marginTop:6, color: over ? '#A32D2D' : '#2D7D46', textAlign:'left' }}>
-                          停用 {days} 天 → 到期日 {origEnd} 順延為 <strong>{newEnd}</strong>
-                          {over && '（超過原到期日 +6 個月上限，請縮短停用期間）'}
+                          {tt(`停用 ${days} 天 → 到期日 ${origEnd} 順延為 `, `Suspend ${days} days → expiry extends from ${origEnd} to `, `${days}日間停止 → 期限は${origEnd}から`)}<strong>{newEnd}</strong>
+                          {over && t('（超過原到期日 +6 個月上限，請縮短停用期間）')}
                         </div>
                       );
                     })()}
@@ -1141,28 +1158,28 @@ export default function MemberPassesPage() {
               )}
               {requestType === 'transfer' && (
                 <div style={{ fontSize:11, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.6, textAlign:'left' }}>
-                  轉讓需收取手續費 NT$300，效期與剩餘次數等原權益不變。經審核通過後移轉予指定對象（請於下方填寫對方手機號碼）。
+                  {t('轉讓需收取手續費 NT$300，效期與剩餘次數等原權益不變。經審核通過後移轉予指定對象（請於下方填寫對方手機號碼）。')}
                 </div>
               )}
 
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>請選擇符合的事由</label>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('請選擇符合的事由')}</label>
                 <select value={reasonKey} onChange={e => setReasonKey(e.target.value)}
                   style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                  <option value="">請選擇...</option>
+                  <option value="">{t('請選擇...')}</option>
                   {reasons.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
                 </select>
               </div>
 
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>補充說明（選填）</label>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('補充說明（選填）')}</label>
                 <input value={reasonDetail} onChange={e => setReasonDetail(e.target.value)}
                   style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
               </div>
 
               {requestType === 'transfer' && (
                 <div style={{ marginBottom:14 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>轉讓對象手機號碼</label>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('轉讓對象手機號碼')}</label>
                   <input type="tel" value={transferToPhone} onChange={e => setTransferToPhone(e.target.value)}
                     placeholder="0912345678（外籍：+ 開頭國際格式）"
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
@@ -1171,28 +1188,28 @@ export default function MemberPassesPage() {
                     const selectable = transferRecipients.filter(r => !r.under13); // 未滿13歲不可接收定期票
                     if (transferRecipients.length === 0) {
                       return transferLookupDone
-                        ? <div style={{ fontSize:12, color:'#A32D2D', marginTop:8 }}>查無此手機號碼的可轉讓會員（不可轉給自己）</div>
-                        : <div style={{ fontSize:12, color:'#999', marginTop:8 }}>查詢中…</div>;
+                        ? <div style={{ fontSize:12, color:'#A32D2D', marginTop:8 }}>{t('查無此手機號碼的可轉讓會員（不可轉給自己）')}</div>
+                        : <div style={{ fontSize:12, color:'#999', marginTop:8 }}>{t('查詢中…')}</div>;
                     }
                     if (selectable.length === 0) {
-                      return <div style={{ fontSize:12, color:'#A32D2D', marginTop:8 }}>此電話的會員未滿 13 歲，無法接收定期票轉讓。</div>;
+                      return <div style={{ fontSize:12, color:'#A32D2D', marginTop:8 }}>{t('此電話的會員未滿 13 歲，無法接收定期票轉讓。')}</div>;
                     }
                     if (selectable.length === 1) {
                       const r = selectable[0];
                       return (
                         <div style={{ fontSize:13, color:'#2D7D46', marginTop:8, fontWeight:500 }}>
-                          ✅ 接收人：{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}
+                          {tt(`✅ 接收人：${r.name}${r.isChildAccount ? '（子女）' : '（家長）'}`, `✅ Recipient: ${r.name}${r.isChildAccount ? ' (Child)' : ' (Parent)'}`, `✅ 受取人：${r.name}${r.isChildAccount ? '（お子様）' : '（保護者）'}`)}
                         </div>
                       );
                     }
                     return (
                       <div style={{ marginTop:8 }}>
-                        <div style={{ fontSize:12, color:'#666', marginBottom:5 }}>此電話有多位家庭成員，請選擇接收對象：</div>
+                        <div style={{ fontSize:12, color:'#666', marginBottom:5 }}>{t('此電話有多位家庭成員，請選擇接收對象：')}</div>
                         <select value={transferPickId} onChange={e => setTransferPickId(e.target.value)}
                           style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
-                          {selectable.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（子女）' : '（家長）'}</option>)}
+                          {selectable.map(r => <option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? t('（子女）') : t('（家長）')}</option>)}
                         </select>
-                        {transferRecipients.some(r => r.under13) && <div style={{ fontSize:11, color:'#999', marginTop:5 }}>※ 未滿 13 歲的家庭成員不可接收定期票，已排除。</div>}
+                        {transferRecipients.some(r => r.under13) && <div style={{ fontSize:11, color:'#999', marginTop:5 }}>{t('※ 未滿 13 歲的家庭成員不可接收定期票，已排除。')}</div>}
                       </div>
                     );
                   })()}
@@ -1200,10 +1217,10 @@ export default function MemberPassesPage() {
               )}
 
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>證明文件（圖片或PDF）</label>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('證明文件（圖片或PDF）')}</label>
                 <input type="file" accept="image/*,application/pdf" onChange={e => setEvidenceFile(e.target.files?.[0] || null)}
                   style={{ width:'100%', fontSize:13 }}/>
-                {evidenceFile && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>已選擇：{evidenceFile.name}</div>}
+                {evidenceFile && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>{t('已選擇：')}{evidenceFile.name}</div>}
               </div>
 
               {requestError && <div style={{ color:'#A32D2D', fontSize:12, marginTop:6 }}>{requestError}</div>}
@@ -1211,10 +1228,10 @@ export default function MemberPassesPage() {
 
             <div style={{ padding:'12px 0 36px', display:'flex', gap:8 }}>
               <button onClick={() => setRequestingPass(null)}
-                style={{ flex:1, height:46, borderRadius:10, border:'0.5px solid #E8D5D5', background:'none', fontSize:14, color:'#666', cursor:'pointer' }}>取消</button>
+                style={{ flex:1, height:46, borderRadius:10, border:'0.5px solid #E8D5D5', background:'none', fontSize:14, color:'#666', cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={handleSubmitRequest} disabled={requestSubmitting}
                 style={{ flex:2, height:46, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                {evidenceUploading ? '上傳文件中...' : requestSubmitting ? '送出中...' : '送出申請'}
+                {evidenceUploading ? t('上傳文件中...') : requestSubmitting ? t('送出中...') : t('送出申請')}
               </button>
             </div>
           </div>

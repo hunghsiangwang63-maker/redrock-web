@@ -189,7 +189,7 @@ export default function MemberRecordsPage() {
                         {g.stats.confirmed > 0 && <MiniTag bg="#E6F4EB" color="#2D7D46">{tt(`${t('已報名')} ${g.stats.confirmed} 堂`, `${t('已報名')} ${g.stats.confirmed}`, `${t('已報名')} ${g.stats.confirmed}回`)}</MiniTag>}
                         {g.stats.leave > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">{t('請假')} {g.stats.leave}</MiniTag>}
                         {g.stats.waitlist > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">{t('候補')} {g.stats.waitlist}</MiniTag>}
-                        {g.stats.cancelled > 0 && <MiniTag bg="#F0EDED" color="#999">{t('取消')} {g.stats.cancelled}</MiniTag>}
+                        {g.stats.cancelled > 0 && <MiniTag bg="#F0EDED" color="#999">{tt(`取消 ${g.stats.cancelled}`, `Cancelled ${g.stats.cancelled}`, `キャンセル ${g.stats.cancelled}`)}</MiniTag>}
                       </div>
                     </div>
                     {open && (
