@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getTeamFees, applyTeam, getMyTeamRecords } from '../../api/team';
@@ -14,7 +14,7 @@ const STATUS = {
   active:    { bg:'#E6F4EB', color:'#2D7D46', text:'正式隊員' },
   cancelled: { bg:'#FCEBEB', color:'#A32D2D', text:'已退隊' },
   rejected:  { bg:'#FCEBEB', color:'#A32D2D', text:'已退回' },
-};
+}; // text 顯示時走 t() 查字典
 
 export default function MemberTeamPage() {
   const { member } = useMember();
@@ -39,10 +39,10 @@ export default function MemberTeamPage() {
   const [reupPaidAmount, setReupPaidAmount] = useState('');
   const [reupBusy, setReupBusy] = useState(false);
   const handleReupload = async () => {
-    if (!reupBankName.trim()) { alert('請填寫匯款銀行名稱'); return; }
-    if (!reupDate.trim()) { alert('請填寫轉帳日期'); return; }
-    if (!reupLast5.trim()) { alert('請填寫匯款帳號末五碼'); return; }
-    if (!(Number(reupPaidAmount) > 0)) { alert('請填寫實際匯款金額'); return; }
+    if (!reupBankName.trim()) { alert(t('請填寫匯款銀行名稱')); return; }
+    if (!reupDate.trim()) { alert(t('請填寫轉帳日期')); return; }
+    if (!reupLast5.trim()) { alert(t('請填寫匯款帳號末五碼')); return; }
+    if (!(Number(reupPaidAmount) > 0)) { alert(t('請填寫實際匯款金額')); return; }
     setReupBusy(true);
     try {
       const { submitTransferRecord } = await import('../../api/transfers');
@@ -54,9 +54,9 @@ export default function MemberTeamPage() {
         memberName: member?.name || '', bankLastFive: reupLast5.trim(), bankName: reupBankName.trim(),
         paymentDate: reupDate.trim(), paidAmount: reupPaidAmount,
       });
-      alert('已重新送出，等待工作人員確認收款');
+      alert(t('已重新送出，等待工作人員確認收款'));
       window.location.reload();
-    } catch (e) { alert(e.response?.data?.message || '送出失敗'); }
+    } catch (e) { alert(e.response?.data?.message || t('送出失敗')); }
     finally { setReupBusy(false); }
   };
   const [lineId, setLineId] = useState(member?.lineId || '');
@@ -75,7 +75,7 @@ export default function MemberTeamPage() {
 
   const year = dayjs().year();
   const [alertModal, setAlertModal] = useState(null);
-  const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
+  const showMsg = (msg, type='ok') => setAlertModal({ message: msg, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
   useEffect(() => {
     Promise.allSettled([
@@ -100,14 +100,14 @@ export default function MemberTeamPage() {
 
   const handleSubmit = async () => {
     const { paymentDate, bankLastFive, bankName, paidAmount } = paymentData;
-    if (!idNumber.trim()) { showMsg('請填寫身分證字號（山協保險用）', 'red'); return; }
-    if (!address.trim()) { showMsg('請填寫地址', 'red'); return; }
-    if (!lineId.trim()) { showMsg('請填寫 Line ID（加入隊群組用）', 'red'); return; }
-    if (!isTransferInfoComplete(paymentData)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
-    if (!joinReasons.length) { showMsg('請選擇至少一項加入原因', 'red'); return; }
-    if (!currentGrade) { showMsg('請選擇目前抱石最高級數', 'red'); return; }
-    if (!weeklyFrequency) { showMsg('請選擇每週頻率', 'red'); return; }
-    if (!agreedPrivacy) { showMsg('請同意個資使用聲明', 'red'); return; }
+    if (!idNumber.trim()) { showMsg(t('請填寫身分證字號（山協保險用）'), 'red'); return; }
+    if (!address.trim()) { showMsg(t('請填寫地址'), 'red'); return; }
+    if (!lineId.trim()) { showMsg(t('請填寫 Line ID（加入隊群組用）'), 'red'); return; }
+    if (!isTransferInfoComplete(paymentData)) { showMsg(t('請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
+    if (!joinReasons.length) { showMsg(t('請選擇至少一項加入原因'), 'red'); return; }
+    if (!currentGrade) { showMsg(t('請選擇目前抱石最高級數'), 'red'); return; }
+    if (!weeklyFrequency) { showMsg(t('請選擇每週頻率'), 'red'); return; }
+    if (!agreedPrivacy) { showMsg(t('請同意個資使用聲明'), 'red'); return; }
     setSubmitting(true);
     try {
       const amount = noJersey ? expectedFee : Number(paymentAmount);
@@ -137,13 +137,15 @@ export default function MemberTeamPage() {
           });
         } catch (e) { /* 不阻斷申請 */ }
       }
-      showMsg(`申請已送出！年費 NT$${noJersey ? expectedFee : paymentAmount}，請完成匯款後等待確認`);
+      showMsg(tt(`申請已送出！年費 NT$${noJersey ? expectedFee : paymentAmount}，請完成匯款後等待確認`,
+        `Application submitted! Annual fee NT$${noJersey ? expectedFee : paymentAmount} — please complete the transfer and wait for confirmation`,
+        `申請を送信しました！年会費 NT$${noJersey ? expectedFee : paymentAmount}、振込を完了し確認をお待ちください`));
       setShowPayModal(false);
       setTab('my');
       const rr = await getMyTeamRecords();
       setMyRecords(rr.data.records || []);
     } catch (err) {
-      showMsg(err.response?.data?.message || '申請失敗', 'red');
+      showMsg(err.response?.data?.message || t('申請失敗'), 'red');
     } finally { setSubmitting(false); }
   };
 
@@ -160,29 +162,28 @@ export default function MemberTeamPage() {
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'info',label:'隊伍介紹'},{key:'apply',label:'申請加入'},{key:'my',label:'我的紀錄'}].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
-            {t.label}
+        {[{key:'info',label:t('隊伍介紹')},{key:'apply',label:t('申請加入')},{key:'my',label:t('我的紀錄')}].map(tb => (
+          <button key={tb.key} onClick={() => setTab(tb.key)}
+            style={{ flex:1, height:38, border:'none', background:tab===tb.key?'#8B1A1A':'#fff', color:tab===tb.key?'#fff':'#666', fontSize:13, fontWeight:tab===tb.key?600:400, cursor:'pointer' }}>
+            {tb.label}
           </button>
         ))}
       </div>
 
       <div style={{ padding:'14px 16px' }}>
-        {loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : (<>
+        {loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('載入中...')}</div> : (<>
 
         {/* ── 隊伍介紹 ── */}
         {tab === 'info' && (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-              <div style={{ fontWeight:700, fontSize:15, marginBottom:10 }}>⚡ 歡迎加入 RedFlash 紅石攀岩隊</div>
+              <div style={{ fontWeight:700, fontSize:15, marginBottom:10 }}>{t('⚡ 歡迎加入 RedFlash 紅石攀岩隊')}</div>
               <div style={{ fontSize:13, color:'#444', lineHeight:1.9 }}>
-                一起約爬、週期性訓練、讀書會、比賽、約吃宵夜或唱歌……
-                RedFlash 開放接受各種攀岩及其他交流，讓夥伴感受大家庭的溫暖，帶領大家一起精進！
+                {t('一起約爬、週期性訓練、讀書會、比賽、約吃宵夜或唱歌……RedFlash 開放接受各種攀岩及其他交流，讓夥伴感受大家庭的溫暖，帶領大家一起精進！')}
               </div>
             </div>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-              <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>✅ 隊員福利</div>
+              <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>{t('✅ 隊員福利')}</div>
               {[
                 '加入山協團體會員，可報名全國賽事（每年2月、9月更新）',
                 '每週一次團練',
@@ -195,32 +196,32 @@ export default function MemberTeamPage() {
                 '免費使用 InBody 體組成測量',
               ].map((b, i) => (
                 <div key={i} style={{ fontSize:13, color:'#444', marginBottom:6, display:'flex', gap:8 }}>
-                  <span style={{ color:'#8B1A1A', flexShrink:0 }}>{i+1}.</span><span>{b}</span>
+                  <span style={{ color:'#8B1A1A', flexShrink:0 }}>{i+1}.</span><span>{t(b)}</span>
                 </div>
               ))}
             </div>
             {fees && (
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
-                <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>💰 {year} 年度費用</div>
+                <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>{tt(`💰 ${year} 年度費用`, `💰 ${year} Annual Fees`, `💰 ${year}年度会費`)}</div>
                 <div style={{ fontSize:13, color:'#444', lineHeight:2 }}>
-                  • {fees.midYearCutoff?.replace('-','/')} 前加入：NT$ {fees.fullYearFee}<br/>
-                  • {fees.midYearCutoff?.replace('-','/')} 後加入：NT$ {fees.midYearFee}<br/>
-                  • {fees.lateYearCutoff?.replace('-','/')} 後加入：NT$ {fees.lateYearFee}<br/>
-                  • 舊隊員不拿隊服減免：NT$ {fees.jerseyDiscount}
+                  {tt(`• ${fees.midYearCutoff?.replace('-','/')} 前加入：NT$ ${fees.fullYearFee}`, `• Join before ${fees.midYearCutoff?.replace('-','/')}: NT$ ${fees.fullYearFee}`, `• ${fees.midYearCutoff?.replace('-','/')}以前に加入：NT$ ${fees.fullYearFee}`)}<br/>
+                  {tt(`• ${fees.midYearCutoff?.replace('-','/')} 後加入：NT$ ${fees.midYearFee}`, `• Join after ${fees.midYearCutoff?.replace('-','/')}: NT$ ${fees.midYearFee}`, `• ${fees.midYearCutoff?.replace('-','/')}以降に加入：NT$ ${fees.midYearFee}`)}<br/>
+                  {tt(`• ${fees.lateYearCutoff?.replace('-','/')} 後加入：NT$ ${fees.lateYearFee}`, `• Join after ${fees.lateYearCutoff?.replace('-','/')}: NT$ ${fees.lateYearFee}`, `• ${fees.lateYearCutoff?.replace('-','/')}以降に加入：NT$ ${fees.lateYearFee}`)}<br/>
+                  {tt(`• 舊隊員不拿隊服減免：NT$ ${fees.jerseyDiscount}`, `• Returning members skipping the jersey get NT$ ${fees.jerseyDiscount} off`, `• 既存メンバーでジャージ不要の場合はNT$ ${fees.jerseyDiscount}割引`)}
                 </div>
                 <div style={{ marginTop:10, background:'#FBF5F5', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8B1A1A', fontWeight:500 }}>
-                  ⚡ 目前費率：{fees.feeLabel}
+                  {tt(`⚡ 目前費率：${fees.feeLabel}`, `⚡ Current rate: ${fees.feeLabel}`, `⚡ 現在の料金：${fees.feeLabel}`)}
                 </div>
                 <div style={{ marginTop:8, fontSize:12, color:'#666' }}>
-                  請匯款至：台新銀行(812) 關東橋分行<br/>
-                  帳號：21000100211430　戶名：紅石攀岩有限公司<br/>
-                  ※ 恕不接受電子支付
+                  {t('請匯款至：')}台新銀行(812) 關東橋分行<br/>
+                  {t('帳號：')}21000100211430　{t('戶名：')}紅石攀岩有限公司<br/>
+                  {t('※ 恕不接受電子支付')}
                 </div>
               </div>
             )}
             <button onClick={() => setTab('apply')}
               style={{ width:'100%', height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-              立即申請加入
+              {t('立即申請加入')}
             </button>
           </div>
         )}
@@ -229,28 +230,31 @@ export default function MemberTeamPage() {
         {tab === 'apply' && (<>
           {currentYearRecord ? (
             <div style={{ background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:12, padding:16, textAlign:'center' }}>
-              <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46', marginBottom:4 }}>✓ 已申請 {year} 年度</div>
-              <div style={{ fontSize:13, color:'#666' }}>狀態：{STATUS[currentYearRecord.status]?.text}</div>
+              <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46', marginBottom:4 }}>{tt(`✓ 已申請 ${year} 年度`, `✓ Applied for ${year}`, `✓ ${year}年度に申請済み`)}</div>
+              <div style={{ fontSize:13, color:'#666' }}>{t('狀態：')}{t(STATUS[currentYearRecord.status]?.text)}</div>
               {currentYearRecord.status === 'rejected' && (
                 <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginTop:10, fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.7 }}>
-                  轉帳資料確認未通過{currentYearRecord.paymentRejectReason ? `：${currentYearRecord.paymentRejectReason}` : ''}。
-                  請於下方重新上傳轉帳資料，或聯絡櫃檯協助。
+                  {tt(
+                    `轉帳資料確認未通過${currentYearRecord.paymentRejectReason ? `：${currentYearRecord.paymentRejectReason}` : ''}。請於下方重新上傳轉帳資料，或聯絡櫃檯協助。`,
+                    `Transfer info was not confirmed${currentYearRecord.paymentRejectReason ? `: ${currentYearRecord.paymentRejectReason}` : ''}. Please resubmit your transfer info below, or contact the front desk for help.`,
+                    `振込情報が確認できませんでした${currentYearRecord.paymentRejectReason ? `：${currentYearRecord.paymentRejectReason}` : ''}。下記より振込情報を再送信するか、フロントにお問い合わせください。`
+                  )}
                   <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                    <input placeholder="匯款銀行名稱 *" value={reupBankName} onChange={e=>setReupBankName(e.target.value)}
+                    <input placeholder={t('匯款銀行名稱 *')} value={reupBankName} onChange={e=>setReupBankName(e.target.value)}
                       style={{ flex:1, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
-                    <input placeholder="實際匯款金額 *" inputMode="numeric" value={reupPaidAmount}
+                    <input placeholder={t('實際匯款金額 *')} inputMode="numeric" value={reupPaidAmount}
                       onChange={e=>setReupPaidAmount(e.target.value.replace(/\D/g,''))}
                       style={{ width:110, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
                   </div>
                   <div style={{ display:'flex', gap:6, marginTop:6 }}>
-                    <input placeholder="匯款日期 YYYY-MM-DD *" value={reupDate} onChange={e=>setReupDate(e.target.value)}
+                    <input placeholder={t('匯款日期 YYYY-MM-DD *')} value={reupDate} onChange={e=>setReupDate(e.target.value)}
                       style={{ flex:1, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
-                    <input placeholder="末五碼 *" value={reupLast5} onChange={e=>setReupLast5(e.target.value)}
+                    <input placeholder={t('末五碼 *')} value={reupLast5} onChange={e=>setReupLast5(e.target.value)}
                       style={{ width:90, height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, color:'#1a1a1a' }}/>
                   </div>
                   <button onClick={handleReupload} disabled={reupBusy}
                     style={{ width:'100%', height:36, marginTop:8, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
-                    {reupBusy ? '送出中…' : '重新上傳轉帳'}
+                    {reupBusy ? t('送出中...') : t('重新上傳轉帳')}
                   </button>
                 </div>
               )}
@@ -264,11 +268,11 @@ export default function MemberTeamPage() {
               )}
               {/* 基本資料補充 */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>基本資料（山協保險用）</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>{t('基本資料（山協保險用）')}</div>
                 {[
-                  { label:'身分證字號 *', val:idNumber, set:setIdNumber, ph:'請填寫身分證字號' },
-                  { label:'地址 *', val:address, set:setAddress, ph:'請填寫通訊地址' },
-                  { label:'Line ID *', val:lineId, set:setLineId, ph:'請填寫 Line ID（加入隊群組用）' },
+                  { label: t('身分證字號 *'), val:idNumber, set:setIdNumber, ph: t('請填寫身分證字號') },
+                  { label: t('地址 *'), val:address, set:setAddress, ph: t('請填寫通訊地址') },
+                  { label:'Line ID *', val:lineId, set:setLineId, ph: t('請填寫 Line ID（加入隊群組用）') },
                 ].map(({ label, val, set, ph }) => (
                   <div key={label} style={{ marginBottom:10 }}>
                     <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{label}</label>
@@ -277,12 +281,12 @@ export default function MemberTeamPage() {
                   </div>
                 ))}
                 <div style={{ marginBottom:10 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>主要活動岩館 *</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('主要活動岩館 *')}</label>
                   <div style={{ display:'flex', gap:8 }}>
                     {['新竹紅石','士林紅石'].map(g => (
                       <button key={g} onClick={() => setPrimaryGym(g)}
                         style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${primaryGym===g?'#8B1A1A':'#E8D5D5'}`, background:primaryGym===g?'#FBF5F5':'#fff', color:primaryGym===g?'#8B1A1A':'#666', fontSize:13, fontWeight:primaryGym===g?600:400, cursor:'pointer' }}>
-                        {g}
+                        {t(g)}
                       </button>
                     ))}
                   </div>
@@ -291,18 +295,18 @@ export default function MemberTeamPage() {
 
               {/* 攀岩資訊 */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>攀岩資訊</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>{t('攀岩資訊')}</div>
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>加入原因 * （可複選）</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>{t('加入原因 * （可複選）')}</label>
                   {['想要有夥伴「一起週期性訓練」','來交朋友爬開心的','希望能夠加強訓練','其他'].map(r => (
                     <label key={r} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8, cursor:'pointer' }}>
                       <input type="checkbox" checked={joinReasons.includes(r)} onChange={() => toggleReason(r)} style={{ width:16, height:16, accentColor:'#8B1A1A' }}/>
-                      <span style={{ fontSize:13 }}>{r}</span>
+                      <span style={{ fontSize:13 }}>{t(r)}</span>
                     </label>
                   ))}
                 </div>
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>目前抱石最高級數 *</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('目前抱石最高級數 *')}</label>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                     {['V0','V1','V2','V3','V4','V5','V6','V7','V8','V9','V10+'].map(g => (
                       <button key={g} onClick={() => setCurrentGrade(g)}
@@ -313,39 +317,39 @@ export default function MemberTeamPage() {
                   </div>
                 </div>
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>每週抱石頻率 *</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>{t('每週抱石頻率 *')}</label>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                     {['1-2次','2-3次','3-4次','4-5次','5次以上'].map(f => (
                       <button key={f} onClick={() => setWeeklyFrequency(f)}
                         style={{ height:34, padding:'0 12px', borderRadius:8, border:`1.5px solid ${weeklyFrequency===f?'#8B1A1A':'#E8D5D5'}`, background:weeklyFrequency===f?'#8B1A1A':'#fff', color:weeklyFrequency===f?'#fff':'#666', fontSize:12, fontWeight:weeklyFrequency===f?600:400, cursor:'pointer' }}>
-                        {f}
+                        {t(f)}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>建議團練內容</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('建議團練內容')}</label>
                   <textarea value={trainingContent} onChange={e => setTrainingContent(e.target.value)} rows={2}
-                    placeholder="什麼樣的團練好玩又有趣？"
+                    placeholder={t('什麼樣的團練好玩又有趣？')}
                     style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>許願活動／月份</label>
-                  <input value={wishActivities} onChange={e => setWishActivities(e.target.value)} placeholder="希望安排的活動或月份"
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('許願活動／月份')}</label>
+                  <input value={wishActivities} onChange={e => setWishActivities(e.target.value)} placeholder={t('希望安排的活動或月份')}
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                 </div>
               </div>
 
               {/* 隊服 */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>隊服</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>{t('隊服')}</div>
                 <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, cursor:'pointer' }}>
                   <input type="checkbox" checked={noJersey} onChange={e => setNoJersey(e.target.checked)} style={{ width:16, height:16, accentColor:'#8B1A1A' }}/>
-                  <span style={{ fontSize:13 }}>舊隊員不拿隊服（減免 NT${fees?.jerseyDiscount || 300}）</span>
+                  <span style={{ fontSize:13 }}>{tt(`舊隊員不拿隊服（減免 NT$${fees?.jerseyDiscount || 300}）`, `Returning member skipping the jersey (NT$${fees?.jerseyDiscount || 300} off)`, `既存メンバーでジャージ不要（NT$${fees?.jerseyDiscount || 300}割引）`)}</span>
                 </label>
                 {!noJersey && (
                   <div>
-                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>隊服尺寸</label>
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:6 }}>{t('隊服尺寸')}</label>
                     <div style={{ display:'flex', gap:8 }}>
                       {['XS','S','M','L','XL','2XL'].map(s => (
                         <button key={s} onClick={() => setJerseySize(s)}
@@ -361,23 +365,23 @@ export default function MemberTeamPage() {
               {/* 個資同意 */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
                 <div style={{ fontSize:12, color:'#666', lineHeight:1.8, marginBottom:10 }}>
-                  本人同意「紅石攀岩有限公司」、「紅石攀岩隊」依「個人資料保護法」蒐集、處理或利用個人資料，並知曉得行使查詢、閱覽、更正、刪除等相關權利。
+                  {t('本人同意「紅石攀岩有限公司」、「紅石攀岩隊」依「個人資料保護法」蒐集、處理或利用個人資料，並知曉得行使查詢、閱覽、更正、刪除等相關權利。')}
                 </div>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:8, border:`1.5px solid ${agreedPrivacy?'#2D7D46':'#E8D5D5'}`, background:agreedPrivacy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={agreedPrivacy} onChange={e => setAgreedPrivacy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color:agreedPrivacy?'#2D7D46':'#444' }}>本人已閱讀並同意個資使用聲明</span>
+                  <span style={{ fontSize:13, fontWeight:500, color:agreedPrivacy?'#2D7D46':'#444' }}>{t('本人已閱讀並同意個資使用聲明')}</span>
                 </label>
               </div>
 
               <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>其他建議</label>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('其他建議')}</label>
                 <textarea value={otherSuggestions} onChange={e => setOtherSuggestions(e.target.value)} rows={2}
                   style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
               </div>
 
               <button onClick={() => setShowPayModal(true)}
                 style={{ width:'100%', height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-                繼續填寫繳費資料
+                {t('繼續填寫繳費資料')}
               </button>
             </div>
           )}
@@ -386,24 +390,28 @@ export default function MemberTeamPage() {
         {/* ── 我的紀錄 ── */}
         {tab === 'my' && (
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {myRecords.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無申請記錄</div>}
+            {myRecords.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('尚無申請記錄')}</div>}
             {myRecords.map(r => {
               const sl = STATUS[r.status] || STATUS.pending;
               return (
                 <div key={r.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                    <div style={{ fontWeight:600, fontSize:15 }}>{r.year} 年度</div>
-                    <span style={{ fontSize:11, fontWeight:600, padding:'2px 10px', borderRadius:8, background:sl.bg, color:sl.color }}>{sl.text}</span>
+                    <div style={{ fontWeight:600, fontSize:15 }}>{tt(`${r.year} 年度`, `${r.year}`, `${r.year}年度`)}</div>
+                    <span style={{ fontSize:11, fontWeight:600, padding:'2px 10px', borderRadius:8, background:sl.bg, color:sl.color }}>{t(sl.text)}</span>
                   </div>
                   <div style={{ fontSize:12, color:'#666' }}>
-                    主要岩館：{r.primaryGym}　·　{r.primaryGym === '新竹紅石' ? '新竹隊群組' : '士林隊群組'}
+                    {t('主要岩館：')}{t(r.primaryGym)}　·　{t(r.primaryGym === '新竹紅石' ? '新竹隊群組' : '士林隊群組')}
                   </div>
                   <div style={{ fontSize:12, color:'#666', marginTop:2 }}>
-                    年費：NT${r.paymentAmount}　{r.noJersey ? '（不拿隊服）' : r.jerseySize ? `隊服：${r.jerseySize}` : ''}
+                    {tt(`年費：NT$${r.paymentAmount}　${r.noJersey ? '（不拿隊服）' : r.jerseySize ? `隊服：${r.jerseySize}` : ''}`,
+                        `Annual Fee: NT$${r.paymentAmount}  ${r.noJersey ? '(No jersey)' : r.jerseySize ? `Jersey: ${r.jerseySize}` : ''}`,
+                        `年会費：NT$${r.paymentAmount}　${r.noJersey ? '（ジャージなし）' : r.jerseySize ? `ジャージ：${r.jerseySize}` : ''}`)}
                   </div>
                   {r.paymentStatus === 'pending' && (
                     <div style={{ marginTop:10, background:'#FFF8E6', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8B6914' }}>
-                      ⚠ 請匯款 NT${r.paymentAmount} 至台新銀行(812) 21000100211430，並等待館方確認
+                      {tt(`⚠ 請匯款 NT$${r.paymentAmount} 至台新銀行(812) 21000100211430，並等待館方確認`,
+                          `⚠ Please transfer NT$${r.paymentAmount} to Taishin Bank (812) 21000100211430 and wait for gym confirmation`,
+                          `⚠ NT$${r.paymentAmount}を台新銀行(812) 21000100211430へ振込のうえ、施設の確認をお待ちください`)}
                     </div>
                   )}
                 </div>
@@ -419,14 +427,15 @@ export default function MemberTeamPage() {
       {showPayModal && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'flex-end' }}>
           <div style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', padding:24, maxHeight:'85vh', overflowY:'auto' }}>
-            <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>繳費資料</div>
+            <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{t('繳費資料')}</div>
             <div style={{ background:'#FBF5F5', borderRadius:10, padding:'10px 14px', marginBottom:16 }}>
               <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>
-                {year} 年度隊費
-                {noJersey ? `（不拿隊服，已減 NT$${fees?.jerseyDiscount}）` : ''}
+                {tt(`${year} 年度隊費${noJersey ? `（不拿隊服，已減 NT$${fees?.jerseyDiscount}）` : ''}`,
+                    `${year} Team Fee${noJersey ? ` (jersey skipped, NT$${fees?.jerseyDiscount} off)` : ''}`,
+                    `${year}年度チーム会費${noJersey ? `（ジャージなし、NT$${fees?.jerseyDiscount}割引済み）` : ''}`)}
               </div>
               <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A' }}>NT${noJersey ? expectedFee : paymentAmount}</div>
-              <div style={{ fontSize:12, color:'#A32D2D', marginTop:6 }}>※ 恕不接受電子支付</div>
+              <div style={{ fontSize:12, color:'#A32D2D', marginTop:6 }}>{t('※ 恕不接受電子支付')}</div>
             </div>
             <PaymentSection
               value={paymentData}
@@ -436,10 +445,10 @@ export default function MemberTeamPage() {
             />
             <div style={{ display:'flex', gap:8, marginTop:14 }}>
               <button onClick={() => setShowPayModal(false)}
-                style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'none', fontSize:14, cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'none', fontSize:14, cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={handleSubmit} disabled={submitting}
                 style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                {submitting ? '送出中...' : '✓ 送出申請'}
+                {submitting ? t('送出中...') : t('✓ 送出申請')}
               </button>
             </div>
           </div>

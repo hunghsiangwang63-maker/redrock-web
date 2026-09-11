@@ -342,7 +342,7 @@ export default function MemberHomePage() {
             {banners[bannerIdx % bannerLen]?.bannerImage && (
               <>
                 <img src={banners[bannerIdx % bannerLen].bannerImage} alt=""
-                  style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'cover' }} />
+                  style={{ position:'absolute', inset:0, width:'100%', height:'100%', objectFit:'contain' }} />
                 {/* 文字可讀性：圖上壓左深右淺漸層 */}
                 <div style={{ position:'absolute', inset:0, background:'linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.15))' }} />
               </>
@@ -598,7 +598,7 @@ export default function MemberHomePage() {
               </div>
               <div style={{ fontSize:13, fontWeight:500 }}>{`【${annGymLabel(a.gymId)}】${a.title}`}</div>
               {a.bannerImage && (
-                <img src={a.bannerImage} alt="" style={{ width:'100%', maxHeight:120, objectFit:'cover', borderRadius:8, marginTop:6, display:'block' }} />
+                <img src={a.bannerImage} alt="" style={{ width:'100%', maxHeight:120, objectFit:'contain', borderRadius:8, marginTop:6, display:'block' }} />
               )}
               {a.content && <div style={{ fontSize:12, color:'#6b6b6b', marginTop:3, lineHeight:1.5 }}>{a.content}</div>}
             </div>

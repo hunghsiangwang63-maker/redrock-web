@@ -8,6 +8,7 @@ import SignaturePad from '../../components/SignaturePad';
 import dayjs from 'dayjs';
 import { detectInAppBrowser } from '../../utils/inAppBrowser';
 import { isMinor } from '../../utils/age';
+import { t, tt } from '../../utils/memberI18n';
 
 const extractYoutubeId = (url) => {
   if (!url) return null;
@@ -49,10 +50,11 @@ export default function MemberFallTestPage() {
   const [error, setError] = useState('');
   // 安排墜落測驗（選場館）
   const FT_GYMS = [{ id: 'gym-hsinchu', name: '新竹館' }, { id: 'gym-shilin', name: '士林館' }];
-  const ftGymName = (id) => FT_GYMS.find(g => g.id === id)?.name || id;
+  const ftGymName = (id) => t(FT_GYMS.find(g => g.id === id)?.name || id);
   const [booking, setBooking] = useState(null);      // 此人的 pending 排測
   const [ftBusy, setFtBusy] = useState(false);
   const [ftMsg, setFtMsg] = useState('');
+  const [ftMsgOk, setFtMsgOk] = useState(false); // 訊息顏色改用旗標判斷，避免翻譯後字串比對失準
   // ⚠️ 由 mount effect 與安排排測成功後兩處觸發，序號防過期回應覆蓋剛安排完成的最新狀態。
   const bookingSeqRef = useRef(0);
   const loadBooking = async () => {
@@ -67,16 +69,16 @@ export default function MemberFallTestPage() {
     setFtBusy(true); setFtMsg('');
     try {
       await createFallTestBooking({ gymId, targetMemberId: forChildId || undefined });
-      setFtMsg('已安排墜落測驗，請至該館現場測驗');
+      setFtMsg(t('已安排墜落測驗，請至該館現場測驗')); setFtMsgOk(true);
       await loadBooking();
-    } catch (e) { setFtMsg(e.response?.data?.message || '安排失敗'); }
+    } catch (e) { setFtMsg(e.response?.data?.message || t('安排失敗')); setFtMsgOk(false); }
     finally { setFtBusy(false); }
   };
   const cancelBooking = async () => {
     if (!booking) return;
     setFtBusy(true); setFtMsg('');
     try { await cancelFallTestBooking(booking.id); setBooking(null); }
-    catch (e) { setFtMsg(e.response?.data?.message || '取消失敗'); }
+    catch (e) { setFtMsg(e.response?.data?.message || t('取消失敗')); setFtMsgOk(false); }
     finally { setFtBusy(false); }
   };
 
@@ -159,9 +161,9 @@ export default function MemberFallTestPage() {
 
   const handleSubmit = async () => {
     setError('');
-    if (!canSign) { setError(`請先觀看至少 ${requiredPercent}% 的影片內容`); return; }
-    if (!allAgreed) { setError('請閱讀並勾選所有條款後再簽署'); return; }
-    if (!sigRef.current || sigRef.current.isEmpty()) { setError(forChildId ? '請先完成法定代理人簽名' : '請先完成本人簽名'); return; }
+    if (!canSign) { setError(tt(`請先觀看至少 ${requiredPercent}% 的影片內容`, `Please watch at least ${requiredPercent}% of the video first`, `まず動画を${requiredPercent}%以上ご視聴ください`)); return; }
+    if (!allAgreed) { setError(t('請閱讀並勾選所有條款後再簽署')); return; }
+    if (!sigRef.current || sigRef.current.isEmpty()) { setError(forChildId ? t('請先完成法定代理人簽名') : t('請先完成本人簽名')); return; }
     // 未滿 18 歲：家長簽名改為遠端——本人簽完後系統寄 email 給家長，於同一連結一次簽署兩份文件
 
     setLoading(true);
@@ -182,7 +184,7 @@ export default function MemberFallTestPage() {
       setSignature(sig.data.signature);
       setView('main');
     } catch (err) {
-      setError(err.response?.data?.message || '簽署失敗，請再試一次');
+      setError(err.response?.data?.message || t('簽署失敗，請再試一次'));
     } finally { setLoading(false); }
   };
 
@@ -200,8 +202,8 @@ export default function MemberFallTestPage() {
   if (!member) return (
     <div style={s.page}>
       <MemberLogoutButton />
-      <div style={s.header}><button style={s.backBtn} onClick={() => navigate(-1)}>‹</button><span style={{ fontWeight: 700, fontSize: 17 }}>墜落測驗</span></div>
-      <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>載入中...</div>
+      <div style={s.header}><button style={s.backBtn} onClick={() => navigate(-1)}>‹</button><span style={{ fontWeight: 700, fontSize: 17 }}>{t('墜落測驗')}</span></div>
+      <div style={{ padding: 40, textAlign: 'center', color: '#999' }}>{t('載入中...')}</div>
     </div>
   );
 
@@ -216,16 +218,16 @@ export default function MemberFallTestPage() {
       <div style={s.page}>
         <div style={s.header}>
           <button style={s.backBtn} onClick={() => setView('main')}>‹</button>
-          <span style={{ fontWeight: 700, fontSize: 17 }}>墜落測驗同意書副本</span>
+          <span style={{ fontWeight: 700, fontSize: 17 }}>{t('墜落測驗同意書副本')}</span>
         </div>
         <div style={s.card}>
-          <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>簽署時間：{dayjs(signedAt).format('YYYY/MM/DD HH:mm')}</div>
+          <div style={{ fontSize: 12, color: '#999', marginBottom: 8 }}>{t('簽署時間：')}{dayjs(signedAt).format('YYYY/MM/DD HH:mm')}</div>
           {isFallback && (
             <div style={{ fontSize: 11, color: '#854F0B', background: '#FFFBF0', border: '0.5px solid #F0D9A8', borderRadius: 6, padding: '6px 10px', marginBottom: 12 }}>
-              ⚠ 此份副本未儲存簽署當下的條款文字，以下顯示現行版本（非簽署當時逐字快照）
+              {t('⚠ 此份副本未儲存簽署當下的條款文字，以下顯示現行版本（非簽署當時逐字快照）')}
             </div>
           )}
-          <div style={s.sectionTitle}>同意條款</div>
+          <div style={s.sectionTitle}>{t('同意條款')}</div>
           {(signature.agreedParagraphs || []).map((idx) => (
             copyParagraphs[idx] ? (
               <div key={idx} style={{ background: '#F0F8F2', borderRadius: 8, padding: '10px 12px', marginBottom: 8, fontSize: 13, color: '#1a1a1a', lineHeight: 1.7, border: '0.5px solid #B3DEC0', textAlign: 'left' }}>
@@ -235,14 +237,14 @@ export default function MemberFallTestPage() {
           ))}
           {signature.signatureData && (
             <div style={{ marginTop: 20 }}>
-              <div style={s.sectionTitle}>{forChildId ? '法定代理人簽名' : '本人簽名'}</div>
-              <img src={signature.signatureData} alt="簽名" style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
+              <div style={s.sectionTitle}>{forChildId ? t('法定代理人簽名') : t('本人簽名')}</div>
+              <img src={signature.signatureData} alt={t('簽名')} style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
             </div>
           )}
           {signature.guardianSignatureData && (
             <div style={{ marginTop: 20 }}>
-              <div style={s.sectionTitle}>法定代理人簽名</div>
-              <img src={signature.guardianSignatureData} alt="法定代理人簽名" style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
+              <div style={s.sectionTitle}>{t('法定代理人簽名')}</div>
+              <img src={signature.guardianSignatureData} alt={t('法定代理人簽名')} style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
             </div>
           )}
         </div>
@@ -256,7 +258,7 @@ export default function MemberFallTestPage() {
       <div style={s.page}>
         <div style={s.header}>
           <button style={s.backBtn} onClick={() => setView('main')}>‹</button>
-          <span style={{ fontWeight: 700, fontSize: 17 }}>墜落測驗同意書</span>
+          <span style={{ fontWeight: 700, fontSize: 17 }}>{t('墜落測驗同意書')}</span>
           <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
             <button onClick={() => setLang('zh')} style={{ background: lang === 'zh' ? 'rgba(255,255,255,0.3)' : 'none', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: 6, padding: '4px 8px', fontSize: 12 }}>中文</button>
             <button onClick={() => setLang('en')} style={{ background: lang === 'en' ? 'rgba(255,255,255,0.3)' : 'none', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: 6, padding: '4px 8px', fontSize: 12 }}>English</button>
@@ -266,15 +268,17 @@ export default function MemberFallTestPage() {
         {/* 影片區 */}
         {videoId && (
           <div style={s.card}>
-            <div style={{ ...s.sectionTitle, marginBottom: 12 }}>📹 請先觀看說明影片</div>
+            <div style={{ ...s.sectionTitle, marginBottom: 12 }}>{t('📹 請先觀看說明影片')}</div>
             {inAppBrowser.inApp && (
               <div style={{ background: '#FEF3E2', border: '1px solid #F0C889', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#8A5A00', lineHeight: 1.6, textAlign: 'left' }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>⚠ 請改用 Safari／Chrome 開啟</div>
-                <div>您目前是從 <b>{inAppBrowser.name}</b> 內建瀏覽器開啟，影片的觀看進度可能<b>無法正常記錄</b>（進度條不會前進，導致無法簽署）。請複製網址、改用手機的 <b>Safari 或 Chrome</b> 開啟本頁。</div>
+                <div style={{ fontWeight: 700, marginBottom: 4 }}>{t('⚠ 請改用 Safari／Chrome 開啟')}</div>
+                <div>
+                  {t('您目前是從 ')}<b>{inAppBrowser.name}</b>{t(' 內建瀏覽器開啟，影片的觀看進度可能')}<b>{t('無法正常記錄')}</b>{t('（進度條不會前進，導致無法簽署）。請複製網址、改用手機的 ')}<b>{t('Safari 或 Chrome')}</b>{t(' 開啟本頁。')}
+                </div>
                 <button type="button"
                   onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2500); } catch { setLinkCopied(false); } }}
                   style={{ marginTop: 10, height: 34, padding: '0 16px', borderRadius: 8, background: '#8A5A00', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                  {linkCopied ? '✓ 已複製，請貼到瀏覽器' : '📋 複製本頁網址'}
+                  {linkCopied ? t('✓ 已複製，請貼到瀏覽器') : t('📋 複製本頁網址')}
                 </button>
               </div>
             )}
@@ -286,7 +290,7 @@ export default function MemberFallTestPage() {
                 <div style={{ width: `${watchPercent}%`, height: '100%', background: canSign ? '#2D7D46' : '#8B1A1A', borderRadius: 3, transition: 'width 0.5s' }} />
               </div>
               <span style={{ fontSize: 12, color: canSign ? '#2D7D46' : '#8B1A1A', fontWeight: 600 }}>
-                {watchPercent}% {canSign ? '✓' : `（需 ${requiredPercent}%）`}
+                {watchPercent}% {canSign ? '✓' : tt(`（需 ${requiredPercent}%）`, `(needs ${requiredPercent}%)`, `（${requiredPercent}%必要）`)}
               </span>
             </div>
           </div>
@@ -294,8 +298,8 @@ export default function MemberFallTestPage() {
 
         {/* 條款區 */}
         <div style={s.card}>
-          <div style={{ ...s.sectionTitle, marginBottom: 4 }}>📋 閱讀並逐項確認</div>
-          <div style={{ fontSize: 11, color: '#999', marginBottom: 12 }}>已確認 {agreedParagraphs.size} / {paragraphs.length} 段</div>
+          <div style={{ ...s.sectionTitle, marginBottom: 4 }}>{t('📋 閱讀並逐項確認')}</div>
+          <div style={{ fontSize: 11, color: '#999', marginBottom: 12 }}>{tt(`已確認 ${agreedParagraphs.size} / ${paragraphs.length} 段`, `Checked ${agreedParagraphs.size} / ${paragraphs.length}`, `確認済み ${agreedParagraphs.size} / ${paragraphs.length}`)}</div>
           {paragraphs.map((para, idx) => (
             <div key={idx} onClick={() => toggleParagraph(idx)}
               style={{ background: agreedParagraphs.has(idx) ? '#F0F8F2' : '#FBF5F5', borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', border: `0.5px solid ${agreedParagraphs.has(idx) ? '#B3DEC0' : '#F0E4E4'}`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -309,18 +313,18 @@ export default function MemberFallTestPage() {
 
         {/* 本人簽名 */}
         <div style={s.card}>
-          <div style={s.sectionTitle}>{forChildId ? '✍️ 法定代理人簽名' : '✍️ 本人簽名'}</div>
+          <div style={s.sectionTitle}>{forChildId ? t('✍️ 法定代理人簽名') : t('✍️ 本人簽名')}</div>
           <SignaturePad ref={sigRef} />
-          <button onClick={() => sigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>清除重簽</button>
+          <button onClick={() => sigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>{t('清除重簽')}</button>
         </div>
 
         {/* 家長簽名（未滿18歲）：改為遠端 email 簽署，不在現場簽 */}
         {needGuardian && (
           <div style={{ ...s.card, border: '1px solid #F0D9A8', background: '#FFFBF0' }}>
-            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>👨‍👩‍👧 法定代理人簽名（未滿18歲）</div>
+            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>{t('👨‍👩‍👧 法定代理人簽名（未滿18歲）')}</div>
             <div style={{ fontSize: 12, color: '#854F0B', lineHeight: 1.7 }}>
-              本會員未滿 18 歲，需家長／法定代理人同意。<strong>完成本人簽署後</strong>，系統會寄一封 email 給法定代理人（家長／監護人），點連結即可於<strong>同一頁面一次簽署</strong>「風險安全聲明書」與「墜落測驗同意書」兩份文件。<br/>
-              （若風險安全聲明書尚未簽署，法定代理人 email 會等兩份本人簽署都完成後才寄出。）
+              {t('本會員未滿 18 歲，需家長／法定代理人同意。')}<strong>{t('完成本人簽署後')}</strong>{t('，系統會寄一封 email 給法定代理人（家長／監護人），點連結即可於')}<strong>{t('同一頁面一次簽署')}</strong>{t('「風險安全聲明書」與「墜落測驗同意書」兩份文件。')}<br/>
+              {t('（若風險安全聲明書尚未簽署，法定代理人 email 會等兩份本人簽署都完成後才寄出。）')}
             </div>
           </div>
         )}
@@ -332,7 +336,7 @@ export default function MemberFallTestPage() {
         <div style={{ padding: '0 16px' }}>
           <button onClick={handleSubmit} disabled={loading || !canSign || !allAgreed}
             style={{ ...s.btnPrimary, opacity: (loading || !canSign || !allAgreed) ? 0.5 : 1, cursor: (loading || !canSign || !allAgreed) ? 'not-allowed' : 'pointer' }}>
-            {loading ? '簽署中...' : '確認簽署'}
+            {loading ? t('簽署中...') : t('確認簽署')}
           </button>
         </div>
       </div>
@@ -350,7 +354,7 @@ export default function MemberFallTestPage() {
     <div style={s.page}>
       <div style={s.header}>
         <button style={s.backBtn} onClick={() => navigate(-1)}>‹</button>
-        <span style={{ fontWeight: 700, fontSize: 17 }}>墜落測驗</span>
+        <span style={{ fontWeight: 700, fontSize: 17 }}>{t('墜落測驗')}</span>
       </div>
 
       {/* 測驗狀態 */}
@@ -361,21 +365,21 @@ export default function MemberFallTestPage() {
           </div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 16, color: testValid ? '#2D7D46' : testExpired ? '#854F0B' : '#A32D2D' }}>
-              {testValid ? '測驗有效' : testExpired ? '測驗已過期' : '尚未通過測驗'}
+              {testValid ? t('測驗有效') : testExpired ? t('測驗已過期') : t('尚未通過測驗')}
             </div>
             {status?.passedAt && (
               <div style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                測驗日期：{dayjs(status.passedAt).format('YYYY/MM/DD')}
+                {t('測驗日期：')}{dayjs(status.passedAt).format('YYYY/MM/DD')}
               </div>
             )}
             {testValid && status?.expiresAt && (
               <div style={{ fontSize: 12, color: '#999' }}>
-                有效期限：{dayjs(status.expiresAt).format('YYYY/MM/DD')}
+                {t('有效期限：')}{dayjs(status.expiresAt).format('YYYY/MM/DD')}
               </div>
             )}
             {testExpired && status?.expiredAt && (
               <div style={{ fontSize: 12, color: '#854F0B' }}>
-                已於 {dayjs(status.expiredAt).format('YYYY/MM/DD')} 到期，請重新測驗
+                {tt(`已於 ${dayjs(status.expiredAt).format('YYYY/MM/DD')} 到期，請重新測驗`, `Expired on ${dayjs(status.expiredAt).format('YYYY/MM/DD')} — please retake the test`, `${dayjs(status.expiredAt).format('YYYY/MM/DD')}に期限切れになりました。再検定してください`)}
               </div>
             )}
           </div>
@@ -384,21 +388,21 @@ export default function MemberFallTestPage() {
 
       {/* 同意書狀態 */}
       <div style={s.card}>
-        <div style={s.sectionTitle}>墜落測驗同意書</div>
+        <div style={s.sectionTitle}>{t('墜落測驗同意書')}</div>
         {signatureLoading ? (
-          <div style={{ fontSize: 13, color: '#999' }}>載入中...</div>
+          <div style={{ fontSize: 13, color: '#999' }}>{t('載入中...')}</div>
         ) : hasSigned ? (
           <>
             <div style={{ fontSize: 13, color: '#2D7D46', marginBottom: 12 }}>
-              ✓ 已完成簽署
+              {t('✓ 已完成簽署')}
               {signature?.signedAt && ` — ${dayjs(signature.signedAt?.toDate?.() || new Date(signature.signedAt?._seconds * 1000)).format('YYYY/MM/DD')}`}
             </div>
-            <button onClick={() => setView('copy')} style={s.btnSecondary}>檢視副本</button>
+            <button onClick={() => setView('copy')} style={s.btnSecondary}>{t('檢視副本')}</button>
           </>
         ) : (
           <>
-            <div style={{ fontSize: 13, color: '#A32D2D', marginBottom: 12 }}>尚未簽署同意書，無法進行墜落測驗</div>
-            <button onClick={() => setView('sign')} style={s.btnPrimary}>前往簽署</button>
+            <div style={{ fontSize: 13, color: '#A32D2D', marginBottom: 12 }}>{t('尚未簽署同意書，無法進行墜落測驗')}</div>
+            <button onClick={() => setView('sign')} style={s.btnPrimary}>{t('前往簽署')}</button>
           </>
         )}
       </div>
@@ -406,32 +410,32 @@ export default function MemberFallTestPage() {
       {/* 安排墜落測驗：同意書已簽 + 尚未通過 → 選場館排測 / 已排測顯示待現場測驗 */}
       {hasSigned && !testValid && (
         <div style={s.card}>
-          <div style={s.sectionTitle}>安排墜落測驗</div>
+          <div style={s.sectionTitle}>{t('安排墜落測驗')}</div>
           {booking ? (
             <>
               <div style={{ fontSize: 13, color: '#B5762B', fontWeight: 600, marginBottom: 12 }}>
-                ⏳ 已安排 {ftGymName(booking.gymId)}，請至該館現場完成測驗
+                {tt(`⏳ 已安排 ${ftGymName(booking.gymId)}，請至該館現場完成測驗`, `⏳ Scheduled at ${ftGymName(booking.gymId)} — please complete the test there in person`, `⏳ ${ftGymName(booking.gymId)}で予約済み。現地でテストを受けてください`)}
               </div>
               <button disabled={ftBusy} onClick={cancelBooking} style={s.btnSecondary}>
-                {ftBusy ? '處理中…' : '取消 / 更改場館'}
+                {ftBusy ? t('處理中…') : t('取消 / 更改場館')}
               </button>
             </>
           ) : (
             <>
               <div style={{ fontSize: 13, color: '#666', marginBottom: 10, textAlign: 'left' }}>
-                請選擇測驗場館，安排後至該館現場由工作人員進行測驗：
+                {t('請選擇測驗場館，安排後至該館現場由工作人員進行測驗：')}
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 {FT_GYMS.map(g => (
                   <button key={g.id} disabled={ftBusy} onClick={() => scheduleFallTest(g.id)}
                     style={{ flex: 1, height: 44, borderRadius: 10, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 14, fontWeight: 500, cursor: 'pointer' }}>
-                    {ftBusy ? '…' : g.name}
+                    {ftBusy ? '…' : t(g.name)}
                   </button>
                 ))}
               </div>
             </>
           )}
-          {ftMsg && <div style={{ fontSize: 12, color: ftMsg.includes('已安排') ? '#2D7D46' : '#A32D2D', marginTop: 10 }}>{ftMsg}</div>}
+          {ftMsg && <div style={{ fontSize: 12, color: ftMsgOk ? '#2D7D46' : '#A32D2D', marginTop: 10 }}>{ftMsg}</div>}
         </div>
       )}
     </div>

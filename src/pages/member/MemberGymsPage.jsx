@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getGyms, getAnnouncements } from '../../api/gyms';
 import dayjs from 'dayjs';
 import { gymOpenLabel } from '../../utils/gymOpenStatus';
 
 const DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
-const DAY_LABELS = { mon:'週一', tue:'週二', wed:'週三', thu:'週四', fri:'週五', sat:'週六', sun:'週日' };
+const DAY_LABELS = { mon:'週一', tue:'週二', wed:'週三', thu:'週四', fri:'週五', sat:'週六', sun:'週日' }; // 顯示時走 t() 查字典
 
 export default function MemberGymsPage() {
   const navigate = useNavigate();
@@ -40,9 +40,9 @@ export default function MemberGymsPage() {
     }
   }, [gyms]);
 
-  const annTypeColor = (t) => ({ closure:'#FCEBEB', special_hours:'#FAEEDA', route_change:'#E6F1FB', general:'#F0EDED' }[t] || '#F0EDED');
-  const annTypeText  = (t) => ({ closure:'#A32D2D', special_hours:'#854F0B', route_change:'#185FA5', general:'#666' }[t] || '#666');
-  const annTypeLabel = (t) => ({ closure:'休館', special_hours:'特殊時間', route_change:'路線更換', general:'公告' }[t] || '公告');
+  const annTypeColor = (ty) => ({ closure:'#FCEBEB', special_hours:'#FAEEDA', route_change:'#E6F1FB', general:'#F0EDED' }[ty] || '#F0EDED');
+  const annTypeText  = (ty) => ({ closure:'#A32D2D', special_hours:'#854F0B', route_change:'#185FA5', general:'#666' }[ty] || '#666');
+  const annTypeLabel = (ty) => t({ closure:'休館', special_hours:'特殊時間', route_change:'路線更換', general:'公告' }[ty] || '公告');
 
   const gymAnns = announcements.filter(a => a.gymId === selectedGym?.id || a.gymId === null);
 
@@ -79,7 +79,7 @@ export default function MemberGymsPage() {
       <MemberLogoutButton />
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
-        <div style={{ fontWeight:600, fontSize:15 }}>場館資訊</div>
+        <div style={{ fontWeight:600, fontSize:15 }}>{t('場館資訊')}</div>
       </div>
 
       {/* 場館切換 */}
@@ -103,7 +103,7 @@ export default function MemberGymsPage() {
                 : 'linear-gradient(135deg,#7A1A1A,#A32D2D)';
               return (
             <div style={{ background: gradient, borderRadius:14, padding:18, color:'#fff' }}>
-              <div style={{ fontSize:10, opacity:.75, letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>今日狀態</div>
+              <div style={{ fontSize:10, opacity:.75, letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>{t('今日狀態')}</div>
               <div style={{ fontSize:22, fontWeight:700, marginBottom:4 }}>{st.label}</div>
               {selectedGym.todayStatus?.todayHours && <div style={{ fontSize:15, opacity:.9 }}>🕙 {selectedGym.todayStatus.todayHours}</div>}
               {selectedGym.todayStatus?.specialNote && (
@@ -118,13 +118,13 @@ export default function MemberGymsPage() {
           {/* Tab */}
           <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', margin:'14px 0 0' }}>
             {[
-              { key:'info',  label:'場館資訊' },
-              { key:'hours', label:'營業時間' },
-              { key:'news',  label:`公告${gymAnns.length>0?` (${gymAnns.length})`:''}`},
-            ].map(t => (
-              <div key={t.key} onClick={() => setTab(t.key)}
-                style={{ flex:1, height:44, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:13, fontWeight:tab===t.key?600:400, color:tab===t.key?'#8B1A1A':'#999', borderBottom:tab===t.key?'2px solid #8B1A1A':'2px solid transparent' }}>
-                {t.label}
+              { key:'info',  label: t('場館資訊') },
+              { key:'hours', label: t('營業時間') },
+              { key:'news',  label: `${t('公告')}${gymAnns.length>0?` (${gymAnns.length})`:''}`},
+            ].map(tb => (
+              <div key={tb.key} onClick={() => setTab(tb.key)}
+                style={{ flex:1, height:44, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontSize:13, fontWeight:tab===tb.key?600:400, color:tab===tb.key?'#8B1A1A':'#999', borderBottom:tab===tb.key?'2px solid #8B1A1A':'2px solid transparent' }}>
+                {tb.label}
               </div>
             ))}
           </div>
@@ -135,11 +135,11 @@ export default function MemberGymsPage() {
             {tab === 'info' && (
               <>
                 <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-                  <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>基本資訊</div>
+                  <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('基本資訊')}</div>
                   {[
-                    { icon:'🏢', label:'名稱', value: selectedGym.name },
-                    { icon:'📍', label:'地址', value: selectedGym.address },
-                    { icon:'📞', label:'電話', value: selectedGym.phone },
+                    { icon:'🏢', label: t('名稱'), value: selectedGym.name },
+                    { icon:'📍', label: t('地址'), value: selectedGym.address },
+                    { icon:'📞', label: t('電話'), value: selectedGym.phone },
                   ].map(r => (
                     <div key={r.label} style={{ display:'flex', gap:10, padding:'10px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13, alignItems:'flex-start' }}>
                       <span style={{ fontSize:16, flexShrink:0 }}>{r.icon}</span>
@@ -149,14 +149,14 @@ export default function MemberGymsPage() {
                 </div>
                 {(selectedGym.transitInfo || selectedGym.parkingInfo) && (
                   <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-                    <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>交通與停車</div>
+                    <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('交通與停車')}</div>
                     {selectedGym.transitInfo && <div style={{ display:'flex', gap:10, padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13 }}><span>🚌</span><span style={{ color:'#6b6b6b' }}>{selectedGym.transitInfo}</span></div>}
                     {selectedGym.parkingInfo  && <div style={{ display:'flex', gap:10, padding:'8px 0', fontSize:13 }}><span>🅿️</span><span style={{ color:'#6b6b6b' }}>{selectedGym.parkingInfo}</span></div>}
                   </div>
                 )}
                 {selectedGym.facilities?.length > 0 && (
                   <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16 }}>
-                    <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>場館設施</div>
+                    <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('場館設施')}</div>
                     <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       {selectedGym.facilities.map((f,i) => (
                         <span key={i} style={{ fontSize:12, padding:'4px 10px', borderRadius:20, background:'#F5E8E8', color:'#8B1A1A', fontWeight:500 }}>{f}</span>
@@ -175,7 +175,7 @@ export default function MemberGymsPage() {
                   <div style={{ background:'#FCEBEB', border:'0.5px solid #F5C4C4', borderRadius:10, padding:'10px 14px', marginBottom:12, fontSize:13, color:'#A32D2D', display:'flex', gap:8 }}>
                     <span>🚫</span>
                     <div>
-                      <div style={{ fontWeight:600 }}>今日休館</div>
+                      <div style={{ fontWeight:600 }}>{t('今日休館')}</div>
                       <div style={{ fontSize:12, marginTop:2 }}>{todayClosure.title}</div>
                     </div>
                   </div>
@@ -184,9 +184,9 @@ export default function MemberGymsPage() {
                   <div style={{ background:'#FAEEDA', border:'0.5px solid #FAC775', borderRadius:10, padding:'10px 14px', marginBottom:12, fontSize:13, color:'#854F0B', display:'flex', gap:8 }}>
                     <span>⚠️</span>
                     <div>
-                      <div style={{ fontWeight:600 }}>今日特殊營業時間</div>
+                      <div style={{ fontWeight:600 }}>{t('今日特殊營業時間')}</div>
                       <div style={{ fontSize:12, marginTop:2 }}>
-                        {todaySpecial.specialOpen} - {todaySpecial.specialClose}（與平常不同）
+                        {tt(`${todaySpecial.specialOpen} - ${todaySpecial.specialClose}（與平常不同）`, `${todaySpecial.specialOpen} - ${todaySpecial.specialClose} (different from usual)`, `${todaySpecial.specialOpen} - ${todaySpecial.specialClose}（通常と異なります）`)}
                       </div>
                       <div style={{ fontSize:11, opacity:.8, marginTop:2 }}>{todaySpecial.title}</div>
                     </div>
@@ -196,18 +196,18 @@ export default function MemberGymsPage() {
                 {/* 近期營業時間調整（未來一週） */}
                 {upcomingAdjustments.length > 0 && (
                   <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:12 }}>
-                    <div style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', fontSize:12, fontWeight:600, color:'#8B1A1A' }}>📅 近期營業時間調整（未來一週）</div>
+                    <div style={{ padding:'10px 16px', borderBottom:'0.5px solid #F5EFEF', fontSize:12, fontWeight:600, color:'#8B1A1A' }}>{t('📅 近期營業時間調整（未來一週）')}</div>
                     {upcomingAdjustments.map((u, i) => (
                       <div key={u.date} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none' }}>
                         <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
-                          <span style={{ fontSize:13, fontWeight:600, flexShrink:0 }}>{u.mmdd}（{u.dow}）</span>
+                          <span style={{ fontSize:13, fontWeight:600, flexShrink:0 }}>{u.mmdd}（{t(u.dow === '日' ? '週日' : `週${u.dow}`)}）</span>
                           <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, flexShrink:0, background: u.kind==='closure'?'#FCEBEB':'#FAEEDA', color: u.kind==='closure'?'#A32D2D':'#854F0B' }}>
-                            {u.kind==='closure' ? '休館' : '特殊營業'}
+                            {u.kind==='closure' ? t('休館') : t('特殊營業')}
                           </span>
                           {u.note && <span style={{ fontSize:11, color:'#999', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.note}</span>}
                         </div>
                         <span style={{ fontSize:13, fontWeight:600, flexShrink:0, color: u.kind==='closure'?'#A32D2D':'#854F0B' }}>
-                          {u.kind==='closure' ? '休館' : (u.hours || '特殊時段')}
+                          {u.kind==='closure' ? t('休館') : (u.hours || t('特殊時段'))}
                         </span>
                       </div>
                     ))}
@@ -232,20 +232,20 @@ export default function MemberGymsPage() {
                       <div key={d} style={{ borderBottom: i<6 ? '0.5px solid #F5EFEF' : 'none', background: isToday ? '#FBF5F5' : 'transparent' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px' }}>
                           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                            <span style={{ fontSize:13, fontWeight:isToday?700:400, color:isToday?'#8B1A1A':'#1a1a1a' }}>{DAY_LABELS[d]}</span>
-                            {isToday && <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:'#F5E8E8', color:'#8B1A1A' }}>今日</span>}
+                            <span style={{ fontSize:13, fontWeight:isToday?700:400, color:isToday?'#8B1A1A':'#1a1a1a' }}>{t(DAY_LABELS[d])}</span>
+                            {isToday && <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:'#F5E8E8', color:'#8B1A1A' }}>{t('今日')}</span>}
                             {isSpecialToday && (
                               <span style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background: todayClosure ? '#FCEBEB' : '#FAEEDA', color: todayClosure ? '#A32D2D' : '#854F0B' }}>
-                                {todayClosure ? '休館' : '特殊'}
+                                {todayClosure ? t('休館') : t('特殊')}
                               </span>
                             )}
                           </div>
                           <div style={{ textAlign:'right' }}>
                             {todayClosure && isToday ? (
-                              <span style={{ fontSize:13, color:'#A32D2D', fontWeight:600 }}>休館</span>
+                              <span style={{ fontSize:13, color:'#A32D2D', fontWeight:600 }}>{t('休館')}</span>
                             ) : (
                               <span style={{ fontSize:13, fontWeight:isToday?600:400, color: isSpecialToday?'#854F0B':h?.closed?'#999':isToday?'#8B1A1A':'#1a1a1a' }}>
-                                {displayHours || (h?.closed ? '公休' : '—')}
+                                {displayHours || (h?.closed ? t('公休') : '—')}
                               </span>
                             )}
                           </div>
@@ -253,7 +253,7 @@ export default function MemberGymsPage() {
                         {/* 今日有特殊時間時，顯示原始時間被劃掉 */}
                         {isToday && todaySpecial && !todayClosure && h && !h.closed && (
                           <div style={{ padding:'0 16px 8px', fontSize:11, color:'#999', display:'flex', alignItems:'center', gap:6 }}>
-                            <span>標準時間：</span>
+                            <span>{t('標準時間：')}</span>
                             <span style={{ textDecoration:'line-through' }}>{h.open} - {h.close}</span>
                           </div>
                         )}
@@ -268,21 +268,21 @@ export default function MemberGymsPage() {
             {tab === 'news' && (
               gymAnns.length === 0 ? (
                 <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>
-                  <div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>📢</div>目前無公告
+                  <div style={{ fontSize:36, marginBottom:8, opacity:.3 }}>📢</div>{t('目前無公告')}
                 </div>
               ) : gymAnns.map(a => (
                 <div key={a.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                   <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:8 }}>
                     <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:annTypeColor(a.type), color:annTypeText(a.type) }}>{annTypeLabel(a.type)}</span>
-                    {a.gymId === null && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:'#F0EDED', color:'#666' }}>兩館</span>}
+                    {a.gymId === null && <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:8, background:'#F0EDED', color:'#666' }}>{t('兩館')}</span>}
                     <span style={{ fontSize:11, color:'#999', marginLeft:'auto' }}>{a.effectiveFrom}</span>
                   </div>
                   <div style={{ fontSize:14, fontWeight:600, marginBottom:4 }}>{a.title}</div>
                   {a.content && <div style={{ fontSize:13, color:'#6b6b6b', lineHeight:1.6 }}>{a.content}</div>}
-                  {a.effectiveTo && <div style={{ fontSize:11, color:'#999', marginTop:8 }}>📅 有效至 {a.effectiveTo}</div>}
+                  {a.effectiveTo && <div style={{ fontSize:11, color:'#999', marginTop:8 }}>{tt(`📅 有效至 ${a.effectiveTo}`, `📅 Valid until ${a.effectiveTo}`, `📅 有効期限 ${a.effectiveTo}`)}</div>}
                   {a.type === 'special_hours' && a.specialOpen && (
                     <div style={{ marginTop:8, background:'#FAEEDA', borderRadius:8, padding:'6px 10px', fontSize:12, color:'#854F0B' }}>
-                      特殊營業時間：{a.specialOpen} - {a.specialClose}
+                      {tt(`特殊營業時間：${a.specialOpen} - ${a.specialClose}`, `Special hours: ${a.specialOpen} - ${a.specialClose}`, `特別営業時間：${a.specialOpen} - ${a.specialClose}`)}
                     </div>
                   )}
                 </div>
