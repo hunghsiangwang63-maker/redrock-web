@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
@@ -14,13 +14,13 @@ import { isUnder4 } from '../../utils/age';
 import { entryTypeLabel, entryLabelOf } from '../../utils/entryLabel';
 
 const FT_GYMS = [{ id:'gym-hsinchu', name:'新竹館' }, { id:'gym-shilin', name:'士林館' }];
-const ftGymName = (id) => FT_GYMS.find(g => g.id === id)?.name || id;
+const ftGymName = (id) => t(FT_GYMS.find(g => g.id === id)?.name || id);
 
 // 安全格式化 Firestore Timestamp（序列化為 {_seconds}）／ISO 字串／毫秒；無效回 fallback（不顯示 Invalid date）
-const fmtTs = (t, format = 'YYYY/MM/DD HH:mm', fallback = '—') => {
-  if (!t) return fallback;
-  const secs = t._seconds ?? t.seconds; // JSON 化 Timestamp 為 {_seconds}
-  const d = secs != null ? dayjs(secs * 1000) : dayjs(t);
+const fmtTs = (ts, format = 'YYYY/MM/DD HH:mm', fallback = '—') => {
+  if (!ts) return fallback;
+  const secs = ts._seconds ?? ts.seconds; // JSON 化 Timestamp 為 {_seconds}
+  const d = secs != null ? dayjs(secs * 1000) : dayjs(ts);
   return d.isValid() ? d.format(format) : fallback;
 };
 
@@ -201,6 +201,7 @@ export default function MemberProfilePage() {
   const [checkinHistory, setCheckinHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [msgOk, setMsgOk] = useState(true); // 編輯資料/修改密碼共用的成功·失敗旗標（避免依中文字串判斷樣式，改版可安全翻譯）
   const age = member?.birthday ? dayjs().diff(dayjs(member.birthday), 'year') : null;
 
   return (
@@ -208,8 +209,8 @@ export default function MemberProfilePage() {
       <MemberLogoutButton />
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
-        <div style={{ fontWeight:600, fontSize:15 }}>個人資料</div>
-        <div style={{ fontSize:13, color:'#8B1A1A', cursor:'pointer' }} onClick={() => setShowLogout(true)}>登出</div>
+        <div style={{ fontWeight:600, fontSize:15 }}>{t('個人資料')}</div>
+        <div style={{ fontSize:13, color:'#8B1A1A', cursor:'pointer' }} onClick={() => setShowLogout(true)}>{t('登出')}</div>
       </div>
       <div style={{ padding:16 }}>
         {/* 頭像 */}
@@ -218,28 +219,28 @@ export default function MemberProfilePage() {
           <div style={{ fontWeight:600, fontSize:18 }}>{member?.name}</div>
           <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{member?.phone}</div>
           <div style={{ display:'flex', gap:6, justifyContent:'center', marginTop:8, flexWrap:'wrap' }}>
-            {member?.isTeamMember && <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>🏔️ 隊員</span>}
-            {member?.emailVerified && <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>✓ Email 已驗證</span>}
+            {member?.isTeamMember && <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>{t('🏔️ 隊員')}</span>}
+            {member?.emailVerified && <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('✓ Email 已驗證')}</span>}
           </div>
         </div>
         {member?.selfEntrySkipped && (
           <div style={{ background:'#FFF7EC', border:'0.5px solid #F0D9A8', borderRadius:14, padding:'14px 16px', marginBottom:12 }}>
-            <div style={{ fontSize:13, fontWeight:600, color:'#8B6914', marginBottom:4 }}>🙋 本人目前設定為「不入場」</div>
-            <div style={{ fontSize:12, color:'#999', lineHeight:1.7, marginBottom:10 }}>您已略過本人入場文件簽署，僅用於管理家庭成員。若日後想自己入場攀爬，請重新啟用並完成入場文件簽署。</div>
+            <div style={{ fontSize:13, fontWeight:600, color:'#8B6914', marginBottom:4 }}>{t('🙋 本人目前設定為「不入場」')}</div>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.7, marginBottom:10 }}>{t('您已略過本人入場文件簽署，僅用於管理家庭成員。若日後想自己入場攀爬，請重新啟用並完成入場文件簽署。')}</div>
             <button onClick={() => setShowResumeConfirm(true)}
-              style={{ height:40, padding:'0 18px', borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>重啟入場文件簽署 →</button>
+              style={{ height:40, padding:'0 18px', borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>{t('重啟入場文件簽署 →')}</button>
           </div>
         )}
         {/* 基本資訊 */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>基本資訊</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('基本資訊')}</div>
           {[
-            { label:'姓名', value: member?.name },
-            { label:'暱稱', value: member?.nickname },
-            { label:'手機', value: member?.phone },
+            { label:t('姓名'), value: member?.name },
+            { label:t('暱稱'), value: member?.nickname },
+            { label:t('手機'), value: member?.phone },
             { label:'Email', value: member?.email },
-            { label:'生日', value: member?.birthday ? `${member.birthday}（${age}歲）` : '—' },
-            { label:'性別', value: { male:'男', female:'女' }[member?.gender] || '不公開' },
+            { label:t('生日'), value: member?.birthday ? `${member.birthday}（${age}${tt('歲','yo','歳')}）` : '—' },
+            { label:t('性別'), value: { male:t('男'), female:t('女') }[member?.gender] || t('不公開') },
           ].map(r => (
             <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'0.5px solid #F5EFEF', fontSize:13 }}>
               <span style={{ color:'#6b6b6b' }}>{r.label}</span>
@@ -250,66 +251,66 @@ export default function MemberProfilePage() {
         {/* 緊急聯絡人 */}
         {member?.emergencyContact && (
           <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-            <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>緊急聯絡人</div>
+            <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('緊急聯絡人')}</div>
             <div style={{ fontSize:13, fontWeight:500 }}>{member.emergencyContact}</div>
           </div>
         )}
         {/* Waiver */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>Waiver 風險安全聲明書</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>Waiver {t('風險安全聲明書')}</div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div><div style={{ fontSize:13, fontWeight:500 }}>風險安全聲明書</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>入場必要條件</div></div>
+            <div><div style={{ fontSize:13, fontWeight:500 }}>{t('風險安全聲明書')}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('入場必要條件')}</div></div>
             {member?.blockReasons?.includes('waiver_unsigned') ? (
-              <div><span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>未完成</span>
-                <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>立即簽署</button></div>
+              <div><span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>{t('未完成')}</span>
+                <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('立即簽署')}</button></div>
               </div>
             ) : member?.blockReasons?.includes('parent_waiver_pending') ? (
               <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FFF3E0', color:'#B5762B' }}>等待法定代理人簽署</span>
-                <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>查看狀態</button></div>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FFF3E0', color:'#B5762B' }}>{t('等待法定代理人簽署')}</span>
+                <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('查看狀態')}</button></div>
               </div>
             ) : (
               <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>已完成</span>
-                <div style={{ fontSize:11, color:'#999', marginTop:4 }}>永久鎖定 🔒</div>
-                <div style={{ marginTop:8 }}><button onClick={handleViewWaiver} style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>查看簽署內容</button></div>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('已完成')}</span>
+                <div style={{ fontSize:11, color:'#999', marginTop:4 }}>{t('永久鎖定 🔒')}</div>
+                <div style={{ marginTop:8 }}><button onClick={handleViewWaiver} style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('查看簽署內容')}</button></div>
               </div>
             )}
           </div>
         </div>
         {/* 墜落測驗 */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>墜落測驗</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('墜落測驗')}</div>
           {/* 同意書狀態 */}
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: fallTestStatus?.status === 'passed' ? 0 : 12 }}>
-            <div><div style={{ fontSize:13, fontWeight:500 }}>安全墜落測驗同意書</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>入場必要條件</div></div>
+            <div><div style={{ fontSize:13, fontWeight:500 }}>{t('安全墜落測驗同意書')}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('入場必要條件')}</div></div>
             {fallTestLoading ? (
-              <span style={{ fontSize:11, color:'#999' }}>載入中...</span>
+              <span style={{ fontSize:11, color:'#999' }}>{t('載入中...')}</span>
             ) : fallTestSignature ? (
               <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>已完成</span>
-                <div style={{ marginTop:6 }}><button onClick={() => navigate('/member/fall-test')} style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>檢視副本</button></div>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('已完成')}</span>
+                <div style={{ marginTop:6 }}><button onClick={() => navigate('/member/fall-test')} style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('檢視副本')}</button></div>
               </div>
             ) : (
               <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>尚未完成</span>
-                <div style={{ marginTop:6 }}><button onClick={() => navigate('/member/fall-test')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>立即簽署</button></div>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>{t('尚未完成')}</span>
+                <div style={{ marginTop:6 }}><button onClick={() => navigate('/member/fall-test')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('立即簽署')}</button></div>
               </div>
             )}
           </div>
           {/* 測驗通過狀態（簽署後才顯示） */}
           {fallTestSignature && (
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:10, borderTop:'0.5px solid #F5EFEF' }}>
-              <div><div style={{ fontSize:13, fontWeight:500 }}>墜落測驗</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>需工作人員測驗</div></div>
+              <div><div style={{ fontSize:13, fontWeight:500 }}>{t('墜落測驗')}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('需工作人員測驗')}</div></div>
               {fallTestStatus?.status === 'passed' ? (
                 <div style={{ textAlign:'right' }}>
-                  <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>已通過</span>
-                  <div style={{ fontSize:11, color:'#999', marginTop:4 }}>有效至 {fallTestStatus.expiresAt}</div>
+                  <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('已通過')}</span>
+                  <div style={{ fontSize:11, color:'#999', marginTop:4 }}>{t('有效至 ')}{fallTestStatus.expiresAt}</div>
                 </div>
               ) : fallTestStatus?.status === 'expired' ? (
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>已到期</span>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>{t('已到期')}</span>
               ) : (
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#F5F0FF', color:'#6B21A8' }}>等待測驗</span>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#F5F0FF', color:'#6B21A8' }}>{t('等待測驗')}</span>
               )}
             </div>
           )}
@@ -317,19 +318,19 @@ export default function MemberProfilePage() {
         {/* 隊員 */}
         {member?.isTeamMember && (
           <div style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:14, padding:16, color:'#fff', marginBottom:12 }}>
-            <div style={{ fontSize:10, opacity:.75, letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>🏔️ 紅石攀岩隊員</div>
-            <div style={{ fontSize:15, fontWeight:600 }}>隊員折扣資格</div>
-            <div style={{ fontSize:12, opacity:.8, marginTop:4 }}>NT$100以上消費享九折優惠</div>
-            {member.teamMemberUntil && <div style={{ fontSize:12, opacity:.7, marginTop:6 }}>有效期至 {member.teamMemberUntil}</div>}
+            <div style={{ fontSize:10, opacity:.75, letterSpacing:1, textTransform:'uppercase', marginBottom:6 }}>{t('🏔️ 紅石攀岩隊員')}</div>
+            <div style={{ fontSize:15, fontWeight:600 }}>{t('隊員折扣資格')}</div>
+            <div style={{ fontSize:12, opacity:.8, marginTop:4 }}>{t('NT$100以上消費享九折優惠')}</div>
+            {member.teamMemberUntil && <div style={{ fontSize:12, opacity:.7, marginTop:6 }}>{t('有效期至 ')}{member.teamMemberUntil}</div>}
           </div>
         )}
         {/* 功能清單 */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:12 }}>
           {[
-            { icon:'✏️', label:'修改個人資料', action: () => { const ec = (member?.emergencyContact||'').split('/').map(s => s.trim()); setEditForm({ name: member?.name||'', email: member?.email||'', birthday: member?.birthday||'', gender: member?.gender||'', nickname: member?.nickname||'', ecName: ec[0]||'', ecRelation: ec[1]||'', ecPhone: ec[2]||'' }); setShowEditProfile(true); } },
-            { icon:'🔑', label:'修改密碼', action: () => setShowChangePassword(true) },
-            { icon:'🔔', label:'Line 官方通知設定', action: () => setShowNotification(true) },
-            { icon:'👨‍👩‍👧‍👦', label:'家庭成員（限兒童及青少年）', action: () => { loadChildren(); setShowFamily(true); } },
+            { icon:'✏️', label:t('修改個人資料'), action: () => { const ec = (member?.emergencyContact||'').split('/').map(s => s.trim()); setEditForm({ name: member?.name||'', email: member?.email||'', birthday: member?.birthday||'', gender: member?.gender||'', nickname: member?.nickname||'', ecName: ec[0]||'', ecRelation: ec[1]||'', ecPhone: ec[2]||'' }); setShowEditProfile(true); } },
+            { icon:'🔑', label:t('修改密碼'), action: () => setShowChangePassword(true) },
+            { icon:'🔔', label:t('Line 官方通知設定'), action: () => setShowNotification(true) },
+            { icon:'👨‍👩‍👧‍👦', label:t('家庭成員（限兒童及青少年）'), action: () => { loadChildren(); setShowFamily(true); } },
           ].map((item, i) => (
             <div key={i} style={{ padding:'14px 16px', borderBottom:'0.5px solid #F5EFEF', display:'flex', alignItems:'center', gap:12, cursor:'pointer', fontSize:14 }}
               onClick={item.action}
@@ -341,20 +342,20 @@ export default function MemberProfilePage() {
             </div>
           ))}
         </div>
-        <button onClick={() => setShowLogout(true)} style={{ width:'100%', height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#A32D2D', cursor:'pointer' }}>登出</button>
+        <button onClick={() => setShowLogout(true)} style={{ width:'100%', height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#A32D2D', cursor:'pointer' }}>{t('登出')}</button>
       </div>
       {/* 家庭成員 Modal */}
       {showFamily && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'flex-end' }}>
           <div style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', padding:24, maxHeight:'85vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <div style={{ fontSize:16, fontWeight:600 }}>👨‍👩‍👧‍👦 家庭成員</div>
+              <div style={{ fontSize:16, fontWeight:600 }}>{t('👨‍👩‍👧‍👦 家庭成員')}</div>
               <button onClick={()=>{ setShowFamily(false); setShowAddChild(false); setFamilyMsg(''); }}
                 style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             {familyMsg && <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:13, color:'#2D7D46' }}>{familyMsg}</div>}
             {children.length === 0 && !showAddChild && (
-              <div style={{ textAlign:'center', color:'#999', padding:'24px 0', fontSize:13 }}>尚未新增家庭成員</div>
+              <div style={{ textAlign:'center', color:'#999', padding:'24px 0', fontSize:13 }}>{t('尚未新增家庭成員')}</div>
             )}
             {children.map(c => (
               <div key={c.id} style={{ background:'#FBF5F5', borderRadius:12, padding:'12px 14px', marginBottom:10 }}>
@@ -364,26 +365,26 @@ export default function MemberProfilePage() {
                   </div>
                   <div style={{ flex:1 }}>
                     <div style={{ fontWeight:600, fontSize:14 }}>{c.name}</div>
-                    {c.birthday && <div style={{ fontSize:12, color:'#999', marginTop:2 }}>生日：{c.birthday}</div>}
+                    {c.birthday && <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('生日：')}{c.birthday}</div>}
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   {/* Waiver 狀態 */}
                   {c.waiverSigned ? (
-                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>✓ 已簽風險安全聲明</span>
+                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>{t('✓ 已簽風險安全聲明')}</span>
                   ) : (
                     <button onClick={() => navigate(`/member/waiver?forChild=${c.id}&childName=${encodeURIComponent(c.name)}`)}
                       style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'none', cursor:'pointer' }}>
-                      ⚠ 代簽風險安全聲明
+                      {t('⚠ 代簽風險安全聲明')}
                     </button>
                   )}
                   {/* 墜落測驗同意書（代簽）狀態：以「同意書是否已簽」判斷，而非測驗是否通過 */}
                   {c.fallTestSigned ? (
-                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>✓ 已簽墜測同意書</span>
+                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>{t('✓ 已簽墜測同意書')}</span>
                   ) : (
                     <button onClick={() => navigate(`/member/fall-test?forChild=${c.id}&childName=${encodeURIComponent(c.name)}`)}
                       style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
-                      代簽墜落測驗同意書
+                      {t('代簽墜落測驗同意書')}
                     </button>
                   )}
                 </div>
@@ -391,25 +392,25 @@ export default function MemberProfilePage() {
                 {/* 墜落測驗：安排 / 待測 / 已通過（waiver + 同意書皆完成後才出現） */}
                 {c.waiverSigned && c.fallTestSigned && (
                   c.fallTestPassed ? (
-                    <div style={{ marginTop:8, fontSize:11, color:'#2D7D46', fontWeight:600 }}>✓ 已通過墜落測驗</div>
+                    <div style={{ marginTop:8, fontSize:11, color:'#2D7D46', fontWeight:600 }}>{t('✓ 已通過墜落測驗')}</div>
                   ) : childBookings[c.id] ? (
                     <div style={{ marginTop:8, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                       <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FFF3E0', color:'#B5762B', fontWeight:600 }}>
-                        ⏳ 已排 {ftGymName(childBookings[c.id].gymId)}，待現場測驗
+                        {t('⏳ 已排 ')}{ftGymName(childBookings[c.id].gymId)}{t('，待現場測驗')}
                       </span>
                       <button disabled={ftBusyChild===c.id} onClick={() => cancelChildFallTest(c.id, childBookings[c.id].id)}
                         style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#fff', color:'#888', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
-                        {ftBusyChild===c.id ? '處理中…' : '更改場館'}
+                        {ftBusyChild===c.id ? t('處理中…') : t('更改場館')}
                       </button>
                     </div>
                   ) : (
                     <div style={{ marginTop:8 }}>
-                      <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>安排墜落測驗（選擇場館）：</div>
+                      <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>{t('安排墜落測驗（選擇場館）：')}</div>
                       <div style={{ display:'flex', gap:8 }}>
                         {FT_GYMS.map(g => (
                           <button key={g.id} disabled={ftBusyChild===c.id} onClick={() => scheduleChildFallTest(c.id, g.id)}
                             style={{ flex:1, height:34, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer' }}>
-                            {ftBusyChild===c.id ? '…' : g.name}
+                            {ftBusyChild===c.id ? '…' : t(g.name)}
                           </button>
                         ))}
                       </div>
@@ -421,32 +422,32 @@ export default function MemberProfilePage() {
                 {promoteTarget === c.id ? (
                   <div style={{ marginTop:10, borderTop:'0.5px solid #E8D5D5', paddingTop:10 }}>
                     <div style={{ fontSize:11, color:'#666', marginBottom:8 }}>
-                      設定 <strong>{c.name}</strong> 專屬的手機號碼、Email 與密碼，升級後即可獨立登入，過去的課程/票券/紀錄都會完整保留；升級後將不再出現在您的家庭成員清單中。
+                      {t('設定 ')}<strong>{c.name}</strong>{t(' 專屬的手機號碼、Email 與密碼，升級後即可獨立登入，過去的課程/票券/紀錄都會完整保留；升級後將不再出現在您的家庭成員清單中。')}
                     </div>
-                    <input placeholder="新手機號碼" value={promoteForm.phone}
+                    <input placeholder={t('新手機號碼')} value={promoteForm.phone}
                       onChange={e => setPromoteForm(f => ({ ...f, phone: e.target.value }))}
                       style={{ width:'100%', height:36, padding:'0 10px', borderRadius:8, border:'1px solid #E8D5D5', fontSize:13, marginBottom:6, boxSizing:'border-box' }} />
-                    <input placeholder="新 Email" value={promoteForm.email}
+                    <input placeholder={t('新 Email')} value={promoteForm.email}
                       onChange={e => setPromoteForm(f => ({ ...f, email: e.target.value }))}
                       style={{ width:'100%', height:36, padding:'0 10px', borderRadius:8, border:'1px solid #E8D5D5', fontSize:13, marginBottom:6, boxSizing:'border-box' }} />
-                    <PasswordInput placeholder="設定密碼（至少 8 碼）" value={promoteForm.password}
+                    <PasswordInput placeholder={t('設定密碼（至少 8 碼）')} value={promoteForm.password}
                       onChange={e => setPromoteForm(f => ({ ...f, password: e.target.value }))}
                       style={{ width:'100%', height:36, padding:'0 10px', borderRadius:8, border:'1px solid #E8D5D5', fontSize:13, marginBottom:8, boxSizing:'border-box' }} />
                     <div style={{ display:'flex', gap:8 }}>
                       <button onClick={() => { setPromoteTarget(null); setPromoteForm({ phone:'', email:'', password:'' }); }}
                         style={{ flex:1, height:34, borderRadius:8, background:'#fff', color:'#888', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
-                        取消
+                        {t('取消')}
                       </button>
                       <button disabled={promoting} onClick={() => handlePromoteChild(c.id)}
                         style={{ flex:1, height:34, borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:500, cursor:'pointer' }}>
-                        {promoting ? '處理中…' : '確認升級'}
+                        {promoting ? t('處理中…') : t('確認升級')}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <button onClick={() => { setPromoteTarget(c.id); setPromoteForm({ phone:'', email:'', password:'' }); setFamilyMsg(''); }}
                     style={{ marginTop:10, fontSize:11, padding:'3px 10px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
-                    🎓 升級為正式會員
+                    {t('🎓 升級為正式會員')}
                   </button>
                 )}
               </div>
@@ -455,44 +456,44 @@ export default function MemberProfilePage() {
             {!showAddChild ? (
               <button onClick={()=>{ setShowAddChild(true); setFamilyMsg(''); }}
                 style={{ width:'100%', height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer', marginTop:8 }}>
-                + 新增家庭成員
+                {t('+ 新增家庭成員')}
               </button>
             ) : (
               <div style={{ background:'#FBF5F5', borderRadius:12, padding:16, marginTop:8 }}>
-                <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>新增家庭成員</div>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>{t('新增家庭成員')}</div>
                 <div style={{ fontSize:12, color:'#8B1A1A', background:'#FAEEDA', borderRadius:8, padding:'8px 12px', marginBottom:12, lineHeight:1.6, textAlign:'left', fontWeight:600 }}>
-                  ⚠️ 家庭成員僅限「未滿 18 歲」，滿 18 歲請改註冊正式會員。
+                  {t('⚠️ 家庭成員僅限「未滿 18 歲」，滿 18 歲請改註冊正式會員。')}
                 </div>
                 <div style={{ marginBottom:10 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>姓名 *</label>
-                  <input value={childName} onChange={e=>setChildName(e.target.value)} placeholder="請填寫真實姓名"
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>{t('姓名 *')}</label>
+                  <input value={childName} onChange={e=>setChildName(e.target.value)} placeholder={t('請填寫真實姓名')}
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:14 }}>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>生日 *（未滿 18 歲）</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>{t('生日 *（未滿 18 歲）')}</label>
                     <input type="date" value={childBirthday} onChange={e=>setChildBirthday(e.target.value)}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                   </div>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>性別</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>{t('性別')}</label>
                     <select value={childGender} onChange={e=>setChildGender(e.target.value)}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a', cursor:'pointer' }}>
-                      <option value="">不填</option>
-                      <option value="male">男</option>
-                      <option value="female">女</option>
+                      <option value="">{t('不填')}</option>
+                      <option value="male">{t('男')}</option>
+                      <option value="female">{t('女')}</option>
                     </select>
                   </div>
                 </div>
                 <div style={{ fontSize:11, color:'#999', marginBottom:12 }}>
-                  ※ 家庭成員共用您的手機號碼登入，入場時一併顯示
+                  {t('※ 家庭成員共用您的手機號碼登入，入場時一併顯示')}
                 </div>
                 <div style={{ display:'flex', gap:8 }}>
                   <button onClick={()=>{ setShowAddChild(false); setChildName(''); setChildBirthday(''); setChildGender(''); }}
-                    style={{ flex:1, height:40, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+                    style={{ flex:1, height:40, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>{t('取消')}</button>
                   <button onClick={handleAddChild} disabled={addingChild}
                     style={{ flex:2, height:40, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                    {addingChild?'新增中...':'確認新增'}
+                    {addingChild?t('新增中...'):t('確認新增')}
                   </button>
                 </div>
               </div>
@@ -506,14 +507,14 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:340, textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.2)' }}>
             <div style={{ fontSize:40, marginBottom:8 }}>🔞</div>
-            <div style={{ fontSize:17, fontWeight:700, marginBottom:10 }}>超過年齡限制</div>
+            <div style={{ fontSize:17, fontWeight:700, marginBottom:10 }}>{t('超過年齡限制')}</div>
             <div style={{ fontSize:13.5, color:'#555', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              家庭成員（子會員）僅限<strong>未滿 18 歲</strong>。您填寫的生日為 <strong>{ageLimitModal.age} 歲</strong>，已達成年，無法新增為家庭成員。<br/>
-              滿 18 歲請改<strong>註冊正式會員</strong >帳號。
+              {t('家庭成員（子會員）僅限')}<strong>{t('未滿 18 歲')}</strong>{t('。您填寫的生日為 ')}<strong>{ageLimitModal.age} {tt('歲','yo','歳')}</strong>{t('，已達成年，無法新增為家庭成員。')}<br/>
+              {t('滿 18 歲請改')}<strong>{t('註冊正式會員')}</strong >{t('帳號。')}
             </div>
             <button onClick={() => setAgeLimitModal(null)}
               style={{ width:'100%', height:46, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
-              我知道了
+              {t('我知道了')}
             </button>
           </div>
         </div>
@@ -523,10 +524,10 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 36px', width:'100%' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, textAlign:'center', marginBottom:6 }}>確認登出？</div>
-            <div style={{ fontSize:13, color:'#999', textAlign:'center', marginBottom:20 }}>登出後需重新輸入手機號碼與密碼</div>
-            <button onClick={() => { logout(); navigate('/member/login'); }} style={{ width:'100%', height:48, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor:'pointer', marginBottom:10 }}>確認登出</button>
-            <button onClick={() => setShowLogout(false)} style={{ width:'100%', height:48, borderRadius:12, background:'none', border:'0.5px solid #E8D5D5', fontSize:15, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+            <div style={{ fontSize:16, fontWeight:600, textAlign:'center', marginBottom:6 }}>{t('確認登出？')}</div>
+            <div style={{ fontSize:13, color:'#999', textAlign:'center', marginBottom:20 }}>{t('登出後需重新輸入手機號碼與密碼')}</div>
+            <button onClick={() => { logout(); navigate('/member/login'); }} style={{ width:'100%', height:48, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor:'pointer', marginBottom:10 }}>{t('確認登出')}</button>
+            <button onClick={() => setShowLogout(false)} style={{ width:'100%', height:48, borderRadius:12, background:'none', border:'0.5px solid #E8D5D5', fontSize:15, color:'#6b6b6b', cursor:'pointer' }}>{t('取消')}</button>
           </div>
         </div>
       )}
@@ -535,14 +536,14 @@ export default function MemberProfilePage() {
       {showResumeConfirm && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={() => setShowResumeConfirm(false)}>
           <div style={{ background:'#fff', borderRadius:14, padding:22, width:'100%', maxWidth:360 }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight:700, fontSize:16, marginBottom:8 }}>重啟本人入場？</div>
+            <div style={{ fontWeight:700, fontSize:16, marginBottom:8 }}>{t('重啟本人入場？')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:18 }}>
-              重啟後將要求你完成<strong>入場文件簽署</strong>（風險安全聲明＋墜落測驗同意書）才能自己入場。<br/>
-              若只是要管理家庭成員、本人不入場，請按「取消」。
+              {t('重啟後將要求你完成')}<strong>{t('入場文件簽署')}</strong>{t('（風險安全聲明＋墜落測驗同意書）才能自己入場。')}<br/>
+              {t('若只是要管理家庭成員、本人不入場，請按「取消」。')}
             </div>
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={() => setShowResumeConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={handleResumeSelfEntry} style={{ flex:1, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確定重啟</button>
+              <button onClick={() => setShowResumeConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
+              <button onClick={handleResumeSelfEntry} style={{ flex:1, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{t('確定重啟')}</button>
             </div>
           </div>
         </div>
@@ -553,11 +554,11 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 36px', width:'100%', maxHeight:'80vh', overflowY:'auto' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:20 }}>修改個人資料</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:20 }}>{t('修改個人資料')}</div>
             {[
-              { label:'姓名', key:'name', placeholder: member?.name, type:'text' },
+              { label:t('姓名'), key:'name', placeholder: member?.name, type:'text' },
               { label:'Email', key:'email', placeholder: member?.email, type:'email' },
-              { label:'生日', key:'birthday', placeholder: member?.birthday || 'YYYY-MM-DD', type:'date' },
+              { label:t('生日'), key:'birthday', placeholder: member?.birthday || 'YYYY-MM-DD', type:'date' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -568,39 +569,39 @@ export default function MemberProfilePage() {
             ))}
             {/* 緊急聯絡人：姓名 / 關係 / 電話 三格 */}
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>緊急聯絡人</label>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('緊急聯絡人')}</label>
               <div style={{ display:'flex', gap:8 }}>
                 <input value={editForm.ecName} onChange={e => setEditForm(p => ({...p, ecName: e.target.value}))}
-                  placeholder="姓名"
+                  placeholder={t('姓名')}
                   style={{ flex:'1.2 1 0', minWidth:0, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
                 <input value={editForm.ecRelation} onChange={e => setEditForm(p => ({...p, ecRelation: e.target.value}))}
-                  placeholder="關係"
+                  placeholder={t('關係')}
                   style={{ flex:'1 1 0', minWidth:0, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
                 <input value={editForm.ecPhone} onChange={e => setEditForm(p => ({...p, ecPhone: e.target.value}))}
-                  placeholder="電話" inputMode="tel"
+                  placeholder={t('電話')} inputMode="tel"
                   style={{ flex:'1.6 1 0', minWidth:0, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               </div>
             </div>
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>暱稱（選填，最多10字）</label>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('暱稱（選填，最多10字）')}</label>
               <input value={editForm.nickname} maxLength={10} onChange={e => setEditForm(p => ({...p, nickname: e.target.value}))}
-                placeholder="留空則以本名顯示"
+                placeholder={t('留空則以本名顯示')}
                 style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
-              <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.5, textAlign:'left' }}>用於路線積分排行榜與路線標記朋友功能的公開顯示</div>
+              <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.5, textAlign:'left' }}>{t('用於路線積分排行榜與路線標記朋友功能的公開顯示')}</div>
             </div>
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>性別</label>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('性別')}</label>
               <select value={editForm.gender} onChange={e => setEditForm(p => ({...p, gender: e.target.value}))}
                 style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}>
-                <option value="">不公開</option>
-                <option value="male">男</option>
-                <option value="female">女</option>
+                <option value="">{t('不公開')}</option>
+                <option value="male">{t('男')}</option>
+                <option value="female">{t('女')}</option>
               </select>
             </div>
-            {msg && <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', fontSize:13, color:'#2D7D46', marginBottom:12 }}>{msg}</div>}
+            {msg && <div style={{ background: msgOk?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color: msgOk?'#2D7D46':'#A32D2D', marginBottom:12 }}>{msg}</div>}
             <div style={{ display:'flex', gap:10, marginTop:8 }}>
               <button onClick={() => setShowEditProfile(false)}
-                style={{ flex:1, height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>取消</button>
+                style={{ flex:1, height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={async () => {
                 try {
                   const ecParts = [editForm.ecName, editForm.ecRelation, editForm.ecPhone].map(s => (s || '').trim());
@@ -609,10 +610,10 @@ export default function MemberProfilePage() {
                   const { memberClient } = await import('../../api/client');
                   await memberClient.put('/auth/member/profile', payload);
                   updateMember(payload);
-                  setMsg('資料已更新');
+                  setMsg(t('資料已更新')); setMsgOk(true);
                   setTimeout(() => { setMsg(''); setShowEditProfile(false); }, 1500);
-                } catch { setMsg('更新失敗，請稍後再試'); }
-              }}     style={{ flex:2, height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>儲存</button>
+                } catch { setMsg(t('更新失敗，請稍後再試')); setMsgOk(false); }
+              }}     style={{ flex:2, height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>{t('儲存')}</button>
             </div>
           </div>
         </div>
@@ -623,11 +624,11 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 36px', width:'100%' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:20 }}>修改密碼</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:20 }}>{t('修改密碼')}</div>
             {[
-              { label:'目前密碼', key:'current' },
-              { label:'新密碼', key:'newPw' },
-              { label:'確認新密碼', key:'confirm' },
+              { label:t('目前密碼'), key:'current' },
+              { label:t('新密碼'), key:'newPw' },
+              { label:t('確認新密碼'), key:'confirm' },
             ].map(f => (
               <div key={f.key} style={{ marginBottom:14 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -636,21 +637,21 @@ export default function MemberProfilePage() {
                   style={{ width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:14, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               </div>
             ))}
-            {msg && <div style={{ background: msg.includes('失敗')?'#FCEBEB':'#E6F4EB', borderRadius:8, padding:'8px 12px', fontSize:13, color: msg.includes('失敗')?'#A32D2D':'#2D7D46', marginBottom:12 }}>{msg}</div>}
+            {msg && <div style={{ background: msgOk?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:13, color: msgOk?'#2D7D46':'#A32D2D', marginBottom:12 }}>{msg}</div>}
             <div style={{ display:'flex', gap:10, marginTop:8 }}>
               <button onClick={() => { setShowChangePassword(false); setPwForm({ current:'', newPw:'', confirm:'' }); }}
-                style={{ flex:1, height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>取消</button>
+                style={{ flex:1, height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={async () => {
-                if (pwForm.newPw !== pwForm.confirm) { setMsg('新密碼不一致'); return; }
-                if (pwForm.newPw.length < 6) { setMsg('密碼至少6碼'); return; }
+                if (pwForm.newPw !== pwForm.confirm) { setMsg(t('新密碼不一致')); setMsgOk(false); return; }
+                if (pwForm.newPw.length < 6) { setMsg(t('密碼至少6碼')); setMsgOk(false); return; }
                 try {
                   const { memberClient } = await import('../../api/client');
                   await memberClient.put('/auth/member/password', { currentPassword: pwForm.current, newPassword: pwForm.newPw });
-                  setMsg('密碼已更新');
+                  setMsg(t('密碼已更新')); setMsgOk(true);
                   setTimeout(() => { setMsg(''); setShowChangePassword(false); setPwForm({ current:'', newPw:'', confirm:'' }); }, 1500);
-                } catch { setMsg('修改失敗，請確認目前密碼'); }
+                } catch { setMsg(t('修改失敗，請確認目前密碼')); setMsgOk(false); }
               }}
-                style={{ flex:2, height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>確認修改</button>
+                style={{ flex:2, height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>{t('確認修改')}</button>
             </div>
           </div>
         </div>
@@ -661,16 +662,16 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 36px', width:'100%' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:8 }}>紅石官方 Line 通知設定</div>
-            <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>綁定 Line 接收課程、票券、比賽通知</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:8 }}>{t('紅石官方 Line 通知設定')}</div>
+            <div style={{ fontSize:13, color:'#666', marginBottom:20 }}>{t('綁定 Line 接收課程、票券、比賽通知')}</div>
             <div style={{ background:'#F5EFEF', borderRadius:12, padding:16, marginBottom:20, textAlign:'center' }}>
-              <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>尚未綁定 Line</div>
+              <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{t('尚未綁定 Line')}</div>
               <button style={{ height:44, padding:'0 24px', borderRadius:10, background:'#06C755', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                綁定 Line 通知
+                {t('綁定 Line 通知')}
               </button>
             </div>
             <button onClick={() => setShowNotification(false)}
-              style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>關閉</button>
+              style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('關閉')}</button>
           </div>
         </div>
       )}
@@ -680,10 +681,10 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 0', width:'100%', maxHeight:'80vh', display:'flex', flexDirection:'column' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:16 }}>入場紀錄</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:16 }}>{t('入場紀錄')}</div>
             <div style={{ flex:1, overflowY:'auto', paddingBottom:36 }}>
               {checkinHistory.length === 0 ? (
-                <div style={{ textAlign:'center', padding:'40px 0', color:'#999', fontSize:14 }}>尚無入場紀錄</div>
+                <div style={{ textAlign:'center', padding:'40px 0', color:'#999', fontSize:14 }}>{t('尚無入場紀錄')}</div>
               ) : checkinHistory.map((r, i) => (
                 <div key={i} style={{ padding:'12px 0', borderBottom:'0.5px solid #F5EFEF' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
@@ -692,7 +693,7 @@ export default function MemberProfilePage() {
                   </div>
                   <div style={{ fontSize:12, color:'#666', display:'flex', gap:8 }}>
                     <span>{entryLabelOf(r)}</span>
-                    {r.paymentMethod && <span>・{r.paymentMethod === 'cash' ? '現金' : r.paymentMethod}</span>}
+                    {r.paymentMethod && <span>・{r.paymentMethod === 'cash' ? t('現金') : r.paymentMethod}</span>}
                     {r.amountPaid > 0 && <span>・NT${r.amountPaid}</span>}
                   </div>
                 </div>
@@ -700,7 +701,7 @@ export default function MemberProfilePage() {
             </div>
             <div style={{ padding:'12px 0 36px' }}>
               <button onClick={() => setShowCheckinHistory(false)}
-                style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>關閉</button>
+                style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('關閉')}</button>
             </div>
           </div>
         </div>
@@ -711,46 +712,46 @@ export default function MemberProfilePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'20px 20px 0 0', padding:'20px 20px 0', width:'100%', maxHeight:'80vh', display:'flex', flexDirection:'column' }}>
             <div style={{ width:36, height:4, background:'#DDD', borderRadius:2, margin:'0 auto 16px' }}/>
-            <div style={{ fontSize:16, fontWeight:600, marginBottom:16, textAlign:'left' }}>已簽署的風險安全聲明書</div>
+            <div style={{ fontSize:16, fontWeight:600, marginBottom:16, textAlign:'left' }}>{t('已簽署的風險安全聲明書')}</div>
             <div style={{ flex:1, overflowY:'auto', paddingBottom:36 }}>
               {waiverLoading ? (
-                <div style={{ textAlign:'center', padding:'40px 0', color:'#999', fontSize:14 }}>載入中...</div>
+                <div style={{ textAlign:'center', padding:'40px 0', color:'#999', fontSize:14 }}>{t('載入中...')}</div>
               ) : !myWaiver ? (
-                <div style={{ textAlign:'center', padding:'40px 0', color:'#999', fontSize:14 }}>找不到簽署紀錄</div>
+                <div style={{ textAlign:'center', padding:'40px 0', color:'#999', fontSize:14 }}>{t('找不到簽署紀錄')}</div>
               ) : (
                 <>
                   {myWaiver.contentSnapshot && (
                     <div style={{ marginBottom:20 }}>
-                      <div style={{ fontSize:11, color:'#999', marginBottom:6, textAlign:'left' }}>聲明書內容</div>
+                      <div style={{ fontSize:11, color:'#999', marginBottom:6, textAlign:'left' }}>{t('聲明書內容')}</div>
                       {myWaiver.contentIsFallback && (
                         <div style={{ fontSize:11, color:'#B5762B', background:'#FFF3E0', borderRadius:6, padding:'6px 10px', marginBottom:8 }}>
-                          此筆紀錄簽署時間較早，系統未保留當時的逐字版本，以下顯示為目前版本內容
+                          {t('此筆紀錄簽署時間較早，系統未保留當時的逐字版本，以下顯示為目前版本內容')}
                         </div>
                       )}
                       <div style={{ fontSize:13, color:'#333', lineHeight:1.7, whiteSpace:'pre-wrap', background:'#FBF5F5', borderRadius:8, padding:12, border:'0.5px solid #E8D5D5', textAlign:'left' }}>
-                        {myWaiver.contentSnapshot.zh || '（無內容）'}
+                        {myWaiver.contentSnapshot.zh || t('（無內容）')}
                       </div>
                     </div>
                   )}
                   <div style={{ marginBottom:16 }}>
-                    <div style={{ fontSize:11, color:'#999', marginBottom:6, textAlign:'left' }}>本人簽名</div>
+                    <div style={{ fontSize:11, color:'#999', marginBottom:6, textAlign:'left' }}>{t('本人簽名')}</div>
                     {myWaiver.memberSignatureUrl ? (
-                      <img src={myWaiver.memberSignatureUrl} alt="簽名"
+                      <img src={myWaiver.memberSignatureUrl} alt={t('簽名')}
                         style={{ width:'100%', maxWidth:280, border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5' }}/>
-                    ) : <div style={{ fontSize:13, color:'#999' }}>無簽名圖檔</div>}
+                    ) : <div style={{ fontSize:13, color:'#999' }}>{t('無簽名圖檔')}</div>}
                   </div>
                   <div style={{ fontSize:13, color:'#666', marginBottom:8 }}>
-                    簽署時間：{fmtTs(myWaiver.memberSignedAt)}
+                    {t('簽署時間：')}{fmtTs(myWaiver.memberSignedAt)}
                   </div>
                   {myWaiver.parentRequired && (
                     <div style={{ marginTop:16, paddingTop:16, borderTop:'0.5px solid #F5EFEF' }}>
-                      <div style={{ fontSize:11, color:'#999', marginBottom:6 }}>法定代理人簽名</div>
+                      <div style={{ fontSize:11, color:'#999', marginBottom:6 }}>{t('法定代理人簽名')}</div>
                       {myWaiver.parentSignatureUrl ? (
-                        <img src={myWaiver.parentSignatureUrl} alt="法定代理人簽名"
+                        <img src={myWaiver.parentSignatureUrl} alt={t('法定代理人簽名')}
                           style={{ width:'100%', maxWidth:280, border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', marginBottom:8 }}/>
-                      ) : <div style={{ fontSize:13, color:'#999', marginBottom:8 }}>尚未簽署</div>}
-                      {myWaiver.parentName && <div style={{ fontSize:13, color:'#666' }}>簽署人：{myWaiver.parentName}（{myWaiver.parentRelation || '法定代理人'}）</div>}
-                      {myWaiver.parentSignedAt && <div style={{ fontSize:13, color:'#666', marginTop:4 }}>簽署時間：{fmtTs(myWaiver.parentSignedAt)}</div>}
+                      ) : <div style={{ fontSize:13, color:'#999', marginBottom:8 }}>{t('尚未簽署')}</div>}
+                      {myWaiver.parentName && <div style={{ fontSize:13, color:'#666' }}>{t('簽署人：')}{myWaiver.parentName}（{myWaiver.parentRelation || t('法定代理人')}）</div>}
+                      {myWaiver.parentSignedAt && <div style={{ fontSize:13, color:'#666', marginTop:4 }}>{t('簽署時間：')}{fmtTs(myWaiver.parentSignedAt)}</div>}
                     </div>
                   )}
                 </>
@@ -758,7 +759,7 @@ export default function MemberProfilePage() {
             </div>
             <div style={{ padding:'12px 0 36px' }}>
               <button onClick={() => setShowWaiver(false)}
-                style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>關閉</button>
+                style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('關閉')}</button>
             </div>
           </div>
         </div>
