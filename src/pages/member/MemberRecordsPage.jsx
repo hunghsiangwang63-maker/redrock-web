@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -15,7 +15,7 @@ const TABS = [
   { key:'courses',     icon:'📚', label:'課程' },
   { key:'adjustments', icon:'📋', label:'退費/請假' },
   { key:'competitions',icon:'🏆', label:'比賽' },
-];
+]; // label 顯示時走 t() 查字典（見下方 TABS.map），此處保留中文原字串當 key
 
 export default function MemberRecordsPage() {
   const { member } = useMember();
@@ -36,9 +36,9 @@ export default function MemberRecordsPage() {
     memberClient.get('/members/my/children')
       .then(r => {
         const children = (r.data.children || r.data || []).map(c => ({ id: c.id, name: c.name, isSelf: false }));
-        setPeople([{ id: member.id, name: member.name || '本人', isSelf: true }, ...children]);
+        setPeople([{ id: member.id, name: member.name || t('本人'), isSelf: true }, ...children]);
       })
-      .catch(() => setPeople([{ id: member.id, name: member.name || '本人', isSelf: true }]));
+      .catch(() => setPeople([{ id: member.id, name: member.name || t('本人'), isSelf: true }]));
   }, [member?.id]);
 
   useEffect(() => {
@@ -68,13 +68,13 @@ export default function MemberRecordsPage() {
     <div style={{ minHeight:'100vh', background:'#FBF5F5', paddingBottom:80 }}>
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={()=>navigate('/member/profile')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
-        <div style={{ fontSize:18, fontWeight:700 }}>📋 我的紀錄</div>
+        <div style={{ fontSize:18, fontWeight:700 }}>📋 {t('我的紀錄')}</div>
       </div>
 
       {/* 家庭成員下拉（有子女才顯示） */}
       {people.length > 1 && (
         <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', padding:'10px 16px', display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{ fontSize:12, color:'#666', flexShrink:0 }}>檢視對象</span>
+          <span style={{ fontSize:12, color:'#666', flexShrink:0 }}>{t('檢視對象')}</span>
           <select value={viewId || ''} onChange={e => setViewId(e.target.value)}
             style={{ flex:1, padding:'8px 10px', borderRadius:8, border:'0.5px solid #D9C4C4', background:'#FBF5F5', fontSize:13, color:'#333' }}>
             {people.map(p => (
@@ -86,27 +86,27 @@ export default function MemberRecordsPage() {
 
       {/* Tab */}
       <div style={{ background:'#fff', borderBottom:'0.5px solid #E8D5D5', display:'flex', overflowX:'auto', gap:0, padding:'0 12px' }}>
-        {TABS.map(t => {
-          const active = tab===t.key;
-          const count = t.key === 'courses'
+        {TABS.map(tabDef => {
+          const active = tab===tabDef.key;
+          const count = tabDef.key === 'courses'
             ? courseGroups(records?.courses || []).length
-            : (records?.[t.key]?.length || 0);
+            : (records?.[tabDef.key]?.length || 0);
           return (
-            <button key={t.key} onClick={()=>setTab(t.key)}
+            <button key={tabDef.key} onClick={()=>setTab(tabDef.key)}
               style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:2, padding:'10px 16px', border:'none', borderBottom:active?'2.5px solid #8B1A1A':'2.5px solid transparent', background:'none', color:active?'#8B1A1A':'#666', fontSize:11, fontWeight:active?700:400, cursor:'pointer' }}>
-              <span style={{ fontSize:16 }}>{t.icon}</span>
-              <span>{t.label}{count>0?` (${count})`:''}</span>
+              <span style={{ fontSize:16 }}>{tabDef.icon}</span>
+              <span>{t(tabDef.label)}{count>0?` (${count})`:''}</span>
             </button>
           );
         })}
       </div>
 
       <div style={{ padding:'12px 16px' }}>
-        {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
+        {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('載入中…')}</div>}
 
         {!loading && tab==='checkins' && (() => {
           const all = records?.checkins || [];
-          if (!all.length) return <Empty text="無入場紀錄"/>;
+          if (!all.length) return <Empty text={t('無入場紀錄')}/>;
           const cutoff = dayjs().subtract(3, 'month');
           const recent = [], older = [];
           all.forEach(c => { (checkinDay(c) && checkinDay(c).isBefore(cutoff) ? older : recent).push(c); });
@@ -117,8 +117,8 @@ export default function MemberRecordsPage() {
           return (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {recent.map((c,i) => <CheckinRow key={'r'+i} c={c} card/>)}
-              {!recent.length && <div style={{ textAlign:'center', color:'#999', fontSize:12, padding:'8px 0' }}>近三個月無入場紀錄</div>}
-              {years.length > 0 && <div style={{ fontSize:11, color:'#999', margin:'8px 2px 0', letterSpacing:1 }}>—— 三個月以前 ——</div>}
+              {!recent.length && <div style={{ textAlign:'center', color:'#999', fontSize:12, padding:'8px 0' }}>{t('近三個月無入場紀錄')}</div>}
+              {years.length > 0 && <div style={{ fontSize:11, color:'#999', margin:'8px 2px 0', letterSpacing:1 }}>{t('—— 三個月以前 ——')}</div>}
               {years.map(y => {
                 const list = byYear[y];
                 const open = !!expandedYears[y];
@@ -130,13 +130,15 @@ export default function MemberRecordsPage() {
                   <div key={y} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                     <div onClick={() => setExpandedYears(v => ({ ...v, [y]: !v[y] }))}
                       style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 14px', cursor:'pointer' }}>
-                      <div style={{ fontSize:14, fontWeight:600, color:'#333' }}>{y} 年</div>
-                      <div style={{ fontSize:12, color:'#999' }}>{list.filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length} 次入場 {open ? '▲' : '▼'}</div>
+                      <div style={{ fontSize:14, fontWeight:600, color:'#333' }}>{tt(`${y} 年`, `${y}`, `${y}年`)}</div>
+                      <div style={{ fontSize:12, color:'#999' }}>{tt(`${list.filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length} 次入場`, `${list.filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length} check-ins`, `${list.filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length}回入場`)} {open ? '▲' : '▼'}</div>
                     </div>
                     {open && qs.map(q => (
                       <div key={q} style={{ borderTop:'0.5px solid #F0E4E4' }}>
                         <div style={{ fontSize:11, fontWeight:600, color:'#8B1A1A', padding:'8px 14px 4px', background:'#FBF5F5' }}>
-                          第 {q} 季（{q*3-2}–{q*3} 月）· {byQ[q].filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length} 次
+                          {tt(`第 ${q} 季（${q*3-2}–${q*3} 月）· ${byQ[q].filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length} 次`,
+                              `Q${q} (${q*3-2}–${q*3}) · ${byQ[q].filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length}`,
+                              `第${q}四半期（${q*3-2}〜${q*3}月）· ${byQ[q].filter(c => !(c.isCancelled === true || c.status === 'cancelled')).length}回`)}
                         </div>
                         {byQ[q].map((c,i) => <CheckinRow key={i} c={c}/>)}
                       </div>
@@ -150,12 +152,12 @@ export default function MemberRecordsPage() {
 
         {!loading && tab==='passes' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {!records?.passes?.length && <Empty text="無定期票紀錄"/>}
+            {!records?.passes?.length && <Empty text={t('無定期票紀錄')}/>}
             {(records?.passes||[]).map((p,i) => (
               <Card key={i}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div style={{ fontSize:13, fontWeight:500 }}>{p.passTypeName||p.passType}</div>
-                  <StatusBadge status={p.status} labels={{ active:'使用中', expired:'已到期' }}/>
+                  <StatusBadge status={p.status} labels={{ active:t('使用中'), expired:t('已到期') }}/>
                 </div>
                 <div style={{ fontSize:11, color:'#999', marginTop:4 }}>{p.startDate} ～ {p.endDate}</div>
               </Card>
@@ -165,7 +167,7 @@ export default function MemberRecordsPage() {
 
         {!loading && tab==='courses' && (() => {
           const groups = courseGroups(records?.courses || []);
-          if (!groups.length) return <Empty text="無課程報名紀錄"/>;
+          if (!groups.length) return <Empty text={t('無課程報名紀錄')}/>;
           return (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
               {groups.map(g => {
@@ -176,7 +178,7 @@ export default function MemberRecordsPage() {
                       style={{ padding:'12px 14px', cursor:'pointer' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
                         <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>
-                          {gymPrefix(g.gymId)}{g.courseName}{g.allMakeup ? ' 🔄 補課' : ''}{g.allTrial ? ' ✨ 試上' : ''}
+                          {gymPrefix(g.gymId)}{g.courseName}{g.allMakeup ? ` 🔄 ${t('補課')}` : ''}{g.allTrial ? ` ✨ ${t('試上')}` : ''}
                         </div>
                         <div style={{ fontSize:12, color:'#999', flexShrink:0 }}>{open ? '▲' : '▼'}</div>
                       </div>
@@ -184,10 +186,10 @@ export default function MemberRecordsPage() {
                         {g.dateFrom}{g.dateTo && g.dateTo !== g.dateFrom ? ` ～ ${g.dateTo}` : ''}
                       </div>
                       <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
-                        {g.stats.confirmed > 0 && <MiniTag bg="#E6F4EB" color="#2D7D46">已報名 {g.stats.confirmed} 堂</MiniTag>}
-                        {g.stats.leave > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">請假 {g.stats.leave}</MiniTag>}
-                        {g.stats.waitlist > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">候補 {g.stats.waitlist}</MiniTag>}
-                        {g.stats.cancelled > 0 && <MiniTag bg="#F0EDED" color="#999">取消 {g.stats.cancelled}</MiniTag>}
+                        {g.stats.confirmed > 0 && <MiniTag bg="#E6F4EB" color="#2D7D46">{tt(`${t('已報名')} ${g.stats.confirmed} 堂`, `${t('已報名')} ${g.stats.confirmed}`, `${t('已報名')} ${g.stats.confirmed}回`)}</MiniTag>}
+                        {g.stats.leave > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">{t('請假')} {g.stats.leave}</MiniTag>}
+                        {g.stats.waitlist > 0 && <MiniTag bg="#FAEEDA" color="#854F0B">{t('候補')} {g.stats.waitlist}</MiniTag>}
+                        {g.stats.cancelled > 0 && <MiniTag bg="#F0EDED" color="#999">{t('取消')} {g.stats.cancelled}</MiniTag>}
                       </div>
                     </div>
                     {open && (
@@ -195,9 +197,9 @@ export default function MemberRecordsPage() {
                         {g.items.map((e,i) => (
                           <div key={i} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 14px', borderTop: i>0 ? '0.5px solid #F7EFEF' : 'none' }}>
                             <div style={{ fontSize:12, color:'#333' }}>
-                              {e.date} {e.startTime || ''}{e.isMakeup ? ' 🔄 補課' : ''}{e.isTrial ? ' ✨ 試上' : ''}
+                              {e.date} {e.startTime || ''}{e.isMakeup ? ` 🔄 ${t('補課')}` : ''}{e.isTrial ? ` ✨ ${t('試上')}` : ''}
                             </div>
-                            <StatusBadge status={e.status} labels={{ confirmed:'已報名', leave:'已請假', waitlist:'候補', cancelled:'已取消', course_cancelled:'課程已取消' }}/>
+                            <StatusBadge status={e.status} labels={{ confirmed:t('已報名'), leave:t('已請假'), waitlist:t('候補'), cancelled:t('已取消'), course_cancelled:t('課程已取消') }}/>
                           </div>
                         ))}
                       </div>
@@ -211,9 +213,9 @@ export default function MemberRecordsPage() {
 
         {!loading && tab==='adjustments' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {!records?.adjustments?.length && <Empty text="無退費/請假申請紀錄"/>}
+            {!records?.adjustments?.length && <Empty text={t('無退費/請假申請紀錄')}/>}
             {(records?.adjustments||[]).map((r,i) => {
-              const typeLabel = r.type==='refund'?'退費申請':r.type==='pause'?'暫停申請':'申請';
+              const typeLabel = r.type==='refund'?t('退費申請'):r.type==='pause'?t('暫停申請'):t('申請');
               return (
                 <Card key={i}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -222,10 +224,10 @@ export default function MemberRecordsPage() {
                       <div style={{ fontSize:11, color:'#666', marginTop:2 }}>{typeLabel}{r.reason?` · ${r.reason}`:''}</div>
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                         {r.createdAt?._seconds ? dayjs(r.createdAt._seconds*1000).format('YYYY/MM/DD') : ''}
-                        {r.refundAmount ? ` · 退款 NT$${r.refundAmount}` : ''}
+                        {r.refundAmount ? tt(` · 退款 NT$${r.refundAmount}`, ` · Refund NT$${r.refundAmount}`, ` · 返金 NT$${r.refundAmount}`) : ''}
                       </div>
                     </div>
-                    <StatusBadge status={r.status} labels={{ pending:'待審核', approved:'已核准', rejected:'已拒絕' }}/>
+                    <StatusBadge status={r.status} labels={{ pending:t('待審核'), approved:t('已核准'), rejected:t('已拒絕') }}/>
                   </div>
                 </Card>
               );
@@ -235,7 +237,7 @@ export default function MemberRecordsPage() {
 
         {!loading && tab==='competitions' && (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {!records?.competitions?.length && <Empty text="無比賽報名紀錄"/>}
+            {!records?.competitions?.length && <Empty text={t('無比賽報名紀錄')}/>}
             {(records?.competitions||[]).map((r,i) => (
               <Card key={i}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -243,11 +245,15 @@ export default function MemberRecordsPage() {
                     <div style={{ fontSize:13, fontWeight:500 }}>{r.competitionName}</div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{r.divisionName} · {r.eventDate||''}</div>
                   </div>
-                  <StatusBadge status={r.paymentStatus} labels={{ confirmed:'已繳費', pending:'待繳費' }}/>
+                  <StatusBadge status={r.paymentStatus} labels={{ confirmed:t('已繳費'), pending:t('待繳費') }}/>
                 </div>
                 {r.result?.rank != null && (
                   <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600, marginTop:6 }}>
-                    🏆 {r.result.categoryName || r.divisionName}第 {r.result.rank} 名{r.result.participantCount ? `（共 ${r.result.participantCount} 人）` : ''}
+                    🏆 {tt(
+                      `${r.result.categoryName || r.divisionName}第 ${r.result.rank} 名${r.result.participantCount ? `（共 ${r.result.participantCount} 人）` : ''}`,
+                      `${r.result.categoryName || r.divisionName} Rank ${r.result.rank}${r.result.participantCount ? ` (of ${r.result.participantCount})` : ''}`,
+                      `${r.result.categoryName || r.divisionName} 第${r.result.rank}位${r.result.participantCount ? `（全${r.result.participantCount}名中）` : ''}`
+                    )}
                   </div>
                 )}
               </Card>
@@ -278,9 +284,9 @@ const CheckinRow = ({ c, card }) => {
       <div>
         <div style={{ fontSize: card ? 13 : 12, fontWeight:500, display:'flex', alignItems:'center', gap:6 }}>
           <span style={{ textDecoration: cancelled ? 'line-through' : 'none', color: cancelled ? '#999' : '#333' }}>
-            {c.gymId==='gym-hsinchu'?'新竹館':'士林館'}
+            {t(c.gymId==='gym-hsinchu'?'新竹館':'士林館')}
           </span>
-          {cancelled && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'#F0EDED', color:'#999', fontWeight:600 }}>已取消</span>}
+          {cancelled && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'#F0EDED', color:'#999', fontWeight:600 }}>{t('已取消')}</span>}
         </div>
         <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{entryLabelOf(c)}</div>
       </div>
