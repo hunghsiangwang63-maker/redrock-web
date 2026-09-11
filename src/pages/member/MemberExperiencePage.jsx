@@ -30,7 +30,7 @@ const participantUnder4 = (s) => {
 
 // 只留抱石體驗課程；小蜘蛛人（兒童）/抱石技巧班已併入「課程試上」報名
 const FALLBACK_COURSE_TYPES = [
-  { id:'general',    label:'抱石體驗課程（依人數計費）' },
+  { id:'general',    label:t('抱石體驗課程（依人數計費）') },
 ];
 const GENERAL_PRICE = { 1:975, 2:875, 3:875 };
 const getGeneralPrice = (n) => n>=9?775:n>=6?775:n>=4?825:n>=3?875:n>=2?875:975;
@@ -71,7 +71,7 @@ export default function MemberExperiencePage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [alertModal, setAlertModal] = useState(null);
-  const showMsg = (t, type='ok') => setAlertModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
+  const showMsg = (msg, type='ok') => setAlertModal({ message: msg, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
   // ⚠️ 由 mount effect（原為獨立重複的 inline fetch，已改呼叫此函式共用同一份序號保護）與取消/修改
   // 預約動作觸發；序號只採用最新一次回應，避免過期資料蓋掉剛取消/修改後的最新預約狀態。
@@ -92,13 +92,13 @@ export default function MemberExperiencePage() {
   const doBkCancel = async () => {
     if (!bkCancel) return;
     const { b, form } = bkCancel;
-    if (bkPaid(b) && (!form.bankCode || !form.account)) { showMsg('請填寫退款銀行代碼與帳號','red'); return; }
+    if (bkPaid(b) && (!form.bankCode || !form.account)) { showMsg(t('請填寫退款銀行代碼與帳號'),'red'); return; }
     setBkSaving(true);
     try {
       const res = await memberClient.post(`/experience-bookings/${b.id}/member-cancel`,
         bkPaid(b) ? { refundBankCode:form.bankCode, refundAccount:form.account, refundAccountName:form.accountName||'' } : {});
-      showMsg(res.data?.message || '預約已取消'); setBkCancel(null); refreshBookings();
-    } catch (err) { showMsg(err.response?.data?.message || '取消失敗','red'); }
+      showMsg(res.data?.message || t('預約已取消')); setBkCancel(null); refreshBookings();
+    } catch (err) { showMsg(err.response?.data?.message || t('取消失敗'),'red'); }
     finally { setBkSaving(false); }
   };
   const doBkEdit = async () => {
@@ -108,8 +108,8 @@ export default function MemberExperiencePage() {
     try {
       const payload = b.kind==='trial' ? { sessionId: form.sessionId } : { bookingDate: form.bookingDate, bookingTime: form.bookingTime };
       const res = await memberClient.put(`/experience-bookings/${b.id}/member-edit`, payload);
-      showMsg(res.data?.message || '已更新'); setBkEdit(null); refreshBookings();
-    } catch (err) { showMsg(err.response?.data?.message || '修改失敗','red'); }
+      showMsg(res.data?.message || t('已更新')); setBkEdit(null); refreshBookings();
+    } catch (err) { showMsg(err.response?.data?.message || t('修改失敗'),'red'); }
     finally { setBkSaving(false); }
   };
 
@@ -131,12 +131,12 @@ export default function MemberExperiencePage() {
   const anyParticipantUnder4 = participants.some(p => participantUnder4(p.birthday));
 
   const handleSubmit = async () => {
-    if (!bookingDate) { showMsg('請填寫預約體驗日期','red'); return; }
-    if (!bookingTime) { showMsg('請填寫預約時間','red'); return; }
+    if (!bookingDate) { showMsg(t('請填寫預約體驗日期'),'red'); return; }
+    if (!bookingTime) { showMsg(t('請填寫預約時間'),'red'); return; }
     const invalid = participants.find(p => !p.name.trim() || (needsIns && (!p.idNumber.trim() || !p.birthday.trim())));
-    if (invalid) { showMsg(needsIns ? '請填寫所有參加者的姓名、身分證字號、生日' : '請填寫所有參加者的姓名','red'); return; }
-    if (anyParticipantUnder4) { showMsg('未滿 4 歲無法報名課程/體驗','red'); return; }
-    if (!isTransferInfoComplete(payment)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額','red'); return; }
+    if (invalid) { showMsg(needsIns ? t('請填寫所有參加者的姓名、身分證字號、生日') : t('請填寫所有參加者的姓名'),'red'); return; }
+    if (anyParticipantUnder4) { showMsg(t('未滿 4 歲無法報名課程/體驗'),'red'); return; }
+    if (!isTransferInfoComplete(payment)) { showMsg(t('請完整填寫匯款銀行、日期、末五碼與實際匯款金額'),'red'); return; }
     setSubmitting(true);
     try {
       const res = await memberClient.post('/experience-bookings', {
@@ -144,7 +144,7 @@ export default function MemberExperiencePage() {
         contactName: member.name, contactEmail: member.email, contactPhone: member.phone, facebookName,
         participants, totalFee, paymentDate: payment.paymentDate, bankLastFive: payment.bankLastFive, paymentMethod: payment.method, paidAmount: payment.paidAmount || null, notes,
       });
-      if (res.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); return; }
+      if (res.data?.isSimulation) { showMsg(res.data.message || t('🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名'), 'ok'); return; }
       const bookingId = res.data.id; const fee = totalFee;
       // 轉帳：建立 transferRecords（填末五碼）→ 待辦頁確認收款（確認時自動確認此預約）
       if (payment.method === 'transfer' && bookingId) {
@@ -170,8 +170,8 @@ export default function MemberExperiencePage() {
       setMyBookings(r.data.bookings||[]);
       setTab('my');
       if (onlinePayEnabled && fee > 0) setPayFor({ bookingId, fee, gymId });
-      else showMsg(res.data.message || '預約已送出！');
-    } catch(err) { showMsg(err.response?.data?.message||'送出失敗','red'); }
+      else showMsg(res.data.message || t('預約已送出！'));
+    } catch(err) { showMsg(err.response?.data?.message||t('送出失敗'),'red'); }
     finally { setSubmitting(false); }
   };
 
@@ -184,8 +184,8 @@ export default function MemberExperiencePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontWeight:600, fontSize:15 }}>完成繳費</div>
-              <button onClick={()=>{ setPayFor(null); showMsg('預約已保留，可於「我的預約」完成繳費或改用匯款'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+              <div style={{ fontWeight:600, fontSize:15 }}>{t('完成繳費')}</div>
+              <button onClick={()=>{ setPayFor(null); showMsg(t('預約已保留，可於「我的預約」完成繳費或改用匯款')); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <PaymentFlow
               client={memberClient}
@@ -193,8 +193,8 @@ export default function MemberExperiencePage() {
               orderRef={{ bookingId: payFor.bookingId }}
               amount={payFor.fee}
               gymId={payFor.gymId}
-              onPaid={()=>{ setPayFor(null); showMsg('繳費完成，預約已確認！'); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])); }}
-              onCancel={()=>{ setPayFor(null); showMsg('預約已保留，可於「我的預約」完成繳費或改用匯款'); }}
+              onPaid={()=>{ setPayFor(null); showMsg(t('繳費完成，預約已確認！')); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])); }}
+              onCancel={()=>{ setPayFor(null); showMsg(t('預約已保留，可於「我的預約」完成繳費或改用匯款')); }}
             />
           </div>
         </div>
@@ -203,20 +203,20 @@ export default function MemberExperiencePage() {
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={()=>{ if (view==='general' && !hasTabParam) setView('choose'); else navigate('/member/home'); }}
           style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
-        <div style={{ fontSize:18, fontWeight:700 }}>🧗 體驗課程預約</div>
+        <div style={{ fontSize:18, fontWeight:700 }}>{t('🧗 體驗課程預約')}</div>
       </div>
 
       <ErrorAlertModal modal={alertModal} onClose={() => setAlertModal(null)} />
 
       {view==='choose' && (
         <div style={{ padding:'20px 16px', display:'flex', flexDirection:'column', gap:12 }}>
-          <div style={{ fontSize:13, color:'#666', marginBottom:2 }}>請選擇要進行的項目：</div>
+          <div style={{ fontSize:13, color:'#666', marginBottom:2 }}>{t('請選擇要進行的項目：')}</div>
           <div onClick={()=>setView('general')}
             style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'18px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:14 }}>
             <div style={{ fontSize:28 }}>🧗</div>
             <div style={{ flex:1, textAlign:'left' }}>
-              <div style={{ fontSize:15, fontWeight:600 }}>抱石體驗課程</div>
-              <div style={{ fontSize:12, color:'#999', marginTop:2 }}>依人數計費的專班體驗，適合初次接觸攀岩</div>
+              <div style={{ fontSize:15, fontWeight:600 }}>{t('抱石體驗課程')}</div>
+              <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('依人數計費的專班體驗，適合初次接觸攀岩')}</div>
             </div>
             <div style={{ fontSize:16, color:'#C9B4B4' }}>›</div>
           </div>
@@ -224,8 +224,8 @@ export default function MemberExperiencePage() {
             style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'18px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:14 }}>
             <div style={{ fontSize:28 }}>📚</div>
             <div style={{ flex:1, textAlign:'left' }}>
-              <div style={{ fontSize:15, fontWeight:600 }}>課程試上</div>
-              <div style={{ fontSize:12, color:'#999', marginTop:2 }}>報名某個正在開的週課，單堂體驗</div>
+              <div style={{ fontSize:15, fontWeight:600 }}>{t('課程試上')}</div>
+              <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('報名某個正在開的週課，單堂體驗')}</div>
             </div>
             <div style={{ fontSize:16, color:'#C9B4B4' }}>›</div>
           </div>
@@ -236,10 +236,10 @@ export default function MemberExperiencePage() {
       {msg && <div style={{ margin:'12px 16px 0', background:msgType==='ok'?'#E6F4EB':'#FCEBEB', borderRadius:8, padding:'10px 14px', fontSize:13, color:msgType==='ok'?'#2D7D46':'#A32D2D' }}>{msg}</div>}
 
       <div style={{ display:'flex', margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'apply',label:'填寫預約'},{key:'my',label:`我的預約${generalBookingsCount?` (${generalBookingsCount})`:''}`}].map(t=>(
-          <button key={t.key} onClick={()=>setTab(t.key)}
-            style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
-            {t.label}
+        {[{key:'apply',label:t('填寫預約')},{key:'my',label:`${t('我的預約')}${generalBookingsCount?` (${generalBookingsCount})`:''}`}].map(tabItem=>(
+          <button key={tabItem.key} onClick={()=>setTab(tabItem.key)}
+            style={{ flex:1, height:38, border:'none', background:tab===tabItem.key?'#8B1A1A':'#fff', color:tab===tabItem.key?'#fff':'#666', fontSize:13, fontWeight:tab===tabItem.key?600:400, cursor:'pointer' }}>
+            {tabItem.label}
           </button>
         ))}
       </div>
@@ -255,15 +255,15 @@ export default function MemberExperiencePage() {
             )}
             {/* 說明 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, fontSize:12, color:'#666', lineHeight:1.9 }}>
-              📋 {courseSettings?.notice || '請先透過粉絲頁確認體驗日期、時間及費用後再填寫本預約單'}<br/>
-              💳 請於 <strong>{courseSettings?.paymentDeadlineDays||3} 日內</strong> 匯款以確保預約
+              📋 {courseSettings?.notice || t('請先透過粉絲頁確認體驗日期、時間及費用後再填寫本預約單')}<br/>
+              💳 {t('請於 ')}<strong>{courseSettings?.paymentDeadlineDays||3}{t(' 日內')}</strong>{t(' 匯款以確保預約')}
             </div>
 
             {/* 場館 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>體驗場館</div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{t('體驗場館')}</div>
               <div style={{ display:'flex', gap:8 }}>
-                {[{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g=>(
+                {[{id:'gym-hsinchu',label:t('新竹館')},{id:'gym-shilin',label:t('士林館')}].map(g=>(
                   <button key={g.id} onClick={()=>setGymId(g.id)}
                     style={{ flex:1, height:40, borderRadius:8, border:`1.5px solid ${gymId===g.id?'#8B1A1A':'#E8D5D5'}`, background:gymId===g.id?'#FBF5F5':'#fff', color:gymId===g.id?'#8B1A1A':'#666', fontSize:13, fontWeight:gymId===g.id?600:400, cursor:'pointer' }}>
                     {g.label}
@@ -274,7 +274,7 @@ export default function MemberExperiencePage() {
 
             {/* 課程類型 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>課程類型</div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{t('課程類型')}</div>
               {(courseSettings?.courseTypes?.filter(ct=>ct.active!==false) || FALLBACK_COURSE_TYPES).map(ct=>(
                 <label key={ct.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'0.5px solid #F5EFEF', cursor:'pointer' }}>
                   <input type="radio" checked={courseType===ct.id} onChange={()=>setCourseType(ct.id)} style={{ accentColor:'#8B1A1A' }}/>
@@ -283,42 +283,42 @@ export default function MemberExperiencePage() {
               ))}
               {courseType==='general' && (
                 <div style={{ marginTop:10, background:'#FBF5F5', borderRadius:8, padding:'8px 12px', fontSize:11, color:'#666' }}>
-                  1人:975｜2-3人:875｜4-5人:825｜6-12人:775 元/人
+                  {t('1人:975｜2-3人:875｜4-5人:825｜6-12人:775 元/人')}
                 </div>
               )}
             </div>
 
             {/* 日期時間 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>預約日期與時間</div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{t('預約日期與時間')}</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:10 }}>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>體驗日期 *</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('體驗日期 *')}</label>
                   <input type="date" value={bookingDate} onChange={e=>setBookingDate(e.target.value)}
                     min={dayjs().add(1,'day').format('YYYY-MM-DD')} style={inp}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>時間（如16:00）*</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('時間（如16:00）*')}</label>
                   <input value={bookingTime} onChange={e=>setBookingTime(e.target.value)} placeholder="ex: 16:00-17:30" style={inp}/>
                 </div>
               </div>
               <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>Facebook 用戶名（便於聯繫）</label>
-                <input value={facebookName} onChange={e=>setFacebookName(e.target.value)} placeholder="請填寫 Facebook 用戶名" style={inp}/>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('Facebook 用戶名（便於聯繫）')}</label>
+                <input value={facebookName} onChange={e=>setFacebookName(e.target.value)} placeholder={t('請填寫 Facebook 用戶名')} style={inp}/>
               </div>
             </div>
 
             {/* 參加者名單 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                <div style={{ fontSize:13, fontWeight:600 }}>參加者資料{needsIns ? '（保險用）' : ''}</div>
+                <div style={{ fontSize:13, fontWeight:600 }}>{t('參加者資料')}{needsIns ? t('（保險用）') : ''}</div>
                 <button onClick={addParticipant}
-                  style={{ height:30, padding:'0 12px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>+ 新增人員</button>
+                  style={{ height:30, padding:'0 12px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('+ 新增人員')}</button>
               </div>
               {participants.map((p,i)=>(
                 <div key={i} style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:10, border:'0.5px solid #E8D5D5' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-                    <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A' }}>第 {i+1} 位</div>
+                    <div style={{ fontSize:12, fontWeight:600, color:'#8B1A1A' }}>{t('第 ')}{i+1}{t(' 位')}</div>
                     {participants.length>1 && (
                       <button onClick={()=>removeParticipant(i)}
                         style={{ width:24, height:24, borderRadius:6, background:'#FCEBEB', color:'#A32D2D', border:'none', fontSize:14, cursor:'pointer', lineHeight:1 }}>✕</button>
@@ -327,31 +327,31 @@ export default function MemberExperiencePage() {
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
                     <div style={{ gridColumn:'1/-1' }}>
                       <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>
-                        姓名 * {needsIns && <span style={{ color:'#A32D2D', fontWeight:600 }}>（投保用，須填寫真實姓名，不可用暱稱代替）</span>}
+                        {t('姓名 *')} {needsIns && <span style={{ color:'#A32D2D', fontWeight:600 }}>{t('（投保用，須填寫真實姓名，不可用暱稱代替）')}</span>}
                       </label>
-                      <input value={p.name} onChange={e=>updateParticipant(i,'name',e.target.value)} placeholder="請填寫真實姓名" style={{ ...inp, background:'#fff' }}/>
+                      <input value={p.name} onChange={e=>updateParticipant(i,'name',e.target.value)} placeholder={t('請填寫真實姓名')} style={{ ...inp, background:'#fff' }}/>
                     </div>
                     {needsIns && (<>
                     <div style={{ gridColumn:'1/-1' }}>
-                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>身分證字號 / 居留證號 *</label>
+                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('身分證字號 / 居留證號 *')}</label>
                       <input value={p.idNumber} onChange={e=>updateParticipant(i,'idNumber',e.target.value)} placeholder="A123456789" style={{ ...inp, background:'#fff', fontFamily:'monospace', letterSpacing:1 }}/>
                     </div>
                     <div>
-                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>生日（西元）*</label>
+                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('生日（西元）*')}</label>
                       <input type="date" value={p.birthday} onChange={e=>updateParticipant(i,'birthday',e.target.value)} max={new Date().toISOString().slice(0,10)}
                         style={{ ...inp, background:'#fff' }}/>
                     </div>
                     <div>
-                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>國籍</label>
+                      <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:3 }}>{t('國籍')}</label>
                       <select value={NATIONALITIES.includes(p.nationality)?p.nationality:'其他'} onChange={e=>{
                         if (e.target.value==='其他') updateParticipant(i,'nationality','');
                         else updateParticipant(i,'nationality',e.target.value);
                       }} style={{ ...inp, background:'#fff', cursor:'pointer' }}>
-                        {NATIONALITIES.map(nat=><option key={nat} value={nat}>{nat}</option>)}
+                        {NATIONALITIES.map(nat=><option key={nat} value={nat}>{t(nat)}</option>)}
                       </select>
                       {!NATIONALITIES.slice(0,-1).includes(p.nationality) && (
                         <input value={p.nationality} onChange={e=>updateParticipant(i,'nationality',e.target.value)}
-                          placeholder="請填寫國籍" style={{ ...inp, background:'#fff', marginTop:6 }}/>
+                          placeholder={t('請填寫國籍')} style={{ ...inp, background:'#fff', marginTop:6 }}/>
                       )}
                     </div>
                     </>)}
@@ -360,14 +360,14 @@ export default function MemberExperiencePage() {
               ))}
               {/* 費用小計 */}
               <div style={{ marginTop:8, background:'#FBF5F5', borderRadius:8, padding:'8px 12px', display:'flex', justifyContent:'space-between', fontSize:13 }}>
-                <span style={{ color:'#666' }}>{n} 人 × NT${unitPrice}/人</span>
-                <span style={{ fontWeight:700, color:'#8B1A1A' }}>合計 NT${totalFee}</span>
+                <span style={{ color:'#666' }}>{n}{t(' 人 × NT$')}{unitPrice}{t('/人')}</span>
+                <span style={{ fontWeight:700, color:'#8B1A1A' }}>{t('合計 NT$')}{totalFee}</span>
               </div>
             </div>
 
             {/* 付款 */}
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
-              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>付款資訊</div>
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>{t('付款資訊')}</div>
               {(() => {
                 const bankKey = gymId === 'gym-hsinchu' ? 'hsinchu' : 'shilin';
                 const bank = courseSettings?.bankInfo?.[bankKey] || {};
@@ -379,19 +379,19 @@ export default function MemberExperiencePage() {
             </div>
 
             <div>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>其他備註</label>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:4 }}>{t('其他備註')}</label>
               <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2}
                 style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
             </div>
 
             {anyParticipantUnder4 && (
               <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:10, fontSize:13, color:'#B3261E', textAlign:'left' }}>
-                參加者中有未滿 4 歲者，無法報名體驗。
+                {t('參加者中有未滿 4 歲者，無法報名體驗。')}
               </div>
             )}
             <button onClick={handleSubmit} disabled={submitting || anyParticipantUnder4}
               style={{ width:'100%', height:48, borderRadius:12, background:(submitting||anyParticipantUnder4)?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:(submitting||anyParticipantUnder4)?'not-allowed':'pointer' }}>
-              {submitting ? '送出中...' : '✓ 送出預約申請'}
+              {submitting ? t('送出中...') : t('✓ 送出預約申請')}
             </button>
           </div>
         )}
@@ -404,18 +404,18 @@ export default function MemberExperiencePage() {
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {generalBookings.length>0 && (
               <div style={{ background:'#FBF5E9', border:'0.5px solid #EBD9B0', borderRadius:12, padding:'12px 14px', fontSize:12.5, color:'#7A5A12', lineHeight:1.6, textAlign:'left' }}>
-                📢 <strong>提醒</strong>：請所有參加體驗課程的朋友先註冊紅石會員，以加速入場流程（需完成<strong>風險安全聲明書</strong>及<strong>墜落測驗同意書</strong>簽署）。
+                📢 <strong>{t('提醒')}</strong>{t('：請所有參加體驗課程的朋友先註冊紅石會員，以加速入場流程（需完成')}<strong>{t('風險安全聲明書')}</strong>{t('及')}<strong>{t('墜落測驗同意書')}</strong>{t('簽署）。')}
               </div>
             )}
-            {generalBookings.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無預約記錄</div>}
+            {generalBookings.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('尚無預約記錄')}</div>}
             {generalBookings.map(b=>{
-              const sl = { pending:{bg:'#FAEEDA',color:'#854F0B',text:'待確認'}, confirmed:{bg:'#E6F4EB',color:'#2D7D46',text:'已確認'}, cancelled:{bg:'#FCEBEB',color:'#A32D2D',text:'已取消'} }[b.status]||{bg:'#F0EDED',color:'#666',text:b.status};
+              const sl = { pending:{bg:'#FAEEDA',color:'#854F0B',text:t('待確認')}, confirmed:{bg:'#E6F4EB',color:'#2D7D46',text:t('已確認')}, cancelled:{bg:'#FCEBEB',color:'#A32D2D',text:t('已取消')} }[b.status]||{bg:'#F0EDED',color:'#666',text:b.status};
               return (
                 <div key={b.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
                     <div>
-                      <div style={{ fontWeight:600, fontSize:14 }}>{b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · {b.bookingDate} {b.bookingTime}</div>
-                      <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{b.numParticipants} 人 · NT${b.totalFee}</div>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{b.gymId==='gym-hsinchu'?t('新竹館'):t('士林館')} · {b.bookingDate} {b.bookingTime}</div>
+                      <div style={{ fontSize:12, color:'#666', marginTop:2 }}>{b.numParticipants}{t(' 人 · NT$')}{b.totalFee}</div>
                     </div>
                     <span style={{ fontSize:11, fontWeight:600, padding:'2px 9px', borderRadius:8, background:sl.bg, color:sl.color }}>{sl.text}</span>
                   </div>
@@ -425,26 +425,26 @@ export default function MemberExperiencePage() {
                   {/* 轉帳被退回 → 補正 */}
                   {b.paymentStatus==='transfer_rejected' && b.status!=='cancelled' && (
                     <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
-                      <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>轉帳被退回{b.paymentRejectReason?`：${b.paymentRejectReason}`:''}</div>
-                      <button onClick={()=>setReupTarget({ orderType:'experience', refId:b.id, orderName:`體驗預約 ${b.bookingDate}`, amount:b.totalFee, gymId:b.gymId, reason:b.paymentRejectReason })}
+                      <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>{t('轉帳被退回')}{b.paymentRejectReason?`：${b.paymentRejectReason}`:''}</div>
+                      <button onClick={()=>setReupTarget({ orderType:'experience', refId:b.id, orderName:`${t('體驗預約 ')}${b.bookingDate}`, amount:b.totalFee, gymId:b.gymId, reason:b.paymentRejectReason })}
                         style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                        重新上傳轉帳
+                        {t('重新上傳轉帳')}
                       </button>
                     </div>
                   )}
                   {b.paymentStatus==='pending_confirm' && b.status!=='cancelled' && (
-                    <div style={{ marginTop:8, fontSize:11, color:'#854F0B' }}>轉帳已重新送出，等待館方確認</div>
+                    <div style={{ marginTop:8, fontSize:11, color:'#854F0B' }}>{t('轉帳已重新送出，等待館方確認')}</div>
                   )}
                   {bkEditable(b) && (
                     <div style={{ display:'flex', gap:8, marginTop:10 }}>
                       <button onClick={()=>setBkEdit({ b, form: b.kind==='trial' ? { sessionId:'' } : { bookingDate:b.bookingDate, bookingTime:b.bookingTime||'' } })}
-                        style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#444', fontSize:12, cursor:'pointer' }}>修改</button>
+                        style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', color:'#444', fontSize:12, cursor:'pointer' }}>{t('修改')}</button>
                       <button onClick={()=>setBkCancel({ b, form:{ bankCode:'', account:'', accountName:'' } })}
-                        style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #C0392B', color:'#C0392B', fontSize:12, cursor:'pointer' }}>取消預約</button>
+                        style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #C0392B', color:'#C0392B', fontSize:12, cursor:'pointer' }}>{t('取消預約')}</button>
                     </div>
                   )}
                   {['pending','confirmed'].includes(b.status) && !bkEditable(b) && (
-                    <div style={{ marginTop:8, fontSize:11, color:'#999' }}>活動一天前已鎖定，如需異動請洽櫃檯</div>
+                    <div style={{ marginTop:8, fontSize:11, color:'#999' }}>{t('活動一天前已鎖定，如需異動請洽櫃檯')}</div>
                   )}
                 </div>
               );
@@ -462,33 +462,33 @@ export default function MemberExperiencePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={()=>{ if(!bkSaving) setBkCancel(null); }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:330, maxWidth:'92vw', maxHeight:'85vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消預約</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>{t('取消預約')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:12, textAlign:'left' }}>
-              確定取消 {b.bookingDate} {b.bookingTime} 的{b.kind==='trial'?'試上':'體驗'}預約嗎？
+              {t('確定取消 ')}{b.bookingDate} {b.bookingTime}{t(' 的')}{b.kind==='trial'?t('試上'):t('體驗')}{t('預約嗎？')}
             </div>
             {bkPaid(b) ? (
               <>
                 <div style={{ background:'#FBF5F5', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#444', lineHeight:1.8, textAlign:'left' }}>
-                  已繳金額 NT${(b.totalFee||0).toLocaleString()} − 手續費 NT${fee.toLocaleString()} ＝ <strong style={{ color:'#8B1A1A' }}>預計退款 NT${refund.toLocaleString()}</strong><br/>
-                  退款將由館方匯至您提供的帳號。
+                  {t('已繳金額 NT$')}{(b.totalFee||0).toLocaleString()}{t(' − 手續費 NT$')}{fee.toLocaleString()}{t(' ＝ ')}<strong style={{ color:'#8B1A1A' }}>{t('預計退款 NT$')}{refund.toLocaleString()}</strong><br/>
+                  {t('退款將由館方匯至您提供的帳號。')}
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'100px 1fr', gap:8, marginBottom:8 }}>
-                  <input value={bkCancel.form.bankCode} onChange={e=>setBkCancel(t=>({ ...t, form:{ ...t.form, bankCode:e.target.value.replace(/\D/g,'').slice(0,3) } }))}
-                    placeholder="銀行代碼 *" style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
-                  <input value={bkCancel.form.account} onChange={e=>setBkCancel(t=>({ ...t, form:{ ...t.form, account:e.target.value.replace(/\D/g,'').slice(0,16) } }))}
-                    placeholder="退款帳號 *" style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
+                  <input value={bkCancel.form.bankCode} onChange={e=>setBkCancel(prev=>({ ...prev, form:{ ...prev.form, bankCode:e.target.value.replace(/\D/g,'').slice(0,3) } }))}
+                    placeholder={t('銀行代碼 *')} style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
+                  <input value={bkCancel.form.account} onChange={e=>setBkCancel(prev=>({ ...prev, form:{ ...prev.form, account:e.target.value.replace(/\D/g,'').slice(0,16) } }))}
+                    placeholder={t('退款帳號 *')} style={{ height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box' }}/>
                 </div>
-                <input value={bkCancel.form.accountName} onChange={e=>setBkCancel(t=>({ ...t, form:{ ...t.form, accountName:e.target.value } }))}
-                  placeholder="戶名（選填）" style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:14 }}/>
+                <input value={bkCancel.form.accountName} onChange={e=>setBkCancel(prev=>({ ...prev, form:{ ...prev.form, accountName:e.target.value } }))}
+                  placeholder={t('戶名（選填）')} style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:14 }}/>
               </>
             ) : (
-              <div style={{ fontSize:12, color:'#999', marginBottom:14, textAlign:'left' }}>尚未繳費，取消後無需退款。</div>
+              <div style={{ fontSize:12, color:'#999', marginBottom:14, textAlign:'left' }}>{t('尚未繳費，取消後無需退款。')}</div>
             )}
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={()=>setBkCancel(null)} disabled={bkSaving}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={doBkCancel} disabled={bkSaving}
-                style={{ flex:1, height:44, borderRadius:12, background:'#C0392B', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{bkSaving?'處理中...':'確定取消'}</button>
+                style={{ flex:1, height:44, borderRadius:12, background:'#C0392B', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{bkSaving?t('處理中...'):t('確定取消')}</button>
             </div>
           </div>
         </div>
@@ -505,16 +505,16 @@ export default function MemberExperiencePage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={()=>{ if(!bkSaving) setBkEdit(null); }}>
           <div onClick={e=>e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:330, maxWidth:'92vw', maxHeight:'85vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{b.kind==='trial'?'試上改期（換場次）':'修改體驗日期/時段'}</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{b.kind==='trial'?t('試上改期（換場次）'):t('修改體驗日期/時段')}</div>
             {b.kind==='trial' ? (
               candidates.length === 0 ? (
-                <div style={{ fontSize:13, color:'#999', marginBottom:14, textAlign:'left' }}>目前沒有其他可改期的同價場次；如需變更請取消後重新報名。</div>
+                <div style={{ fontSize:13, color:'#999', marginBottom:14, textAlign:'left' }}>{t('目前沒有其他可改期的同價場次；如需變更請取消後重新報名。')}</div>
               ) : (
                 <div style={{ marginBottom:14 }}>
                   {candidates.map(sx => (
                     <label key={sx.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:8, border:`1.5px solid ${bkEdit.form.sessionId===sx.id?'#8B1A1A':'#EDE5E5'}`, marginBottom:6, cursor:'pointer', fontSize:13 }}>
                       <input type="radio" name="bkEditSession" checked={bkEdit.form.sessionId===sx.id}
-                        onChange={()=>setBkEdit(t=>({ ...t, form:{ sessionId: sx.id } }))} style={{ accentColor:'#8B1A1A' }}/>
+                        onChange={()=>setBkEdit(prev=>({ ...prev, form:{ sessionId: sx.id } }))} style={{ accentColor:'#8B1A1A' }}/>
                       <span style={{ textAlign:'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}</span>
                     </label>
                   ))}
@@ -522,22 +522,22 @@ export default function MemberExperiencePage() {
               )
             ) : (
               <>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>體驗日期</label>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>{t('體驗日期')}</label>
                 <input type="date" value={bkEdit.form.bookingDate} min={dayjs().add(1,'day').format('YYYY-MM-DD')}
-                  onChange={e=>setBkEdit(t=>({ ...t, form:{ ...t.form, bookingDate:e.target.value } }))}
+                  onChange={e=>setBkEdit(prev=>({ ...prev, form:{ ...prev.form, bookingDate:e.target.value } }))}
                   style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:10 }}/>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>時段（如 16:00-17:30）</label>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>{t('時段（如 16:00-17:30）')}</label>
                 <input value={bkEdit.form.bookingTime}
-                  onChange={e=>setBkEdit(t=>({ ...t, form:{ ...t.form, bookingTime:e.target.value } }))}
+                  onChange={e=>setBkEdit(prev=>({ ...prev, form:{ ...prev.form, bookingTime:e.target.value } }))}
                   style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, boxSizing:'border-box', marginBottom:14 }}/>
               </>
             )}
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={()=>setBkEdit(null)} disabled={bkSaving}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={doBkEdit} disabled={bkSaving || (b.kind==='trial' && !bkEdit.form.sessionId)}
                 style={{ flex:2, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (bkSaving||(b.kind==='trial'&&!bkEdit.form.sessionId))?'not-allowed':'pointer', opacity:(b.kind==='trial'&&!bkEdit.form.sessionId)?.6:1 }}>
-                {bkSaving?'儲存中...':'確認修改'}</button>
+                {bkSaving?t('儲存中...'):t('確認修改')}</button>
             </div>
           </div>
         </div>
@@ -547,7 +547,7 @@ export default function MemberExperiencePage() {
       {reupTarget && (
         <TransferReuploadModal target={reupTarget} memberName={member?.name}
           onClose={()=>setReupTarget(null)}
-          onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])).catch(()=>{}); }} />
+          onDone={()=>{ setReupTarget(null); showMsg(t('已重新送出，等待館方確認收款')); memberClient.get('/experience-bookings/my').then(r=>setMyBookings(r.data.bookings||[])).catch(()=>{}); }} />
       )}
       </>)}
       <MemberLogoutButton />
