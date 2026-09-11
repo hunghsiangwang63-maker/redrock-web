@@ -69,6 +69,9 @@ export default function MemberRoutesPage() {
   // 區域/難度是「分組」顯示（各自的區塊標題）；推薦度/分享次數/被標記次數是「熱門度」，做成無分組的排序清單。
   const [sortMode, setSortMode] = useState(() => localStorage.getItem('memberRouteSort') || 'area');
   const changeSortMode = (m) => { setSortMode(m); localStorage.setItem('memberRouteSort', m); };
+  // 難度排列方向（2026-09-14 新增）：簡單→難（預設，沿用既有行為）／難→簡單，僅在 sortMode==='grade' 時顯示切換鈕。
+  const [gradeDesc, setGradeDesc] = useState(() => localStorage.getItem('memberRouteGradeDesc') === '1');
+  const toggleGradeDesc = () => { const next = !gradeDesc; setGradeDesc(next); localStorage.setItem('memberRouteGradeDesc', next ? '1' : '0'); };
   const SORT_MODES = [
     { key: 'area', label: '📍 區域' },
     { key: 'grade', label: '🎯 難度' },
@@ -229,7 +232,8 @@ export default function MemberRoutesPage() {
   const buildGroups = (list, mode) => {
     if (mode === 'grade') {
       const byGrade = list.reduce((m, r) => { (m[r.grade] = m[r.grade] || []).push(r); return m; }, {});
-      return GRADE_ORDER.filter(g => byGrade[g]?.length).map(g => [g, byGrade[g]]);
+      const order = gradeDesc ? [...GRADE_ORDER].reverse() : GRADE_ORDER;
+      return order.filter(g => byGrade[g]?.length).map(g => [g, byGrade[g]]);
     }
     if (mode === 'likes') return [[null, [...list].sort((a, b) => (b.likeCount || 0) - (a.likeCount || 0))]];
     if (mode === 'shares') return [[null, [...list].sort((a, b) => (b.shareCount || 0) - (a.shareCount || 0))]];
@@ -372,6 +376,13 @@ export default function MemberRoutesPage() {
                   {m.label}
                 </button>
               ))}
+              {sortMode === 'grade' && (
+                <button onClick={toggleGradeDesc}
+                  style={{ padding:'6px 11px', borderRadius:20, fontSize:12, fontWeight:600, cursor:'pointer',
+                    border:'1px solid #E8D5D5', background:'#fff', color:'#666' }}>
+                  {gradeDesc ? '↓ 難到簡單' : '↑ 簡單到難'}
+                </button>
+              )}
             </div>
           )}
 
@@ -406,7 +417,7 @@ export default function MemberRoutesPage() {
                           <span style={{ fontSize:12, fontWeight:700, color:'#fff', background: GRADE_COLORS[r.grade]||'#666', padding:'3px 9px', borderRadius:8, minWidth:28, textAlign:'center' }}>{r.grade}</span>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{r.color}{r.name ? ` · ${r.name}` : ''}</div>
-                            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>基本分 {r.basePoints}{r.setter ? ` · 定線 ${r.setter}` : ''}{r.plannedRemoveAt ? ` · 預計換線 ${r.plannedRemoveAt}` : ''}</div>
+                            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{sortMode !== 'area' && r.area ? `📍 ${r.area} · ` : ''}基本分 {r.basePoints}{r.setter ? ` · 定線 ${r.setter}` : ''}{r.plannedRemoveAt ? ` · 預計換線 ${r.plannedRemoveAt}` : ''}</div>
                             {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2, textAlign:'left' }}>💬 {r.note}</div>}
                           </div>
                           {r.igUrl && (<>
@@ -415,8 +426,9 @@ export default function MemberRoutesPage() {
                               📹 示範
                             </button>
                             <button onClick={() => shareIg(r)} aria-label="分享示範影片連結"
-                              style={{ fontSize:12, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 8px', cursor:'pointer' }}>
+                              style={{ display:'flex', alignItems:'center', gap:3, fontSize:12, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 8px', cursor:'pointer', whiteSpace:'nowrap' }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                              分享影片
                             </button>
                           </>)}
                         </div>
