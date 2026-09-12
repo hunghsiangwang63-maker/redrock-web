@@ -993,8 +993,8 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontWeight:600, fontSize:15 }}>完成繳費</div>
-              <button onClick={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的課程」完成繳費或改用匯款'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+              <div style={{ fontWeight:600, fontSize:15 }}>{t('完成繳費')}</div>
+              <button onClick={()=>{ setPayFor(null); showMsg(t('報名已保留，可於「我的課程」完成繳費或改用匯款')); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <PaymentFlow
               client={memberClient}
@@ -1002,8 +1002,8 @@ export default function MemberCoursesPage() {
               orderRef={{ enrollmentId: payFor.enrollmentId }}
               amount={payFor.fee}
               gymId={payFor.gymId}
-              onPaid={()=>{ setPayFor(null); showMsg('繳費完成，報名已確認！'); loadMyEnrollments(); }}
-              onCancel={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的課程」完成繳費或改用匯款'); }}
+              onPaid={()=>{ setPayFor(null); showMsg(t('繳費完成，報名已確認！')); loadMyEnrollments(); }}
+              onCancel={()=>{ setPayFor(null); showMsg(t('報名已保留，可於「我的課程」完成繳費或改用匯款')); }}
             />
           </div>
         </div>
@@ -1011,7 +1011,7 @@ export default function MemberCoursesPage() {
       {/* Header */}
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
-        <div style={{ fontWeight:600, fontSize:15 }}>課程報名</div>
+        <div style={{ fontWeight:600, fontSize:15 }}>{t('課程報名')}</div>
       </div>
 
       {msg && (
@@ -1025,16 +1025,16 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!loading) setCancelWaitlistTarget(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消候補</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>{t('取消候補')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              確定要取消「{cancelWaitlistTarget.courseName}」的候補嗎？取消後將移出候補名單，若要再候補需重新報名。
+              {tt(`確定要取消「${cancelWaitlistTarget.courseName}」的候補嗎？取消後將移出候補名單，若要再候補需重新報名。`, `Are you sure you want to cancel your waitlist spot for "${cancelWaitlistTarget.courseName}"? You will be removed from the waitlist and need to register again to rejoin.`, `「${cancelWaitlistTarget.courseName}」のキャンセル待ちを取り消しますか？取り消すとキャンセル待ちリストから外れます。再度並ぶには改めて登録が必要です。`)}
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelWaitlistTarget(null)} disabled={loading}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={() => handleCancelWaitlist(cancelWaitlistTarget)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
-                {loading ? '處理中...' : '確定取消'}
+                {loading ? t('處理中...') : t('確定取消')}
               </button>
             </div>
           </div>
@@ -1046,16 +1046,16 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!loading) setCancelWorkshopTarget(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消報名</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>{t('取消報名')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              確定要取消「{cancelWorkshopTarget.courseName}」的報名嗎？取消後名額將立即釋出，若要再參加需重新報名。
+              {tt(`確定要取消「${cancelWorkshopTarget.courseName}」的報名嗎？取消後名額將立即釋出，若要再參加需重新報名。`, `Are you sure you want to cancel your registration for "${cancelWorkshopTarget.courseName}"? The spot will be released immediately and you will need to register again to rejoin.`, `「${cancelWorkshopTarget.courseName}」の登録を取り消しますか？取り消すと定員がすぐに解放されます。再度参加するには改めて登録が必要です。`)}
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelWorkshopTarget(null)} disabled={loading}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={() => handleCancelWorkshopEnrollment(cancelWorkshopTarget)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
-                {loading ? '處理中...' : '確定取消'}
+                {loading ? t('處理中...') : t('確定取消')}
               </button>
             </div>
           </div>
@@ -1069,16 +1069,16 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!loading) setOverLimitConfirm(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#854F0B', marginBottom:8, textAlign:'left' }}>⚠️ 已超過補課上限</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#854F0B', marginBottom:8, textAlign:'left' }}>⚠️ {t('已超過補課上限')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              本課程可補課上限為 {overLimitConfirm.leaveLimit} 次、已用完。仍可請假，但<strong>此次請假不會產生補課資格</strong>（無法補課）。確定要請假嗎？
+              {tt(`本課程可補課上限為 ${overLimitConfirm.leaveLimit} 次、已用完。仍可請假，但`, `You have used all ${overLimitConfirm.leaveLimit} makeup credits for this course. You can still take leave, but `, `このコースの補講上限${overLimitConfirm.leaveLimit}回を使い切りました。欠席自体は可能ですが、`)}<strong>{tt('此次請假不會產生補課資格', 'this leave will not grant a makeup credit', '今回の欠席では補講資格は付与されません')}</strong>{tt('（無法補課）。確定要請假嗎？', ' (no makeup class allowed). Are you sure you want to proceed?', '（補講不可）。よろしいですか？')}
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setOverLimitConfirm(null)} disabled={loading}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={() => handleLeave(overLimitConfirm.enrollmentId, overLimitConfirm.memberId)} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#B26A00', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
-                {loading ? '處理中...' : '仍要請假'}
+                {loading ? t('處理中...') : t('仍要請假')}
               </button>
             </div>
           </div>
@@ -1090,20 +1090,20 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => setRulesModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'82vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{rulesModal.courseName}｜課程規則</div>
+            <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{rulesModal.courseName}{tt('｜課程規則', ' | Course Rules', '｜コース規則')}</div>
             {rulesModal.course?.type !== 'workshop' && (<>
-              <div style={{ fontWeight:600, fontSize:13, marginBottom:8, textAlign:'left' }}>📋 課程請假、補課方式</div>
+              <div style={{ fontWeight:600, fontSize:13, marginBottom:8, textAlign:'left' }}>📋 {t('課程請假、補課方式')}</div>
               <LeaveMakeupRulesBox course={rulesModal.course}/>
-              <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>📝 展延、退費申請</div>
+              <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>📝 {t('展延、退費申請')}</div>
               <ExtensionRefundApplicationBox/>
             </>)}
-            <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>💰 退費方式{rulesModal.course?.type !== 'workshop' ? '（依法令規定）' : ''}</div>
+            <div style={{ fontWeight:600, fontSize:13, margin:'12px 0 8px', textAlign:'left' }}>💰 {t('退費方式')}{rulesModal.course?.type !== 'workshop' ? t('（依法令規定）') : ''}</div>
             <RefundRulesBox course={rulesModal.course}/>
             {!rulesModal.course && (
-              <div style={{ fontSize:11, color:'#B5651D', textAlign:'left', marginBottom:8 }}>（此課程已下架，以上顯示為預設規則，實際以申請時系統計算為準）</div>
+              <div style={{ fontSize:11, color:'#B5651D', textAlign:'left', marginBottom:8 }}>{t('（此課程已下架，以上顯示為預設規則，實際以申請時系統計算為準）')}</div>
             )}
             <button onClick={() => setRulesModal(null)}
-              style={{ width:'100%', height:42, borderRadius:12, border:'none', background:'#8B1A1A', color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer', marginTop:4 }}>知道了</button>
+              style={{ width:'100%', height:42, borderRadius:12, border:'none', background:'#8B1A1A', color:'#fff', fontSize:14, fontWeight:600, cursor:'pointer', marginTop:4 }}>{t('知道了')}</button>
           </div>
         </div>
       )}
@@ -1113,27 +1113,27 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!loading) setCancelLeaveTarget(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消請假</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>{t('取消請假')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              確定取消 {cancelLeaveTarget.dateLabel} 的請假、恢復上課嗎？<br/>
-              補課額度將依剩餘請假數重算；<strong>已預約的補課不會被自動取消</strong>。若已預約的補課超過取消後的額度，需先自行取消一堂補課才能取消請假。若名額已被候補遞補，將無法取消。
+              {tt(`確定取消 ${cancelLeaveTarget.dateLabel} 的請假、恢復上課嗎？`, `Are you sure you want to cancel the leave for ${cancelLeaveTarget.dateLabel} and resume attending this session?`, `${cancelLeaveTarget.dateLabel}の欠席を取り消して受講を再開しますか？`)}<br/>
+              {tt('補課額度將依剩餘請假數重算；', 'Your makeup credit will be recalculated based on your remaining leave count; ', '補講可能回数は残りの欠席回数に応じて再計算されます。')}<strong>{tt('已預約的補課不會被自動取消', 'any makeup class you have already booked will not be automatically cancelled', '予約済みの補講は自動的には取り消されません')}</strong>{t('。若已預約的補課超過取消後的額度，需先自行取消一堂補課才能取消請假。若名額已被候補遞補，將無法取消。')}
             </div>
             {cancelLeavePre === null ? (
-              <div style={{ fontSize:12, color:'#999', marginBottom:16, textAlign:'left' }}>正在確認名額與補課額度…</div>
+              <div style={{ fontSize:12, color:'#999', marginBottom:16, textAlign:'left' }}>{t('正在確認名額與補課額度…')}</div>
             ) : !cancelLeavePre.precheckFailed && (
               <div style={{ background: cancelLeavePre.ok ? '#E6F4EB' : '#FDEBEB', borderRadius:10, padding:'10px 12px', marginBottom:16, textAlign:'left' }}>
                 {cancelLeavePre.session && (
                   <div style={{ fontSize:12, color:'#444', lineHeight:1.7 }}>
-                    該堂名額：{cancelLeavePre.session.remaining > 0
-                      ? <strong style={{ color:'#2D7D46' }}>剩 {cancelLeavePre.session.remaining} 位</strong>
-                      : <strong style={{ color:'#C0392B' }}>已滿</strong>}
+                    {t('該堂名額：')}{cancelLeavePre.session.remaining > 0
+                      ? <strong style={{ color:'#2D7D46' }}>{tt(`剩 ${cancelLeavePre.session.remaining} 位`, `${cancelLeavePre.session.remaining} spots left`, `残り${cancelLeavePre.session.remaining}名`)}</strong>
+                      : <strong style={{ color:'#C0392B' }}>{t('已滿')}</strong>}
                     （{cancelLeavePre.session.enrolledCount}/{cancelLeavePre.session.maxStudents}）
                   </div>
                 )}
                 {cancelLeavePre.quota && (
                   <div style={{ fontSize:12, color:'#444', lineHeight:1.7 }}>
-                    取消後補課額度：{cancelLeavePre.quota.newEntitlement} 堂
-                    {cancelLeavePre.quota.usedMakeups > 0 && <>（已預約/已上 {cancelLeavePre.quota.usedMakeups} 堂）</>}
+                    {tt(`取消後補課額度：${cancelLeavePre.quota.newEntitlement} 堂`, `Makeup credit after cancelling: ${cancelLeavePre.quota.newEntitlement}`, `取消後の補講可能回数：${cancelLeavePre.quota.newEntitlement}回`)}
+                    {cancelLeavePre.quota.usedMakeups > 0 && <>{tt(`（已預約/已上 ${cancelLeavePre.quota.usedMakeups} 堂）`, ` (${cancelLeavePre.quota.usedMakeups} already booked/attended)`, `（予約済み/受講済み${cancelLeavePre.quota.usedMakeups}回）`)}</>}
                   </div>
                 )}
                 {!cancelLeavePre.ok && (
@@ -1141,7 +1141,7 @@ export default function MemberCoursesPage() {
                 )}
                 {cancelLeavePre.blockCode === 'MAKEUP_OVER_QUOTA' && (cancelLeavePre.bookedMakeups || []).length > 0 && (
                   <div style={{ marginTop:8, borderTop:'0.5px solid #E8D5D5', paddingTop:8 }}>
-                    <div style={{ fontSize:12, color:'#444', fontWeight:600, marginBottom:6 }}>已預約的補課（可就地取消一堂後繼續）：</div>
+                    <div style={{ fontSize:12, color:'#444', fontWeight:600, marginBottom:6 }}>{t('已預約的補課（可就地取消一堂後繼續）：')}</div>
                     {cancelLeavePre.bookedMakeups.map(bm => (
                       <div key={bm.enrollmentId} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
                         <div style={{ fontSize:12, color:'#444', textAlign:'left' }}>
@@ -1150,10 +1150,10 @@ export default function MemberCoursesPage() {
                         {bm.canCancel ? (
                           <button onClick={() => handleInlineCancelMakeup(bm)} disabled={!!inlineMkCancel}
                             style={{ flexShrink:0, height:28, padding:'0 10px', borderRadius:8, border:'0.5px solid #C0392B', background:'#fff', color:'#C0392B', fontSize:11, fontWeight:600, cursor: inlineMkCancel?'not-allowed':'pointer' }}>
-                            {inlineMkCancel === bm.enrollmentId ? '取消中…' : '取消此補課'}
+                            {inlineMkCancel === bm.enrollmentId ? t('取消中…') : t('取消此補課')}
                           </button>
                         ) : (
-                          <span style={{ flexShrink:0, fontSize:11, color:'#999' }}>已過取消期限</span>
+                          <span style={{ flexShrink:0, fontSize:11, color:'#999' }}>{t('已過取消期限')}</span>
                         )}
                       </div>
                     ))}
@@ -1163,10 +1163,10 @@ export default function MemberCoursesPage() {
             )}
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelLeaveTarget(null)} disabled={loading}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={handleCancelLeave} disabled={loading || (cancelLeavePre != null && !cancelLeavePre.ok)}
                 style={{ flex:1, height:44, borderRadius:12, background: (cancelLeavePre != null && !cancelLeavePre.ok) ? '#C9A0A0' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: (loading || (cancelLeavePre != null && !cancelLeavePre.ok))?'not-allowed':'pointer' }}>
-                {loading ? '處理中...' : (cancelLeavePre != null && !cancelLeavePre.ok) ? '無法取消' : '確定取消請假'}
+                {loading ? t('處理中...') : (cancelLeavePre != null && !cancelLeavePre.ok) ? t('無法取消') : t('確定取消請假')}
               </button>
             </div>
           </div>
@@ -1178,17 +1178,17 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!loading) setCancelMakeupTarget(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>取消補課</div>
+            <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>{t('取消補課')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              確定取消 {cancelMakeupTarget.dateLabel} 的補課嗎？<br/>
-              取消後補課資格會退回，可重新選擇其他場次補課（需於上課一天前取消）。
+              {tt(`確定取消 ${cancelMakeupTarget.dateLabel} 的補課嗎？`, `Are you sure you want to cancel the makeup class on ${cancelMakeupTarget.dateLabel}?`, `${cancelMakeupTarget.dateLabel}の補講を取り消しますか？`)}<br/>
+              {t('取消後補課資格會退回，可重新選擇其他場次補課（需於上課一天前取消）。')}
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelMakeupTarget(null)} disabled={loading}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={handleCancelMakeup} disabled={loading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: loading?'not-allowed':'pointer' }}>
-                {loading ? '處理中...' : '確定取消補課'}
+                {loading ? t('處理中...') : t('確定取消補課')}
               </button>
             </div>
           </div>
@@ -1200,14 +1200,14 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => { if (!reuploadLoading) setReuploadTarget(null); }}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>{reuploadTarget.mode === 'promoted' ? '選擇付款方式' : reuploadTarget.mode === 'initial' ? '填寫轉帳資訊' : '重新上傳轉帳'}</div>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>{reuploadTarget.mode === 'promoted' ? t('選擇付款方式') : reuploadTarget.mode === 'initial' ? t('填寫轉帳資訊') : t('重新上傳轉帳')}</div>
             <div style={{ fontSize:12.5, color:'#666', marginBottom:14, textAlign:'left', lineHeight:1.7 }}>
               {reuploadTarget.courseName}<br/>
               {reuploadTarget.mode === 'promoted'
-                ? <span style={{ color:'#B5651D' }}>候補已遞補為正取，請選擇付款方式完成報名。</span>
+                ? <span style={{ color:'#B5651D' }}>{t('候補已遞補為正取，請選擇付款方式完成報名。')}</span>
                 : reuploadTarget.mode === 'initial'
-                ? <span style={{ color:'#B5651D' }}>請填寫您的匯款資料，我們將盡快為您確認收款。</span>
-                : <span style={{ color:'#B5651D' }}>重新上傳不會延長付款期限（沿用原報名期限）。</span>}
+                ? <span style={{ color:'#B5651D' }}>{t('請填寫您的匯款資料，我們將盡快為您確認收款。')}</span>
+                : <span style={{ color:'#B5651D' }}>{t('重新上傳不會延長付款期限（沿用原報名期限）。')}</span>}
             </div>
             <PaymentSection
               value={reuploadData}
@@ -1218,20 +1218,20 @@ export default function MemberCoursesPage() {
             />
             {reuploadData.method === 'cash' ? (
               <div style={{ fontSize:12.5, color:'#666', lineHeight:1.8, textAlign:'left', margin:'4px 0 14px' }}>
-                選擇現金付款後，請至櫃檯繳費，工作人員將為您確認收款。
+                {t('選擇現金付款後，請至櫃檯繳費，工作人員將為您確認收款。')}
               </div>
             ) : (
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>轉帳截圖（選填，供輔助核對）</label>
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4, textAlign:'left' }}>{t('轉帳截圖（選填，供輔助核對）')}</label>
                 <input type="file" accept="image/*" onChange={e => setReuploadFile(e.target.files?.[0] || null)} style={{ fontSize:12 }} />
               </div>
             )}
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setReuploadTarget(null)} disabled={reuploadLoading}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={handleReupload} disabled={reuploadLoading}
                 style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: reuploadLoading?'not-allowed':'pointer' }}>
-                {reuploadLoading ? '提交中...' : reuploadData.method === 'cash' ? '確認選擇' : '確認上傳'}
+                {reuploadLoading ? t('提交中...') : reuploadData.method === 'cash' ? t('確認選擇') : t('確認上傳')}
               </button>
             </div>
           </div>
@@ -1244,17 +1244,17 @@ export default function MemberCoursesPage() {
           onClick={() => setEnrollSuccess(false)}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'28px 22px', width:320, maxWidth:'90vw', textAlign:'center', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:46, marginBottom:10 }}>{enrollWaitlisted ? '📝' : '✅'}</div>
-            <div style={{ fontSize:18, fontWeight:700, color:'#1a1a1a', marginBottom:8 }}>{enrollWaitlisted ? '已加入候補名單' : '已報名成功'}</div>
+            <div style={{ fontSize:18, fontWeight:700, color:'#1a1a1a', marginBottom:8 }}>{enrollWaitlisted ? t('已加入候補名單') : t('已報名成功')}</div>
             <div style={{ fontSize:14, color:'#666', lineHeight:1.6, marginBottom:22 }}>
               {enrollWaitlisted
-                ? '此班正取已額滿，您已排入候補。候補期間不需付款；遞補為正取後將另行通知繳費。可至「我的課程」查詢。'
-                : '可至「我的課程」中查詢。'}
+                ? t('此班正取已額滿，您已排入候補。候補期間不需付款；遞補為正取後將另行通知繳費。可至「我的課程」查詢。')
+                : t('可至「我的課程」中查詢。')}
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setEnrollSuccess(false)}
-                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>知道了</button>
+                style={{ flex:1, height:44, borderRadius:12, border:'0.5px solid #E8D5D5', background:'#fff', fontSize:14, color:'#6b6b6b', cursor:'pointer' }}>{t('知道了')}</button>
               <button onClick={() => { setEnrollSuccess(false); setTab('my'); }}
-                style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>前往我的課程</button>
+                style={{ flex:1, height:44, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{t('前往我的課程')}</button>
             </div>
           </div>
         </div>
@@ -1262,11 +1262,11 @@ export default function MemberCoursesPage() {
 
       {/* Tabs */}
       <div style={{ display:'flex', margin:'12px 16px 0', background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, padding:3 }}>
-        {[{key:'browse',icon:'📚',label:'課程總覽'},{key:'trial',icon:'🧗',label:`課程試上${myTrialBookings.length > 0 ? ` (${myTrialBookings.length})` : ''}`},{key:'my',icon:'📖',label:`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`},{key:'calendar',icon:'📅',label:'課程月曆'}].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            style={{ flex:1, minHeight:44, padding:'5px 2px', borderRadius:6, border: tab===t.key?'0.5px solid #E8D5D5':'none', background: tab===t.key?'#fff':'none', fontSize:11, fontWeight:500, color: tab===t.key?'#1a1a1a':'#999', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, lineHeight:1.2 }}>
-            <span style={{ fontSize:15 }}>{t.icon}</span>
-            <span>{t.label}</span>
+        {[{key:'browse',icon:'📚',label:'課程總覽'},{key:'trial',icon:'🧗',label:`課程試上${myTrialBookings.length > 0 ? ` (${myTrialBookings.length})` : ''}`},{key:'my',icon:'📖',label:`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`},{key:'calendar',icon:'📅',label:'課程月曆'}].map(tb => (
+          <button key={tb.key} onClick={() => setTab(tb.key)}
+            style={{ flex:1, minHeight:44, padding:'5px 2px', borderRadius:6, border: tab===tb.key?'0.5px solid #E8D5D5':'none', background: tab===tb.key?'#fff':'none', fontSize:11, fontWeight:500, color: tab===tb.key?'#1a1a1a':'#999', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:2, lineHeight:1.2 }}>
+            <span style={{ fontSize:15 }}>{tb.icon}</span>
+            <span>{tb.key==='browse' ? t('課程總覽') : tb.key==='trial' ? tt(`課程試上${myTrialBookings.length > 0 ? ` (${myTrialBookings.length})` : ''}`, `Trial Classes${myTrialBookings.length > 0 ? ` (${myTrialBookings.length})` : ''}`, `体験クラス${myTrialBookings.length > 0 ? ` (${myTrialBookings.length})` : ''}`) : tb.key==='my' ? tt(`我的課程${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`, `My Courses${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`, `マイコース${activeCourseCount > 0 ? ` (${activeCourseCount})` : ''}`) : t('課程月曆')}</span>
           </button>
         ))}
       </div>
