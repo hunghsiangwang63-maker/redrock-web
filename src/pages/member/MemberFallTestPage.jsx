@@ -5,6 +5,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { getFallTestSettings, signFallTestAgreement, getFallTestSignature, getMyFallTestStatus } from '../../api/fallTests';
 import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } from '../../api/fallTestBookings';
 import SignaturePad from '../../components/SignaturePad';
+import CheckTick from '../../components/CheckTick';
 import dayjs from 'dayjs';
 import { detectInAppBrowser } from '../../utils/inAppBrowser';
 import { isMinor } from '../../utils/age';
@@ -304,7 +305,7 @@ export default function MemberFallTestPage() {
             <div key={idx} onClick={() => toggleParagraph(idx)}
               style={{ background: agreedParagraphs.has(idx) ? '#F0F8F2' : '#FBF5F5', borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', border: `0.5px solid ${agreedParagraphs.has(idx) ? '#B3DEC0' : '#F0E4E4'}`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
               <div style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0, border: `2px solid ${agreedParagraphs.has(idx) ? '#8B1A1A' : '#CCC'}`, borderRadius: 3, background: agreedParagraphs.has(idx) ? '#8B1A1A' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                {agreedParagraphs.has(idx) && <span style={{ color: '#fff', fontSize: 12, lineHeight: 1 }}>✓</span>}
+                {agreedParagraphs.has(idx) && <CheckTick color="#fff" size={9} />}
               </div>
               <span style={{ fontSize: 13, color: '#1a1a1a', lineHeight: 1.7, textAlign: 'left', display: 'block' }}>{para}</span>
             </div>

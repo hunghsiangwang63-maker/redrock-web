@@ -23,6 +23,11 @@ const STATUS = {
 const COACH_FEE_TABLE = { 1:400, 2:420, 3:660, 4:720, 5:780, 6:840, 7:900, 8:960 };
 const defaultCoachFee = (n) => n >= 9 ? 1300 : (COACH_FEE_TABLE[n] ?? '');
 const defaultInvoice = (b) => Math.max(0, (b.totalFee || 0) - (b.numParticipants || 0) * 175);
+// 開立發票時要預填多少金額——試上一律用總費用（試上費不代收保費，見下方 kind==='trial' 分支）；
+// 一般體驗優先用管理員已存的 invoiceAmount，否則退回上面的預設公式。原本在「列表按鈕顯示金額」與
+// 「發票 modal 預填金額」兩處各自重複這段三元判斷，2026-09-14 清查時收斂成一個共用函式。
+const resolveExperienceInvoiceAmount = (b) =>
+  b.kind === 'trial' ? (b.totalFee || 0) : (b.invoiceAmount != null ? b.invoiceAmount : defaultInvoice(b));
 
 const inp = { height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
 const tinp = { width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
@@ -477,7 +482,7 @@ export default function ExperienceBookingsPage() {
                         <button onClick={()=>openCoach(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:12, cursor:'pointer' }}>{b.coachName?'👟 改教練':'👟 指定教練'}</button>
                       )}
                       {b.status==='confirmed' && canInvoice && (() => {
-                        const defaultAmount = b.kind==='trial' ? (b.totalFee||0) : (b.invoiceAmount!=null ? b.invoiceAmount : Math.max(0,(b.totalFee||0)-(b.numParticipants||0)*175));
+                        const defaultAmount = resolveExperienceInvoiceAmount(b);
                         if (defaultAmount <= 0) return null;
                         // 後端 checkInvoiceIssuanceTiming 對 experience 擋「須等活動當天」（2026-08-12 定案）——
                         // 原本按鈕不看日期、按下去才被後端擋，容易讓人以為壞掉；改成提前到期日之前直接顯示
@@ -861,7 +866,7 @@ export default function ExperienceBookingsPage() {
       {invoiceTarget && (() => {
         const b = invoiceTarget;
         const n = Number(b.numParticipants) || 0;
-        const defaultAmount = b.kind==='trial' ? (b.totalFee||0) : (b.invoiceAmount!=null ? b.invoiceAmount : Math.max(0,(b.totalFee||0)-n*175));
+        const defaultAmount = resolveExperienceInvoiceAmount(b);
         return (
           <InvoiceIssuer
             gymId={b.gymId}

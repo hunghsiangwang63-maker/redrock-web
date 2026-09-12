@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
+import CheckTick from '../../components/CheckTick';
 import MemberBottomNav from '../../components/MemberBottomNav';
 import { t, tt } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
@@ -783,7 +784,7 @@ export default function MemberPassesPage() {
       style={{ background:'#fff', borderRadius:14, border: checked ? '1.5px solid #8B1A1A' : '0.5px solid #E8D5D5', padding:16, marginBottom:12, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center', opacity: dim ? 0.6 : 1 }}>
       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
         {batchSelectable && (
-          <div style={{ width:22, height:22, borderRadius:6, border: checked ? 'none' : '1.5px solid #ccc', background: checked ? '#8B1A1A' : 'transparent', color:'#fff', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{checked ? '✓' : ''}</div>
+          <div style={{ width:22, height:22, borderRadius:6, border: checked ? 'none' : '1.5px solid #ccc', background: checked ? '#8B1A1A' : 'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>{checked && <CheckTick color="#fff" size={11} />}</div>
         )}
         <div>
           <div style={{ fontWeight:600, fontSize:15 }}>{t('單日入場券')}</div>

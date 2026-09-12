@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory, getStocktakeDraft, saveStocktakeDraft, clearStocktakeDraft } from '../../api/products';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
+import CheckTick from '../../components/CheckTick';
 import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
@@ -972,7 +973,7 @@ export default function SalesPage({ embedded = false }) {
                         <input autoFocus type="number" value={warehouseInput} onChange={e => setWarehouseInput(e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && handleSaveWarehouse(p.id, v.id)}
                           style={{ width:38, height:22, fontSize:11, border:'0.5px solid #8B1A1A', borderRadius:4, padding:'0 3px' }} />
-                        <button onClick={() => handleSaveWarehouse(p.id, v.id)} style={{ border:'none', background:'none', color:'#2D7D46', cursor:'pointer', fontSize:13 }}>✓</button>
+                        <button onClick={() => handleSaveWarehouse(p.id, v.id)} title="儲存" style={{ border:'none', background:'none', cursor:'pointer', display:'flex', alignItems:'center', padding:2 }}><CheckTick color="#2D7D46" size={11} thickness={2.5} /></button>
                       </div>
                     ) : (
                       <span

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
+import CheckTick from '../../components/CheckTick';
 import MemberBottomNav from '../../components/MemberBottomNav';
 import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -697,7 +698,7 @@ export default function MemberQRPage() {
           <div onClick={() => { setPartnerGymMember(v => !v); setPartnerVendor(false); }}
             style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'12px 14px', marginBottom:12, borderRadius:12, border:`1.5px solid ${partnerGymMember?'#8B1A1A':'#E8D5D5'}`, background: partnerGymMember?'#FBF5F5':'#fff', cursor:'pointer' }}>
             <div style={{ width:22, height:22, borderRadius:6, border:`1.5px solid ${partnerGymMember?'#8B1A1A':'#ccc'}`, background:partnerGymMember?'#8B1A1A':'#fff', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}>
-              {partnerGymMember && <span style={{ color:'#fff', fontSize:14, fontWeight:700 }}>✓</span>}
+              {partnerGymMember && <CheckTick color="#fff" size={11} />}
             </div>
             <div style={{ flex:1, textAlign:'left' }}>
               <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{tt(`友館隊員優惠（${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Partner-gym athlete (${Math.round(pgmRate*100)}% off)`, `提携ジームチーム会員優惠（${Math.round(pgmRate*100)}%）`)}</div>
@@ -710,7 +711,7 @@ export default function MemberQRPage() {
           <div onClick={() => { setPartnerVendor(v => !v); setPartnerGymMember(false); }}
             style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'12px 14px', marginBottom:16, borderRadius:12, border:`1.5px solid ${partnerVendor?'#8B1A1A':'#E8D5D5'}`, background: partnerVendor?'#FBF5F5':'#fff', cursor:'pointer' }}>
             <div style={{ width:22, height:22, borderRadius:6, border:`1.5px solid ${partnerVendor?'#8B1A1A':'#ccc'}`, background:partnerVendor?'#8B1A1A':'#fff', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', marginTop:1 }}>
-              {partnerVendor && <span style={{ color:'#fff', fontSize:14, fontWeight:700 }}>✓</span>}
+              {partnerVendor && <CheckTick color="#fff" size={11} />}
             </div>
             <div style={{ flex:1, textAlign:'left' }}>
               <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{tt(`特約廠商優惠（−NT$${pvDiscount}）`, `Partner discount (−NT$${pvDiscount})`, `提携業者割引（−NT$${pvDiscount}）`)}</div>
@@ -798,7 +799,7 @@ export default function MemberQRPage() {
                 </div>
               </div>
               <div style={{ width:24, height:24, borderRadius:12, border:`2px solid ${renewOptIn?'#8B1A1A':'#ccc'}`, background: renewOptIn?'#8B1A1A':'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                {renewOptIn && <span style={{ color:'#fff', fontSize:14 }}>✓</span>}
+                {renewOptIn && <CheckTick color="#fff" size={11} />}
               </div>
             </div>
             {renewOptIn && renewInstEnabled && (
@@ -841,7 +842,7 @@ export default function MemberQRPage() {
               <div style={{ fontSize:13, color:'#999' }}>NT$100</div>
             </div>
             <div style={{ width:24, height:24, borderRadius:12, border:`2px solid ${rentShoes?'#8B1A1A':'#ccc'}`, background: rentShoes?'#8B1A1A':'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {rentShoes && <span style={{ color:'#fff', fontSize:14 }}>✓</span>}
+              {rentShoes && <CheckTick color="#fff" size={11} />}
             </div>
           </div>
           {/* 粉袋 */}
@@ -853,7 +854,7 @@ export default function MemberQRPage() {
               <div style={{ fontSize:13, color:'#999' }}>NT$50</div>
             </div>
             <div style={{ width:24, height:24, borderRadius:12, border:`2px solid ${rentChalk?'#8B1A1A':'#ccc'}`, background: rentChalk?'#8B1A1A':'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {rentChalk && <span style={{ color:'#fff', fontSize:14 }}>✓</span>}
+              {rentChalk && <CheckTick color="#fff" size={11} />}
             </div>
           </div>
           {/* 都不需要 */}
@@ -867,7 +868,7 @@ export default function MemberQRPage() {
               <div style={{ fontSize:13, color:'#999' }}>{t('不租借任何器材')}</div>
             </div>
             <div style={{ width:24, height:24, borderRadius:12, border:`2px solid ${(!rentShoes && !rentChalk)?'#8B1A1A':'#ccc'}`, background: (!rentShoes && !rentChalk)?'#8B1A1A':'#fff', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              {(!rentShoes && !rentChalk) && <span style={{ color:'#fff', fontSize:14 }}>✓</span>}
+              {(!rentShoes && !rentChalk) && <CheckTick color="#fff" size={11} />}
             </div>
           </div>
           {/* 免費入場但有加租器材 → 選租借付款方式（不再一律現金）*/}

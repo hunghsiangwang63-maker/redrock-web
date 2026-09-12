@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
+import CheckTick from '../../components/CheckTick';
 import { t } from '../../utils/memberI18n';
 
 export default function MemberWaiverPage() {
@@ -161,7 +162,7 @@ export default function MemberWaiverPage() {
                   }}>
                   <div
                     style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, border: `2px solid ${agreedParagraphs.has(idx) ? '#2D7D46' : '#CCC'}`, borderRadius: 3, background: agreedParagraphs.has(idx) ? '#2D7D46' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                    {agreedParagraphs.has(idx) && <span style={{ color: '#fff', fontSize: 12, lineHeight: 1 }}>✓</span>}
+                    {agreedParagraphs.has(idx) && <CheckTick color="#fff" size={9} />}
                   </div>
                   <div style={{ fontSize: 13, lineHeight: 1.7, color: '#333', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{para}</div>
                 </div>
