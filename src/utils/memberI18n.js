@@ -1433,6 +1433,9 @@ const DICT_EN = {
   '尚未開放報名': 'Registration Not Yet Open',
   '加入候補名單': 'Join Waitlist',
   '報名課程': 'Register',
+  // ── 課程頁 · 段3b：課程總覽(browse) 後半：工作坊選場次 ──
+  '隊員價': 'Team Price',
+  '報名': 'Register',
 };
 
 const DICT_JA = {
@@ -2865,6 +2868,9 @@ const DICT_JA = {
   '尚未開放報名': 'まだ登録受付を開始していません',
   '加入候補名單': 'キャンセル待ちに登録',
   '報名課程': '登録する',
+  // ── 課程頁 · 段3b：課程總覽(browse) 後半：工作坊選場次 ──
+  '隊員價': 'チーム会員料金',
+  '報名': '登録',
 };
 
 export const getMemberLang = () => {

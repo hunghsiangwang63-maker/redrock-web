@@ -1706,10 +1706,10 @@ export default function MemberCoursesPage() {
                   ? (!selectedCourse.teamOpenDate || _td >= selectedCourse.teamOpenDate)
                   : (!selectedCourse.generalOpenDate || _td >= selectedCourse.generalOpenDate);
                 const _notOpenMsg = _wsPriority
-                  ? `${_wsStaff ? '員工' : '隊員'} ${selectedCourse.teamOpenDate} 起開放`
+                  ? tt(`${_wsStaff ? '員工' : '隊員'} ${selectedCourse.teamOpenDate} 起開放`, `Open to ${_wsStaff ? 'staff' : 'team members'} from ${selectedCourse.teamOpenDate}`, `${_wsStaff ? 'スタッフ' : 'チーム会員'}は${selectedCourse.teamOpenDate}より受付開始`)
                   : (selectedCourse.teamOpenDate && _td >= selectedCourse.teamOpenDate
-                      ? `隊員專屬報名中，一般會員 ${selectedCourse.generalOpenDate} 起開放`
-                      : `一般會員 ${selectedCourse.generalOpenDate} 起開放`);
+                      ? tt(`隊員專屬報名中，一般會員 ${selectedCourse.generalOpenDate} 起開放`, `Currently open to team members only — general members can register from ${selectedCourse.generalOpenDate}`, `現在はチーム会員限定受付中、一般会員は${selectedCourse.generalOpenDate}より受付開始`)
+                      : tt(`一般會員 ${selectedCourse.generalOpenDate} 起開放`, `Open to general members from ${selectedCourse.generalOpenDate}`, `一般会員は${selectedCourse.generalOpenDate}より受付開始`));
                 return (
                   <div key={s.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -1721,13 +1721,13 @@ export default function MemberCoursesPage() {
                           {s.startTime}～{s.endTime}{s.instructor && ` · ${s.instructor}`}
                         </div>
                         <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:700, marginTop:4 }}>
-                          NT${_myPrice}{_wsTeam && _hasTeamPrice && <span style={{ fontSize:11, color:'#854F0B', fontWeight:600, marginLeft:6 }}>🏅隊員價</span>}
+                          NT${_myPrice}{_wsTeam && _hasTeamPrice && <span style={{ fontSize:11, color:'#854F0B', fontWeight:600, marginLeft:6 }}>🏅{t('隊員價')}</span>}
                         </div>
                         {_staged && _hasTeamPrice && !_wsTeam && (
-                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>隊員價 NT${selectedCourse.teamPrice}</div>
+                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{tt(`隊員價 NT${selectedCourse.teamPrice}`, `Team price: NT$${selectedCourse.teamPrice}`, `チーム会員料金：NT$${selectedCourse.teamPrice}`)}</div>
                         )}
                         {!_wsTeam && selectedCourse.partnerGymPrice != null && (
-                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>友館隊員價 NT${selectedCourse.partnerGymPrice}（報名時選填）</div>
+                          <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{tt(`友館隊員價 NT${selectedCourse.partnerGymPrice}（報名時選填）`, `Partner gym team price: NT$${selectedCourse.partnerGymPrice} (select at registration)`, `提携ジムチーム会員料金：NT$${selectedCourse.partnerGymPrice}（登録時に選択）`)}</div>
                         )}
                         {_staged && !_myOpen && (
                           <div style={{ fontSize:11, color:'#B5651D', marginTop:3 }}>⏳ {_notOpenMsg}</div>
@@ -1735,15 +1735,15 @@ export default function MemberCoursesPage() {
                       </div>
                       <div style={{ textAlign:'right' }}>
                         {full && !enrolled && (
-                          <div style={{ fontSize:12, color:'#A32D2D' }}>額滿</div>
+                          <div style={{ fontSize:12, color:'#A32D2D' }}>{t('額滿')}</div>
                         )}
                         {enrolled ? (
-                          <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>已報名</span>
+                          <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>{t('已報名')}</span>
                         ) : (
                           <button onClick={() => { if (full || !_myOpen) return; setEnrollSession({ ...s, fee: _myPrice }); setPaymentMethod(defaultCoursePaymentMethod(selectedCourse)); setPaymentData({ method: defaultCoursePaymentMethod(selectedCourse), paymentDate:'', bankLastFive:'' }); setShowEnrollModal(true); }}
                             style={{ marginTop:4, height:30, padding:'0 12px', borderRadius:8, background: (full||!_myOpen)?'#f5f5f5':'#8B1A1A', color: (full||!_myOpen)?'#999':'#fff', border:'none', fontSize:12, cursor: (full||!_myOpen)?'not-allowed':'pointer' }}
                             disabled={full || !_myOpen}>
-                            {full ? '候補' : '報名'}
+                            {full ? t('候補') : t('報名')}
                           </button>
                         )}
                       </div>
