@@ -1558,6 +1558,16 @@ const DICT_EN = {
   '銀行代碼': 'Bank Code',
   '如：812': 'e.g. 812',
   '帳號': 'Account Number',
+  // ── MemberQRPage.jsx 補齊入場QR線上支付新功能缺口 ──
+  '✅ 付款成功，入場券已開通！請選擇「使用單次入場券（免費）」領取，即可產生入場 QR。': '✅ Payment successful — your entry ticket has been activated! Select "Use Single-Entry Ticket (Free)" to claim it and generate your entry QR code.',
+  '線上支付入場': 'Online Payment Entry',
+  '（子）': ' (Child)',
+  '（本人不入場）': ' (Not entering)',
+  '選擇「街口支付」可直接完成線上付款、付款後立即開通入場券；選擇 LinePay／台灣Pay 需至櫃檯掃描店內立牌條碼付款。': 'Choosing "JKoPay" completes payment online directly — the entry ticket activates immediately after payment. Choosing LinePay/Taiwan Pay requires scanning the in-store QR stand at the front desk to pay.',
+  '選擇 LinePay／台灣Pay／街口支付皆需至櫃檯掃描店內立牌條碼付款。': 'LinePay/Taiwan Pay/JKoPay all require scanning the in-store QR stand at the front desk to pay.',
+  '下一步：合約條款 →': 'Next: Contract Terms →',
+  '合約條款': 'Contract Terms',
+  '確認並繼續 →': 'Confirm & Continue →',
 };
 
 const DICT_JA = {
@@ -3115,6 +3125,16 @@ const DICT_JA = {
   '銀行代碼': '銀行コード',
   '如：812': '例：812',
   '帳號': '口座番号',
+  // ── MemberQRPage.jsx 補齊入場QR線上支付新功能缺口 ──
+  '✅ 付款成功，入場券已開通！請選擇「使用單次入場券（免費）」領取，即可產生入場 QR。': '✅ お支払いが完了し、入場チケットが有効になりました！「単日入場券を使用（無料）」を選択して受け取ると、入場QRコードが発行されます。',
+  '線上支付入場': 'オンライン決済で入場',
+  '（子）': '（子）',
+  '（本人不入場）': '（本人は入場しない）',
+  '選擇「街口支付」可直接完成線上付款、付款後立即開通入場券；選擇 LinePay／台灣Pay 需至櫃檯掃描店內立牌條碼付款。': '「街口支付（JKoPay）」を選択するとオンラインで決済が完了し、支払い後すぐに入場チケットが有効になります。LinePay／台灣Payを選択した場合は、フロントの店内スタンドのQRコードをスキャンしてお支払いください。',
+  '選擇 LinePay／台灣Pay／街口支付皆需至櫃檯掃描店內立牌條碼付款。': 'LinePay／台灣Pay／街口支付（JKoPay）はいずれも、フロントの店内スタンドのQRコードをスキャンしてお支払いいただく必要があります。',
+  '下一步：合約條款 →': '次へ：契約条項 →',
+  '合約條款': '契約条項',
+  '確認並繼續 →': '確認して続ける →',
 };
 
 export const getMemberLang = () => {
