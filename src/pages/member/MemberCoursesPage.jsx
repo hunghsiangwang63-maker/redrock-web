@@ -2202,7 +2202,7 @@ export default function MemberCoursesPage() {
           {makeupRights.filter(m => m.status === 'available').length > 0 && (
             <div style={{ background:'#FAEEDA', borderRadius:12, border:'0.5px solid #F5C97A', padding:14, marginBottom:14 }}>
               <div style={{ fontWeight:600, fontSize:13, color:'#854F0B', marginBottom:8 }}>
-                📋 補課資格（{makeupRights.filter(m => m.status === 'available').length} 筆）
+                📋 {tt(`補課資格（${makeupRights.filter(m => m.status === 'available').length} 筆）`, `Makeup Credits (${makeupRights.filter(m => m.status === 'available').length})`, `補講資格（${makeupRights.filter(m => m.status === 'available').length}件）`)}
               </div>
               {makeupRights.filter(m => m.status === 'available').map(m => {
                 // 該課退費審核中 → 凍結補課資格（後端亦權威擋 REFUND_PENDING）
@@ -2215,15 +2215,15 @@ export default function MemberCoursesPage() {
                       {m._isSelf === false && <span style={{ fontSize:11, color:'#185FA5', marginLeft:6, fontWeight:600 }}>👦 {m._ownerName}</span>}
                     </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
-                      有效期至 {dayjs(m.expiresAt?._seconds ? new Date(m.expiresAt._seconds * 1000) : m.expiresAt).format('MM/DD')}
+                      {tt(`有效期至 ${dayjs(m.expiresAt?._seconds ? new Date(m.expiresAt._seconds * 1000) : m.expiresAt).format('MM/DD')}`, `Valid until ${dayjs(m.expiresAt?._seconds ? new Date(m.expiresAt._seconds * 1000) : m.expiresAt).format('MM/DD')}`, `有効期限 ${dayjs(m.expiresAt?._seconds ? new Date(m.expiresAt._seconds * 1000) : m.expiresAt).format('MM/DD')}`)}
                     </div>
                   </div>
                   {frozen ? (
-                    <span style={{ fontSize:11, color:'#A32D2D', fontWeight:600, flexShrink:0 }}>退費審核中</span>
+                    <span style={{ fontSize:11, color:'#A32D2D', fontWeight:600, flexShrink:0 }}>{t('退費審核中')}</span>
                   ) : (
                   <button onClick={() => openMakeupModal(m)}
                     style={{ height:32, padding:'0 14px', borderRadius:8, background:'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                    選擇補課
+                    {t('選擇補課')}
                   </button>
                   )}
                 </div>
@@ -2235,7 +2235,7 @@ export default function MemberCoursesPage() {
           {!myEnrollments.some(e => ['confirmed','leave','waitlist'].includes(e.status) || (e.status === 'cancelled' && e.cancelReason === 'payment_expired')) ? (
             // 無「可顯示」報名（全部已取消/失效）→ 顯示空狀態，避免整頁空白
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-              尚未報名任何課程
+              {t('尚未報名任何課程')}
             </div>
           ) : (() => {
             // 按「課程＋報名對象」分組（家長帳號含子女報名，需分開不可合併）
@@ -2290,7 +2290,7 @@ export default function MemberCoursesPage() {
                 const showSectionHeader = '已取消' !== lastSection;
                 lastSection = '已取消';
                 const sectionHeader = showSectionHeader ? (
-                  <div key={`sec-cancelled-${grpKey}`} style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'16px 0 8px', textAlign:'left' }}>已取消</div>
+                  <div key={`sec-cancelled-${grpKey}`} style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'16px 0 8px', textAlign:'left' }}>{t('已取消')}</div>
                 ) : null;
                 return [sectionHeader, (
                   <div key={grpKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, opacity:0.75 }}>
@@ -2299,9 +2299,9 @@ export default function MemberCoursesPage() {
                         {gymPrefix(group.gymId)}{group.courseName}
                         {familyMembers.length > 0 && eName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{showChild ? '👦' : '👤'} {eName}</span>}
                       </div>
-                      <span style={{ fontSize:11, background:'#F0EDED', color:'#999', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>已取消</span>
+                      <span style={{ fontSize:11, background:'#F0EDED', color:'#999', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>{t('已取消')}</span>
                     </div>
-                    <div style={{ fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.6 }}>因逾期未付款，此報名已自動取消、名額已釋出。如仍要上課請重新報名。</div>
+                    <div style={{ fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.6 }}>{t('因逾期未付款，此報名已自動取消、名額已釋出。如仍要上課請重新報名。')}</div>
                   </div>
                 )].filter(Boolean);
               }
@@ -2317,7 +2317,7 @@ export default function MemberCoursesPage() {
               const showSectionHeader = mySection !== lastSection;
               lastSection = mySection;
               const sectionHeader = showSectionHeader ? (
-                <div key={`sec-${mySection}-${groupKey}`} style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'16px 0 8px', textAlign:'left' }}>{mySection}</div>
+                <div key={`sec-${mySection}-${groupKey}`} style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'16px 0 8px', textAlign:'left' }}>{t(mySection)}</div>
               ) : null;
               const isWorkshop = gCourse?.type === 'workshop'; // 工作坊不提供請假功能
               const _dates = group.sessions.map(s => s.date).filter(Boolean).sort();
@@ -2325,9 +2325,9 @@ export default function MemberCoursesPage() {
               const rangeEnd = gCourse?.endDate || _dates[_dates.length - 1];
               const isExpanded = expandedCourseId === groupKey;
               const attendedLabel = (s) => {
-                if (s.attendanceStatus === 'present') return { text:'已出席', color:'#2D7D46', bg:'#E6F4EB' };
-                if (s.attendanceStatus === 'absent') return { text:'缺席', color:'#A32D2D', bg:'#FCEBEB' };
-                return { text:'已上課（未點名）', color:'#999', bg:'#F5F5F5' };
+                if (s.attendanceStatus === 'present') return { text:t('已出席'), color:'#2D7D46', bg:'#E6F4EB' };
+                if (s.attendanceStatus === 'absent') return { text:t('缺席'), color:'#A32D2D', bg:'#FCEBEB' };
+                return { text:t('已上課（未點名）'), color:'#999', bg:'#F5F5F5' };
               };
               // 付款狀態（主報名 idx0）：待付款倒數 / 被退回待補正
               const primary = primaryOf(group);
@@ -2355,16 +2355,16 @@ export default function MemberCoursesPage() {
                     <div style={{ fontWeight:600, fontSize:15 }}>
                       {gymPrefix(group.gymId)}{group.courseName}
                       {hasFamily && enrolleeName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{enrolleeIcon} {enrolleeName}</span>}
-                      {refundFrozen && <span style={{ fontSize:11, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>退費審核中</span>}
-                      {makeupOnly && <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>補課</span>}
+                      {refundFrozen && <span style={{ fontSize:11, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{t('退費審核中')}</span>}
+                      {makeupOnly && <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{t('補課')}</span>}
                     </div>
                     {isWaitlistGroup ? (
                       <span style={{ fontSize:11, background:'#FAEEDA', color:'#B5651D', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
-                        候補中{waitlistPos ? `・第 ${waitlistPos} 位` : ''}
+                        {t('候補中')}{waitlistPos ? tt(`・第 ${waitlistPos} 位`, ` · #${waitlistPos}`, `・${waitlistPos}番目`) : ''}
                       </span>
                     ) : (
                       <span style={{ fontSize:11, background:'#E6F4EB', color:'#2D7D46', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>
-                        已報名
+                        {t('已報名')}
                       </span>
                     )}
                   </div>
@@ -2372,13 +2372,13 @@ export default function MemberCoursesPage() {
                   {/* 轉帳被退回：待補正 + 重新上傳（期限沿用原值、不延長） */}
                   {!isWaitlistGroup && isRejected && (
                     <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:8, padding:'10px 12px', marginBottom:8, textAlign:'left' }}>
-                      <div style={{ fontSize:12.5, color:'#A32D2D', fontWeight:600 }}>轉帳被退回{primary?.paymentRejectReason ? `：${primary.paymentRejectReason}` : ''}</div>
+                      <div style={{ fontSize:12.5, color:'#A32D2D', fontWeight:600 }}>{t('轉帳被退回')}{primary?.paymentRejectReason ? `：${primary.paymentRejectReason}` : ''}</div>
                       <div style={{ fontSize:11.5, color:'#B5651D', marginTop:3, lineHeight:1.6 }}>
-                        {pDeadline ? `請於 ${pDeadline.format('YYYY-MM-DD HH:mm')} 前重新上傳轉帳，逾期未確認將自動取消報名。` : '請重新上傳轉帳。'}
+                        {pDeadline ? tt(`請於 ${pDeadline.format('YYYY-MM-DD HH:mm')} 前重新上傳轉帳，逾期未確認將自動取消報名。`, `Please re-upload your transfer proof before ${pDeadline.format('YYYY-MM-DD HH:mm')} — if not confirmed by then, the registration will be automatically cancelled.`, `${pDeadline.format('YYYY-MM-DD HH:mm')}までに振込証明を再アップロードしてください。期限内に確認できない場合、登録は自動的にキャンセルされます。`) : t('請重新上傳轉帳。')}
                       </div>
                       <button onClick={() => { setReuploadTarget({ enrollmentId: primary.id, courseName: group.courseName, amount: primary.enrollmentFee || 0, memberId: group.memberId, gymId: primary.gymId }); setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' }); setReuploadFile(null); }}
                         style={{ marginTop:8, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                        重新上傳轉帳
+                        {t('重新上傳轉帳')}
                       </button>
                     </div>
                   )}
@@ -2386,20 +2386,20 @@ export default function MemberCoursesPage() {
                   {!isWaitlistGroup && !isRejected && awaitingPay && (
                     <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'9px 12px', marginBottom:8, textAlign:'left' }}>
                       <div style={{ fontSize:12, color:'#8B6914', lineHeight:1.6 }}>
-                        ⏳ {primary?.paymentStatus === 'pending_confirm' ? '轉帳待工作人員確認' : '待付款'}：請於 <b>{pDeadline.format('YYYY-MM-DD HH:mm')}</b> 前完成付款，逾期未確認將自動取消報名、釋出名額。
+                        ⏳ {primary?.paymentStatus === 'pending_confirm' ? t('轉帳待工作人員確認') : t('待付款')}：{tt(`請於 ${pDeadline.format('YYYY-MM-DD HH:mm')} 前完成付款，逾期未確認將自動取消報名、釋出名額。`, `Please complete payment before ${pDeadline.format('YYYY-MM-DD HH:mm')} — if not confirmed by then, the registration will be automatically cancelled and the spot released.`, `${pDeadline.format('YYYY-MM-DD HH:mm')}までにお支払いを完了してください。期限内に確認できない場合、登録は自動的にキャンセルされ、定員が解放されます。`)}
                       </div>
                     </div>
                   )}
                   {/* 候補自動遞補為正取：待選付款方式 */}
                   {promotedNeedsMethod && (
                     <div style={{ background:'#E6F1FB', border:'0.5px solid #C0DCF5', borderRadius:8, padding:'10px 12px', marginBottom:8, textAlign:'left' }}>
-                      <div style={{ fontSize:12.5, color:'#185FA5', fontWeight:600 }}>🎉 候補已遞補為正取！</div>
+                      <div style={{ fontSize:12.5, color:'#185FA5', fontWeight:600 }}>🎉 {t('候補已遞補為正取！')}</div>
                       <div style={{ fontSize:11.5, color:'#185FA5', marginTop:3, lineHeight:1.6 }}>
-                        應繳 NT${(primary.enrollmentFee || 0).toLocaleString()}，請選擇付款方式完成報名。
+                        {tt(`應繳 NT$${(primary.enrollmentFee || 0).toLocaleString()}，請選擇付款方式完成報名。`, `Amount due NT$${(primary.enrollmentFee || 0).toLocaleString()} — please select a payment method to complete your registration.`, `お支払い金額 NT$${(primary.enrollmentFee || 0).toLocaleString()}——お支払い方法を選択して登録を完了してください。`)}
                       </div>
                       <button onClick={() => { setReuploadTarget({ mode:'promoted', enrollmentId: primary.id, courseName: group.courseName, amount: primary.enrollmentFee || 0, memberId: group.memberId, gymId: primary.gymId }); setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' }); setReuploadFile(null); }}
                         style={{ marginTop:8, height:30, padding:'0 14px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                        選擇付款方式
+                        {t('選擇付款方式')}
                       </button>
                     </div>
                   )}
@@ -2407,27 +2407,27 @@ export default function MemberCoursesPage() {
                   {promotedAwaitingConfirm && (
                     <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'9px 12px', marginBottom:8, textAlign:'left' }}>
                       <div style={{ fontSize:12, color:'#8B6914', lineHeight:1.6 }}>
-                        ⏳ 候補已遞補為正取，應繳 NT${(primary.enrollmentFee || 0).toLocaleString()}，{primary.paymentMethod === 'cash' ? '請至櫃檯繳費' : '轉帳資訊已提交'}，待工作人員確認。
+                        ⏳ {tt(`候補已遞補為正取，應繳 NT$${(primary.enrollmentFee || 0).toLocaleString()}，${primary.paymentMethod === 'cash' ? '請至櫃檯繳費' : '轉帳資訊已提交'}，待工作人員確認。`, `Promoted from waitlist — amount due NT$${(primary.enrollmentFee || 0).toLocaleString()}, ${primary.paymentMethod === 'cash' ? 'please pay at the front desk' : 'transfer info submitted'}, awaiting staff confirmation.`, `キャンセル待ちから繰り上がりました。お支払い金額 NT$${(primary.enrollmentFee || 0).toLocaleString()}、${primary.paymentMethod === 'cash' ? 'フロントでお支払いください' : '振込情報を送信済みです'}。スタッフの確認をお待ちください。`)}
                       </div>
                     </div>
                   )}
                   {/* 選轉帳報名後尚未收到匯款資訊（如報名當下自動提交失敗）：可自行補填，避免卡住無法被館方確認 */}
                   {needsInitialTransferInfo && (
                     <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'10px 12px', marginBottom:8, textAlign:'left' }}>
-                      <div style={{ fontSize:12.5, color:'#8B6914', fontWeight:600 }}>⚠️ 尚未收到您的匯款資訊</div>
+                      <div style={{ fontSize:12.5, color:'#8B6914', fontWeight:600 }}>⚠️ {t('尚未收到您的匯款資訊')}</div>
                       <div style={{ fontSize:11.5, color:'#8B6914', marginTop:3, lineHeight:1.6 }}>
-                        應繳 NT${(primary.enrollmentFee || 0).toLocaleString()}，您選擇的付款方式為轉帳，但系統尚未收到匯款資料，請填寫後我們將盡快為您確認收款。
+                        {tt(`應繳 NT$${(primary.enrollmentFee || 0).toLocaleString()}，您選擇的付款方式為轉帳，但系統尚未收到匯款資料，請填寫後我們將盡快為您確認收款。`, `Amount due NT$${(primary.enrollmentFee || 0).toLocaleString()} — you selected bank transfer, but we have not received your transfer details yet. Please fill them in and we will confirm payment as soon as possible.`, `お支払い金額 NT$${(primary.enrollmentFee || 0).toLocaleString()}。振込を選択されましたが、まだ振込情報を受信していません。ご入力いただければ速やかに入金確認いたします。`)}
                       </div>
                       <button onClick={() => { setReuploadTarget({ mode:'initial', enrollmentId: primary.id, courseName: group.courseName, amount: primary.enrollmentFee || 0, memberId: group.memberId, gymId: primary.gymId }); setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' }); setReuploadFile(null); }}
                         style={{ marginTop:8, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                        填寫轉帳資訊
+                        {t('填寫轉帳資訊')}
                       </button>
                     </div>
                   )}
 
                   {isWaitlistGroup ? (
                     <div style={{ fontSize:12, color:'#B5651D', marginBottom:8, lineHeight:1.6, textAlign:'left' }}>
-                      您已排入候補名單，等待正取名額釋出。遞補為正取後將另行通知您繳費；在此之前不需付款。
+                      {t('您已排入候補名單，等待正取名額釋出。遞補為正取後將另行通知您繳費；在此之前不需付款。')}
                     </div>
                   ) : (
                     <>
@@ -2436,13 +2436,13 @@ export default function MemberCoursesPage() {
                       )}
                       <div style={{ fontSize:12, color:'#999', marginBottom:8, cursor:'pointer' }}
                         onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
-                        共 {confirmed.length + onLeave.length} 堂 · 剩餘 {future.length} 堂{!makeupOnly && !isWorkshop && <> · 已請假 {onLeave.length} 堂 · <span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>可請假剩餘 {leaveRemaining} 次</span></>}
-                        <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看完整紀錄 ▼'}</span>
+                        {tt(`共 ${confirmed.length + onLeave.length} 堂 · 剩餘 ${future.length} 堂`, `${confirmed.length + onLeave.length} classes total · ${future.length} remaining`, `全${confirmed.length + onLeave.length}回・残り${future.length}回`)}{!makeupOnly && !isWorkshop && <> · {tt(`已請假 ${onLeave.length} 堂 · `, `${onLeave.length} on leave · `, `欠席${onLeave.length}回・`)}<span style={{ color: leaveRemaining<=0?'#A32D2D':'#2D7D46', fontWeight:600 }}>{tt(`可請假剩餘 ${leaveRemaining} 次`, `${leaveRemaining} leave requests remaining`, `残り欠席可能回数 ${leaveRemaining}回`)}</span></>}
+                        <span style={{ marginLeft:6, color:'#8B1A1A' }}>{isExpanded ? t('收合 ▲') : t('查看完整紀錄 ▼')}</span>
                       </div>
                       {!makeupOnly && (
                         <div style={{ fontSize:12, color:'#185FA5', marginBottom:8, cursor:'pointer', textAlign:'left' }}
                           onClick={(e) => { e.stopPropagation(); openRulesModal(group); }}>
-                          📋 課程規則（{isWorkshop ? '退費' : '請假/補課/退費'}）
+                          📋 {tt(`課程規則（${isWorkshop ? '退費' : '請假/補課/退費'}）`, `Course Rules (${isWorkshop ? 'Refund' : 'Leave/Makeup/Refund'})`, `コース規則（${isWorkshop ? '返金' : '欠席・補講・返金'}）`)}
                         </div>
                       )}
                     </>
@@ -2452,11 +2452,11 @@ export default function MemberCoursesPage() {
                     <div style={{ display:'flex', gap:6, marginTop:8 }}>
                       <button onClick={() => setCancelWaitlistTarget(group)} disabled={loading}
                         style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:11, cursor: loading?'not-allowed':'pointer' }}>
-                        取消候補
+                        {t('取消候補')}
                       </button>
                     </div>
                   ) : makeupOnly ? (
-                    <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'left' }}>補課場次：如無法出席請於上課一天前「取消補課」；不可申請退費／暫停／請假。</div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'left' }}>{t('補課場次：如無法出席請於上課一天前「取消補課」；不可申請退費／暫停／請假。')}</div>
                   ) : isWorkshop ? (
                     // 工作坊（單日場次）：暫停／轉讓對單場活動無意義，僅提供 取消報名(未付款、立即生效) 或 申請退費(已付款、依退費分級審核)
                     <div style={{ display:'flex', gap:6, marginTop:8 }}>
@@ -2464,13 +2464,13 @@ export default function MemberCoursesPage() {
                         <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId, paid: pConfirmed })}
                           disabled={!!adjType || refundFrozen}
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: (adjType||refundFrozen) ? '#ccc' : '#A32D2D', border:`0.5px solid ${(adjType||refundFrozen) ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: (adjType||refundFrozen) ? 'not-allowed' : 'pointer' }}>
-                          {refundFrozen ? '退費審核中' : '申請退費'}
+                          {refundFrozen ? t('退費審核中') : t('申請退費')}
                         </button>
                       ) : (
                         <button onClick={() => setCancelWorkshopTarget({ enrollmentId: confirmed[0]?.id, courseId: group.courseId, memberId: group.memberId, courseName: group.courseName })}
                           disabled={loading || !confirmed[0]?.id || !!adjType || refundFrozen}
                           style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: (!!adjType||refundFrozen) ? '#ccc' : '#A32D2D', border:`0.5px solid ${(!!adjType||refundFrozen) ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: loading?'not-allowed':'pointer' }}>
-                          取消報名
+                          {t('取消報名')}
                         </button>
                       )}
                     </div>
@@ -2480,30 +2480,30 @@ export default function MemberCoursesPage() {
                     <button onClick={() => setAdjustModal({ type:'refund', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId, paid: pConfirmed })}
                       disabled={dis}
                       style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#A32D2D', border:`0.5px solid ${dis ? '#ccc' : '#A32D2D'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
-                      {refundFrozen ? '退費審核中' : '申請退費'}
+                      {refundFrozen ? t('退費審核中') : t('申請退費')}
                     </button>
                     <button onClick={() => setAdjustModal({ type:'pause', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
                       disabled={dis}
                       style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#8B6914', border:`0.5px solid ${dis ? '#ccc' : '#8B6914'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
-                      {adjType === 'pause' ? '暫停審核中' : '申請暫停'}
+                      {adjType === 'pause' ? t('暫停審核中') : t('申請暫停')}
                     </button>
                     <button onClick={() => setAdjustModal({ type:'transfer', enrollmentId: group.courseId, courseName: group.courseName, memberId: group.memberId })}
                       disabled={dis}
                       style={{ height:28, padding:'0 10px', borderRadius:6, background:'#fff', color: dis ? '#ccc' : '#185FA5', border:`0.5px solid ${dis ? '#ccc' : '#185FA5'}`, fontSize:11, cursor: dis ? 'not-allowed' : 'pointer' }}>
-                      {adjType === 'transfer' ? '轉讓審核中' : '申請轉讓'}
+                      {adjType === 'transfer' ? t('轉讓審核中') : t('申請轉讓')}
                     </button>
                     </>); })()}
                   </div>
                   )}
                   {refundFrozen && (
                     <div style={{ background:'#FCEBEB', border:'0.5px solid #F0C4C4', borderRadius:8, padding:'9px 12px', marginTop:8, fontSize:12, color:'#A32D2D', textAlign:'left', lineHeight:1.6 }}>
-                      退費申請審核中：此課程的入場學員資格與上課、請假、補課、暫停等操作已暫停；若申請被退回將自動恢復。
+                      {t('退費申請審核中：此課程的入場學員資格與上課、請假、補課、暫停等操作已暫停；若申請被退回將自動恢復。')}
                     </div>
                   )}
 
                   {!isExpanded && next && (
                     <div style={{ background:'#FBF5F5', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
-                      <div style={{ fontSize:11, color:'#999', marginBottom:3 }}>下一堂</div>
+                      <div style={{ fontSize:11, color:'#999', marginBottom:3 }}>{t('下一堂')}</div>
                       <div style={{ fontSize:13, fontWeight:500 }}>
                         {dayjs(next.date).format('MM/DD')}（{wdOf(next.date)}）{next.startTime}～{next.endTime}
                       </div>
@@ -2514,7 +2514,7 @@ export default function MemberCoursesPage() {
                     <div style={{ marginTop:4, marginBottom:10 }}>
                       {past.length > 0 && (
                         <div style={{ marginBottom:10 }}>
-                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>已上課</div>
+                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>{t('已上課')}</div>
                           {past.map(s => {
                             const a = attendedLabel(s);
                             return (
@@ -2529,11 +2529,11 @@ export default function MemberCoursesPage() {
 
                       {closureCancelled.length > 0 && (
                         <div style={{ marginBottom:10 }}>
-                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>停課</div>
+                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>{t('停課')}</div>
                           {closureCancelled.sort((a,b) => b.date.localeCompare(a.date)).map(s => (
                             <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
                               <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}</span>
-                              <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 7px', borderRadius:8 }}>停課</span>
+                              <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 7px', borderRadius:8 }}>{t('停課')}</span>
                             </div>
                           ))}
                         </div>
@@ -2541,17 +2541,17 @@ export default function MemberCoursesPage() {
 
                       {onLeave.length > 0 && (
                         <div style={{ marginBottom:10 }}>
-                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>已請假</div>
+                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>{t('已請假')}</div>
                           {onLeave.sort((a,b) => b.date.localeCompare(a.date)).map(s => {
                             const notStarted = s.date >= dayjs().format('YYYY-MM-DD'); // 課未開始才可取消請假（後端權威再驗上課時間/名額）
                             return (
                             <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4, gap:6, flexWrap:'wrap' }}>
                               <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}</span>
                               <span style={{ display:'flex', alignItems:'center', gap:6 }}>
-                                <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'2px 7px', borderRadius:8 }}>請假{s.leaveReason ? `：${s.leaveReason}` : ''}</span>
+                                <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'2px 7px', borderRadius:8 }}>{t('請假')}{s.leaveReason ? `：${s.leaveReason}` : ''}</span>
                                 {notStarted && !refundFrozen && (
                                   <button onClick={() => setCancelLeaveTarget({ enrollmentId: s.id, memberId: group.memberId, dateLabel: `${dayjs(s.date).format('MM/DD')} ${s.startTime}～${s.endTime}` })}
-                                    style={{ height:22, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:10, cursor:'pointer' }}>取消請假</button>
+                                    style={{ height:22, padding:'0 8px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:10, cursor:'pointer' }}>{t('取消請假')}</button>
                                 )}
                               </span>
                             </div>
@@ -2562,41 +2562,41 @@ export default function MemberCoursesPage() {
 
                       {future.length > 0 && (
                         <div>
-                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>未來場次</div>
+                          <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>{t('未來場次')}</div>
                           {future.map(s => (
                             <div key={s.id} style={{ padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                                 <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}</span>
                                 {s.isMakeup ? (
                                   <span style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-                                    <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 7px', borderRadius:8 }}>補課</span>
+                                    <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 7px', borderRadius:8 }}>{t('補課')}</span>
                                     {dayjs().format('YYYY-MM-DD') < s.date && (
                                       <button onClick={() => setCancelMakeupTarget({ enrollmentId: s.id, memberId: group.memberId, dateLabel: `${dayjs(s.date).format('MM/DD')} ${s.startTime}～${s.endTime}` })}
-                                        style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>取消補課</button>
+                                        style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>{t('取消補課')}</button>
                                     )}
                                   </span>
                                 ) : leavingId !== s.id && !refundFrozen && !isWorkshop && (
                                   <button onClick={() => setLeavingId(s.id)}
                                     style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:11, cursor:'pointer' }}>
-                                    申請請假
+                                    {t('申請請假')}
                                   </button>
                                 )}
                               </div>
                               {leavingId === s.id && !refundFrozen && !isWorkshop && (
                                 <div style={{ marginTop:6 }}>
                                   <input value={leaveReason} onChange={ev => setLeaveReason(ev.target.value)}
-                                    placeholder="請假原因"
+                                    placeholder={t('請假原因')}
                                     style={{ width:'100%', height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, outline:'none', boxSizing:'border-box', marginBottom:6, color:'#1a1a1a' }}/>
                                   <div style={{ display:'flex', gap:6 }}>
                                     <button onClick={() => { setLeavingId(null); setLeaveReason(''); }}
-                                      style={{ flex:1, height:28, borderRadius:6, background:'#f5f5f5', border:'none', fontSize:11, cursor:'pointer' }}>取消</button>
+                                      style={{ flex:1, height:28, borderRadius:6, background:'#f5f5f5', border:'none', fontSize:11, cursor:'pointer' }}>{t('取消')}</button>
                                     <button onClick={() => {
-                                        if (!leaveReason.trim()) { showMsg('請填寫請假原因', 'red'); return; }
+                                        if (!leaveReason.trim()) { showMsg(t('請填寫請假原因'), 'red'); return; }
                                         // 超過補課上限：仍可請假但不產生補課資格 → 先跳提醒框
                                         if (leaveRemaining <= 0) setOverLimitConfirm({ enrollmentId: s.id, memberId: group.memberId, leaveLimit });
                                         else handleLeave(s.id, group.memberId);
                                       }} disabled={loading}
-                                      style={{ flex:1, height:28, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>確認請假</button>
+                                      style={{ flex:1, height:28, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>{t('確認請假')}</button>
                                   </div>
                                 </div>
                               )}
@@ -2610,13 +2610,13 @@ export default function MemberCoursesPage() {
                   {!isExpanded && next && !refundFrozen && !isWorkshop && leavingId === next.id ? (
                     <div>
                       <input value={leaveReason} onChange={ev => setLeaveReason(ev.target.value)}
-                        placeholder="請假原因（下一堂）"
+                        placeholder={t('請假原因（下一堂）')}
                         style={{ width:'100%', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:6, color:'#1a1a1a' }}/>
                       <div style={{ display:'flex', gap:6 }}>
                         <button onClick={() => { setLeavingId(null); setLeaveReason(''); }}
-                          style={{ flex:1, height:32, borderRadius:6, background:'#f5f5f5', border:'none', fontSize:12, cursor:'pointer' }}>取消</button>
+                          style={{ flex:1, height:32, borderRadius:6, background:'#f5f5f5', border:'none', fontSize:12, cursor:'pointer' }}>{t('取消')}</button>
                         <button onClick={() => handleLeave(next.id, group.memberId)} disabled={loading}
-                          style={{ flex:1, height:32, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>確認請假</button>
+                          style={{ flex:1, height:32, borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('確認請假')}</button>
                       </div>
                     </div>
                   ) : !isExpanded && next && !refundFrozen && (
@@ -2624,13 +2624,13 @@ export default function MemberCoursesPage() {
                       dayjs().format('YYYY-MM-DD') < next.date ? (
                         <button onClick={() => setCancelMakeupTarget({ enrollmentId: next.id, memberId: group.memberId, dateLabel: `${dayjs(next.date).format('MM/DD')} ${next.startTime}～${next.endTime}` })}
                           style={{ width:'100%', height:32, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
-                          取消補課（下一堂）
+                          {t('取消補課（下一堂）')}
                         </button>
                       ) : null
                     ) : !isWorkshop ? (
                     <button onClick={() => setLeavingId(next.id)}
                       style={{ width:'100%', height:32, borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:12, cursor:'pointer' }}>
-                      申請請假（下一堂）
+                      {t('申請請假（下一堂）')}
                     </button>
                     ) : null
                   )}
