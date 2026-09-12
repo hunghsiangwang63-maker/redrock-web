@@ -29,11 +29,16 @@ const participantUnder4 = (s) => {
 };
 
 // 只留抱石體驗課程；小蜘蛛人（兒童）/抱石技巧班已併入「課程試上」報名
+// tiers 為 API（/experience-bookings/settings）讀取失敗時的備援值，比照後端 defaultSettings() 的
+// 預設級距（見 experienceService.js）——2026-09-14 修復：原本這裡的 unitPrice 對 'general' 型別是
+// 一段寫死的三元運算式（getGeneralPrice），完全不讀 courseSettings 實際抓回來的級距表，即使該資料
+// 早已成功載入也不採用；管理員之後若在後台調整價格，會員這頁的預覽金額仍會停在舊價格（後端送出時
+// 仍會用即時設定正確覆寫收費，故實際金額不受影響，但畫面預覽會跟實際收費對不上）。改成與公開預約頁
+// （PublicExperienceBookingPage.jsx）同一套「讀 tiers 動態查」邏輯，兩處單一真相、不再各自硬編碼。
 const FALLBACK_COURSE_TYPES = [
-  { id:'general',    label:t('抱石體驗課程（依人數計費）') },
+  { id:'general', label:t('抱石體驗課程（依人數計費）'), pricingType:'tiered',
+    tiers:[{min:1,max:1,price:975},{min:2,max:3,price:875},{min:4,max:5,price:825},{min:6,max:12,price:775}] },
 ];
-const GENERAL_PRICE = { 1:975, 2:875, 3:875 };
-const getGeneralPrice = (n) => n>=9?775:n>=6?775:n>=4?825:n>=3?875:n>=2?875:975;
 const NATIONALITIES = ['台灣','中國','香港','澳門','美國','日本','韓國','其他'];
 
 const inp = { width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' };
@@ -125,8 +130,14 @@ export default function MemberExperiencePage() {
   const n = participants.length;
   const currentCT = (courseSettings?.courseTypes || FALLBACK_COURSE_TYPES).find(c=>c.id===courseType);
   const needsIns = currentCT ? currentCT.needsInsurance !== false : true; // 該課程是否需保險（決定是否填身分證/國籍）
-  const unitPrice = courseType==='general' ? getGeneralPrice(n) : (courseSettings?.courseTypes || FALLBACK_COURSE_TYPES).find(c=>c.id===courseType)?.price||0;
-  const totalFee = courseType==='general' ? unitPrice * n : unitPrice * n;
+  // 與後端 routes/experienceBookings.js（POST / 及 POST /public 皆同一套）、公開預約頁完全一致的
+  // 「依人數查級距」公式——單一真相，不再對 'general' 型別另外寫死一份。
+  const unitPrice = currentCT
+    ? (currentCT.pricingType === 'tiered' && Array.isArray(currentCT.tiers)
+        ? (currentCT.tiers.find(t => n >= t.min && n <= t.max)?.price ?? currentCT.tiers[currentCT.tiers.length - 1]?.price ?? 0)
+        : (currentCT.price || 0))
+    : 0;
+  const totalFee = unitPrice * n;
 
   const anyParticipantUnder4 = participants.some(p => participantUnder4(p.birthday));
 
