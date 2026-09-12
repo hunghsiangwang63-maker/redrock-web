@@ -1452,6 +1452,10 @@ const DICT_EN = {
   '報名對象': 'Register For',
   '送出試上報名': 'Submit Trial Registration',
   '免責同意書／攀岩活動風險告知': 'Liability Waiver / Climbing Activity Risk Disclosure',
+  // ── 課程頁 · 段5：課程月曆(calendar) ──
+  '查看場次表 ▼': 'View Sessions ▼',
+  '（代班）': ' (Substitute)',
+  '點選上方日期查看當天課程': 'Select a date above to see that day\'s courses',
 };
 
 const DICT_JA = {
@@ -2903,6 +2907,10 @@ const DICT_JA = {
   '報名對象': '登録対象',
   '送出試上報名': '体験登録を送信',
   '免責同意書／攀岩活動風險告知': '免責同意書・クライミング活動リスク告知',
+  // ── 課程頁 · 段5：課程月曆(calendar) ──
+  '查看場次表 ▼': '受講回を見る ▼',
+  '（代班）': '（代講）',
+  '點選上方日期查看當天課程': '上の日付を選択するとその日のコースが表示されます',
 };
 
 export const getMemberLang = () => {

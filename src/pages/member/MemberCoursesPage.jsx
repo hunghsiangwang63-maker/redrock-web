@@ -2027,13 +2027,13 @@ export default function MemberCoursesPage() {
           <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:14, marginBottom:14 }}>
             <button onClick={() => { setCalendarMonth(dayjs(`${calendarMonth}-01`).subtract(1,'month').format('YYYY-MM')); setCalendarSelectedDate(null); }}
               style={{ width:32, height:32, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:15, color:'#333', fontWeight:600 }}>‹</button>
-            <div style={{ fontSize:15, fontWeight:600, minWidth:90, textAlign:'center' }}>{dayjs(`${calendarMonth}-01`).format('YYYY年MM月')}</div>
+            <div style={{ fontSize:15, fontWeight:600, minWidth:90, textAlign:'center' }}>{tt(dayjs(`${calendarMonth}-01`).format('YYYY年MM月'), dayjs(`${calendarMonth}-01`).format('MMMM YYYY'), dayjs(`${calendarMonth}-01`).format('YYYY年MM月'))}</div>
             <button onClick={() => { setCalendarMonth(dayjs(`${calendarMonth}-01`).add(1,'month').format('YYYY-MM')); setCalendarSelectedDate(null); }}
               style={{ width:32, height:32, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', cursor:'pointer', fontSize:15, color:'#333', fontWeight:600 }}>›</button>
           </div>
 
           {calendarLoading ? (
-            <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>載入中...</div>
+            <div style={{ textAlign:'center', padding:40, color:'#999', fontSize:13 }}>{t('載入中...')}</div>
           ) : (() => {
             const startOfMonth = dayjs(`${calendarMonth}-01`);
             const daysInMonth = startOfMonth.daysInMonth();
@@ -2051,7 +2051,7 @@ export default function MemberCoursesPage() {
               <>
                 <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden', marginBottom:14 }}>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(7,minmax(0,1fr))', background:'#FBF5F5' }}>
-                    {WEEKDAYS.map(d => <div key={d} style={{ padding:'7px 0', textAlign:'center', fontSize:11, color:'#999', fontWeight:600 }}>{d}</div>)}
+                    {WEEKDAYS.map((d, i) => <div key={d} style={{ padding:'7px 0', textAlign:'center', fontSize:11, color:'#999', fontWeight:600 }}>{wdShort(i)}</div>)}
                   </div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(7,minmax(0,1fr))' }}>
                     {cells.map((date, idx) => {
@@ -2079,7 +2079,7 @@ export default function MemberCoursesPage() {
                                   const col = courseColor(cid);
                                   const bg = isCancelled ? '#F0F0F0' : isLeave ? '#F2F2F2' : isMakeup ? '#E9F6EE' : col.bg;
                                   const fg = isCancelled ? '#aaa' : isLeave ? '#999' : isMakeup ? '#2D7D46' : col.fg;
-                                  const suffix = isCancelled ? '已取消' : isLeave ? '請假' : isMakeup ? '補課' : '';
+                                  const suffix = isCancelled ? t('已取消') : isLeave ? t('請假') : isMakeup ? t('補課') : '';
                                   return (
                                     <div key={cid} style={{ background:bg, borderRadius:4, padding:'1px 3px', marginBottom:1, overflow:'hidden' }}>
                                       <span style={{ fontSize:9, color:fg, fontWeight:600, lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>
@@ -2090,12 +2090,12 @@ export default function MemberCoursesPage() {
                                 })}
                                 {experiencesForDate(date).slice(0,2).map((b,i) => (
                                   <div key={`exp_${i}`} style={{ background:'#EAF3FB', borderRadius:4, padding:'1px 3px', marginBottom:1 }}>
-                                    <span style={{ fontSize:9, color:'#185FA5', fontWeight:600, lineHeight:1.35 }}>體驗</span>
+                                    <span style={{ fontSize:9, color:'#185FA5', fontWeight:600, lineHeight:1.35 }}>{t('體驗')}</span>
                                   </div>
                                 ))}
                                 {competitionsForDate(date).slice(0,2).map((r,i) => (
                                   <div key={`comp_${i}`} style={{ background:'#FBF3E3', borderRadius:4, padding:'1px 3px', marginBottom:1, overflow:'hidden' }}>
-                                    <span style={{ fontSize:9, color:'#854F0B', fontWeight:600, lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>比賽</span>
+                                    <span style={{ fontSize:9, color:'#854F0B', fontWeight:600, lineHeight:1.35, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'block' }}>{t('比賽')}</span>
                                   </div>
                                 ))}
                               </div>
@@ -2116,16 +2116,16 @@ export default function MemberCoursesPage() {
                   });
                   return (
                     <div>
-                      <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{dayjs(calendarSelectedDate).format('MM月DD日')}（{wdOf(calendarSelectedDate)}）</div>
+                      <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{tt(dayjs(calendarSelectedDate).format('MM月DD日'), dayjs(calendarSelectedDate).format('MMMM D'), dayjs(calendarSelectedDate).format('MM月DD日'))}（{wdOf(calendarSelectedDate)}）</div>
                       {experiencesForDate(calendarSelectedDate).map(b => (
                         <div key={b.id} style={{ background:'#E6F1FB', borderRadius:12, border:'0.5px solid #B5D4F4', padding:12, marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                           <div>
-                            <div style={{ fontWeight:600, fontSize:14 }}>🧗 體驗課程預約</div>
+                            <div style={{ fontWeight:600, fontSize:14 }}>{t('🧗 體驗課程預約')}</div>
                             <div style={{ fontSize:12, color:'#666', marginTop:3 }}>
-                              {b.bookingTime} · {b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · {b.numParticipants}人
+                              {b.bookingTime} · {b.gymId==='gym-hsinchu'?t('新竹館'):t('士林館')} · {tt(`${b.numParticipants}人`, `${b.numParticipants} people`, `${b.numParticipants}名`)}
                             </div>
                             <div style={{ fontSize:11, marginTop:2, color: b.status==='confirmed'?'#2D7D46':'#854F0B' }}>
-                              {b.status==='confirmed'?'✓ 已確認':'待確認付款'}
+                              {b.status==='confirmed'?('✓ '+t('已確認')):t('待確認付款')}
                             </div>
                           </div>
                           <div style={{ fontSize:22 }}>🧗</div>
@@ -2134,10 +2134,10 @@ export default function MemberCoursesPage() {
                       {competitionsForDate(calendarSelectedDate).map(r => (
                         <div key={r.id} style={{ background:'#FFF3E0', borderRadius:12, border:'0.5px solid #FFCC80', padding:12, marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                           <div>
-                            <div style={{ fontWeight:600, fontSize:14 }}>🏆 {r.competitionName || '比賽'}</div>
+                            <div style={{ fontWeight:600, fontSize:14 }}>🏆 {r.competitionName || t('比賽')}</div>
                             <div style={{ fontSize:12, color:'#666', marginTop:3 }}>{r.divisionName || ''}</div>
                             <div style={{ fontSize:11, marginTop:2, color: r.paymentStatus==='confirmed'?'#2D7D46':'#854F0B' }}>
-                              {r.paymentStatus==='confirmed'?'✓ 已確認付款':'待確認付款'}
+                              {r.paymentStatus==='confirmed'?('✓ '+t('已確認付款')):t('待確認付款')}
                             </div>
                           </div>
                           <div style={{ fontSize:22 }}>🏆</div>
@@ -2156,11 +2156,11 @@ export default function MemberCoursesPage() {
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                                 <div style={{ fontWeight:600, fontSize:14, color: isLeaveGroup?'#999':isMakeupGroup?'#2D7D46':'#1a1a1a' }}>
                                   {group.courseName}
-                                  {isCancelledGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>課程已取消</span>}
-                                  {isLeaveGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>已請假</span>}
-                                  {isMakeupGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>安排補課</span>}
+                                  {isCancelledGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>{t('課程已取消')}</span>}
+                                  {isLeaveGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>{t('已請假')}</span>}
+                                  {isMakeupGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>{t('安排補課')}</span>}
                                 </div>
-                                <span style={{ fontSize:11, color:'#8B1A1A' }}>{isExpanded ? '收合 ▲' : '查看場次表 ▼'}</span>
+                                <span style={{ fontSize:11, color:'#8B1A1A' }}>{isExpanded ? t('收合 ▲') : t('查看場次表 ▼')}</span>
                               </div>
                             </div>
                             {isExpanded && (
@@ -2168,11 +2168,11 @@ export default function MemberCoursesPage() {
                                 {group.sessions.sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||'')).map(s => (
                                   <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'7px 0', fontSize:12, borderBottom:'0.5px solid #FBF5F5' }}>
                                     <span>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}
-                                      {s.isMakeup && <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>補課</span>}
+                                      {s.isMakeup && <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>{t('補課')}</span>}
                                     </span>
                                     {s.instructor && (
                                       <span style={{ color: s.isSubstitute ? '#B26A00' : '#999', flexShrink:0 }}>
-                                        👟 {s.instructor}{s.isSubstitute ? '（代班）' : ''}
+                                        👟 {s.instructor}{s.isSubstitute ? t('（代班）') : ''}
                                       </span>
                                     )}
                                   </div>
@@ -2187,7 +2187,7 @@ export default function MemberCoursesPage() {
                 })()}
 
                 {!calendarSelectedDate && (
-                  <div style={{ textAlign:'center', padding:30, color:'#999', fontSize:12 }}>點選上方日期查看當天課程</div>
+                  <div style={{ textAlign:'center', padding:30, color:'#999', fontSize:12 }}>{t('點選上方日期查看當天課程')}</div>
                 )}
               </>
             );
