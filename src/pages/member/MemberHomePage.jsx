@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { t, tt, toggleMemberLang, nextLangLabel, localeCode } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMemberGyms, getMemberAnnouncements } from '../../api/gyms';
@@ -55,7 +55,7 @@ export default function MemberHomePage() {
       setRaQrDataUrl(dataUrl);
       setRaStep('qr');
     } catch (err) {
-      setRaError(err.response?.data?.message || '補租失敗，請重試');
+      setRaError(err.response?.data?.message || t('補租失敗，請重試'));
     } finally { setRaBusy(false); }
   };
 
@@ -71,7 +71,7 @@ export default function MemberHomePage() {
           memberClient.get('/checkin/my-today').then(r => setTodayCheckin(r.data || null)).catch(() => {});
         } else if (res.data.status === 'expired' || res.data.status === 'cancelled') {
           clearInterval(timer);
-          setRaError('此補租請求已逾時，請重新產生');
+          setRaError(t('此補租請求已逾時，請重新產生'));
           setRaStep('select');
         }
       } catch (_) {}
@@ -166,12 +166,13 @@ export default function MemberHomePage() {
     closure:'#A32D2D', special_hours:'#854F0B', route_change:'#185FA5', general:'#666'
   }[type] || '#666');
 
-  const annTypeLabel = (type) => ({
+  // t() 查字典轉換——原本這兩個函式沒有呼叫 t()，即使字典已有對應翻譯，英/日語模式下仍固定顯示中文。
+  const annTypeLabel = (type) => t({
     closure:'休館', special_hours:'特殊時間', route_change:'路線更換', general:'公告'
   }[type] || '公告');
 
   // 館別標示（null=全館；勿用二元寫法，否則全館會被誤標成士林）
-  const annGymLabel = (gymId) => gymId==='gym-hsinchu' ? '新竹館' : gymId==='gym-shilin' ? '士林館' : '全館';
+  const annGymLabel = (gymId) => t(gymId==='gym-hsinchu' ? '新竹館' : gymId==='gym-shilin' ? '士林館' : '全館');
 
   return (
     <MemberOnboardingGate>
@@ -182,12 +183,12 @@ export default function MemberHomePage() {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
             <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:20, color:'#8B1A1A' }}>RedRock</div>
-            <div style={{ fontSize:15, color:'#666', marginTop:2 }}>嗨，<span style={{ fontWeight:700, color:'#1a1a1a' }}>{member?.name}</span> 👋</div>
+            <div style={{ fontSize:15, color:'#666', marginTop:2 }}>{tt('嗨，', 'Hi, ', 'こんにちは、')}<span style={{ fontWeight:700, color:'#1a1a1a' }}>{member?.name}</span> 👋</div>
             {identity?.fallTest?.status === 'passed' && (
-              <div style={{ fontSize:10, color:'#8AA79A', marginTop:2 }}>🧗 墜落測驗有效至 {identity.fallTest.expiresAt}</div>
+              <div style={{ fontSize:10, color:'#8AA79A', marginTop:2 }}>{tt(`🧗 墜落測驗有效至 ${identity.fallTest.expiresAt}`, `🧗 Fall test valid until ${identity.fallTest.expiresAt}`, `🧗 墜落テスト有効期限：${identity.fallTest.expiresAt}`)}</div>
             )}
             {identity?.fallTest?.status === 'expired' && (
-              <div style={{ fontSize:10, color:'#A32D2D', marginTop:2 }}>🧗 墜落測驗已到期，請重新測驗</div>
+              <div style={{ fontSize:10, color:'#A32D2D', marginTop:2 }}>🧗 {t('墜落測驗已到期，請重新測驗')}</div>
             )}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
@@ -210,15 +211,15 @@ export default function MemberHomePage() {
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <div style={{ fontSize:20 }}>✅</div>
             <div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#2D7D46' }}>已於 {annGymLabel(todayCheckin.gymId)} 完成入場</div>
-              <div style={{ fontSize:11, color:'#5C8A6B', marginTop:2 }}>今日入場紀錄</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#2D7D46' }}>{tt(`已於 ${annGymLabel(todayCheckin.gymId)} 完成入場`, `Checked in at ${annGymLabel(todayCheckin.gymId)}`, `${annGymLabel(todayCheckin.gymId)}にチェックイン済み`)}</div>
+              <div style={{ fontSize:11, color:'#5C8A6B', marginTop:2 }}>{t('今日入場紀錄')}</div>
             </div>
           </div>
           {(!todayCheckin.rentShoes || !todayCheckin.rentChalk) && (
             <div style={{ display:'flex', gap:8, marginTop:10 }}>
               <button onClick={openRentalAddon}
                 style={{ flex:1, height:34, borderRadius:8, background:'#fff', border:'0.5px solid #B3DEC0', color:'#2D7D46', fontSize:12, fontWeight:600, cursor:'pointer' }}>
-                🎒 補租器材
+                🎒 {t('補租器材')}
               </button>
             </div>
           )}
@@ -231,17 +232,17 @@ export default function MemberHomePage() {
           onClick={raStep === 'select' ? closeRentalAddon : undefined}>
           <div style={{ background:'#fff', borderRadius:16, padding:22, width:'100%', maxWidth:360, maxHeight:'85vh', overflowY:'auto' }} onClick={e => e.stopPropagation()}>
             {raStep === 'select' && (<>
-              <div style={{ fontWeight:700, fontSize:16, marginBottom:14 }}>🎒 補租器材</div>
+              <div style={{ fontWeight:700, fontSize:16, marginBottom:14 }}>🎒 {t('補租器材')}</div>
               {!todayCheckin.rentShoes && (
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', border:`1.5px solid ${raSel.shoes?'#8B1A1A':'#E8D5D5'}`, borderRadius:10, marginBottom:10, cursor:'pointer' }}>
                   <input type="checkbox" checked={raSel.shoes} onChange={e => setRaSel(s => ({ ...s, shoes: e.target.checked }))} />
-                  <span style={{ flex:1, fontSize:14 }}>岩鞋租借</span><span style={{ fontSize:13, color:'#8B1A1A', fontWeight:600 }}>NT$100</span>
+                  <span style={{ flex:1, fontSize:14 }}>{t('岩鞋租借')}</span><span style={{ fontSize:13, color:'#8B1A1A', fontWeight:600 }}>NT$100</span>
                 </label>
               )}
               {!todayCheckin.rentChalk && (
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', border:`1.5px solid ${raSel.chalk?'#8B1A1A':'#E8D5D5'}`, borderRadius:10, marginBottom:16, cursor:'pointer' }}>
                   <input type="checkbox" checked={raSel.chalk} onChange={e => setRaSel(s => ({ ...s, chalk: e.target.checked }))} />
-                  <span style={{ flex:1, fontSize:14 }}>粉袋租借</span><span style={{ fontSize:13, color:'#8B1A1A', fontWeight:600 }}>NT$50</span>
+                  <span style={{ flex:1, fontSize:14 }}>{t('粉袋租借')}</span><span style={{ fontSize:13, color:'#8B1A1A', fontWeight:600 }}>NT$50</span>
                 </label>
               )}
               {(raSel.shoes || raSel.chalk) && (
@@ -256,29 +257,29 @@ export default function MemberHomePage() {
               )}
               {raError && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:12 }}>{raError}</div>}
               <div style={{ display:'flex', gap:8 }}>
-                <button onClick={closeRentalAddon} style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+                <button onClick={closeRentalAddon} style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
                 <button onClick={submitRentalAddon} disabled={raBusy || (!raSel.shoes && !raSel.chalk) || !raPayment}
                   style={{ flex:2, height:42, borderRadius:10, background: (raBusy||(!raSel.shoes && !raSel.chalk)||!raPayment) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
-                  {raBusy ? '產生中...' : '產生 QR Code'}
+                  {raBusy ? t('產生中...') : t('產生 QR Code')}
                 </button>
               </div>
             </>)}
             {raStep === 'qr' && (<>
-              <div style={{ fontWeight:700, fontSize:16, marginBottom:14, textAlign:'center' }}>請出示 QR 給店員掃描</div>
+              <div style={{ fontWeight:700, fontSize:16, marginBottom:14, textAlign:'center' }}>{t('請出示 QR 給店員掃描')}</div>
               <div style={{ textAlign:'center' }}>
                 {raQrDataUrl && <img src={raQrDataUrl} alt="QR" style={{ width:200, height:200, borderRadius:10 }} />}
                 <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', marginTop:12 }}>NT${raCost}</div>
-                <div style={{ fontSize:12, color:'#999', marginTop:6 }}>店員掃碼確認後會自動完成</div>
+                <div style={{ fontSize:12, color:'#999', marginTop:6 }}>{t('店員掃碼確認後會自動完成')}</div>
               </div>
-              <button onClick={closeRentalAddon} style={{ width:'100%', height:40, marginTop:16, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={closeRentalAddon} style={{ width:'100%', height:40, marginTop:16, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#666', fontSize:13, cursor:'pointer' }}>{t('取消')}</button>
             </>)}
             {raStep === 'confirmed' && (<>
               <div style={{ textAlign:'center' }}>
                 <div style={{ fontSize:40, marginBottom:10 }}>✅</div>
-                <div style={{ fontWeight:700, fontSize:16, marginBottom:6 }}>補租完成</div>
-                <div style={{ fontSize:13, color:'#666' }}>已為您加租，祝攀岩愉快！</div>
+                <div style={{ fontWeight:700, fontSize:16, marginBottom:6 }}>{t('補租完成')}</div>
+                <div style={{ fontSize:13, color:'#666' }}>{t('已為您加租，祝攀岩愉快！')}</div>
               </div>
-              <button onClick={closeRentalAddon} style={{ width:'100%', height:42, marginTop:18, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>完成</button>
+              <button onClick={closeRentalAddon} style={{ width:'100%', height:42, marginTop:18, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{t('完成')}</button>
             </>)}
           </div>
         </div>
@@ -289,17 +290,17 @@ export default function MemberHomePage() {
         <div style={{ margin:'14px 16px 0', background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'10px 14px', display:'flex', flexDirection:'column', gap:5 }}>
           {identity?.teamMember && (
             <div style={{ fontSize:10, color:'#185FA5', textAlign:'left' }}>
-              🏅 <span style={{ fontWeight:700 }}>攀岩隊員</span>　效期 {identity.teamMember.since || '—'} ～ {identity.teamMember.until || '—'}
+              🏅 <span style={{ fontWeight:700 }}>{t('攀岩隊員')}</span>　{tt(`效期 ${identity.teamMember.since || '—'} ～ ${identity.teamMember.until || '—'}`, `Valid ${identity.teamMember.since || '—'} – ${identity.teamMember.until || '—'}`, `有効期間 ${identity.teamMember.since || '—'}～${identity.teamMember.until || '—'}`)}
             </div>
           )}
           {(identity?.courseAccess || []).map((c, i) => (
             <div key={`ca${i}`} style={{ fontSize:10, color:'#8A6A1F', textAlign:'left' }}>
-              📚 <span style={{ fontWeight:700 }}>課程學員 · {c.courseName}</span>　入館效期 {c.gymAccessStart || '—'} ～ {c.gymAccessEnd || '—'}
+              📚 <span style={{ fontWeight:700 }}>{t('課程學員')} · {c.courseName}</span>　{tt(`入館效期 ${c.gymAccessStart || '—'} ～ ${c.gymAccessEnd || '—'}`, `Access ${c.gymAccessStart || '—'} – ${c.gymAccessEnd || '—'}`, `入館有効期間 ${c.gymAccessStart || '—'}～${c.gymAccessEnd || '—'}`)}
             </div>
           ))}
           {(identity?.passes || []).map((p, i) => (
             <div key={`ps${i}`} style={{ fontSize:10, color:'#8B1A1A', textAlign:'left' }}>
-              🎫 <span style={{ fontWeight:700 }}>{p.passTypeName}</span>　有效至 {p.endDate || '—'}{p.credits != null ? `（剩 ${p.credits} 次）` : ''}
+              🎫 <span style={{ fontWeight:700 }}>{p.passTypeName}</span>　{tt(`有效至 ${p.endDate || '—'}${p.credits != null ? `（剩 ${p.credits} 次）` : ''}`, `Valid until ${p.endDate || '—'}${p.credits != null ? ` (${p.credits} left)` : ''}`, `有効期限 ${p.endDate || '—'}${p.credits != null ? `（残り${p.credits}回）` : ''}`)}
             </div>
           ))}
         </div>
@@ -309,15 +310,15 @@ export default function MemberHomePage() {
       {member?.blockReasons?.includes('waiver_unsigned') && (
         <div onClick={() => navigate('/member/waiver')}
           style={{ margin:'14px 16px 0', background:'#FCEBEB', border:'0.5px solid #F09595', borderRadius:12, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
-          <div style={{ fontSize:13, color:'#A32D2D' }}>🚫 您尚未簽署風險安全聲明書，請先完成簽署才能入場</div>
-          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, whiteSpace:'nowrap', marginLeft:8 }}>立即簽署 →</div>
+          <div style={{ fontSize:13, color:'#A32D2D' }}>{t('🚫 您尚未簽署風險安全聲明書，請先完成簽署才能入場')}</div>
+          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, whiteSpace:'nowrap', marginLeft:8 }}>{t('立即簽署 →')}</div>
         </div>
       )}
       {member?.blockReasons?.includes('parent_waiver_pending') && (
         <div onClick={() => navigate('/member/waiver')}
           style={{ margin:'14px 16px 0', background:'#FFF3E0', border:'0.5px solid #F0C988', borderRadius:12, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
-          <div style={{ fontSize:13, color:'#B5762B' }}>📧 等待法定代理人完成簽署，才能入場</div>
-          <div style={{ fontSize:12, color:'#B5762B', fontWeight:600, whiteSpace:'nowrap', marginLeft:8 }}>查看狀態 →</div>
+          <div style={{ fontSize:13, color:'#B5762B' }}>{t('📧 等待法定代理人完成簽署，才能入場')}</div>
+          <div style={{ fontSize:12, color:'#B5762B', fontWeight:600, whiteSpace:'nowrap', marginLeft:8 }}>{t('查看狀態 →')}</div>
         </div>
       )}
 
@@ -395,8 +396,8 @@ export default function MemberHomePage() {
       ) : (
         <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background:'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
           <div style={{ color:'#fff' }}>
-            <div style={{ fontSize:10, opacity:.75, letterSpacing:.5 }}>歡迎回來</div>
-            <div style={{ fontSize:18, fontWeight:600, marginTop:3 }}>開始今天的攀岩！</div>
+            <div style={{ fontSize:10, opacity:.75, letterSpacing:.5 }}>{t('歡迎回來')}</div>
+            <div style={{ fontSize:18, fontWeight:600, marginTop:3 }}>{t('開始今天的攀岩！')}</div>
           </div>
         </div>
       )}
@@ -439,7 +440,7 @@ export default function MemberHomePage() {
 
       {/* 場館狀態 */}
       <div style={{ padding:'14px 16px 0' }}>
-        <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>今日場館</div>
+        <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>{t('今日場館')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
           {gyms.map(g => (
             <div key={g.id} onClick={() => navigate(`/member/gyms?gym=${g.id}`)}
@@ -470,12 +471,12 @@ export default function MemberHomePage() {
       {/* 課程活動提醒 - 永遠顯示 */}
       <div style={{ padding:'14px 16px 0' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>課程活動提醒</div>
-          <div onClick={() => navigate('/member/courses')} style={{ fontSize:11, color:'#8B1A1A', cursor:'pointer' }}>查看全部 →</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>{t('課程活動提醒')}</div>
+          <div onClick={() => navigate('/member/courses')} style={{ fontSize:11, color:'#8B1A1A', cursor:'pointer' }}>{t('查看全部 →')}</div>
         </div>
         {myEnrollments.length === 0 && myExperiences.length === 0 && myReminders.length === 0 ? (
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'16px 14px', textAlign:'center', color:'#999', fontSize:13 }}>
-            一週內沒有課程或體驗活動
+            {t('一週內沒有課程或體驗活動')}
           </div>
         ) : (() => {
           // 課程/體驗提醒為系統自動產生（近一週），自訂提醒為店員手動增減（不限一週、依開始顯示日排序，無日期者排最前）；
@@ -490,12 +491,12 @@ export default function MemberHomePage() {
                   <div>
                     <div style={{ fontWeight:600, fontSize:14, color: isCancelled?'#A32D2D':isLeave?'#999':isMakeup?'#2D7D46':'#1a1a1a', display:'flex', alignItems:'center', gap:6 }}>
                       {e.courseName}
-                      {isCancelled && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>課程已取消</span>}
-                      {isLeave && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>已請假</span>}
-                      {isMakeup && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>安排補課</span>}
+                      {isCancelled && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>{t('課程已取消')}</span>}
+                      {isLeave && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>{t('已請假')}</span>}
+                      {isMakeup && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>{t('安排補課')}</span>}
                     </div>
                     <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
-                      {new Date(e.date).toLocaleDateString('zh-TW', { month:'numeric', day:'numeric', weekday:'short' })} {e.startTime}～{e.endTime}
+                      {new Date(e.date).toLocaleDateString(localeCode(), { month:'numeric', day:'numeric', weekday:'short' })} {e.startTime}～{e.endTime}
                     </div>
                   </div>
                   <div style={{ fontSize:20 }}>{isCancelled?'❌':isLeave?'💤':isMakeup?'🔄':'📚'}</div>
@@ -507,12 +508,12 @@ export default function MemberHomePage() {
               <div key={`x-${b.id}`} onClick={() => navigate(b.kind==='trial' ? '/member/courses?tab=trial' : '/member/experience?tab=my')}
                 style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
                 <div>
-                  <div style={{ fontWeight:600, fontSize:14 }}>🧗 {b.kind==='trial' ? (b.courseName || '課程試上') : '體驗課程預約'}</div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>🧗 {b.kind==='trial' ? (b.courseName || t('課程試上')) : t('體驗課程預約')}</div>
                   <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
-                    {b.bookingDate} {b.bookingTime} · {b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · {b.numParticipants}人
+                    {tt(`${b.bookingDate} ${b.bookingTime} · ${b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · ${b.numParticipants}人`, `${b.bookingDate} ${b.bookingTime} · ${b.gymId==='gym-hsinchu'?'Hsinchu':'Shilin'} · ${b.numParticipants} people`, `${b.bookingDate} ${b.bookingTime}・${b.gymId==='gym-hsinchu'?'新竹':'士林'}・${b.numParticipants}名`)}
                   </div>
                   <div style={{ fontSize:11, color: b.status==='confirmed'?'#2D7D46':'#854F0B', marginTop:2 }}>
-                    {b.status==='confirmed'?'✓ 已確認':'待確認付款'}
+                    {b.status==='confirmed'?<>✓ {t('已確認')}</>:t('待確認付款')}
                   </div>
                 </div>
                 <div style={{ fontSize:20 }}>🧗</div>
@@ -539,7 +540,7 @@ export default function MemberHomePage() {
       {/* 🔔 通知（退回事項/待補文件；處理完成自動消失）— 置於課程活動提醒之後 */}
       {rejectAlerts.length > 0 && (
         <div style={{ padding:'14px 16px 0' }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>🔔 通知</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>{t('🔔 通知')}</div>
           {rejectAlerts.map((a, i) => (
             <div key={`ra${i}`} onClick={() => navigate(a.link)}
               style={{ background: a.kind === 'refund_done' ? '#E6F4EB' : a.kind === 'action' ? '#FAEEDA' : '#FCEBEB', border: `0.5px solid ${a.kind === 'refund_done' ? '#C3E6D0' : a.kind === 'action' ? '#EAD3A0' : '#EEC1C1'}`, borderRadius:12, padding:'12px 14px', display:'flex', alignItems:'center', gap:10, cursor:'pointer', marginBottom:8 }}>
@@ -547,23 +548,39 @@ export default function MemberHomePage() {
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:13, fontWeight:700, color: a.kind === 'refund_done' ? '#2D7D46' : a.kind === 'action' ? '#854F0B' : '#A32D2D', textAlign:'left' }}>
                   {a.type === 'course_closure_makeup'
-                    ? `休館停課補課通知:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    ? tt(`休館停課補課通知:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`,
+                         `Closure Makeup Notice: ${a.name}${a.memberName ? ` (👦 ${a.memberName})` : ''}`,
+                         `休館振替のお知らせ：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`)
                     : a.type === 'experience_cancelled'
-                    ? `${a.label}因場次取消:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    ? tt(`${a.label}因場次取消:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`,
+                         `${a.label} Cancelled (Session Cancelled): ${a.name}${a.memberName ? ` (👦 ${a.memberName})` : ''}`,
+                         `${a.label}が開催中止のため取消：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`)
                     : a.type === 'competition_refund_done'
-                    ? `${a.label}退費已完成：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    ? tt(`${a.label}退費已完成：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`,
+                         `${a.label} Refund Completed: ${a.name}${a.memberName ? ` (👦 ${a.memberName})` : ''}`,
+                         `${a.label}の返金が完了しました：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`)
                     : a.kind === 'action'
-                    ? `${a.label}待補文件:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
+                    ? tt(`${a.label}待補文件:${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`,
+                         `${a.label} Documents Needed: ${a.name}${a.memberName ? ` (👦 ${a.memberName})` : ''}`,
+                         `${a.label}書類提出待ち：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`)
                     : a.kind === 'reject'
-                    ? `${a.label}已被駁回：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`
-                    : `${a.label}${a.method === 'cash' ? '繳費資訊被退回' : '轉帳被退回'}：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`}
+                    ? tt(`${a.label}已被駁回：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`,
+                         `${a.label} Rejected: ${a.name}${a.memberName ? ` (👦 ${a.memberName})` : ''}`,
+                         `${a.label}が却下されました：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`)
+                    : tt(`${a.label}${a.method === 'cash' ? '繳費資訊被退回' : '轉帳被退回'}：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`,
+                         `${a.label} ${a.method === 'cash' ? 'Payment Info Returned' : 'Transfer Returned'}: ${a.name}${a.memberName ? ` (👦 ${a.memberName})` : ''}`,
+                         `${a.label}${a.method === 'cash' ? 'の支払い情報が差し戻されました' : 'の振込が差し戻されました'}：${a.name}${a.memberName ? `（👦 ${a.memberName}）` : ''}`)}
                 </div>
                 <div style={{ fontSize:11, color: a.kind === 'refund_done' ? '#2D7D46' : a.kind === 'action' ? '#8A6A1F' : '#8A5A5A', marginTop:2, textAlign:'left' }}>
                   {a.kind === 'reject'
-                    ? `${(a.reason || '').replace('報名已被駁回：', '原因：')}　點此查看`
+                    ? tt(`${(a.reason || '').replace('報名已被駁回：', '原因：')}　點此查看`,
+                         `${(a.reason || '').replace('報名已被駁回：', 'Reason: ')}  Tap to view`,
+                         `${(a.reason || '').replace('報名已被駁回：', '理由：')}　タップして確認`)
                     : a.kind === 'refund_done'
                     ? a.reason
-                    : `${a.reason ? `${a.reason}，` : ''}請點此前往處理`}
+                    : tt(`${a.reason ? `${a.reason}，` : ''}請點此前往處理`,
+                         `${a.reason ? `${a.reason}, ` : ''}Tap here to handle`,
+                         `${a.reason ? `${a.reason}、` : ''}タップして対応`)}
                 </div>
               </div>
               {a.kind === 'reject' && a.regId ? (
@@ -587,7 +604,7 @@ export default function MemberHomePage() {
       {/* 公告列表 */}
       {announcements.length > 0 && (
         <div style={{ padding:'14px 16px 0' }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>最新公告</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>{t('最新公告')}</div>
           {announcements.slice(0,3).map(a => (
             <div key={a.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'11px 13px', marginBottom:8 }}>
               <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:5 }}>

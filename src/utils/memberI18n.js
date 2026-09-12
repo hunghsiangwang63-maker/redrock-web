@@ -19,7 +19,38 @@ const DICT_EN = {
   '體驗課程': 'Trial Class',
   '加入攀岩隊': 'Join Team',
   '器材租借': 'Gear Rental',
+  '成績快報': 'Live Scores',
   '知道了': 'Got it',
+
+  // ── 首頁 ──
+  '全館': 'All Gyms',
+  '🔔 通知': '🔔 Notifications',
+  '補租失敗，請重試': 'Failed to add rental — please try again',
+  '此補租請求已逾時，請重新產生': 'This request has expired — please generate a new one',
+  '攀岩隊員': 'Team Athlete',
+  '墜落測驗已到期，請重新測驗': 'Fall test has expired — please retake it',
+  '今日入場紀錄': "Today's Entry Record",
+  '補租器材': 'Add Rental Gear',
+  '產生中...': 'Generating...',
+  '產生 QR Code': 'Generate QR Code',
+  '請出示 QR 給店員掃描': 'Please show this QR code to staff',
+  '店員掃碼確認後會自動完成': 'This completes automatically once staff scans and confirms',
+  '補租完成': 'Rental Added',
+  '已為您加租，祝攀岩愉快！': 'Your rental has been added — enjoy your climb!',
+  '完成': 'Done',
+  '🚫 您尚未簽署風險安全聲明書，請先完成簽署才能入場': "🚫 You haven't signed the Liability Waiver yet — please sign before entry",
+  '立即簽署 →': 'Sign Now →',
+  '📧 等待法定代理人完成簽署，才能入場': "📧 Waiting for guardian's signature before entry",
+  '查看狀態 →': 'View Status →',
+  '歡迎回來': 'Welcome Back',
+  '開始今天的攀岩！': "Let's start climbing today!",
+  '今日場館': "Today's Gyms",
+  '課程活動提醒': 'Course & Activity Reminders',
+  '查看全部 →': 'View All →',
+  '一週內沒有課程或體驗活動': 'No courses or experiences in the next 7 days',
+  '安排補課': 'Makeup Scheduled',
+  '體驗課程預約': 'Experience Session Booking',
+  '最新公告': 'Latest Announcements',
 
   // ── 入場 QR：共用 ──
   '入場 QR Code': 'Entry QR Code',
@@ -91,8 +122,10 @@ const DICT_EN = {
   '請選擇「頭款（第一期）」付款方式': 'Select payment method for the first installment',
   '需於櫃檯出示特約廠商證件核對，未出示或不符將以原價計。': 'Show your partner-company ID at the front desk; full price applies if not presented.',
   '現金': 'Cash',
+  'Line Pay': 'LINE Pay',
   '街口支付': 'JKO Pay',
   '台灣 Pay': 'Taiwan Pay',
+  '購買優惠折扣券': 'Buy Discount Card',
 
   // ── 入場 QR：續約/租借 ──
   '🎫 定期票即將到期': '🎫 Pass expiring soon',
@@ -226,6 +259,8 @@ const DICT_EN = {
   // ── 我的票券頁 ──
   '會員': 'a member',
   '對方': 'the recipient',
+  '收合 ▲': 'Collapse ▲',
+  '展開 ▼': 'Expand ▼',
   '申請票券移轉': 'Transfer Ticket',
   '移轉後對方需在 24 小時內接收，逾期自動回沖；到期日依票券規則計算': "The recipient must accept within 24 hours or the transfer is auto-reversed. Expiry follows the ticket's own rules.",
   '載入中...': 'Loading...',
@@ -1079,7 +1114,38 @@ const DICT_JA = {
   '體驗課程': '体験レッスン',
   '加入攀岩隊': 'チーム加入',
   '器材租借': '器材レンタル',
+  '成績快報': 'ライブスコア',
   '知道了': '了解',
+
+  // ── 首頁 ──
+  '全館': '全ジム',
+  '🔔 通知': '🔔 通知',
+  '補租失敗，請重試': 'レンタル追加に失敗しました。もう一度お試しください',
+  '此補租請求已逾時，請重新產生': 'このリクエストは期限切れです。再度生成してください',
+  '攀岩隊員': 'チームメンバー',
+  '墜落測驗已到期，請重新測驗': '墜落テストの有効期限が切れました。再受験してください',
+  '今日入場紀錄': '本日の入館記録',
+  '補租器材': 'レンタル追加',
+  '產生中...': '生成中...',
+  '產生 QR Code': 'QRコードを生成',
+  '請出示 QR 給店員掃描': 'このQRコードをスタッフにご提示ください',
+  '店員掃碼確認後會自動完成': 'スタッフがスキャン・確認すると自動的に完了します',
+  '補租完成': 'レンタル追加完了',
+  '已為您加租，祝攀岩愉快！': 'レンタルを追加しました。クライミングをお楽しみください！',
+  '完成': '完了',
+  '🚫 您尚未簽署風險安全聲明書，請先完成簽署才能入場': '🚫 免責同意書に未署名です。入館前にご署名ください',
+  '立即簽署 →': '今すぐ署名 →',
+  '📧 等待法定代理人完成簽署，才能入場': '📧 保護者の署名待ちです（入館には署名が必要）',
+  '查看狀態 →': '状況を見る →',
+  '歡迎回來': 'おかえりなさい',
+  '開始今天的攀岩！': '今日のクライミングを始めましょう！',
+  '今日場館': '本日のジム状況',
+  '課程活動提醒': 'コース・イベントのお知らせ',
+  '查看全部 →': 'すべて見る →',
+  '一週內沒有課程或體驗活動': '今週の予定はありません',
+  '安排補課': '振替予定あり',
+  '體驗課程預約': '体験レッスン予約',
+  '最新公告': '最新のお知らせ',
 
   // ── 入場 QR：共用 ──
   '入場 QR Code': '入場QRコード',
@@ -1151,8 +1217,10 @@ const DICT_JA = {
   '請選擇「頭款（第一期）」付款方式': '「頭金（第1回）」のお支払い方法を選択してください',
   '需於櫃檯出示特約廠商證件核對，未出示或不符將以原價計。': '提携証明書をフロントでご提示ください。ご提示いただけない場合は通常料金となります。',
   '現金': '現金',
+  'Line Pay': 'LINE Pay',
   '街口支付': 'JKO Pay',
   '台灣 Pay': 'Taiwan Pay',
+  '購買優惠折扣券': '割引カード購入',
 
   // ── 入場 QR：續約/租借 ──
   '🎫 定期票即將到期': '🎫 定期券の有効期限が近づいています',
@@ -1286,6 +1354,8 @@ const DICT_JA = {
   // ── 我的票券頁 ──
   '會員': '会員',
   '對方': '相手',
+  '收合 ▲': '閉じる ▲',
+  '展開 ▼': '開く ▼',
   '申請票券移轉': 'チケット譲渡申請',
   '移轉後對方需在 24 小時內接收，逾期自動回沖；到期日依票券規則計算': '譲渡後、相手は24時間以内に受け取る必要があります。期限を過ぎると自動的に取り消されます。有効期限はチケットの規定に従います。',
   '載入中...': '読み込み中...',
@@ -2129,6 +2199,13 @@ export const getMemberLang = () => {
 
 export const isEn = () => getMemberLang() === 'en';
 export const isJa = () => getMemberLang() === 'ja';
+
+// 給 toLocaleDateString/toLocaleString 用的地區碼——原本多處寫死 'zh-TW'，切到英/日語模式後
+// 日期格式（例如「9/14（日）」）仍固定用中文地區慣例顯示，與其餘 UI 語言不一致。
+export const localeCode = () => {
+  const lang = getMemberLang();
+  return lang === 'en' ? 'en-US' : lang === 'ja' ? 'ja-JP' : 'zh-TW';
+};
 
 // 循環切換：中文 → English → 日本語 → 中文
 export const toggleMemberLang = () => {

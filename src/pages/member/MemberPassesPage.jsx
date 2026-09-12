@@ -135,7 +135,7 @@ function TransferModal({ ticket, tickets, ticketType, onClose, memberName, onDon
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('對方手機號碼')}</label>
               <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                placeholder="0912345678（外籍：+ 開頭國際格式）"
+                placeholder={t('0912345678（外籍：+ 開頭國際格式）')}
                 style={{ width:'100%', height:48, borderRadius:12, border:'0.5px solid #E8D5D5', padding:'0 16px', fontSize:16, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
               {/* 接收人：次數型用 cards lookup；整張券用家庭成員清單（可挑子女）*/}
               {phone.length >= 7 && (isCreditCard ? (
@@ -616,7 +616,7 @@ export default function MemberPassesPage() {
         <div onClick={() => setExpiredOpen(o => ({ ...o, [k]: !o[k] }))}
           style={{ cursor:'pointer', fontSize:12, color:'#999', padding:'12px 6px', display:'flex', justifyContent:'space-between', alignItems:'center', borderTop:'0.5px solid #E8D5D5' }}>
           <span>{title}（{items.length}）</span>
-          <span style={{ color:'#8B1A1A' }}>{expiredOpen[k] ? '收合 ▲' : '展開 ▼'}</span>
+          <span style={{ color:'#8B1A1A' }}>{expiredOpen[k] ? t('收合 ▲') : t('展開 ▼')}</span>
         </div>
         {expiredOpen[k] && <div>{items.map(it => render(it))}</div>}
       </div>
@@ -1182,7 +1182,7 @@ export default function MemberPassesPage() {
                 <div style={{ marginBottom:14 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('轉讓對象手機號碼')}</label>
                   <input type="tel" value={transferToPhone} onChange={e => setTransferToPhone(e.target.value)}
-                    placeholder="0912345678（外籍：+ 開頭國際格式）"
+                    placeholder={t('0912345678（外籍：+ 開頭國際格式）')}
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
                   {/* 查該電話的會員（含家庭成員）供確認/選擇；未滿13歲不可接收、查無則擋 */}
                   {transferToPhone.trim().length >= 7 && (() => {
