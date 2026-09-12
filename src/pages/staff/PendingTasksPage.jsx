@@ -49,8 +49,8 @@ const NOTIF_CAT = {
   shift_assigned:'shift', shift_updated:'shift', shift_reminder:'shift',
   // 會員（VIP 等舊系統資料認領）
   legacy_vip_claimed:'member',
-  // 結帳（現金差異提醒／發票列印金額被人工改過）
-  settlement_difference:'settlement', invoice_amount_modified:'settlement',
+  // 結帳（現金差異提醒／發票列印金額被人工改過／分期付款即將到期提醒）
+  settlement_difference:'settlement', invoice_amount_modified:'settlement', installment_upcoming:'settlement',
   // 系統（明確列出、非僅靠 fallback，供之後對照）
   stocktake_discrepancy:'system',
 };
@@ -71,6 +71,7 @@ const NOTIF_LINK = {
   pass_adjustment: '/staff/pending-tasks',
   competition_refund_request: '/staff/pending-tasks', competition_reg_claimed: '/staff/competitions',
   settlement_difference: '/staff/settlement', invoice_amount_modified: '/staff/settlement', stocktake_discrepancy: '/staff/sales',
+  installment_upcoming: '/staff/installments',
   checkin_cancelled: '/staff/checkin',
 };
 const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名', team:'入隊申請' };
