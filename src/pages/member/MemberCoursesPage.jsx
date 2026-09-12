@@ -2648,7 +2648,7 @@ export default function MemberCoursesPage() {
             {/* Header */}
             <div style={{ padding:'16px 20px 12px', borderBottom:'0.5px solid #F0E8E8', flexShrink:0 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                <div style={{ fontWeight:600, fontSize:15 }}>{enrollSession.isWaitlist ? '候補報名' : '確認報名'} — {selectedCourse?.name}</div>
+                <div style={{ fontWeight:600, fontSize:15 }}>{enrollSession.isWaitlist ? t('候補報名') : t('確認報名')} — {selectedCourse?.name}</div>
                 <button onClick={resetEnrollModal} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
               </div>
               <div style={{ display:'flex', gap:6 }}>
@@ -2656,7 +2656,7 @@ export default function MemberCoursesPage() {
                   <div key={i} style={{ flex:1, height:3, borderRadius:2, background: enrollStep > i+1 ? '#2D7D46' : enrollStep === i+1 ? '#8B1A1A' : '#E8D5D5' }} />
                 ))}
               </div>
-              <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'center' }}>步驟 {enrollStep} / {enrollStepKeys.length}</div>
+              <div style={{ fontSize:11, color:'#999', marginTop:4, textAlign:'center' }}>{tt(`步驟 ${enrollStep} / ${enrollStepKeys.length}`, `Step ${enrollStep} / ${enrollStepKeys.length}`, `ステップ ${enrollStep} / ${enrollStepKeys.length}`)}</div>
             </div>
 
             {/* Scrollable content */}
@@ -2664,12 +2664,12 @@ export default function MemberCoursesPage() {
 
             {targetUnder4 && (
               <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
-                {enrollTarget?.name || '報名對象'} 未滿 4 歲，無法報名課程。
+                {tt(`${enrollTarget?.name || t('報名對象')} 未滿 4 歲，無法報名課程。`, `${enrollTarget?.name || 'The registrant'} is under 4 years old and cannot register for courses.`, `${enrollTarget?.name || '登録対象'}は4歳未満のため、コースに登録できません。`)}
               </div>
             )}
             {youthAgeBlocked && (
               <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 14px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
-                此課程限未滿 18 歲學員報名。{enrollTarget?.name || '報名對象'} 不符資格，請切換成正確的子女帳號。
+                {tt(`此課程限未滿 18 歲學員報名。${enrollTarget?.name || t('報名對象')} 不符資格，請切換成正確的子女帳號。`, `This course is limited to students under 18. ${enrollTarget?.name || 'The registrant'} does not qualify — please switch to the correct child's account.`, `このコースは18歳未満限定です。${enrollTarget?.name || '登録対象'}は対象外です。正しいお子様のアカウントに切り替えてください。`)}
               </div>
             )}
 
@@ -2678,11 +2678,11 @@ export default function MemberCoursesPage() {
               {/* 為誰報名 */}
               {familyMembers.length > 0 && (
                 <div style={{ marginBottom:14 }}>
-                  <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>為誰報名</div>
+                  <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>{t('為誰報名')}</div>
                   <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                     <button onClick={()=>setEnrollForMemberId(null)}
                       style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${!enrollForMemberId?'#8B1A1A':'#E8D5D5'}`, background:!enrollForMemberId?'#FBF5F5':'#fff', color:!enrollForMemberId?'#8B1A1A':'#666', fontSize:12, cursor:'pointer', fontWeight:!enrollForMemberId?600:400 }}>
-                      👤 {member?.name}（本人）
+                      👤 {member?.name}{t('（本人）')}
                     </button>
                     {familyMembers.map(c=>(
                       <button key={c.id} onClick={()=>setEnrollForMemberId(c.id)}
@@ -2695,26 +2695,26 @@ export default function MemberCoursesPage() {
               )}
               <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:14 }}>
                 <div style={{ fontSize:12, color:'#666' }}>
-                  {enrollForMemberId ? `報名人：${familyMembers.find(c=>c.id===enrollForMemberId)?.name} ｜ ` : ''}
+                  {enrollForMemberId ? tt(`報名人：${familyMembers.find(c=>c.id===enrollForMemberId)?.name} ｜ `, `Registrant: ${familyMembers.find(c=>c.id===enrollForMemberId)?.name} | `, `登録者：${familyMembers.find(c=>c.id===enrollForMemberId)?.name} ｜ `) : ''}
                   {dayjs(enrollSession.date).format('MM/DD')}（{wdOf(enrollSession.date)}）{enrollSession.startTime && enrollSession.endTime ? ` ${enrollSession.startTime}～${enrollSession.endTime}` : ''}
                 </div>
               </div>
               {enrollSession.isWaitlist ? (
                 <div style={{ background:'#F3E0E0', borderRadius:8, padding:'12px 14px', fontSize:13, color:'#8B1A1A', lineHeight:1.8, textAlign:'left' }}>
-                  此班正取已額滿，您將加入<b>候補名單</b>。<br/>
-                  候補期間<b>不需付款</b>；待有名額遞補為正取後，我們會另行通知您繳費，屆時再選擇付款方式。
-                  {(enrollSession?.fee ?? selectedCourse?.price) != null ? <><br/><span style={{ fontSize:12, color:'#999' }}>遞補後費用約 NT${((enrollSession?.fee ?? selectedCourse?.price) || 0).toLocaleString()}（依實際堂數計算）</span></> : null}
+                  {tt('此班正取已額滿，您將加入', 'This class is full — you will be added to the ', 'このクラスは満員のため、')}<b>{t('候補名單')}</b>{tt('。', '.', 'に登録されます。')}<br/>
+                  {tt('候補期間', 'While waitlisted, ', 'キャンセル待ち中は')}<b>{t('不需付款')}</b>{tt('；待有名額遞補為正取後，我們會另行通知您繳費，屆時再選擇付款方式。', ' is required; once a spot opens up, we will notify you to pay and you can choose a payment method then.', 'は不要です。空きが出た際にお支払いについてご連絡し、その時点でお支払い方法を選択いただけます。')}
+                  {(enrollSession?.fee ?? selectedCourse?.price) != null ? <><br/><span style={{ fontSize:12, color:'#999' }}>{tt(`遞補後費用約 NT$${((enrollSession?.fee ?? selectedCourse?.price) || 0).toLocaleString()}（依實際堂數計算）`, `Estimated fee after promotion: NT$${((enrollSession?.fee ?? selectedCourse?.price) || 0).toLocaleString()} (based on actual sessions remaining)`, `繰り上がり後の料金目安：NT$${((enrollSession?.fee ?? selectedCourse?.price) || 0).toLocaleString()}（実際の受講回数により算出）`)}</span></> : null}
                 </div>
               ) : (<>
               {!enrollSession.isCourse && !member?.isTeamMember && selectedCourse?.partnerGymPrice != null && partnerGymList.length > 0 && (
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>友館隊員優惠（NT${selectedCourse.partnerGymPrice}，選填）</label>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{tt(`友館隊員優惠（NT$${selectedCourse.partnerGymPrice}，選填）`, `Partner Gym Team Discount (NT$${selectedCourse.partnerGymPrice}, optional)`, `提携ジムチーム会員割引（NT$${selectedCourse.partnerGymPrice}、任意）`)}</label>
                   <select value={enrollPartnerGymId} onChange={e=>setEnrollPartnerGymId(e.target.value)}
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}>
-                    <option value=''>不使用（非友館隊員）</option>
+                    <option value=''>{t('不使用（非友館隊員）')}</option>
                     {partnerGymList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                   </select>
-                  <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>選擇後套用友館價，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回一般價。</div>
+                  <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>{t('選擇後套用友館價，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回一般價。')}</div>
                 </div>
               )}
               <PaymentPlanChoice mode="session"
@@ -2723,7 +2723,7 @@ export default function MemberCoursesPage() {
                 plan={enrollPlan} hideMethod onChange={({ plan }) => setEnrollPlan(plan)} />
               {!!member?.isTeamMember && Number(selectedCourse?.teamDepositAmount) > 0 && (
                 <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12, color:'#8B6914', lineHeight:1.7, textAlign:'left' }}>
-                  本次報名須另收<b>保證金 NT${Number(selectedCourse.teamDepositAmount).toLocaleString()}</b>，<b>當天報到後全額退還</b>；未出席則保證金沒收。
+                  {tt('本次報名須另收', 'This registration also requires a ', '今回の登録には別途')}<b>{tt(`保證金 NT$${Number(selectedCourse.teamDepositAmount).toLocaleString()}`, `deposit of NT$${Number(selectedCourse.teamDepositAmount).toLocaleString()}`, `保証金 NT$${Number(selectedCourse.teamDepositAmount).toLocaleString()}`)}</b>{tt('，', ', which will be ', 'が必要です。')}<b>{tt('當天報到後全額退還', 'fully refunded upon check-in on the day', '当日の受付後に全額返金')}</b>{tt('；未出席則保證金沒收。', '; the deposit will be forfeited if you do not attend.', '。欠席の場合、保証金は返金されません。')}
                 </div>
               )}
               <PaymentSection
@@ -2741,7 +2741,7 @@ export default function MemberCoursesPage() {
               />
               {(paymentData.method==='cash'||paymentData.method==='transfer') && (
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>上傳匯款截圖（選填）</label>
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{t('上傳匯款截圖（選填）')}</label>
                   <input type="file" accept="image/*" onChange={e => setScreenshot(e.target.files[0])} style={{ fontSize:12, width:'100%' }}/>
                   {screenshot && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {screenshot.name}</div>}
                 </div>
@@ -2754,14 +2754,14 @@ export default function MemberCoursesPage() {
               {selectedCourse?.collectGenderAge && (
                 <div style={{ display:'flex', gap:10, marginBottom:14 }}>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>性別 *</label>
+                    <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>{t('性別 *')}</label>
                     <select value={massageGender} onChange={e=>setMassageGender(e.target.value)} style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}>
-                      <option value="">請選擇</option><option value="male">男</option><option value="female">女</option>
+                      <option value="">{t('請選擇')}</option><option value="male">{t('男')}</option><option value="female">{t('女')}</option>
                     </select>
                   </div>
                   <div style={{ flex:1, minWidth:0 }}>
-                    <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>年齡 *</label>
-                    <input type="number" min="0" value={massageAge} onChange={e=>setMassageAge(e.target.value)} placeholder="歲" style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                    <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>{t('年齡 *')}</label>
+                    <input type="number" min="0" value={massageAge} onChange={e=>setMassageAge(e.target.value)} placeholder={t('歲')} style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', boxSizing:'border-box' }}/>
                   </div>
                 </div>
               )}
@@ -2769,18 +2769,18 @@ export default function MemberCoursesPage() {
                 <div style={{ marginBottom:14 }}>
                   <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>{selectedCourse.enrollNoteLabel}{selectedCourse.enrollNoteRequired && ' *'}</label>
                   <textarea value={massageNote} onChange={e=>setMassageNote(e.target.value)} rows={3}
-                    placeholder="請具體描述，供講師事先準備" style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FFF9F0', color:'#1a1a1a' }}/>
+                    placeholder={t('請具體描述，供講師事先準備')} style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FFF9F0', color:'#1a1a1a' }}/>
                 </div>
               )}
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>健康狀況備註</label>
-                <div style={{ fontSize:11, color:'#999', marginBottom:8 }}>請告知教練您的體能、健康狀況或需注意事項（選填）</div>
+                <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:6 }}>{t('健康狀況備註')}</label>
+                <div style={{ fontSize:11, color:'#999', marginBottom:8 }}>{t('請告知教練您的體能、健康狀況或需注意事項（選填）')}</div>
                 <textarea value={healthNote} onChange={e => setHealthNote(e.target.value)} rows={4}
-                  placeholder="例：膝蓋舊傷、腰椎問題、無特殊狀況..."
+                  placeholder={t('例：膝蓋舊傷、腰椎問題、無特殊狀況...')}
                   style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
               </div>
               <div>
-                <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:8 }}>如何得知本課程？<span style={{ color:'#999', fontWeight:400 }}>（可複選）</span></label>
+                <label style={{ fontSize:12, color:'#333', fontWeight:500, display:'block', marginBottom:8 }}>{t('如何得知本課程？')}<span style={{ color:'#999', fontWeight:400 }}>{t('（可複選）')}</span></label>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                   {['親友介紹','Facebook粉絲頁','臉書社團','網路搜尋','櫃檯人員介紹','傳單','參加過紅石課程','參加紅石體驗'].map(src => {
                     const checked = referralSources.includes(src);
@@ -2789,7 +2789,7 @@ export default function MemberCoursesPage() {
                       <input type="checkbox" value={src} checked={checked}
                         onChange={() => setReferralSources(prev => prev.includes(src) ? prev.filter(s => s !== src) : [...prev, src])}
                         style={{ accentColor:'#8B1A1A' }}/>
-                      {src}
+                      {t(src)}
                     </label>
                     );
                   })}
@@ -2801,30 +2801,30 @@ export default function MemberCoursesPage() {
             {enrollStepKey === 'rules' && (<>
               {selectedCourse.type !== 'workshop' && (<>
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 課程請假、補課方式</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📋 {t('課程請假、補課方式')}</div>
                 <LeaveMakeupRulesBox course={selectedCourse}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedLeavePolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedLeavePolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedLeavePolicy} onChange={e => setConfirmedLeavePolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color: confirmedLeavePolicy?'#2D7D46':'#444' }}>我已了解課程請假/補課方式</span>
+                  <span style={{ fontSize:13, fontWeight:500, color: confirmedLeavePolicy?'#2D7D46':'#444' }}>{t('我已了解課程請假/補課方式')}</span>
                 </label>
               </div>
               {/* 工作坊沒有依法令事由申請展延/退費的正式流程（可無條件依距開課天數比例退費），
                   此段僅適用有請假/補課制度的週課，見下方 RefundRulesBox 的工作坊專屬退費說明。 */}
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📝 展延、退費申請</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>📝 {t('展延、退費申請')}</div>
                 <ExtensionRefundApplicationBox/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedExtensionPolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedExtensionPolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedExtensionPolicy} onChange={e => setConfirmedExtensionPolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color: confirmedExtensionPolicy?'#2D7D46':'#444' }}>我已了解展延、退費申請規定</span>
+                  <span style={{ fontSize:13, fontWeight:500, color: confirmedExtensionPolicy?'#2D7D46':'#444' }}>{t('我已了解展延、退費申請規定')}</span>
                 </label>
               </div>
               </>)}
               <div>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 退費方式{selectedCourse.type !== 'workshop' ? '（依法令規定）' : ''}</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>💰 {t('退費方式')}{selectedCourse.type !== 'workshop' ? t('（依法令規定）') : ''}</div>
                 <RefundRulesBox course={selectedCourse}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedRefundPolicy?'#2D7D46':'#E8D5D5'}`, background: confirmedRefundPolicy?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={confirmedRefundPolicy} onChange={e => setConfirmedRefundPolicy(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color: confirmedRefundPolicy?'#2D7D46':'#444' }}>我已了解退費方式</span>
+                  <span style={{ fontSize:13, fontWeight:500, color: confirmedRefundPolicy?'#2D7D46':'#444' }}>{t('我已了解退費方式')}</span>
                 </label>
               </div>
             </>)}
@@ -2832,16 +2832,16 @@ export default function MemberCoursesPage() {
             {/* Step: 合約條款（完整內容，僅週課出現；工作坊不產生合約書、無此步驟） */}
             {enrollStepKey === 'contract' && (<>
               <div style={{ marginBottom:16 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>📜 課程服務同意書 完整條款內容</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>📜 {t('課程服務同意書 完整條款內容')}</div>
                 <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
-                  以下為「紅石攀岩館 抱石課程服務同意書」完整內容（符合111年體育局所制定定型化契約內容相關規範），請詳閱後勾選同意；完整合約書將於報名完成後以 PDF 寄送至您的信箱留存。
+                  {tt('以下為「紅石攀岩館 抱石課程服務同意書」完整內容（符合111年體育局所制定定型化契約內容相關規範），請詳閱後勾選同意；完整合約書將於報名完成後以 PDF 寄送至您的信箱留存。', 'The following is the full text of the "RedRock Climbing Gym Bouldering Course Service Agreement" (in compliance with the standard contract regulations set by the Sports Administration in 2022). Please read it in full and check the box to agree; a complete copy of the contract will be emailed to you as a PDF after registration.', '以下は「レッドロッククライミングジム ボルダリングコースサービス同意書」の全文です（2022年にスポーツ庁が定めた定型約款規則に準拠）。内容をよくお読みの上、同意にチェックしてください。登録完了後、完全な契約書のPDFがメールで送付されます。')}
                 </div>
-                <div style={{ fontWeight:600, fontSize:12, marginBottom:6, color:'#666' }}>場館合約基本資料</div>
+                <div style={{ fontWeight:600, fontSize:12, marginBottom:6, color:'#666' }}>{t('場館合約基本資料')}</div>
                 <GymContractInfoBox contract={gymContracts[selectedCourse?.gymId]}/>
                 <FullContractTermsBox course={selectedCourse} text={contractTerms.course}/>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${confirmedContractTerms?'#2D7D46':'#E8D5D5'}`, background: confirmedContractTerms?'#E6F4EB':'#fff', cursor:'pointer', marginTop:10 }}>
                   <input type="checkbox" checked={confirmedContractTerms} onChange={e => setConfirmedContractTerms(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color: confirmedContractTerms?'#2D7D46':'#444' }}>我已詳閱並同意本課程服務同意書之完整條款內容</span>
+                  <span style={{ fontSize:13, fontWeight:500, color: confirmedContractTerms?'#2D7D46':'#444' }}>{t('我已詳閱並同意本課程服務同意書之完整條款內容')}</span>
                 </label>
               </div>
             </>)}
@@ -2849,31 +2849,31 @@ export default function MemberCoursesPage() {
             {/* Step 4: 肖像授權 */}
             {enrollStepKey === 'sign' && (<>
               <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:16, fontSize:12, color:'#444', lineHeight:1.8 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>【肖像權授權同意聲明】</div>
-                本課程進行期間，紅石攀岩館將不定期進行拍攝或攝影。學員報名本課程，即視為同意授權紅石攀岩館得將含有學員肖像之照片、影像及聲音，基於課程招生或活動宣傳目的，進行編輯、重製，並公開發表於官方網站、社群平台等宣傳管道。若有不便入鏡之需求，請於課程開始時主動告知。
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:6 }}>{t('【肖像權授權同意聲明】')}</div>
+                {tt('本課程進行期間，紅石攀岩館將不定期進行拍攝或攝影。學員報名本課程，即視為同意授權紅石攀岩館得將含有學員肖像之照片、影像及聲音，基於課程招生或活動宣傳目的，進行編輯、重製，並公開發表於官方網站、社群平台等宣傳管道。若有不便入鏡之需求，請於課程開始時主動告知。', 'RedRock Climbing Gym will periodically take photos or videos during this course. By registering, students are deemed to authorize RedRock Climbing Gym to edit and reproduce photos, videos, and audio containing their likeness, for the purposes of course promotion and event publicity, and to publish them on the official website, social media, and other promotional channels. If you would prefer not to be photographed, please inform us at the start of the course.', '本コース期間中、レッドロッククライミングジムは随時、写真撮影・録画を行います。本コースに登録することで、学生の肖像を含む写真・映像・音声を、コース募集や広報目的で編集・複製し、公式サイトやSNSなどの宣伝媒体で公開することに同意したものとみなします。撮影を希望されない場合は、コース開始時にお申し出ください。')}
               </div>
               <div style={{ marginBottom:16 }}>
-                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>本人簽名（請以正楷書寫）</label>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('本人簽名（請以正楷書寫）')}</label>
                 <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
                   <SignaturePad ref={courseSigRef} height={200}/>
                 </div>
                 <div style={{ display:'flex', gap:8, marginTop:6 }}>
-                  <button type="button" onClick={()=>{ courseSigRef.current?.clear(); setPortraitSig(null); }} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>清除</button>
-                  <button type="button" onClick={()=>setPortraitSig(courseSigRef.current?.toDataURL()||null)} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>儲存簽名</button>
+                  <button type="button" onClick={()=>{ courseSigRef.current?.clear(); setPortraitSig(null); }} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>{t('清除')}</button>
+                  <button type="button" onClick={()=>setPortraitSig(courseSigRef.current?.toDataURL()||null)} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>{t('儲存簽名')}</button>
                 </div>
-                {portraitSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 已儲存</div>}
+                {portraitSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {t('已儲存')}</div>}
               </div>
               {targetIsMinor && (
                 <div>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>法定代理人簽名（報名對象未滿 18 歲必填）</label>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('法定代理人簽名（報名對象未滿 18 歲必填）')}</label>
                   <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
                     <SignaturePad ref={courseGuardianSigRef} height={200}/>
                   </div>
                   <div style={{ display:'flex', gap:8, marginTop:6 }}>
-                    <button type="button" onClick={()=>{ courseGuardianSigRef.current?.clear(); setGuardianSig(null); }} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>清除</button>
-                    <button type="button" onClick={()=>setGuardianSig(courseGuardianSigRef.current?.toDataURL()||null)} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>儲存簽名</button>
+                    <button type="button" onClick={()=>{ courseGuardianSigRef.current?.clear(); setGuardianSig(null); }} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:11, cursor:'pointer' }}>{t('清除')}</button>
+                    <button type="button" onClick={()=>setGuardianSig(courseGuardianSigRef.current?.toDataURL()||null)} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>{t('儲存簽名')}</button>
                   </div>
-                  {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 法定代理人已儲存</div>}
+                  {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ {t('法定代理人已儲存')}</div>}
                 </div>
               )}
             </>)}
@@ -2884,7 +2884,7 @@ export default function MemberCoursesPage() {
             <div style={{ padding:'12px 20px', borderTop:'0.5px solid #F0E8E8', flexShrink:0, display:'flex', gap:8 }}>
               {enrollStep > 1 && (
                 <button onClick={() => setEnrollStep(s => s-1)}
-                  style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>← 上一步</button>
+                  style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('← 上一步')}</button>
               )}
               {(() => {
                 const _lastStep = enrollStepKeys.length;
@@ -2892,15 +2892,15 @@ export default function MemberCoursesPage() {
                 // 檢查，改一處容易漏改另一處——見本專案歷次「同段邏輯平行複製」教訓，此次順手收斂）。
                 const _validateStep = () => {
                   if (enrollStepKey === 'health') {
-                    if (selectedCourse?.collectGenderAge && (!massageGender || !massageAge)) { showMsg('請填寫性別與年齡', 'red'); return false; }
-                    if (selectedCourse?.enrollNoteRequired && !massageNote.trim()) { showMsg(`請填寫「${selectedCourse.enrollNoteLabel || '備註'}」`, 'red'); return false; }
+                    if (selectedCourse?.collectGenderAge && (!massageGender || !massageAge)) { showMsg(t('請填寫性別與年齡'), 'red'); return false; }
+                    if (selectedCourse?.enrollNoteRequired && !massageNote.trim()) { showMsg(tt(`請填寫「${selectedCourse.enrollNoteLabel || t('備註')}」`, `Please fill in "${selectedCourse.enrollNoteLabel || 'Notes'}"`, `「${selectedCourse.enrollNoteLabel || '備考'}」を入力してください`), 'red'); return false; }
                   }
                   // 工作坊沒有「展延、退費申請」與「請假/補課」段落（上方 UI 已隱藏），驗證同步跳過這兩項。
                   if (enrollStepKey === 'rules' && (!confirmedRefundPolicy || (selectedCourse.type !== 'workshop' && (!confirmedExtensionPolicy || !confirmedLeavePolicy)))) {
-                    showMsg(selectedCourse.type === 'workshop' ? '請確認退費方式' : '請確認請假、展延與退費方式', 'red'); return false;
+                    showMsg(selectedCourse.type === 'workshop' ? t('請確認退費方式') : t('請確認請假、展延與退費方式'), 'red'); return false;
                   }
                   if (enrollStepKey === 'contract' && !confirmedContractTerms) {
-                    showMsg('請詳閱並勾選同意課程服務同意書之完整條款內容', 'red'); return false;
+                    showMsg(t('請詳閱並勾選同意課程服務同意書之完整條款內容'), 'red'); return false;
                   }
                   return true;
                 };
@@ -2912,7 +2912,7 @@ export default function MemberCoursesPage() {
                     setEnrollStep(s => s+1);
                   }}
                     style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                    下一步 →
+                    {t('下一步 →')}
                   </button>
                 ) : (
                   <button onClick={() => {
@@ -2920,7 +2920,7 @@ export default function MemberCoursesPage() {
                     handleEnroll();
                   }} disabled={_submitDisabled}
                     style={{ flex:2, height:44, borderRadius:10, background: _submitDisabled ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor: _submitDisabled ? 'not-allowed' : 'pointer' }}>
-                    {loading ? '送出中...' : (enrollSession.isWaitlist ? '✓ 確認加入候補' : '✓ 確認報名')}
+                    {loading ? t('送出中...') : (enrollSession.isWaitlist ? t('✓ 確認加入候補') : t('✓ 確認報名'))}
                   </button>
                 );
               })()}
@@ -2934,27 +2934,27 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center', overflow:'hidden' }}>
           <div style={{ background:'#fff', borderRadius:'16px 16px 0 0', padding:24, width:'100%', maxWidth:'100vw', maxHeight:'80vh', overflowY:'auto', boxSizing:'border-box' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <div style={{ fontWeight:600, fontSize:16 }}>選擇補課場次</div>
+              <div style={{ fontWeight:600, fontSize:16 }}>{t('選擇補課場次')}</div>
               <button onClick={() => setShowMakeupModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div style={{ fontSize:12, color:'#666', marginBottom:14, textAlign:'left' }}>
-              {selectedMakeup?.courseName ? <>此補課券來自「{selectedMakeup.courseName}」，</> : null}
-              可補課至<b>同補課類型</b>的班別場次。
+              {selectedMakeup?.courseName ? <>{tt(`此補課券來自「${selectedMakeup.courseName}」，`, `This makeup credit is from "${selectedMakeup.courseName}", `, `この補講券は「${selectedMakeup.courseName}」からのものです。`)}</> : null}
+              {tt('可補課至', 'You can make up at sessions of ', '')}<b>{t('同補課類型')}</b>{tt('的班別場次。', ' classes.', 'の同じ補講タイプのクラスで補講できます。')}
               {(() => {
                 const names = [...new Set(makeupSessions.map(s => s.categoryName).filter(Boolean))];
-                return names.length ? <div style={{ marginTop:4, color:'#8B1A1A' }}>可補課班別：{names.join('、')}</div> : null;
+                return names.length ? <div style={{ marginTop:4, color:'#8B1A1A' }}>{tt(`可補課班別：${names.join('、')}`, `Available classes: ${names.join(', ')}`, `補講可能なクラス：${names.join('、')}`)}</div> : null;
               })()}
-              <div style={{ marginTop:6, color:'#999' }}>⚠️ 目標梯次須等<b>第一堂課正式開始後</b>才開放補課申請，避免佔用該梯次尚在報名中的正式名額；尚未開課的場次會標示「尚未開課」。</div>
+              <div style={{ marginTop:6, color:'#999' }}>⚠️ {tt('目標梯次須等', 'The target session becomes available for makeup requests only after ', '対象の期は')}<b>{tt('第一堂課正式開始後', 'its first class has officially started', '第1回の授業が正式に開始した後')}</b>{tt('才開放補課申請，避免佔用該梯次尚在報名中的正式名額；尚未開課的場次會標示「尚未開課」。', ', to avoid taking a confirmed spot that is still open for regular registration. Sessions that have not yet started will be marked "Not Yet Started".', 'にのみ補講申請が可能です（募集中の正規枠を圧迫しないため）。まだ開始していない回は「未開講」と表示されます。')}</div>
             </div>
             {makeupLoading && (
-              <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>載入中…</div>
+              <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>{t('載入中…')}</div>
             )}
             {!makeupLoading && makeupError && (
               <div style={{ textAlign:'center', padding:32 }}>
                 <div style={{ color:'#A32D2D', fontSize:13, marginBottom:12 }}>{makeupError}</div>
                 <button onClick={() => openMakeupModal(selectedMakeup)}
                   style={{ height:34, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
-                  重新載入
+                  {t('重新載入')}
                 </button>
               </div>
             )}
@@ -2966,24 +2966,24 @@ export default function MemberCoursesPage() {
               return (<>
             {appliedList.length > 0 && (
               <div style={{ marginBottom:14 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>已申請補課的場次</div>
+                <div style={{ fontSize:12, fontWeight:600, color:'#2D7D46', marginBottom:6 }}>{t('已申請補課的場次')}</div>
                 {appliedList.map(s => (
                   <div key={`ap_${s.id}`} style={{ background:'#F0F8F0', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
                       <div style={{ fontWeight:500, fontSize:14 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）</div>
                       <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{s.startTime}～{s.endTime} · {s.courseName}</div>
                     </div>
-                    <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'3px 10px', borderRadius:8, flexShrink:0 }}>已申請補課</span>
+                    <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'3px 10px', borderRadius:8, flexShrink:0 }}>{t('已申請補課')}</span>
                   </div>
                 ))}
-                <div style={{ fontSize:10, color:'#999', textAlign:'left' }}>如需更改，請至「我的課程」該補課場次按「取消補課」（上課一天前）。</div>
+                <div style={{ fontSize:10, color:'#999', textAlign:'left' }}>{t('如需更改，請至「我的課程」該補課場次按「取消補課」（上課一天前）。')}</div>
               </div>
             )}
             {appliedList.length > 0 && availList.length > 0 && (
-              <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:6 }}>可補課的場次</div>
+              <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:6 }}>{t('可補課的場次')}</div>
             )}
             {availList.length === 0 ? (
-              appliedList.length === 0 ? <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>目前沒有可補課的場次</div> : null
+              appliedList.length === 0 ? <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>{t('目前沒有可補課的場次')}</div> : null
             ) : availList.map(s => {
               // 目標梯次尚未開課（首堂日晚於今天）——後端權威擋，這裡提前顯示原因、鈕直接鎖住
               const notStarted = s.courseFirstDate && s.courseFirstDate > dayjs().format('YYYY-MM-DD');
@@ -2997,11 +2997,11 @@ export default function MemberCoursesPage() {
                   <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                     {s.startTime}～{s.endTime} · {s.courseName}
                   </div>
-                  {notStarted && <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>尚未開課（首堂 {dayjs(s.courseFirstDate).format('MM/DD')}），開課後才能申請</div>}
+                  {notStarted && <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>{tt(`尚未開課（首堂 ${dayjs(s.courseFirstDate).format('MM/DD')}），開課後才能申請`, `Not yet started (first class ${dayjs(s.courseFirstDate).format('MM/DD')}) — you can apply after it starts`, `未開講（初回 ${dayjs(s.courseFirstDate).format('MM/DD')}）・開始後に申請可能`)}</div>}
                 </div>
                 <button onClick={() => handleMakeup(s.id)} disabled={loading || full || notStarted}
                   style={{ height:34, padding:'0 14px', borderRadius:8, background: (full || notStarted) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor: (full || notStarted) ? 'not-allowed' : 'pointer' }}>
-                  {notStarted ? '尚未開課' : (full ? '額滿' : '補課')}
+                  {notStarted ? t('尚未開課') : (full ? t('額滿') : t('補課'))}
                 </button>
               </div>
               );
