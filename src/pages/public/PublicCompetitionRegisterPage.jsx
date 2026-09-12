@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { publicClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
+import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const RED = '#8B1A1A';
 
@@ -49,14 +50,14 @@ export default function PublicCompetitionRegisterPage() {
   const guardianSigRef = useRef(null);
 
   useEffect(() => {
-    if (!compId) { setLoadErr('連結缺少賽事資訊，請聯繫櫃檯'); return; }
+    if (!compId) { setLoadErr(t('連結缺少賽事資訊，請聯繫櫃檯')); return; }
     publicClient.get(`/competitions/public/${compId}`)
       .then(r => {
         setComp(r.data.competition);
         setPartnerGyms(r.data.partnerGyms || []);
         if (r.data.competition.divisions?.length) setDivisionId(r.data.competition.divisions[0].id);
       })
-      .catch(() => setLoadErr('找不到此賽事，或此賽事目前未開放報名'));
+      .catch(() => setLoadErr(t('找不到此賽事，或此賽事目前未開放報名')));
     publicClient.get('/settings/bank-accounts/member').then(r => setBankAccounts(r.data.bankAccounts || {})).catch(() => {});
   }, [compId]);
 
@@ -71,20 +72,20 @@ export default function PublicCompetitionRegisterPage() {
 
   const submit = async () => {
     setErr('');
-    if (!divisionId) return setErr('請選擇報名組別');
-    if (!guestName.trim()) return setErr('請填寫姓名');
-    if (gender !== 'male' && gender !== 'female') return setErr('請選擇性別');
-    if (!birthday) return setErr('請填寫生日');
-    if (under5(birthday)) return setErr('未滿 5 歲無法報名');
-    if (!phone.trim()) return setErr('請填寫手機號碼');
-    if (!email.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return setErr('請填寫有效的 Email');
+    if (!divisionId) return setErr(t('請選擇報名組別'));
+    if (!guestName.trim()) return setErr(t('請填寫姓名'));
+    if (gender !== 'male' && gender !== 'female') return setErr(t('請選擇性別'));
+    if (!birthday) return setErr(t('請填寫生日'));
+    if (under5(birthday)) return setErr(t('未滿 5 歲無法報名'));
+    if (!phone.trim()) return setErr(t('請填寫手機號碼'));
+    if (!email.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return setErr(t('請填寫有效的 Email'));
     for (const f of (comp.customFields || [])) {
-      if (f.required && !customFieldValues[f.key]) return setErr(`請填寫「${f.label}」`);
+      if (f.required && !customFieldValues[f.key]) return setErr(tt(`請填寫「${f.label}」`, `Please fill in "${f.label}"`, `「${f.label}」を入力してください`));
     }
-    if (!sigRef.current || sigRef.current.isEmpty()) return setErr('請完成簽名');
-    if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr('未滿 18 歲需法定代理人簽名');
-    if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
-    if (!paymentDate) return setErr('請填寫轉帳日期');
+    if (!sigRef.current || sigRef.current.isEmpty()) return setErr(t('請完成簽名'));
+    if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr(t('未滿 18 歲需法定代理人簽名'));
+    if (!bankLastFive.trim()) return setErr(t('請填寫匯款帳號末五碼'));
+    if (!paymentDate) return setErr(t('請填寫轉帳日期'));
     setSubmitting(true);
     try {
       const res = await publicClient.post(`/competitions/public/${compId}/register`, {
@@ -99,7 +100,7 @@ export default function PublicCompetitionRegisterPage() {
       });
       setDone(res.data);
     } catch (e) {
-      setErr(e.response?.data?.message || '送出失敗，請稍後再試');
+      setErr(e.response?.data?.message || t('送出失敗，請稍後再試'));
     } finally { setSubmitting(false); }
   };
 
@@ -108,22 +109,23 @@ export default function PublicCompetitionRegisterPage() {
   const input = { width: '100%', minWidth: 0, height: 44, borderRadius: 10, border: '1px solid #E0D4D4', padding: '0 12px', fontSize: 15, boxSizing: 'border-box', outline: 'none', background: '#fff' };
   const dinput = { ...input, width: '100%', maxWidth: 220 };
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
+  const langBtn = { position: 'absolute', right: 16, top: 16, height: 26, padding: '0 10px', borderRadius: 13, border: '0.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' };
 
   if (loadErr) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#A32D2D' }}>{loadErr}</div>;
-  if (!comp) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>載入中…</div>;
+  if (!comp) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>{t('載入中…')}</div>;
 
   if (done) {
     return (
       <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
         <div style={{ ...wrap, paddingTop: 60, textAlign: 'center' }}>
           <div style={{ fontSize: 52 }}>✅</div>
-          <h2 style={{ color: RED, marginTop: 12 }}>報名成功！</h2>
+          <h2 style={{ color: RED, marginTop: 12 }}>{t('報名成功！')}</h2>
           <div style={{ ...card, textAlign: 'left', lineHeight: 1.8 }}>
-            <div>感謝您報名「{comp.name}」。</div>
-            <div style={{ marginTop: 8 }}>應繳金額：<b style={{ color: RED }}>NT${done.registration?.registrationFee}</b>（含保費 NT${done.registration?.insuranceFee}）</div>
-            {done.registration?.status === 'waitlist' && <div style={{ marginTop: 8, color: '#854F0B' }}>此組別目前已滿，已為您加入候補名單。</div>}
-            <div style={{ marginTop: 8, color: '#666', fontSize: 14 }}>請於期限內完成匯款，館方確認收款後即完成報名。</div>
-            <div style={{ marginTop: 12, color: '#999', fontSize: 13 }}>之後若在 app.redrocktaiwan.com 註冊會員（用同一支電話），此報名會自動歸入您的帳號。</div>
+            <div>{tt(`感謝您報名「${comp.name}」。`, `Thank you for registering for "${comp.name}".`, `「${comp.name}」へのお申し込みありがとうございます。`)}</div>
+            <div style={{ marginTop: 8 }}>{t('應繳金額：')}<b style={{ color: RED }}>NT${done.registration?.registrationFee}</b>{tt(`（含保費 NT$${done.registration?.insuranceFee}）`, ` (incl. insurance NT$${done.registration?.insuranceFee})`, `（保険料 NT$${done.registration?.insuranceFee} 込み）`)}</div>
+            {done.registration?.status === 'waitlist' && <div style={{ marginTop: 8, color: '#854F0B' }}>{t('此組別目前已滿，已為您加入候補名單。')}</div>}
+            <div style={{ marginTop: 8, color: '#666', fontSize: 14 }}>{t('請於期限內完成匯款，館方確認收款後即完成報名。')}</div>
+            <div style={{ marginTop: 12, color: '#999', fontSize: 13 }}>{t('之後若在 app.redrocktaiwan.com 註冊會員（用同一支電話），此報名會自動歸入您的帳號。')}</div>
           </div>
         </div>
       </div>
@@ -132,67 +134,72 @@ export default function PublicCompetitionRegisterPage() {
 
   return (
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
-      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>紅石攀岩 · 比賽報名</div>
-        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免註冊，填表報名即可</div>
+      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center', position: 'relative' }}>
+        <div onClick={toggleMemberLang} style={langBtn}>🌐 {nextLangLabel()}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{t('紅石攀岩 · 比賽報名')}</div>
+        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免註冊，填表報名即可')}</div>
       </div>
       <div style={wrap}>
         <div style={card}>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{comp.name}</div>
           {comp.description && <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap' }}>{comp.description}</div>}
-          <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>🗓 比賽日：{comp.eventDate}</div>
-          {comp.earlyBirdDeadline && <div style={{ fontSize: 13, color: '#854F0B' }}>🐦 早鳥截止：{comp.earlyBirdDeadline}</div>}
+          <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>🗓 {t('比賽日：')}{comp.eventDate}</div>
+          {comp.earlyBirdDeadline && <div style={{ fontSize: 13, color: '#854F0B' }}>🐦 {t('早鳥截止：')}{comp.earlyBirdDeadline}</div>}
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
-            報名費：<b style={{ color: RED, fontSize: 17 }}>NT${baseFee || '—'}</b>
-            {age !== null && <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>（{isChild ? '兒童' : '成人'}{isEarlyBird ? '·早鳥' : ''}價，實際金額以送出後為準）</span>}
+            {t('報名費：')}<b style={{ color: RED, fontSize: 17 }}>NT${baseFee || '—'}</b>
+            {age !== null && <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(
+              `（${isChild ? '兒童' : '成人'}${isEarlyBird ? '·早鳥' : ''}價，實際金額以送出後為準）`,
+              ` (${isChild ? 'Child' : 'Adult'}${isEarlyBird ? ' · Early Bird' : ''} rate — final amount confirmed after submission)`,
+              `（${isChild ? '子供' : '大人'}${isEarlyBird ? '・早割' : ''}料金、正確な金額は送信後に確定します）`
+            )}</span>}
           </div>
         </div>
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>報名組別</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('報名組別')}</div>
           <select value={divisionId} onChange={e => setDivisionId(e.target.value)} style={{ ...input, marginTop: 10 }}>
             {(comp.divisions || []).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
         </div>
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>選手資料</div>
-          <label style={{ ...label, marginTop: 10 }}>姓名 *</label>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('選手資料')}</div>
+          <label style={{ ...label, marginTop: 10 }}>{t('姓名 *')}</label>
           <input value={guestName} onChange={e => setGuestName(e.target.value)} style={input} />
-          <label style={label}>性別 *</label>
+          <label style={label}>{t('性別 *')}</label>
           <select value={gender} onChange={e => setGender(e.target.value)} style={dinput}>
-            <option value="">請選擇</option>
-            <option value="male">男</option>
-            <option value="female">女</option>
+            <option value="">{t('請選擇')}</option>
+            <option value="male">{t('男')}</option>
+            <option value="female">{t('女')}</option>
           </select>
-          <label style={label}>生日 *</label>
+          <label style={label}>{t('生日 *')}</label>
           <input type="date" value={birthday} onChange={e => setBirthday(e.target.value)} style={dinput} />
-          {under5(birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 5 歲無法報名</div>}
-          <label style={label}>手機號碼 *</label>
+          {under5(birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>{t('未滿 5 歲無法報名')}</div>}
+          <label style={label}>{t('手機號碼 *')}</label>
           <input value={phone} onChange={e => setPhone(e.target.value)} style={input} placeholder="0912345678" inputMode="tel" />
-          <label style={label}>Email *</label>
+          <label style={label}>{t('Email *')}</label>
           <input value={email} onChange={e => setEmail(e.target.value)} style={input} inputMode="email" />
-          <label style={label}>身分證字號／護照號碼（選填）</label>
+          <label style={label}>{t('身分證字號／護照號碼（選填）')}</label>
           <input value={idNumber} onChange={e => setIdNumber(e.target.value.toUpperCase())} style={input} />
-          <label style={label}>身高 cm（選填）</label>
+          <label style={label}>{t('身高 cm（選填）')}</label>
           <input value={height} onChange={e => setHeight(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" />
-          <label style={label}>臂展 cm（選填）</label>
+          <label style={label}>{t('臂展 cm（選填）')}</label>
           <input value={armSpan} onChange={e => setArmSpan(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" />
         </div>
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>緊急聯絡人（選填）</div>
-          <label style={{ ...label, marginTop: 10 }}>姓名</label>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('緊急聯絡人（選填）')}</div>
+          <label style={{ ...label, marginTop: 10 }}>{t('姓名')}</label>
           <input value={emergencyContact} onChange={e => setEmergencyContact(e.target.value)} style={input} />
-          <label style={label}>關係</label>
+          <label style={label}>{t('關係')}</label>
           <input value={emergencyRelation} onChange={e => setEmergencyRelation(e.target.value)} style={dinput} />
-          <label style={label}>電話</label>
+          <label style={label}>{t('電話')}</label>
           <input value={emergencyPhone} onChange={e => setEmergencyPhone(e.target.value)} style={input} inputMode="tel" />
         </div>
 
         {(comp.customFields || []).length > 0 && (
           <div style={card}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>其他報名資訊</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{t('其他報名資訊')}</div>
             {comp.customFields.map(f => (
               <div key={f.key}>
                 <label style={label}>{f.label}{f.required ? ' *' : ''}</label>
@@ -204,41 +211,41 @@ export default function PublicCompetitionRegisterPage() {
 
         {partnerGyms.length > 0 && (
           <div style={card}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>友館會員優惠（選填）</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{t('友館會員優惠（選填）')}</div>
             <select value={partnerGymId} onChange={e => setPartnerGymId(e.target.value)} style={{ ...input, marginTop: 10 }}>
-              <option value="">無</option>
+              <option value="">{t('無')}</option>
               {partnerGyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
-            <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>將由館方依友館名單核對，不在名單則以原價計算。</div>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>{t('將由館方依友館名單核對，不在名單則以原價計算。')}</div>
           </div>
         )}
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>本人簽名（風險聲明書）*</div>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{t('本人簽名（風險聲明書）*')}</div>
           <SignaturePad ref={sigRef} height={180} />
         </div>
 
         {isMinor && (
           <div style={card}>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>法定代理人簽名 *</div>
-            <div style={{ fontSize: 12, color: '#854F0B', marginBottom: 10 }}>選手未滿 18 歲，需法定代理人一併簽名</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t('法定代理人簽名 *')}</div>
+            <div style={{ fontSize: 12, color: '#854F0B', marginBottom: 10 }}>{t('選手未滿 18 歲，需法定代理人一併簽名')}</div>
             <SignaturePad ref={guardianSigRef} height={180} />
           </div>
         )}
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>付款（匯款）</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('付款（匯款）')}</div>
           {bank ? (
             <div style={{ fontSize: 13, color: '#555', marginTop: 10, background: '#F7F1F1', borderRadius: 8, padding: '10px 12px', lineHeight: 1.8 }}>
               <div>{bank.bankName}</div>
-              <div>帳號：<b style={{ letterSpacing: .5 }}>{bank.accountNumber}</b></div>
-              <div>戶名：{bank.accountName}</div>
+              <div>{t('帳號：')}<b style={{ letterSpacing: .5 }}>{bank.accountNumber}</b></div>
+              <div>{t('戶名：')}{bank.accountName}</div>
               {bank.notes && <div style={{ color: '#999' }}>{bank.notes}</div>}
             </div>
           ) : null}
-          <label style={label}>匯款帳號末五碼 *</label>
+          <label style={label}>{t('匯款帳號末五碼 *')}</label>
           <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={dinput} inputMode="numeric" placeholder="12345" />
-          <label style={label}>轉帳日期 *</label>
+          <label style={label}>{t('轉帳日期 *')}</label>
           <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={dinput} />
         </div>
 
@@ -246,7 +253,7 @@ export default function PublicCompetitionRegisterPage() {
 
         <button onClick={submit} disabled={submitting}
           style={{ width: '100%', height: 50, borderRadius: 12, background: submitting ? '#C99' : RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', marginTop: 18 }}>
-          {submitting ? '送出中…' : '送出報名'}
+          {submitting ? t('送出中…') : t('送出報名')}
         </button>
         <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 14, lineHeight: 1.8 }}>紅石攀岩 RedRock<br/>新竹館 03-6686635 · 士林館 02-28837591</div>
       </div>

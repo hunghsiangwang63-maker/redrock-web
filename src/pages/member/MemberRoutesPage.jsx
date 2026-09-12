@@ -4,6 +4,7 @@ import MemberBottomNav from '../../components/MemberBottomNav';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
+import { t, tt, isEn } from '../../utils/memberI18n';
 
 // 會員端「路線攻略」（2026-08-29 新增）：
 // 路線清單（IG 示範影片）＋完攀記錄（入場當日限定、七級嘗試層級計分）＋全館排名。
@@ -33,7 +34,7 @@ export default function MemberRoutesPage() {
   const effectiveViewAsId = (member && familyOptions.some(f => f.id === viewAsId)) ? viewAsId : (member?.id || '');
   const changeViewAs = (id) => { setViewAsId(id); localStorage.setItem('memberRouteViewAs', id); };
   const viewingMember = familyOptions.find(f => f.id === effectiveViewAsId) || null;
-  const viewingLabel = viewingMember ? (viewingMember.isSelf ? '我' : (viewingMember.nickname || viewingMember.name || '')) : '';
+  const viewingLabel = viewingMember ? (viewingMember.isSelf ? t('我') : (viewingMember.nickname || viewingMember.name || '')) : '';
   const [data, setData] = useState(null);       // GET /climbing-routes/member 回應
   const [loading, setLoading] = useState(true);
   const [loadErr, setLoadErr] = useState(false);
@@ -133,7 +134,7 @@ export default function MemberRoutesPage() {
         memberClient.get('/climbing-routes/rankings', { params: { ...(rankGym ? { gymId: rankGym } : {}), period, targetMemberId: effectiveViewAsId } })
           .then(r => setRanking(r.data)).catch(() => {}).finally(() => setRankLoading(false));
       }
-    } catch (e) { setPrefMsg(e.response?.data?.message || '儲存失敗'); }
+    } catch (e) { setPrefMsg(e.response?.data?.message || t('儲存失敗')); }
     finally { setPrefSaving(false); }
   };
   // 分享次數 +1（2026-09-07 新增）：只在分享動作真的成功時才計入（原生分享面板被使用者取消不算、
@@ -147,12 +148,12 @@ export default function MemberRoutesPage() {
       .catch(() => {}); // 計數失敗不影響分享本身已完成的事實，靜默即可
   };
   const shareIg = async (r) => {
-    const title = `${r.area || ''} ${r.color || ''} ${r.grade} 路線示範`.trim();
+    const title = `${r.area || ''} ${r.color || ''} ${r.grade} ${t('路線示範')}`.trim();
     try {
       if (navigator.share) { await navigator.share({ title, url: r.igUrl }); bumpShareCount(r.id); return; }
       await navigator.clipboard.writeText(r.igUrl);
       bumpShareCount(r.id);
-      setShareToast('已複製示範影片連結'); setTimeout(() => setShareToast(''), 2000);
+      setShareToast(t('已複製示範影片連結')); setTimeout(() => setShareToast(''), 2000);
     } catch (e) { /* 使用者取消分享等，靜默 */ }
   };
 
@@ -162,10 +163,10 @@ export default function MemberRoutesPage() {
     const title = `${r.area || ''} ${r.color || ''} ${r.grade}${r.name ? ' · ' + r.name : ''}`.trim();
     const url = `${window.location.origin}/member/routes?route=${r.id}`;
     try {
-      if (navigator.share) { await navigator.share({ title: `紅石路線攻略：${title}`, url }); bumpShareCount(r.id); return; }
+      if (navigator.share) { await navigator.share({ title: `${t('紅石路線攻略')}：${title}`, url }); bumpShareCount(r.id); return; }
       await navigator.clipboard.writeText(url);
       bumpShareCount(r.id);
-      setShareToast('已複製路線連結'); setTimeout(() => setShareToast(''), 2000);
+      setShareToast(t('已複製路線連結')); setTimeout(() => setShareToast(''), 2000);
     } catch (e) { /* 使用者取消分享等，靜默 */ }
   };
 
@@ -196,9 +197,9 @@ export default function MemberRoutesPage() {
       const isPhone = /^[0-9+]+$/.test(q);
       const res = await memberClient.get('/climbing-routes/search-member', { params: { ...(isPhone ? { phone: q } : { name: q }), excludeMemberId: effectiveViewAsId } });
       const results = (res.data.results || []).filter(m => !tagSelected.some(s => s.id === m.id));
-      if (!results.length) setTagSearchErr('查無符合的會員（電話需完整、姓名或暱稱需完全一致）');
+      if (!results.length) setTagSearchErr(t('查無符合的會員（電話需完整、姓名或暱稱需完全一致）'));
       setTagResults(results);
-    } catch (e) { setTagSearchErr(e.response?.data?.message || '搜尋失敗'); }
+    } catch (e) { setTagSearchErr(e.response?.data?.message || t('搜尋失敗')); }
     finally { setTagSearching(false); }
   };
   const addTagSelect = (m) => {
@@ -215,10 +216,10 @@ export default function MemberRoutesPage() {
         taggedMemberIds: tagSelected.map(m => m.id),
         fromMemberId: effectiveViewAsId,
       });
-      setTagMsg({ ok: true, text: `已標記：${(res.data.tagged || []).join('、')}` });
+      setTagMsg({ ok: true, text: `${t('已標記：')}${(res.data.tagged || []).join(isEn() ? ', ' : '、')}` });
       setTagSelected([]);
       load(); // 重新載入清單，讓路線卡片上的「已標記」清單即時更新
-    } catch (e) { setTagMsg({ ok: false, text: e.response?.data?.message || '標記失敗' }); }
+    } catch (e) { setTagMsg({ ok: false, text: e.response?.data?.message || t('標記失敗') }); }
     finally { setTagSubmitting(false); }
   };
 
@@ -239,11 +240,13 @@ export default function MemberRoutesPage() {
     if (mode === 'shares') return [[null, [...list].sort((a, b) => (b.shareCount || 0) - (a.shareCount || 0))]];
     if (mode === 'tags') return [[null, [...list].sort((a, b) => (b.tagCount || 0) - (a.tagCount || 0))]];
     // 預設：依區域分組（沿用原本邏輯與順序）
-    const byArea = list.reduce((m, r) => { (m[r.area || '未分區'] = m[r.area || '未分區'] || []).push(r); return m; }, {});
+    const byArea = list.reduce((m, r) => { const key = r.area || t('未分區'); (m[key] = m[key] || []).push(r); return m; }, {});
     return Object.entries(byArea);
   };
   const groupedRoutes = buildGroups(routes, sortMode);
-  const tierLabel = (key) => tiers.find(t => t.key === key)?.label || key;
+  const tierLabel = (key) => t(tiers.find(tr => tr.key === key)?.label || key);
+  const gymLabel = t(GYMS.find(g => g.id === gymId)?.label);
+  const whoLabel = (viewingMember && !viewingMember.isSelf) ? viewingLabel : '';
 
   const openRecord = (r) => {
     setRecordTarget(r);
@@ -252,13 +255,13 @@ export default function MemberRoutesPage() {
   };
 
   const submitRecord = async () => {
-    if (!pickedTier) { setModalMsg({ ok:false, text:'請選擇完攀方式' }); return; }
+    if (!pickedTier) { setModalMsg({ ok:false, text:t('請選擇完攀方式') }); return; }
     setSaving(true); setModalMsg(null);
     try {
       await memberClient.post(`/climbing-routes/${recordTarget.id}/ascents`, { tier: pickedTier, targetMemberId: effectiveViewAsId });
       setRecordTarget(null); load();
     } catch (e) {
-      setModalMsg({ ok:false, text: e.response?.data?.message || '記錄失敗，請稍後再試' });
+      setModalMsg({ ok:false, text: e.response?.data?.message || t('記錄失敗，請稍後再試') });
     } finally { setSaving(false); }
   };
 
@@ -268,7 +271,7 @@ export default function MemberRoutesPage() {
       await memberClient.delete(`/climbing-routes/${recordTarget.id}/ascents`, { params: { targetMemberId: effectiveViewAsId } });
       setRecordTarget(null); load();
     } catch (e) {
-      setModalMsg({ ok:false, text: e.response?.data?.message || '刪除失敗' });
+      setModalMsg({ ok:false, text: e.response?.data?.message || t('刪除失敗') });
     } finally { setSaving(false); }
   };
 
@@ -279,7 +282,7 @@ export default function MemberRoutesPage() {
           style={{ flex:1, padding:'8px 0', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer',
             border: gymId === g.id ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
             background: gymId === g.id ? '#8B1A1A' : '#fff', color: gymId === g.id ? '#fff' : '#666' }}>
-          {g.label}
+          {t(g.label)}
         </button>
       ))}
     </div>
@@ -290,18 +293,18 @@ export default function MemberRoutesPage() {
       <MemberLogoutButton />
       {/* 頂部 */}
       <div style={{ background:'linear-gradient(135deg,#8B1A1A,#6B1414)', padding:'18px 16px 16px', color:'#fff' }}>
-        <div onClick={() => navigate('/member/home')} style={{ fontSize:13, opacity:.85, cursor:'pointer', marginBottom:8 }}>← 返回首頁</div>
-        <div style={{ fontSize:19, fontWeight:700 }}>🪨 路線攻略</div>
-        <div style={{ fontSize:11, opacity:.8, marginTop:3 }}>看路線示範影片、記錄完攀、累積積分排名</div>
+        <div onClick={() => navigate('/member/home')} style={{ fontSize:13, opacity:.85, cursor:'pointer', marginBottom:8 }}>{t('← 返回首頁')}</div>
+        <div style={{ fontSize:19, fontWeight:700 }}>🪨 {t('路線攻略')}</div>
+        <div style={{ fontSize:11, opacity:.8, marginTop:3 }}>{t('看路線示範影片、記錄完攀、累積積分排名')}</div>
       </div>
 
       {/* 分頁 */}
       <div style={{ display:'flex', background:'#fff', borderBottom:'0.5px solid #E8D5D5' }}>
-        {[{ key:'routes', label:'🪨 路線' }, { key:'rankings', label:'🏆 排名' }].map(t => (
-          <div key={t.key} onClick={() => setTab(t.key)}
+        {[{ key:'routes', label:'🪨 路線' }, { key:'rankings', label:'🏆 排名' }].map(tb => (
+          <div key={tb.key} onClick={() => setTab(tb.key)}
             style={{ flex:1, textAlign:'center', padding:'11px 0', fontSize:13, fontWeight:600, cursor:'pointer',
-              color: tab === t.key ? '#8B1A1A' : '#999', borderBottom: tab === t.key ? '2px solid #8B1A1A' : '2px solid transparent' }}>
-            {t.label}
+              color: tab === tb.key ? '#8B1A1A' : '#999', borderBottom: tab === tb.key ? '2px solid #8B1A1A' : '2px solid transparent' }}>
+            {t(tb.label)}
           </div>
         ))}
       </div>
@@ -309,14 +312,14 @@ export default function MemberRoutesPage() {
       {/* 家長代子會員操作（2026-09-02 新增）：有子會員才顯示，切換後貫穿全頁（積分/記錄/排名/暱稱/tag） */}
       {familyOptions.length > 1 && (
         <div style={{ padding:'12px 16px 0' }}>
-          <div style={{ fontSize:11, color:'#999', marginBottom:5, textAlign:'left' }}>檢視/操作對象</div>
+          <div style={{ fontSize:11, color:'#999', marginBottom:5, textAlign:'left' }}>{t('檢視/操作對象')}</div>
           <div style={{ display:'flex', gap:8, overflowX:'auto' }}>
             {familyOptions.map(f => (
               <button key={f.id} onClick={() => changeViewAs(f.id)}
                 style={{ flexShrink:0, padding:'7px 14px', borderRadius:16, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap',
                   border: effectiveViewAsId === f.id ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
                   background: effectiveViewAsId === f.id ? '#8B1A1A' : '#fff', color: effectiveViewAsId === f.id ? '#fff' : '#666' }}>
-                {f.isSelf ? '本人' : `👦 ${f.nickname || f.name}`}
+                {f.isSelf ? t('本人') : `👦 ${f.nickname || f.name}`}
               </button>
             ))}
           </div>
@@ -338,16 +341,16 @@ export default function MemberRoutesPage() {
             return (
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', gap:18, marginBottom:12 }}>
               <div>
-                <div style={{ fontSize:10, color:'#999' }}>{viewingMember && !viewingMember.isSelf ? `${viewingLabel}的` : ''}{GYMS.find(g=>g.id===gymId)?.label}積分</div>
+                <div style={{ fontSize:10, color:'#999' }}>{tt(`${whoLabel ? whoLabel+'的' : ''}${gymLabel}積分`, `${whoLabel ? whoLabel+"'s " : ''}${gymLabel} Points`, `${whoLabel ? whoLabel+'の' : ''}${gymLabel}ポイント`)}</div>
                 <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A' }}>{cur.points.toLocaleString()}</div>
-                <div style={{ fontSize:10, color:'#999' }}>{cur.ascents} 條</div>
+                <div style={{ fontSize:10, color:'#999' }}>{tt(`${cur.ascents} 條`, `${cur.ascents} routes`, `${cur.ascents} ルート`)}</div>
               </div>
               <div>
-                <div style={{ fontSize:10, color:'#999' }}>全館合併</div>
+                <div style={{ fontSize:10, color:'#999' }}>{t('全館合併')}</div>
                 <div style={{ fontSize:20, fontWeight:700, color:'#333' }}>{all.points.toLocaleString()}</div>
-                <div style={{ fontSize:10, color:'#999' }}>{all.ascents} 條</div>
+                <div style={{ fontSize:10, color:'#999' }}>{tt(`${all.ascents} 條`, `${all.ascents} routes`, `${all.ascents} ルート`)}</div>
               </div>
-              <div style={{ flex:1, alignSelf:'center', fontSize:10, color:'#999', textAlign:'right' }}>僅計目前上架中的路線<br/>（換線下架後積分不再計入）</div>
+              <div style={{ flex:1, alignSelf:'center', fontSize:10, color:'#999', textAlign:'right' }}>{t('僅計目前上架中的路線')}<br/>{t('（換線下架後積分不再計入）')}</div>
             </div>
             );
           })()}
@@ -356,11 +359,11 @@ export default function MemberRoutesPage() {
           {!loading && !loadErr && (
             checkedIn ? (
               <div style={{ background:'#E6F4EB', color:'#2D7D46', borderRadius:10, padding:'8px 12px', fontSize:12, marginBottom:12 }}>
-                ✅ {viewingMember && !viewingMember.isSelf ? `${viewingLabel}今日已入場` : '今日已入場'}——完攀後點路線即可記錄成績
+                ✅ {tt(`${whoLabel || ''}今日已入場——完攀後點路線即可記錄成績`, `${whoLabel ? whoLabel+' has' : "You've"} checked in today — tap a route to record your ascent`, `${whoLabel ? whoLabel+'は' : ''}本日入場済み——完登後、ルートをタップして記録できます`)}
               </div>
             ) : (
               <div style={{ background:'#FAEEDA', color:'#854F0B', borderRadius:10, padding:'8px 12px', fontSize:12, marginBottom:12, textAlign:'left', lineHeight:1.6 }}>
-                ⏳ 記錄完攀需於「入場當日」進行——{viewingMember && !viewingMember.isSelf ? `${viewingLabel}今日尚未` : '今日尚未'}於{GYMS.find(g=>g.id===gymId)?.label}入場，可先瀏覽路線與示範影片
+                ⏳ {tt(`記錄完攀需於「入場當日」進行——${whoLabel || ''}今日尚未於${gymLabel}入場，可先瀏覽路線與示範影片`, `Ascent records can only be added on the day you check in — ${whoLabel || 'you'} have not checked in at ${gymLabel} today. Feel free to browse routes and demo videos first`, `完登記録は「入場当日」のみ可能です——${whoLabel ? whoLabel+'は' : ''}本日${gymLabel}にまだ入場していません。まずルートとデモ動画をご覧いただけます`)}
               </div>
             )
           )}
@@ -373,28 +376,28 @@ export default function MemberRoutesPage() {
                   style={{ padding:'6px 11px', borderRadius:20, fontSize:12, fontWeight:600, cursor:'pointer',
                     border: sortMode === m.key ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
                     background: sortMode === m.key ? '#8B1A1A' : '#fff', color: sortMode === m.key ? '#fff' : '#666' }}>
-                  {m.label}
+                  {t(m.label)}
                 </button>
               ))}
               {sortMode === 'grade' && (
                 <button onClick={toggleGradeDesc}
                   style={{ padding:'6px 11px', borderRadius:20, fontSize:12, fontWeight:600, cursor:'pointer',
                     border:'1px solid #E8D5D5', background:'#fff', color:'#666' }}>
-                  {gradeDesc ? '↓ 難到簡單' : '↑ 簡單到難'}
+                  {gradeDesc ? t('↓ 難到簡單') : t('↑ 簡單到難')}
                 </button>
               )}
             </div>
           )}
 
           {loading ? (
-            <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center' }}>載入中...</div>
+            <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center' }}>{t('載入中...')}</div>
           ) : loadErr ? (
             <div style={{ color:'#A32D2D', fontSize:13, padding:24, textAlign:'center' }}>
-              載入失敗 <button onClick={load} style={{ marginLeft:8, fontSize:12, padding:'4px 10px', borderRadius:8, border:'1px solid #ddd', background:'#fff', cursor:'pointer', color:'#444' }}>重試</button>
+              {t('載入失敗')} <button onClick={load} style={{ marginLeft:8, fontSize:12, padding:'4px 10px', borderRadius:8, border:'1px solid #ddd', background:'#fff', cursor:'pointer', color:'#444' }}>{t('重試')}</button>
             </div>
           ) : routes.length === 0 ? (
             <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center', background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5' }}>
-              此館尚未建立路線資料
+              {t('此館尚未建立路線資料')}
             </div>
           ) : (
             groupedRoutes.map(([label, list], gi) => (
@@ -403,7 +406,7 @@ export default function MemberRoutesPage() {
                 <div style={{ display:'flex', alignItems:'center', gap:8, background:'linear-gradient(135deg,#8B1A1A,#6B1414)', borderRadius:10, padding:'10px 14px', marginBottom:8 }}>
                   <span style={{ fontSize:16 }}>{sortMode === 'grade' ? '🎯' : '📍'}</span>
                   <span style={{ fontSize:15, fontWeight:700, color:'#fff', flex:1, textAlign:'left' }}>{label}</span>
-                  <span style={{ fontSize:11, color:'rgba(255,255,255,.85)', fontWeight:600, flexShrink:0 }}>{list.length} 條</span>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,.85)', fontWeight:600, flexShrink:0 }}>{tt(`${list.length} 條`, `${list.length} routes`, `${list.length} ルート`)}</span>
                 </div>
                 )}
                 <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
@@ -417,33 +420,33 @@ export default function MemberRoutesPage() {
                           <span style={{ fontSize:12, fontWeight:700, color:'#fff', background: GRADE_COLORS[r.grade]||'#666', padding:'3px 9px', borderRadius:8, minWidth:28, textAlign:'center' }}>{r.grade}</span>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{r.color}{r.name ? ` · ${r.name}` : ''}</div>
-                            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{sortMode !== 'area' && r.area ? `📍 ${r.area} · ` : ''}基本分 {r.basePoints}{r.setter ? ` · 定線 ${r.setter}` : ''}{r.plannedRemoveAt ? ` · 預計換線 ${r.plannedRemoveAt}` : ''}</div>
+                            <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{sortMode !== 'area' && r.area ? `📍 ${r.area} · ` : ''}{t('基本分')} {r.basePoints}{r.setter ? ` · ${t('定線')} ${r.setter}` : ''}{r.plannedRemoveAt ? ` · ${tt('預計換線', 'Planned removal', '交換予定')} ${r.plannedRemoveAt}` : ''}</div>
                             {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2, textAlign:'left' }}>💬 {r.note}</div>}
                           </div>
                           {r.igUrl && (<>
                             <button onClick={() => window.open(r.igUrl, '_blank', 'noopener')}
                               style={{ fontSize:11, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 9px', cursor:'pointer', whiteSpace:'nowrap' }}>
-                              📹 示範
+                              📹 {t('示範')}
                             </button>
-                            <button onClick={() => shareIg(r)} aria-label="分享示範影片連結"
+                            <button onClick={() => shareIg(r)} aria-label={t('分享示範影片連結')}
                               style={{ display:'flex', alignItems:'center', gap:3, fontSize:12, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 8px', cursor:'pointer', whiteSpace:'nowrap' }}>
                               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                              分享影片
+                              {t('分享影片')}
                             </button>
                           </>)}
                         </div>
                         <div style={{ marginTop:8, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                           {mine ? (
                             <div style={{ fontSize:11, color:'#2D7D46', fontWeight:600 }}>
-                              ✅ {tierLabel(mine.tier)} · +{mine.points} 分
+                              ✅ {tierLabel(mine.tier)} · {tt(`+${mine.points} 分`, `+${mine.points} pts`, `+${mine.points}点`)}
                             </div>
                           ) : (
-                            <div style={{ fontSize:11, color:'#bbb' }}>尚未完攀</div>
+                            <div style={{ fontSize:11, color:'#bbb' }}>{t('尚未完攀')}</div>
                           )}
                           <button onClick={() => openRecord(r)} disabled={!checkedIn && !mine}
                             style={{ fontSize:11, fontWeight:600, padding:'5px 12px', borderRadius:8, cursor: (checkedIn || mine) ? 'pointer' : 'default',
                               border:'none', background: mine ? '#F0EDED' : (checkedIn ? '#8B1A1A' : '#E5E0E0'), color: mine ? '#666' : '#fff' }}>
-                            {mine ? '修改記錄' : '記錄完攀'}
+                            {mine ? t('修改記錄') : t('記錄完攀')}
                           </button>
                         </div>
                         {/* 社交互動（2026-09-01 新增）：讚/分享路線/tag 朋友——不限入館，任何時候都可操作 */}
@@ -453,22 +456,22 @@ export default function MemberRoutesPage() {
                               border: r.liked ? '1px solid #F0C9C9' : '1px solid #E8D5D5', background: r.liked ? '#FBEFEF' : '#fff', color: r.liked ? '#8B1A1A' : '#999' }}>
                             {r.liked ? '❤️' : '🤍'} {r.likeCount > 0 ? r.likeCount : ''}
                           </button>
-                          <button onClick={() => shareRoute(r)} aria-label="分享路線"
+                          <button onClick={() => shareRoute(r)} aria-label={t('分享路線')}
                             style={{ display:'flex', alignItems:'center', gap:3, fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                            分享{r.shareCount > 0 ? ` ${r.shareCount}` : ''}
+                            {t('分享')}{r.shareCount > 0 ? ` ${r.shareCount}` : ''}
                           </button>
                           <button onClick={() => openTagModal(r)}
                             style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
-                            👥 標記朋友{r.tagCount > 0 ? ` ${r.tagCount}` : ''}
+                            👥 {t('標記朋友')}{r.tagCount > 0 ? ` ${r.tagCount}` : ''}
                           </button>
                         </div>
                         {r.tags && r.tags.length > 0 && (
                           <div style={{ marginTop:6, fontSize:11, color:'#999', textAlign:'left', lineHeight:1.6 }}>
-                            {r.tags.slice(0, 3).map((t, i) => (
-                              <span key={i}>👥 {t.from} 標記了 {t.tagged}{i < Math.min(r.tags.length, 3) - 1 ? '、' : ''}</span>
+                            {r.tags.slice(0, 3).map((tg, i) => (
+                              <span key={i}>👥 {tt(`${tg.from} 標記了 ${tg.tagged}`, `${tg.from} tagged ${tg.tagged}`, `${tg.from}が${tg.tagged}をタグ付け`)}{i < Math.min(r.tags.length, 3) - 1 ? '、' : ''}</span>
                             ))}
-                            {r.tags.length > 3 && <span>　等共 {r.tags.length} 筆</span>}
+                            {r.tags.length > 3 && <span>{tt(`　等共 ${r.tags.length} 筆`, ` and ${r.tags.length} more`, `　他計${r.tags.length}件`)}</span>}
                           </div>
                         )}
                       </div>
@@ -490,7 +493,7 @@ export default function MemberRoutesPage() {
                 style={{ flex:1, padding:'8px 0', borderRadius:10, fontSize:13, fontWeight:600, cursor:'pointer',
                   border: rankGym === g.id ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
                   background: rankGym === g.id ? '#8B1A1A' : '#fff', color: rankGym === g.id ? '#fff' : '#666' }}>
-                {g.label}
+                {t(g.label)}
               </button>
             ))}
           </div>
@@ -500,35 +503,39 @@ export default function MemberRoutesPage() {
                 style={{ padding:'6px 16px', borderRadius:16, fontSize:12, fontWeight:600, cursor:'pointer',
                   border: period === p.key ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5',
                   background: period === p.key ? '#FBEFEF' : '#fff', color: period === p.key ? '#8B1A1A' : '#999' }}>
-                {p.label}
+                {t(p.label)}
               </button>
             ))}
             <div style={{ flex:1 }} />
             <button onClick={openPref}
               style={{ padding:'6px 12px', borderRadius:16, fontSize:12, fontWeight:600, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#666' }}>
-              ⚙️ 排名設定
+              ⚙️ {t('排名設定')}
             </button>
           </div>
           {ranking?.myOptedOut && (
             <div style={{ background:'#F0EDED', color:'#666', borderRadius:10, padding:'8px 12px', fontSize:12, marginBottom:10, textAlign:'left' }}>
-              {viewingMember && !viewingMember.isSelf ? viewingLabel : '你'}目前<strong>未參加排名</strong>（積分照常累計{ranking.myStats ? `：${ranking.myStats.points.toLocaleString()} 分` : ''}）——到「⚙️ 排名設定」可重新公開參加
+              {viewingMember && !viewingMember.isSelf ? viewingLabel : t('你')}{t('目前')}<strong>{t('未參加排名')}</strong>{tt(
+                `（積分照常累計${ranking.myStats ? `：${ranking.myStats.points.toLocaleString()} 分` : ''}）——到「⚙️ 排名設定」可重新公開參加`,
+                `(points still accumulate as usual${ranking.myStats ? `: ${ranking.myStats.points.toLocaleString()} pts` : ''}) — go to "⚙️ Ranking Settings" to opt back in`,
+                `（ポイントは通常通り加算されます${ranking.myStats ? `：${ranking.myStats.points.toLocaleString()}点` : ''}）——「⚙️ ランキング設定」で再度参加できます`
+              )}
             </div>
           )}
 
           {rankLoading ? (
-            <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center' }}>載入中...</div>
+            <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center' }}>{t('載入中...')}</div>
           ) : !ranking || ranking.rankings.length === 0 ? (
             <div style={{ color:'#999', fontSize:13, padding:24, textAlign:'center', background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5' }}>
-              {period === 'month' ? '本月尚無完攀記錄' : '尚無完攀記錄'}
+              {period === 'month' ? t('本月尚無完攀記錄') : t('尚無完攀記錄')}
             </div>
           ) : (
             <>
               {ranking.myRank && (
                 <div style={{ background:'#8B1A1A', color:'#fff', borderRadius:12, padding:'10px 14px', display:'flex', alignItems:'center', gap:12, marginBottom:10 }}>
                   <div style={{ fontSize:18, fontWeight:700 }}>#{ranking.myRank.rank}</div>
-                  <div style={{ flex:1, fontSize:13, fontWeight:600 }}>{viewingMember && !viewingMember.isSelf ? `${viewingLabel}的排名` : '我的排名'}</div>
-                  <div style={{ fontSize:14, fontWeight:700 }}>{ranking.myRank.points.toLocaleString()} 分</div>
-                  <div style={{ fontSize:11, opacity:.8 }}>{ranking.myRank.ascents} 條</div>
+                  <div style={{ flex:1, fontSize:13, fontWeight:600 }}>{viewingMember && !viewingMember.isSelf ? tt(`${viewingLabel}的排名`, `${viewingLabel}'s Rank`, `${viewingLabel}のランキング`) : t('我的排名')}</div>
+                  <div style={{ fontSize:14, fontWeight:700 }}>{tt(`${ranking.myRank.points.toLocaleString()} 分`, `${ranking.myRank.points.toLocaleString()} pts`, `${ranking.myRank.points.toLocaleString()}点`)}</div>
+                  <div style={{ fontSize:11, opacity:.8 }}>{tt(`${ranking.myRank.ascents} 條`, `${ranking.myRank.ascents} routes`, `${ranking.myRank.ascents} ルート`)}</div>
                 </div>
               )}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
@@ -541,16 +548,20 @@ export default function MemberRoutesPage() {
                         {r.rank <= 3 ? ['🥇','🥈','🥉'][r.rank-1] : `#${r.rank}`}
                       </div>
                       <div style={{ flex:1, fontSize:13, fontWeight: isMe ? 700 : 500, color:'#333' }}>
-                        {r.memberName || '會員'}{isMe && <span style={{ fontSize:10, color:'#8B1A1A', marginLeft:5 }}>（{viewingMember && !viewingMember.isSelf ? viewingLabel : '我'}）</span>}
+                        {r.memberName || t('會員')}{isMe && <span style={{ fontSize:10, color:'#8B1A1A', marginLeft:5 }}>（{viewingMember && !viewingMember.isSelf ? viewingLabel : t('我')}）</span>}
                       </div>
                       <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A' }}>{r.points.toLocaleString()}</div>
-                      <div style={{ fontSize:11, color:'#999', width:38, textAlign:'right' }}>{r.ascents} 條</div>
+                      <div style={{ fontSize:11, color:'#999', width:38, textAlign:'right' }}>{tt(`${r.ascents} 條`, `${r.ascents} routes`, `${r.ascents} ルート`)}</div>
                     </div>
                   );
                 })}
               </div>
               <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'left' }}>
-                顯示前 50 名（共 {ranking.total} 位）· 分數＝路線難度基本分 × 完攀方式係數
+                {tt(
+                  `顯示前 50 名（共 ${ranking.total} 位）· 分數＝路線難度基本分 × 完攀方式係數`,
+                  `Showing top 50 (${ranking.total} total) · Score = route grade base points × ascent style multiplier`,
+                  `上位50名を表示（全${ranking.total}名）・スコア＝ルート難度基本点 × 完登方法係数`
+                )}
               </div>
             </>
           )}
@@ -569,7 +580,7 @@ export default function MemberRoutesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:360, maxWidth:'95vw' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>⚙️ 排名設定{viewingMember && !viewingMember.isSelf ? `（${viewingLabel}）` : ''}</div>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>⚙️ {t('排名設定')}{viewingMember && !viewingMember.isSelf ? `（${viewingLabel}）` : ''}</div>
               <button onClick={() => setPrefOpen(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div onClick={() => setPref(f => ({ ...f, optOut: !f.optOut }))}
@@ -578,25 +589,25 @@ export default function MemberRoutesPage() {
                 {!pref.optOut && <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 6.5 4.8 9.2 10 3.2"/></svg>}
               </div>
               <div style={{ textAlign:'left' }}>
-                <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>公開積分並參加排名</div>
-                <div style={{ fontSize:11, color:'#999', marginTop:2 }}>取消勾選＝不出現在排行榜（積分仍照常累計，只有自己看得到）</div>
+                <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{t('公開積分並參加排名')}</div>
+                <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{t('取消勾選＝不出現在排行榜（積分仍照常累計，只有自己看得到）')}</div>
               </div>
             </div>
             <div style={{ marginBottom:14 }}>
-              <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:4, textAlign:'left' }}>暱稱（選填，最多 10 字）</div>
+              <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:4, textAlign:'left' }}>{t('暱稱（選填，最多 10 字）')}</div>
               <input value={pref.nickname} maxLength={10}
                 onChange={e => setPref(f => ({ ...f, nickname: e.target.value }))}
-                placeholder="留空＝顯示本名"
+                placeholder={t('留空＝顯示本名')}
                 style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
               <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'left' }}>
-                {viewingMember && !viewingMember.isSelf ? '排行榜與標記朋友都會用它顯示' : '與「個人資料」共用同一個暱稱，排行榜與標記朋友都會用它顯示'}
+                {viewingMember && !viewingMember.isSelf ? t('排行榜與標記朋友都會用它顯示') : t('與「個人資料」共用同一個暱稱，排行榜與標記朋友都會用它顯示')}
               </div>
               <div style={{ fontSize:10, color:'#bbb', marginTop:3, textAlign:'right' }}>{[...pref.nickname].length}/10</div>
             </div>
             {prefMsg && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, textAlign:'left' }}>{prefMsg}</div>}
             <button onClick={savePref} disabled={prefSaving}
               style={{ width:'100%', background: prefSaving ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: prefSaving ? 'default' : 'pointer' }}>
-              {prefSaving ? '儲存中...' : '儲存'}
+              {prefSaving ? t('儲存中...') : t('儲存')}
             </button>
           </div>
         </div>
@@ -607,7 +618,7 @@ export default function MemberRoutesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:400, maxWidth:'95vw', maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>記錄完攀{viewingMember && !viewingMember.isSelf ? `（${viewingLabel}）` : ''}</div>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>{t('記錄完攀')}{viewingMember && !viewingMember.isSelf ? `（${viewingLabel}）` : ''}</div>
               <button onClick={() => setRecordTarget(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div style={{ fontSize:12, color:'#666', marginBottom:12 }}>
@@ -616,19 +627,19 @@ export default function MemberRoutesPage() {
             </div>
             {!checkedIn && (
               <div style={{ background:'#FAEEDA', color:'#854F0B', borderRadius:8, padding:'7px 10px', fontSize:11, marginBottom:10, textAlign:'left' }}>
-                {viewingMember && !viewingMember.isSelf ? `${viewingLabel}今日尚未` : '今日尚未'}入場，無法新增或修改記錄（可刪除既有記錄）
+                {tt(`${whoLabel || ''}今日尚未入場，無法新增或修改記錄（可刪除既有記錄）`, `${whoLabel || 'You have'} not checked in today — cannot add or edit records (existing records can still be deleted)`, `${whoLabel ? whoLabel+'は' : ''}本日まだ入場していないため、記録の追加・変更はできません（既存の記録は削除可能です）`)}
               </div>
             )}
             <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-              {tiers.map(t => {
-                const pts = Math.round((recordTarget.basePoints || 0) * (t.multiplier || 0));
-                const sel = pickedTier === t.key;
+              {tiers.map(tier => {
+                const pts = Math.round((recordTarget.basePoints || 0) * (tier.multiplier || 0));
+                const sel = pickedTier === tier.key;
                 return (
-                  <div key={t.key} onClick={() => checkedIn && setPickedTier(t.key)}
+                  <div key={tier.key} onClick={() => checkedIn && setPickedTier(tier.key)}
                     style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'9px 12px', borderRadius:10, cursor: checkedIn ? 'pointer' : 'default',
                       border: sel ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5', background: sel ? '#FBEFEF' : '#fff', opacity: checkedIn ? 1 : .6 }}>
-                    <div style={{ fontSize:13, fontWeight: sel ? 700 : 500, color:'#333', textAlign:'left' }}>{t.label}</div>
-                    <div style={{ fontSize:12, fontWeight:700, color:'#8B1A1A', whiteSpace:'nowrap', marginLeft:8 }}>+{pts} 分</div>
+                    <div style={{ fontSize:13, fontWeight: sel ? 700 : 500, color:'#333', textAlign:'left' }}>{t(tier.label)}</div>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#8B1A1A', whiteSpace:'nowrap', marginLeft:8 }}>{tt(`+${pts} 分`, `+${pts} pts`, `+${pts}点`)}</div>
                   </div>
                 );
               })}
@@ -639,19 +650,19 @@ export default function MemberRoutesPage() {
             {checkedIn && (
               <button onClick={submitRecord} disabled={saving}
                 style={{ width:'100%', marginTop:14, background: saving ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'12px 0', fontSize:14, fontWeight:600, cursor: saving ? 'default' : 'pointer' }}>
-                {saving ? '送出中...' : (myAscents[recordTarget.id] ? '更新記錄' : '✓ 記錄完攀')}
+                {saving ? t('送出中...') : (myAscents[recordTarget.id] ? t('更新記錄') : `✓ ${t('記錄完攀')}`)}
               </button>
             )}
             {myAscents[recordTarget.id] && (
               confirmDelete ? (
                 <div style={{ display:'flex', gap:8, marginTop:8 }}>
-                  <button onClick={() => setConfirmDelete(false)} style={{ flex:1, padding:'9px 0', borderRadius:10, border:'1px solid #ddd', background:'#fff', fontSize:12, cursor:'pointer', color:'#666' }}>返回</button>
-                  <button onClick={deleteRecord} disabled={saving} style={{ flex:1, padding:'9px 0', borderRadius:10, border:'none', background:'#A32D2D', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>確定刪除記錄</button>
+                  <button onClick={() => setConfirmDelete(false)} style={{ flex:1, padding:'9px 0', borderRadius:10, border:'1px solid #ddd', background:'#fff', fontSize:12, cursor:'pointer', color:'#666' }}>{t('返回')}</button>
+                  <button onClick={deleteRecord} disabled={saving} style={{ flex:1, padding:'9px 0', borderRadius:10, border:'none', background:'#A32D2D', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>{t('確定刪除記錄')}</button>
                 </div>
               ) : (
                 <button onClick={() => setConfirmDelete(true)}
                   style={{ width:'100%', marginTop:8, background:'#fff', color:'#A32D2D', border:'1px solid #EBC9C9', borderRadius:10, padding:'9px 0', fontSize:12, cursor:'pointer' }}>
-                  刪除此記錄
+                  {t('刪除此記錄')}
                 </button>
               )
             )}
@@ -664,7 +675,7 @@ export default function MemberRoutesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:400, maxWidth:'95vw', maxHeight:'85vh', overflowY:'auto', WebkitOverflowScrolling:'touch' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>👥 標記朋友{viewingMember && !viewingMember.isSelf ? `（以${viewingLabel}的身份）` : ''}</div>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>👥 {t('標記朋友')}{viewingMember && !viewingMember.isSelf ? tt(`（以${viewingLabel}的身份）`, ` (as ${viewingLabel})`, `（${viewingLabel}として）`) : ''}</div>
               <button onClick={() => setTagModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div style={{ fontSize:12, color:'#666', marginBottom:12, textAlign:'left' }}>
@@ -672,16 +683,16 @@ export default function MemberRoutesPage() {
               {tagModal.area} · {tagModal.color}{tagModal.name ? ` · ${tagModal.name}` : ''}
             </div>
             <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
-              最多可同時標記 5 位朋友；標記後對方會收到首頁提醒，路線頁面也會公開顯示「誰標記了誰」（沒設暱稱的姓名會部分遮蔽保護隱私）。
+              {t('最多可同時標記 5 位朋友；標記後對方會收到首頁提醒，路線頁面也會公開顯示「誰標記了誰」（沒設暱稱的姓名會部分遮蔽保護隱私）。')}
             </div>
             <div style={{ display:'flex', gap:6, marginBottom:8 }}>
               <input value={tagQuery} onChange={e => setTagQuery(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') searchTagFriends(); }}
-                placeholder="輸入電話、完整姓名或暱稱搜尋"
+                placeholder={t('輸入電話、完整姓名或暱稱搜尋')}
                 style={{ flex:1, boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
               <button onClick={searchTagFriends} disabled={tagSearching || !tagQuery.trim()}
                 style={{ padding:'0 16px', borderRadius:8, border:'none', background: tagSearching ? '#ccc' : '#8B1A1A', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
-                {tagSearching ? '搜尋中' : '搜尋'}
+                {tagSearching ? t('搜尋中') : t('搜尋')}
               </button>
             </div>
             {tagSearchErr && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:8, textAlign:'left' }}>{tagSearchErr}</div>}
@@ -694,14 +705,14 @@ export default function MemberRoutesPage() {
                       <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{m.name}{m.nickname ? `（${m.nickname}）` : ''}</div>
                       <div style={{ fontSize:11, color:'#999' }}>{m.phone}</div>
                     </div>
-                    <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>+ 加入</div>
+                    <div style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>+ {t('加入')}</div>
                   </div>
                 ))}
               </div>
             )}
             {tagSelected.length > 0 && (
               <div style={{ marginBottom:10 }}>
-                <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:6, textAlign:'left' }}>已選（{tagSelected.length}/5）</div>
+                <div style={{ fontSize:12, color:'#666', fontWeight:600, marginBottom:6, textAlign:'left' }}>{tt(`已選（${tagSelected.length}/5）`, `Selected (${tagSelected.length}/5)`, `選択済み（${tagSelected.length}/5）`)}</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                   {tagSelected.map(m => (
                     <div key={m.id} style={{ display:'flex', alignItems:'center', gap:5, background:'#FBEFEF', color:'#8B1A1A', borderRadius:16, padding:'5px 10px', fontSize:12, fontWeight:600 }}>
@@ -718,7 +729,7 @@ export default function MemberRoutesPage() {
             )}
             <button onClick={submitTag} disabled={!tagSelected.length || tagSubmitting}
               style={{ width:'100%', background: (!tagSelected.length || tagSubmitting) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: (!tagSelected.length || tagSubmitting) ? 'default' : 'pointer' }}>
-              {tagSubmitting ? '送出中...' : `標記 ${tagSelected.length || ''} 位朋友`}
+              {tagSubmitting ? t('送出中...') : tt(`標記 ${tagSelected.length || ''} 位朋友`, `Tag ${tagSelected.length || ''} Friend${tagSelected.length === 1 ? '' : 's'}`, `${tagSelected.length || ''}人をタグ付け`)}
             </button>
           </div>
         </div>

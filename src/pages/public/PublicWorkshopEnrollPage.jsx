@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
+import { t, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const RED = '#8B1A1A';
 
@@ -17,30 +18,32 @@ export default function PublicWorkshopEnrollPage() {
   const [loadErr, setLoadErr] = useState('');
 
   useEffect(() => {
-    if (!courseId || !sessionId) { setLoadErr('連結缺少課程/場次資訊，請聯繫櫃檯'); return; }
+    if (!courseId || !sessionId) { setLoadErr(t('連結缺少課程/場次資訊，請聯繫櫃檯')); return; }
     publicClient.get(`/courses/public/${courseId}`)
       .then(r => {
         setCourse(r.data.course);
         const s = (r.data.sessions || []).find(x => x.id === sessionId);
-        if (!s || s.status === 'cancelled') { setLoadErr('找不到此場次，可能已額滿、已結束或已取消'); return; }
+        if (!s || s.status === 'cancelled') { setLoadErr(t('找不到此場次，可能已額滿、已結束或已取消')); return; }
         setSession(s);
       })
-      .catch(() => setLoadErr('找不到此課程，可能已下架或連結錯誤'));
+      .catch(() => setLoadErr(t('找不到此課程，可能已下架或連結錯誤')));
   }, [courseId, sessionId]);
 
   const goEnroll = () => navigate(`/member/courses?course=${courseId}`);
 
   const wrap = { maxWidth: 600, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
+  const langBtn = { position: 'absolute', right: 16, top: 16, height: 26, padding: '0 10px', borderRadius: 13, border: '0.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' };
 
   if (loadErr) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#A32D2D' }}>{loadErr}</div>;
-  if (!course || !session) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>載入中…</div>;
+  if (!course || !session) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>{t('載入中…')}</div>;
 
   return (
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
-      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>紅石攀岩 · 工作坊報名</div>
-        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免登入瀏覽場次資訊，登入或註冊會員後即可完成報名</div>
+      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center', position: 'relative' }}>
+        <div onClick={toggleMemberLang} style={langBtn}>🌐 {nextLangLabel()}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{t('紅石攀岩 · 工作坊報名')}</div>
+        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免登入瀏覽場次資訊，登入或註冊會員後即可完成報名')}</div>
       </div>
       <div style={wrap}>
         <div style={card}>
@@ -48,16 +51,16 @@ export default function PublicWorkshopEnrollPage() {
           {course.description && <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{course.description}</div>}
           <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>🗓 {session.date}　⏰ {session.startTime}–{session.endTime}</div>
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
-            費用：<b style={{ color: RED, fontSize: 17 }}>NT${course.price}</b>
+            {t('費用：')}<b style={{ color: RED, fontSize: 17 }}>NT${course.price}</b>
           </div>
         </div>
 
         <div style={{ ...card, textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>登入或註冊會員即可完成報名</div>
-          <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('登入或註冊會員即可完成報名')}</div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>{t('報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）')}</div>
           <button onClick={goEnroll}
             style={{ width: '100%', height: 50, borderRadius: 12, background: RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 16 }}>
-            登入 / 註冊並報名 →
+            {t('登入 / 註冊並報名 →')}
           </button>
         </div>
 

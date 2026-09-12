@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { publicClient } from '../../api/client';
+import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const RED = '#8B1A1A';
 
@@ -11,7 +12,7 @@ export default function PublicExperienceBookingPage() {
   const [courseType, setCourseType] = useState('general');
   const [bookingDate, setBookingDate] = useState('');
   const [bookingTime, setBookingTime] = useState('');
-  const [participants, setParticipants] = useState([{ name: '', birthday: '', idNumber: '', nationality: '台灣' }]);
+  const [participants, setParticipants] = useState([{ name: '', birthday: '', idNumber: '', nationality: t('台灣') }]);
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -33,7 +34,7 @@ export default function PublicExperienceBookingPage() {
         if (r.data.gyms?.length) setGymId(r.data.gyms[0].id);
         if (r.data.courseTypes?.length) setCourseType(r.data.courseTypes[0].id);
       })
-      .catch(() => setLoadErr('無法載入預約資訊，請稍後再試或聯繫櫃檯'));
+      .catch(() => setLoadErr(t('無法載入預約資訊，請稍後再試或聯繫櫃檯')));
   }, []);
 
   const n = participants.length;
@@ -48,25 +49,25 @@ export default function PublicExperienceBookingPage() {
   const under4 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 4; };
   const anyUnder4 = participants.some(p => under4(p.birthday));
 
-  const addP = () => participants.length < 8 && setParticipants(p => [...p, { name: '', birthday: '', idNumber: '', nationality: '台灣' }]);
+  const addP = () => participants.length < 8 && setParticipants(p => [...p, { name: '', birthday: '', idNumber: '', nationality: t('台灣') }]);
   const rmP = (i) => participants.length > 1 && setParticipants(p => p.filter((_, j) => j !== i));
   const setP = (i, k, v) => setParticipants(p => p.map((x, j) => j === i ? { ...x, [k]: v } : x));
 
   const submit = async () => {
     setErr('');
-    if (!contactName.trim()) return setErr('請填寫聯絡人姓名');
-    if (!contactPhone.trim()) return setErr('請填寫聯絡電話');
-    if (!gymId) return setErr('請選擇場館');
-    if (!bookingDate) return setErr('請選擇體驗日期');
-    if (participants.some(p => !p.name.trim())) return setErr('請填寫每位參加者姓名');
-    if (participants.some(p => !p.idNumber?.trim())) return setErr('請填寫每位參加者身分證字號／護照號碼（投保用）');
-    if (participants.some(p => !p.birthday)) return setErr('請填寫每位參加者生日');
-    if (anyUnder4) return setErr('未滿 4 歲無法報名體驗');
-    if (!bankName.trim()) return setErr('請填寫匯款銀行名稱');
-    if (!paymentDate) return setErr('請填寫匯款日期');
-    if (!bankLastFive.trim()) return setErr('請填寫匯款帳號末五碼');
-    if (!(Number(paidAmount) > 0)) return setErr('請填寫實際匯款金額');
-    if (!agreedTerms) return setErr('請閱讀並勾選同意注意事項');
+    if (!contactName.trim()) return setErr(t('請填寫聯絡人姓名'));
+    if (!contactPhone.trim()) return setErr(t('請填寫聯絡電話'));
+    if (!gymId) return setErr(t('請選擇場館'));
+    if (!bookingDate) return setErr(t('請選擇體驗日期'));
+    if (participants.some(p => !p.name.trim())) return setErr(t('請填寫每位參加者姓名'));
+    if (participants.some(p => !p.idNumber?.trim())) return setErr(t('請填寫每位參加者身分證字號／護照號碼（投保用）'));
+    if (participants.some(p => !p.birthday)) return setErr(t('請填寫每位參加者生日'));
+    if (anyUnder4) return setErr(t('未滿 4 歲無法報名體驗'));
+    if (!bankName.trim()) return setErr(t('請填寫匯款銀行名稱'));
+    if (!paymentDate) return setErr(t('請填寫匯款日期'));
+    if (!bankLastFive.trim()) return setErr(t('請填寫匯款帳號末五碼'));
+    if (!(Number(paidAmount) > 0)) return setErr(t('請填寫實際匯款金額'));
+    if (!agreedTerms) return setErr(t('請閱讀並勾選同意注意事項'));
     setSubmitting(true);
     try {
       const res = await publicClient.post('/experience-bookings/public', {
@@ -77,7 +78,7 @@ export default function PublicExperienceBookingPage() {
       });
       setDone({ totalFee: res.data.totalFee });
     } catch (e) {
-      setErr(e.response?.data?.message || '送出失敗，請稍後再試');
+      setErr(e.response?.data?.message || t('送出失敗，請稍後再試'));
     } finally { setSubmitting(false); }
   };
 
@@ -86,21 +87,22 @@ export default function PublicExperienceBookingPage() {
   const input = { width: '100%', minWidth: 0, height: 44, borderRadius: 10, border: '1px solid #E0D4D4', padding: '0 12px', fontSize: 15, boxSizing: 'border-box', outline: 'none', background: '#fff' };
   const dinput = { ...input, width: '100%', maxWidth: 220 };  // 日期/窄欄：各自一行、固定不過寬（避免 iOS date 在 flex 溢出）
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
+  const langBtn = { position: 'absolute', right: 16, top: 16, height: 26, padding: '0 10px', borderRadius: 13, border: '0.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' };
 
   if (loadErr) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#A32D2D' }}>{loadErr}</div>;
-  if (!settings) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>載入中…</div>;
+  if (!settings) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>{t('載入中…')}</div>;
 
   if (done) {
     return (
       <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
         <div style={{ ...wrap, paddingTop: 60, textAlign: 'center' }}>
           <div style={{ fontSize: 52 }}>✅</div>
-          <h2 style={{ color: RED, marginTop: 12 }}>預約已送出！</h2>
+          <h2 style={{ color: RED, marginTop: 12 }}>{t('預約已送出！')}</h2>
           <div style={{ ...card, textAlign: 'left', lineHeight: 1.8 }}>
-            <div>感謝您預約紅石攀岩體驗課程。</div>
-            <div style={{ marginTop: 8 }}>應繳金額：<b style={{ color: RED }}>NT${done.totalFee}</b></div>
-            <div style={{ marginTop: 8, color: '#666', fontSize: 14 }}>請於 <b>3 日內完成匯款</b>，我們確認收款後會與您聯繫確認場次。當天報到請提早 10 分鐘，並於現場簽署風險安全聲明書。</div>
-            <div style={{ marginTop: 12, color: '#999', fontSize: 13 }}>之後若在 app.redrocktaiwan.com 註冊會員（用同一支電話），此預約會自動歸入您的帳號。</div>
+            <div>{t('感謝您預約紅石攀岩體驗課程。')}</div>
+            <div style={{ marginTop: 8 }}>{t('應繳金額：')}<b style={{ color: RED }}>NT${done.totalFee}</b></div>
+            <div style={{ marginTop: 8, color: '#666', fontSize: 14 }}>{t('請於 ')}<b>{t('3 日內完成匯款')}</b>{t('，我們確認收款後會與您聯繫確認場次。當天報到請提早 10 分鐘，並於現場簽署風險安全聲明書。')}</div>
+            <div style={{ marginTop: 12, color: '#999', fontSize: 13 }}>{t('之後若在 app.redrocktaiwan.com 註冊會員（用同一支電話），此預約會自動歸入您的帳號。')}</div>
           </div>
         </div>
       </div>
@@ -109,9 +111,10 @@ export default function PublicExperienceBookingPage() {
 
   return (
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
-      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>紅石攀岩 · 體驗課程預約</div>
-        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免註冊，填表預約即可</div>
+      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center', position: 'relative' }}>
+        <div onClick={toggleMemberLang} style={langBtn}>🌐 {nextLangLabel()}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{t('紅石攀岩 · 體驗課程預約')}</div>
+        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免註冊，填表預約即可')}</div>
       </div>
       <div style={wrap}>
         {settings.description && (
@@ -120,89 +123,90 @@ export default function PublicExperienceBookingPage() {
           </div>
         )}
         <div style={card}>
-          <label style={{ ...label, marginTop: 0 }}>場館</label>
+          <label style={{ ...label, marginTop: 0 }}>{t('場館')}</label>
           <select value={gymId} onChange={e => setGymId(e.target.value)} style={input}>
             {settings.gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
           </select>
 
-          <label style={label}>體驗日期</label>
+          <label style={label}>{t('體驗日期')}</label>
           <input type="date" value={bookingDate} min={new Date(Date.now() + 864e5).toISOString().slice(0, 10)} onChange={e => setBookingDate(e.target.value)} style={dinput} />
-          <label style={label}>希望時段（選填）</label>
-          <input placeholder="如 14:00" value={bookingTime} onChange={e => setBookingTime(e.target.value)} style={dinput} />
+          <label style={label}>{t('希望時段（選填）')}</label>
+          <input placeholder={t('如 14:00')} value={bookingTime} onChange={e => setBookingTime(e.target.value)} style={dinput} />
         </div>
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>參加人員</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('參加人員')}</div>
           {participants.map((p, i) => (
             <div key={i} style={{ marginTop: 12, paddingTop: i ? 12 : 0, borderTop: i ? '1px dashed #EEE' : 'none' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <label style={{ ...label, marginTop: 0 }}>姓名</label>
-                  <input value={p.name} onChange={e => setP(i, 'name', e.target.value)} style={input} placeholder="參加者姓名" />
+                  <label style={{ ...label, marginTop: 0 }}>{t('姓名')}</label>
+                  <input value={p.name} onChange={e => setP(i, 'name', e.target.value)} style={input} placeholder={t('參加者姓名')} />
                 </div>
-                {participants.length > 1 && <button onClick={() => rmP(i)} style={{ height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid #E5B5B5', background: '#fff', color: '#A32D2D', fontSize: 13, cursor: 'pointer' }}>移除</button>}
+                {participants.length > 1 && <button onClick={() => rmP(i)} style={{ height: 44, padding: '0 12px', borderRadius: 10, border: '1px solid #E5B5B5', background: '#fff', color: '#A32D2D', fontSize: 13, cursor: 'pointer' }}>{t('移除')}</button>}
               </div>
-              <label style={label}>生日</label>
+              <label style={label}>{t('生日')}</label>
               <input type="date" value={p.birthday} onChange={e => setP(i, 'birthday', e.target.value)} style={dinput} />
-              <label style={label}>國籍</label>
-              <input value={p.nationality} onChange={e => setP(i, 'nationality', e.target.value)} style={dinput} placeholder="台灣" />
-              <label style={label}>身分證字號／護照號碼</label>
-              <input value={p.idNumber} onChange={e => setP(i, 'idNumber', e.target.value.toUpperCase())} style={input} placeholder="投保用" />
-              {under4(p.birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>未滿 4 歲無法報名體驗</div>}
+              <label style={label}>{t('國籍')}</label>
+              <input value={p.nationality} onChange={e => setP(i, 'nationality', e.target.value)} style={dinput} placeholder={t('台灣')} />
+              <label style={label}>{t('身分證字號／護照號碼')}</label>
+              <input value={p.idNumber} onChange={e => setP(i, 'idNumber', e.target.value.toUpperCase())} style={input} placeholder={t('投保用')} />
+              {under4(p.birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>{t('未滿 4 歲無法報名體驗')}</div>}
             </div>
           ))}
-          <button onClick={addP} style={{ marginTop: 14, width: '100%', height: 40, borderRadius: 10, border: `1px dashed ${RED}`, background: '#fff', color: RED, fontSize: 14, cursor: 'pointer' }}>＋ 新增參加者</button>
+          <button onClick={addP} style={{ marginTop: 14, width: '100%', height: 40, borderRadius: 10, border: `1px dashed ${RED}`, background: '#fff', color: RED, fontSize: 14, cursor: 'pointer' }}>{t('＋ 新增參加者')}</button>
         </div>
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>聯絡資訊</div>
-          <label style={label}>聯絡人姓名 *</label>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('聯絡資訊')}</div>
+          <label style={label}>{t('聯絡人姓名 *')}</label>
           <input value={contactName} onChange={e => setContactName(e.target.value)} style={input} />
-          <label style={label}>聯絡電話 *</label>
+          <label style={label}>{t('聯絡電話 *')}</label>
           <input value={contactPhone} onChange={e => setContactPhone(e.target.value)} style={input} placeholder="0912345678" inputMode="tel" />
-          <label style={label}>Email（選填）</label>
+          <label style={label}>{t('Email（選填）')}</label>
           <input value={contactEmail} onChange={e => setContactEmail(e.target.value)} style={input} inputMode="email" />
-          <label style={label}>Facebook 名稱（選填）</label>
+          <label style={label}>{t('Facebook 名稱（選填）')}</label>
           <input value={facebookName} onChange={e => setFacebookName(e.target.value)} style={input} />
         </div>
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>付款（匯款）</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('付款（匯款）')}</div>
           <div style={{ background: '#FBF5F5', borderRadius: 10, padding: 12, marginTop: 10, fontSize: 14 }}>
-            應繳金額：<b style={{ color: RED, fontSize: 17 }}>NT${totalFee}</b>
-            <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>（{n} 人 × NT${unitPrice}）</span>
+            {t('應繳金額：')}<b style={{ color: RED, fontSize: 17 }}>NT${totalFee}</b>
+            <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(`（${n} 人 × NT$${unitPrice}）`, `(${n} people × NT$${unitPrice})`, `（${n}名 × NT$${unitPrice}）`)}</span>
           </div>
           {(() => {
             const bank = settings.bankInfo?.[String(gymId || '').replace('gym-', '')];
+            const gymName = settings.gyms.find(g => g.id === gymId)?.name || '';
             return bank ? (
               <div style={{ fontSize: 13, color: '#555', marginTop: 10, background: '#F7F1F1', borderRadius: 8, padding: '10px 12px', lineHeight: 1.8 }}>
-                <div style={{ fontWeight: 700, color: RED, marginBottom: 2 }}>匯款帳號（{settings.gyms.find(g => g.id === gymId)?.name || ''}）</div>
+                <div style={{ fontWeight: 700, color: RED, marginBottom: 2 }}>{tt(`匯款帳號（${gymName}）`, `Transfer Account (${gymName})`, `振込先口座（${gymName}）`)}</div>
                 <div>{bank.bankName} {bank.branch || ''}</div>
-                <div>帳號：<b style={{ letterSpacing: .5 }}>{bank.account}</b></div>
-                <div>戶名：{bank.accountName}</div>
+                <div>{t('帳號：')}<b style={{ letterSpacing: .5 }}>{bank.account}</b></div>
+                <div>{t('戶名：')}{bank.accountName}</div>
               </div>
             ) : null;
           })()}
-          <label style={label}>您的匯款銀行名稱 *</label>
-          <input value={bankName} onChange={e => setBankName(e.target.value)} style={input} placeholder="如：台新銀行" />
-          <label style={label}>匯款帳號末五碼 *</label>
+          <label style={label}>{t('您的匯款銀行名稱 *')}</label>
+          <input value={bankName} onChange={e => setBankName(e.target.value)} style={input} placeholder={t('如：台新銀行')} />
+          <label style={label}>{t('匯款帳號末五碼 *')}</label>
           <input value={bankLastFive} onChange={e => setBankLastFive(e.target.value.replace(/\D/g, '').slice(0, 5))} style={dinput} inputMode="numeric" placeholder="12345" />
-          <label style={label}>匯款日期 *</label>
+          <label style={label}>{t('匯款日期 *')}</label>
           <input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} style={dinput} />
-          <label style={label}>實際匯款金額 *</label>
+          <label style={label}>{t('實際匯款金額 *')}</label>
           <input value={paidAmount} onChange={e => setPaidAmount(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" placeholder={String(totalFee)} />
         </div>
 
         <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', marginTop: 18, cursor: 'pointer', fontSize: 13, color: '#444', lineHeight: 1.6 }}>
           <input type="checkbox" checked={agreedTerms} onChange={e => setAgreedTerms(e.target.checked)} style={{ width: 20, height: 20, marginTop: 1, flexShrink: 0, accentColor: RED }} />
-          <span>我已了解：體驗課程需先完成匯款、館方確認後始生效。</span>
+          <span>{t('我已了解：體驗課程需先完成匯款、館方確認後始生效。')}</span>
         </label>
 
         {err && <div style={{ color: '#A32D2D', fontSize: 14, marginTop: 14, textAlign: 'center' }}>{err}</div>}
 
         <button onClick={submit} disabled={submitting}
           style={{ width: '100%', height: 50, borderRadius: 12, background: submitting ? '#C99' : RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: submitting ? 'wait' : 'pointer', marginTop: 18 }}>
-          {submitting ? '送出中…' : '送出預約'}
+          {submitting ? t('送出中…') : t('送出預約')}
         </button>
         <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 14, lineHeight: 1.8 }}>紅石攀岩 RedRock<br/>新竹館 03-6686635 · 士林館 02-28837591</div>
       </div>

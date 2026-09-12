@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
+import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const RED = '#8B1A1A';
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
@@ -18,25 +19,27 @@ export default function PublicCourseCategoryPage() {
   const [expandedWorkshop, setExpandedWorkshop] = useState(null);
 
   useEffect(() => {
-    if (!categoryId) { setLoadErr('連結缺少班別資訊，請聯繫櫃檯'); return; }
+    if (!categoryId) { setLoadErr(t('連結缺少班別資訊，請聯繫櫃檯')); return; }
     publicClient.get(`/courses/public/category/${categoryId}`)
       .then(r => setData(r.data))
-      .catch(() => setLoadErr('找不到此班別，可能已下架或連結錯誤'));
+      .catch(() => setLoadErr(t('找不到此班別，可能已下架或連結錯誤')));
   }, [categoryId]);
 
   const wrap = { maxWidth: 600, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
+  const langBtn = { position: 'absolute', right: 16, top: 16, height: 26, padding: '0 10px', borderRadius: 13, border: '0.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' };
 
   if (loadErr) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#A32D2D' }}>{loadErr}</div>;
-  if (!data) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>載入中…</div>;
+  if (!data) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>{t('載入中…')}</div>;
 
   const { category, cohorts } = data;
 
   return (
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
-      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>紅石攀岩 · {category.name}</div>
-        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免登入即可瀏覽，選擇梯次後登入或註冊會員即可報名</div>
+      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center', position: 'relative' }}>
+        <div onClick={toggleMemberLang} style={langBtn}>🌐 {nextLangLabel()}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{t('紅石攀岩')} · {category.name}</div>
+        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免登入即可瀏覽，選擇梯次後登入或註冊會員即可報名')}</div>
       </div>
       <div style={wrap}>
         {(category.imageUrl || category.description) && (
@@ -46,10 +49,10 @@ export default function PublicCourseCategoryPage() {
           </div>
         )}
 
-        <div style={{ marginTop: 20, marginBottom: 10, fontWeight: 700, fontSize: 15 }}>選擇梯次（共 {cohorts.length} 個）</div>
+        <div style={{ marginTop: 20, marginBottom: 10, fontWeight: 700, fontSize: 15 }}>{tt(`選擇梯次（共 ${cohorts.length} 個）`, `Select a Batch (${cohorts.length} total)`, `期を選択（全${cohorts.length}期）`)}</div>
 
         {cohorts.length === 0 && (
-          <div style={{ ...card, textAlign: 'center', color: '#999' }}>目前沒有開放中的梯次，請聯繫櫃檯</div>
+          <div style={{ ...card, textAlign: 'center', color: '#999' }}>{t('目前沒有開放中的梯次，請聯繫櫃檯')}</div>
         )}
 
         {cohorts.map(c => (
@@ -58,34 +61,34 @@ export default function PublicCourseCategoryPage() {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</div>
                 <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
-                  {GYM_LABEL[c.gymId] || c.gymId}
+                  {t(GYM_LABEL[c.gymId] || c.gymId)}
                   {c.startDate && c.endDate && ` · ${c.startDate} ~ ${c.endDate}`}
                 </div>
-                <div style={{ marginTop: 6, fontSize: 14 }}>費用 <b style={{ color: RED }}>NT${c.price}</b></div>
+                <div style={{ marginTop: 6, fontSize: 14 }}>{t('費用')} <b style={{ color: RED }}>NT${c.price}</b></div>
               </div>
               {c.type !== 'workshop' && (
                 <button onClick={() => navigate(`/book/course?course=${c.id}`)}
                   style={{ height: 38, padding: '0 16px', borderRadius: 10, background: RED, color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                  報名 →
+                  {t('報名 →')}
                 </button>
               )}
               {c.type === 'workshop' && (
                 <button onClick={() => setExpandedWorkshop(expandedWorkshop === c.id ? null : c.id)}
                   style={{ height: 38, padding: '0 16px', borderRadius: 10, background: '#fff', color: RED, border: `1px solid ${RED}`, fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                  {expandedWorkshop === c.id ? '收合' : '選場次 ▾'}
+                  {expandedWorkshop === c.id ? t('收合') : t('選場次 ▾')}
                 </button>
               )}
             </div>
 
             {c.type === 'workshop' && expandedWorkshop === c.id && (
               <div style={{ marginTop: 12, borderTop: '1px dashed #EEE', paddingTop: 12 }}>
-                {(!c.sessions || c.sessions.length === 0) && <div style={{ fontSize: 13, color: '#999' }}>目前沒有開放中的場次</div>}
+                {(!c.sessions || c.sessions.length === 0) && <div style={{ fontSize: 13, color: '#999' }}>{t('目前沒有開放中的場次')}</div>}
                 {(c.sessions || []).map(s => (
                   <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F5EFEF' }}>
                     <div style={{ fontSize: 13 }}>🗓 {s.date}　⏰ {s.startTime}–{s.endTime}</div>
                     <button onClick={() => navigate(`/book/workshop?course=${c.id}&session=${s.id}`)}
                       style={{ height: 32, padding: '0 12px', borderRadius: 8, background: RED, color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>
-                      報名 →
+                      {t('報名 →')}
                     </button>
                   </div>
                 ))}

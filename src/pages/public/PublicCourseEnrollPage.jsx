@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { publicClient } from '../../api/client';
+import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const RED = '#8B1A1A';
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -19,34 +20,37 @@ export default function PublicCourseEnrollPage() {
   const [loadErr, setLoadErr] = useState('');
 
   useEffect(() => {
-    if (!courseId) { setLoadErr('連結缺少課程資訊，請聯繫櫃檯'); return; }
+    if (!courseId) { setLoadErr(t('連結缺少課程資訊，請聯繫櫃檯')); return; }
     publicClient.get(`/courses/public/${courseId}`)
       .then(r => {
         setCourse(r.data.course);
         setSessions(r.data.sessions || []);
         setFutureActiveCount(r.data.futureActiveCount ?? 0);
       })
-      .catch(() => setLoadErr('找不到此課程，可能已下架或連結錯誤'));
+      .catch(() => setLoadErr(t('找不到此課程，可能已下架或連結錯誤')));
   }, [courseId]);
 
   const estimatedFee = course?.pricePerSession ? course.pricePerSession * futureActiveCount : (course?.price || 0);
   const isLateJoinEstimate = course?.pricePerSession && course?.price && estimatedFee < course.price;
   const todayStr = dayjs().format('YYYY-MM-DD');
   const activeCount = sessions.filter(s => s.status !== 'cancelled').length;
+  const weekdayLabel = (dow) => t(dow === '日' ? '週日' : `週${dow}`);
 
   const goEnroll = () => navigate(`/member/courses?course=${courseId}`);
 
   const wrap = { maxWidth: 600, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
+  const langBtn = { position: 'absolute', right: 16, top: 16, height: 26, padding: '0 10px', borderRadius: 13, border: '0.5px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontSize: 11, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' };
 
   if (loadErr) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#A32D2D' }}>{loadErr}</div>;
-  if (!course) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>載入中…</div>;
+  if (!course) return <div style={{ ...wrap, paddingTop: 60, textAlign: 'center', color: '#999' }}>{t('載入中…')}</div>;
 
   return (
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
-      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center' }}>
-        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>紅石攀岩 · 課程報名</div>
-        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>免登入瀏覽課程資訊，登入或註冊會員後即可完成報名</div>
+      <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center', position: 'relative' }}>
+        <div onClick={toggleMemberLang} style={langBtn}>🌐 {nextLangLabel()}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{t('紅石攀岩 · 課程報名')}</div>
+        <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免登入瀏覽課程資訊，登入或註冊會員後即可完成報名')}</div>
       </div>
       <div style={wrap}>
         <div style={card}>
@@ -56,10 +60,14 @@ export default function PublicCourseEnrollPage() {
             <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{course.categoryDescription || course.description}</div>
           )}
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
-            費用：<b style={{ color: RED, fontSize: 17 }}>NT${estimatedFee.toLocaleString()}</b>
-            <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>（剩餘 {futureActiveCount} 堂）</span>
+            {t('費用：')}<b style={{ color: RED, fontSize: 17 }}>NT${estimatedFee.toLocaleString()}</b>
+            <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(`（剩餘 ${futureActiveCount} 堂）`, `(${futureActiveCount} sessions left)`, `（残り${futureActiveCount}回）`)}</span>
             {isLateJoinEstimate && (
-              <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>此課程已開課，插班費用依剩餘場次計算（原整期 NT${course.price.toLocaleString()}），實際金額以登入後系統核算為準</div>
+              <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>{tt(
+                `此課程已開課，插班費用依剩餘場次計算（原整期 NT$${course.price.toLocaleString()}），實際金額以登入後系統核算為準`,
+                `This course has already started — the late-join fee is calculated based on remaining sessions (full course NT$${course.price.toLocaleString()}). The exact amount will be confirmed by the system after you log in`,
+                `このコースは既に開講しています。途中参加費は残り回数に応じて計算されます（全期間 NT$${course.price.toLocaleString()}）。正確な金額はログイン後にシステムで確認されます`
+              )}</div>
             )}
           </div>
         </div>
@@ -67,7 +75,7 @@ export default function PublicCourseEnrollPage() {
         {sessions.length > 0 && (
           <div style={card}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 10, textAlign: 'left' }}>
-              📅 此梯次上課場次（共 {activeCount} 堂）
+              📅 {tt(`此梯次上課場次（共 ${activeCount} 堂）`, `Sessions in this batch (${activeCount} total)`, `本期の授業日程（全${activeCount}回）`)}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {sessions.map(s => {
@@ -76,12 +84,12 @@ export default function PublicCourseEnrollPage() {
                 return (
                   <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: isCancelled ? '#FBFBFB' : (isPast ? '#F5F5F5' : '#FBF5F5'), opacity: (isPast && !isCancelled) ? 0.6 : 1 }}>
                     <div style={{ fontSize: 13, color: isCancelled ? '#999' : '#1a1a1a', textAlign: 'left' }}>
-                      {dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}） {s.startTime}–{s.endTime}
+                      {dayjs(s.date).format('MM/DD')}（{weekdayLabel(WEEKDAYS[dayjs(s.date).day()])}） {s.startTime}–{s.endTime}
                       {!isCancelled && s.instructor && <span style={{ color: '#999', marginLeft: 6 }}>· {s.instructor}</span>}
                     </div>
                     {isCancelled
-                      ? <span style={{ fontSize: 10, fontWeight: 600, color: '#A32D2D', background: '#FCEBEB', padding: '2px 7px', borderRadius: 8, flexShrink: 0 }}>停課</span>
-                      : (isPast && <span style={{ fontSize: 11, color: '#999', flexShrink: 0 }}>已上課</span>)}
+                      ? <span style={{ fontSize: 10, fontWeight: 600, color: '#A32D2D', background: '#FCEBEB', padding: '2px 7px', borderRadius: 8, flexShrink: 0 }}>{t('停課')}</span>
+                      : (isPast && <span style={{ fontSize: 11, color: '#999', flexShrink: 0 }}>{t('已上課')}</span>)}
                   </div>
                 );
               })}
@@ -90,11 +98,11 @@ export default function PublicCourseEnrollPage() {
         )}
 
         <div style={{ ...card, textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>登入或註冊會員即可完成報名</div>
-          <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('登入或註冊會員即可完成報名')}</div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>{t('報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）')}</div>
           <button onClick={goEnroll}
             style={{ width: '100%', height: 50, borderRadius: 12, background: RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 16 }}>
-            登入 / 註冊並報名 →
+            {t('登入 / 註冊並報名 →')}
           </button>
         </div>
 
