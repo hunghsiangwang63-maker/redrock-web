@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -30,7 +30,7 @@ export default function MemberCompetitionsPage() {
       const res = await memberClient.post(`/competitions/registrations/${r.id}/checkin-token`);
       const dataUrl = await QRCode.toDataURL(res.data.token, { width: 260, margin: 1 });
       setCheckinQr({ regId: r.id, name: r.memberName, comp: r.competitionName, division: r.divisionName, dataUrl, checkedInAt: res.data.checkedInAt });
-    } catch (e) { showMsg(e.response?.data?.message || '無法產生報到 QR', 'red'); }
+    } catch (e) { showMsg(e.response?.data?.message || t('無法產生報到 QR'), 'red'); }
   };
   // QR 開著時每 3 秒輪詢報到狀態（比照入場 QR 既有輪詢模式）——工作人員掃完碼，
   // 選手手機畫面即時切換成「✅ 已完成報到」，不用關掉重開才看得到（2026-08-30 比賽日現場需求）。
@@ -68,7 +68,7 @@ export default function MemberCompetitionsPage() {
     // 已繳費才是「申請退費」→ 需填退費帳號；未繳費是純「取消報名」→ 不需退費資料
     const isPaid = cancelModal?.paymentStatus === 'confirmed';
     if (isPaid && (!refundBankCode.trim() || !refundAccount.trim())) {
-      showMsg('請填寫退費銀行代碼與帳號', 'red'); return;
+      showMsg(t('請填寫退費銀行代碼與帳號'), 'red'); return;
     }
     setCancelling(true);
     try {
@@ -77,12 +77,12 @@ export default function MemberCompetitionsPage() {
         // 未繳費取消不帶退費帳號（後端亦不標記 refundRequested）
         ...(isPaid ? { refundBankName, refundBankCode, refundAccount, refundAccountName } : {}),
       });
-      showMsg(res.data.message || '已取消報名，名額已釋出');
+      showMsg(res.data.message || t('已取消報名，名額已釋出'));
       setCancelModal(null);
       setCancelReason(''); setRefundBankName(''); setRefundBankCode(''); setRefundAccount(''); setRefundAccountName('');
       await load();
     } catch (err) {
-      showMsg(err.response?.data?.message || '取消失敗', 'red');
+      showMsg(err.response?.data?.message || t('取消失敗'), 'red');
     } finally { setCancelling(false); }
   };
 
@@ -118,9 +118,9 @@ export default function MemberCompetitionsPage() {
     setReregLoading(r.id);
     try {
       const res = await reregisterCompetition(r.id);
-      showMsg(res.data.message || '已重新報名');
+      showMsg(res.data.message || t('已重新報名'));
       await load();
-    } catch (err) { showMsg(err.response?.data?.message || '重新報名失敗', 'red'); }
+    } catch (err) { showMsg(err.response?.data?.message || t('重新報名失敗'), 'red'); }
     finally { setReregLoading(null); }
   };
 
@@ -143,14 +143,14 @@ export default function MemberCompetitionsPage() {
   };
   const submitEdit = async () => {
     const f = editForm;
-    if (f.gender !== 'male' && f.gender !== 'female') { setEditErr('請選擇性別'); return; }
-    if (!f.birthday) { setEditErr('請填寫生日'); return; }
-    if (!f.phone?.trim()) { setEditErr('請填寫手機'); return; }
-    if (!f.email?.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) { setEditErr('請填寫有效 Email'); return; }
-    if (!f.emergencyContact?.trim() || !f.emergencyPhone?.trim()) { setEditErr('請填寫緊急聯絡人'); return; }
+    if (f.gender !== 'male' && f.gender !== 'female') { setEditErr(t('請選擇性別')); return; }
+    if (!f.birthday) { setEditErr(t('請填寫生日')); return; }
+    if (!f.phone?.trim()) { setEditErr(t('請填寫手機')); return; }
+    if (!f.email?.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) { setEditErr(t('請填寫有效 Email')); return; }
+    if (!f.emergencyContact?.trim() || !f.emergencyPhone?.trim()) { setEditErr(t('請填寫緊急聯絡人')); return; }
     if (!f._paid) {
-      if (!f.paymentDate) { setEditErr(f.paymentMethod === 'cash' ? '請填寫繳款日期' : '請填寫轉帳日期'); return; }
-      if (f.paymentMethod === 'transfer' && !f.bankLastFive?.trim()) { setEditErr('轉帳請填寫匯款帳號末五碼'); return; }
+      if (!f.paymentDate) { setEditErr(f.paymentMethod === 'cash' ? t('請填寫繳款日期') : t('請填寫轉帳日期')); return; }
+      if (f.paymentMethod === 'transfer' && !f.bankLastFive?.trim()) { setEditErr(t('轉帳請填寫匯款帳號末五碼')); return; }
     }
     setEditSaving(true); setEditErr('');
     try {
@@ -158,9 +158,9 @@ export default function MemberCompetitionsPage() {
         ...f, height: f.height ? Number(f.height) : null, armSpan: f.armSpan ? Number(f.armSpan) : null,
       });
       setEditTarget(null);
-      showMsg('報名資料已更新，請等待館方確認');
+      showMsg(t('報名資料已更新，請等待館方確認'));
       await load();
-    } catch (err) { setEditErr(err.response?.data?.message || '更新失敗'); }
+    } catch (err) { setEditErr(err.response?.data?.message || t('更新失敗')); }
     finally { setEditSaving(false); }
   };
 
@@ -171,8 +171,8 @@ export default function MemberCompetitionsPage() {
   const [repayErr, setRepayErr] = useState('');
   const submitRepay = async () => {
     const { method: repayMethod, paymentDate: repayDate, bankLastFive: repayLast5, bankName: repayBank, paidAmount: repayPaidAmount } = repayData;
-    if (!repayDate) { setRepayErr('請填寫繳費日期'); return; }
-    if (!isTransferInfoComplete(repayData)) { setRepayErr('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'); return; }
+    if (!repayDate) { setRepayErr(t('請填寫繳費日期')); return; }
+    if (!isTransferInfoComplete(repayData)) { setRepayErr(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額')); return; }
     setRepaySaving(true); setRepayErr('');
     try {
       const { memberClient } = await import('../../api/client');
@@ -183,9 +183,9 @@ export default function MemberCompetitionsPage() {
         paidAmount: repayMethod === 'transfer' && repayPaidAmount ? Number(repayPaidAmount) : null,
       });
       setRepayTarget(null);
-      showMsg('繳費資訊已更新，請等待館方確認');
+      showMsg(t('繳費資訊已更新，請等待館方確認'));
       await load();
-    } catch (err) { setRepayErr(err.response?.data?.message || '更新失敗'); }
+    } catch (err) { setRepayErr(err.response?.data?.message || t('更新失敗')); }
     finally { setRepaySaving(false); }
   };
 
@@ -197,7 +197,7 @@ export default function MemberCompetitionsPage() {
   const guardianSigRef = useRef(null);
 
   const [errorModal, setErrorModal] = useState(null); // 錯誤/擋下類通知改彈窗
-  const showMsg = (t, type='ok') => setErrorModal({ message: t, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
+  const showMsg = (msg, type='ok') => setErrorModal({ message: msg, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
   // 報名對象（本人或選定的家庭成員）——年齡/監護人/費用一律以此人計算
   const registrant = registerForId ? (familyMembers.find(c => c.id === registerForId) || member) : member;
@@ -339,31 +339,31 @@ export default function MemberCompetitionsPage() {
 
   const nextStep = () => {
     if (step === 1) {
-      if (quoteLoading || !feeInfo) { showMsg('費用計算中，請稍候再試', 'red'); return; }
-      if (!divisionId) { showMsg('請選擇報名組別', 'red'); return; }
-      if (personRegistered(selectedComp.id, registerForId || member?.id)) { showMsg('此報名對象已報名此賽事', 'red'); return; }
-      if (regGender !== 'male' && regGender !== 'female') { showMsg('請選擇性別', 'red'); return; }
-      if (!regBirthday) { showMsg('請填寫生日', 'red'); return; }
-      if (!regPhone.trim()) { showMsg('請填寫手機號碼', 'red'); return; }
-      if (!regEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regEmail.trim())) { showMsg('請填寫有效的 Email', 'red'); return; }
-      if (!idNumber.trim()) { showMsg('請填寫身分證/護照號碼（保險用）', 'red'); return; }
-      if (!emergencyContact.trim() || !emergencyPhone.trim()) { showMsg('請填寫緊急聯絡人資訊', 'red'); return; }
+      if (quoteLoading || !feeInfo) { showMsg(t('費用計算中，請稍候再試'), 'red'); return; }
+      if (!divisionId) { showMsg(t('請選擇報名組別'), 'red'); return; }
+      if (personRegistered(selectedComp.id, registerForId || member?.id)) { showMsg(t('此報名對象已報名此賽事'), 'red'); return; }
+      if (regGender !== 'male' && regGender !== 'female') { showMsg(t('請選擇性別'), 'red'); return; }
+      if (!regBirthday) { showMsg(t('請填寫生日'), 'red'); return; }
+      if (!regPhone.trim()) { showMsg(t('請填寫手機號碼'), 'red'); return; }
+      if (!regEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regEmail.trim())) { showMsg(t('請填寫有效的 Email'), 'red'); return; }
+      if (!idNumber.trim()) { showMsg(t('請填寫身分證/護照號碼（保險用）'), 'red'); return; }
+      if (!emergencyContact.trim() || !emergencyPhone.trim()) { showMsg(t('請填寫緊急聯絡人資訊'), 'red'); return; }
     }
     if (step === 2) {
       const { method: paymentMethod, paymentDate, bankLastFive } = paymentData;
-      if (paymentMethod === 'cash' && !paymentDate) { showMsg('請填寫臨櫃繳款日期', 'red'); return; }
-      if (paymentMethod === 'transfer' && (!(bankLastFive || '').trim() || !paymentDate)) { showMsg('轉帳請填寫匯款帳號末五碼與轉帳日期', 'red'); return; }
+      if (paymentMethod === 'cash' && !paymentDate) { showMsg(t('請填寫臨櫃繳款日期'), 'red'); return; }
+      if (paymentMethod === 'transfer' && (!(bankLastFive || '').trim() || !paymentDate)) { showMsg(t('轉帳請填寫匯款帳號末五碼與轉帳日期'), 'red'); return; }
     }
     if (step === 3) {
-      if (!agreedWaiver || !agreedPhoto) { showMsg('請確認同意所有事項', 'red'); return; }
+      if (!agreedWaiver || !agreedPhoto) { showMsg(t('請確認同意所有事項'), 'red'); return; }
     }
     setStep(s => s + 1);
   };
 
   const handleSubmit = async () => {
-    if (!memberSig) { showMsg('請完成本人簽名', 'red'); return; }
-    if (isMinor && !guardianSig) { showMsg('未滿18歲需法定代理人簽名', 'red'); return; }
-    if (!isTransferInfoComplete(paymentData)) { showMsg('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
+    if (!memberSig) { showMsg(t('請完成本人簽名'), 'red'); return; }
+    if (isMinor && !guardianSig) { showMsg(t('未滿18歲需法定代理人簽名'), 'red'); return; }
+    if (!isTransferInfoComplete(paymentData)) { showMsg(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
     const { method: paymentMethod, paymentDate, bankLastFive, bankName, paidAmount: regPaidAmount } = paymentData;
     setSubmitting(true);
     try {
@@ -395,7 +395,7 @@ export default function MemberCompetitionsPage() {
         signatureData: memberSig,
         guardianSignature: guardianSig || null,
       });
-      if (res?.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); setShowModal(false); return; }
+      if (res?.data?.isSimulation) { showMsg(res.data.message || t('🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名'), 'ok'); setShowModal(false); return; }
       const reg = res?.data?.registration;
       // 轉帳：若報名當下已填末五碼 → 建 transferRecords（走轉帳確認）；未填 → 略過，
       // 之後在「待確認付款」用「填寫轉帳資訊」補上（方案 B：可先報名、之後補上傳轉帳）。
@@ -415,10 +415,10 @@ export default function MemberCompetitionsPage() {
       if (onlinePayEnabled && reg && reg.registrationFee > 0 && reg.paymentStatus !== 'confirmed') {
         setPayFor({ registrationId: reg.id, fee: reg.registrationFee, gymId: selectedComp.gymId });
       } else {
-        showMsg('報名成功！請完成繳費以確保名額。');
+        showMsg(t('報名成功！請完成繳費以確保名額。'));
       }
     } catch (err) {
-      showMsg(err.response?.data?.message || '報名失敗', 'red');
+      showMsg(err.response?.data?.message || t('報名失敗'), 'red');
     } finally { setSubmitting(false); }
   };
 
@@ -435,18 +435,18 @@ export default function MemberCompetitionsPage() {
 
   const payStatusBadge = (r) => {
     // 退費完成優先於一般「已取消」（原本 status==='cancelled' 先攔截，'已退費' 分支永遠到不了）
-    if (r.paymentStatus === 'refunded') return { bg:'#F0EDED', color:'#666', text:'已退費' };
-    if (r.status === 'cancelled') return { bg:'#F0EDED', color:'#999', text: r.formRejected ? '已駁回' : r.cancelReason==='payment_expired' ? '逾期取消' : '已取消' };
-    if (r.paymentStatus === 'confirmed') return { bg:'#E6F4EB', color:'#2D7D46', text:'已確認付款' };
-    if (r.paymentStatus === 'transfer_rejected') return { bg:'#FCEBEB', color:'#A32D2D', text: r.paymentMethod==='cash'?'繳費被退回':'轉帳被退回' };
-    if (r.paymentStatus === 'pending_confirm') return { bg:'#FAEEDA', color:'#854F0B', text: r.paymentMethod==='cash'?'繳費確認中':'轉帳確認中' };
-    return { bg:'#FAEEDA', color:'#854F0B', text:'待確認付款' };
+    if (r.paymentStatus === 'refunded') return { bg:'#F0EDED', color:'#666', text:t('已退費') };
+    if (r.status === 'cancelled') return { bg:'#F0EDED', color:'#999', text: r.formRejected ? t('已駁回') : r.cancelReason==='payment_expired' ? t('逾期取消') : t('已取消') };
+    if (r.paymentStatus === 'confirmed') return { bg:'#E6F4EB', color:'#2D7D46', text:t('已確認付款') };
+    if (r.paymentStatus === 'transfer_rejected') return { bg:'#FCEBEB', color:'#A32D2D', text: r.paymentMethod==='cash'?t('繳費被退回'):t('轉帳被退回') };
+    if (r.paymentStatus === 'pending_confirm') return { bg:'#FAEEDA', color:'#854F0B', text: r.paymentMethod==='cash'?t('繳費確認中'):t('轉帳確認中') };
+    return { bg:'#FAEEDA', color:'#854F0B', text:t('待確認付款') };
   };
 
   return (
     <div style={{ minHeight:'100vh', background:'#FBF5F5', paddingBottom:80 }}>
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff' }}>
-        <div style={{ fontSize:18, fontWeight:700 }}>🏆 比賽報名</div>
+        <div style={{ fontSize:18, fontWeight:700 }}>{t('🏆 比賽報名')}</div>
       </div>
 
       <ErrorAlertModal modal={errorModal} onClose={() => setErrorModal(null)} />
@@ -455,21 +455,21 @@ export default function MemberCompetitionsPage() {
       )}
 
       <div style={{ display:'flex', gap:0, margin:'14px 16px 0', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
-        {[{key:'open',label:'開放中報名'},{key:'my',label:'我的比賽報名'}].map(t=>(
-          <button key={t.key} onClick={()=>setTab(t.key)}
-            style={{ flex:1, height:38, border:'none', background:tab===t.key?'#8B1A1A':'#fff', color:tab===t.key?'#fff':'#666', fontSize:13, fontWeight:tab===t.key?600:400, cursor:'pointer' }}>
-            {t.label}
+        {[{key:'open',label:t('開放中報名')},{key:'my',label:t('我的比賽報名')}].map(tabItem=>(
+          <button key={tabItem.key} onClick={()=>setTab(tabItem.key)}
+            style={{ flex:1, height:38, border:'none', background:tab===tabItem.key?'#8B1A1A':'#fff', color:tab===tabItem.key?'#fff':'#666', fontSize:13, fontWeight:tab===tabItem.key?600:400, cursor:'pointer' }}>
+            {tabItem.label}
           </button>
         ))}
       </div>
 
       <div style={{ padding:'14px 16px' }}>
-        {loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : (
+        {loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('載入中...')}</div> : (
           <>
             {tab === 'open' && (
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
                 {competitions.filter(c=>c.status==='open').length === 0 && (
-                  <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有開放的比賽</div>
+                  <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('目前沒有開放的比賽')}</div>
                 )}
                 {competitions.filter(c=>c.status==='open').map(c => {
                   const fee = calcFee(c);
@@ -479,25 +479,25 @@ export default function MemberCompetitionsPage() {
                     <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                       <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{c.name}</div>
                       <div style={{ fontSize:12, color:'#999', marginBottom:8, lineHeight:1.8, textAlign:'left' }}>
-                        <div>🗓 比賽日：{c.eventDate}</div>
-                        <div style={regEnded ? { color:'#A32D2D', fontWeight:600 } : undefined}>⏰ 報名截止：{c.registrationEnd}{regEnded ? '（已截止）' : ''}</div>
-                        {c.earlyBirdDeadline && <div>🐦 早鳥至：{c.earlyBirdDeadline}</div>}
+                        <div>🗓 {t('比賽日：')}{c.eventDate}</div>
+                        <div style={regEnded ? { color:'#A32D2D', fontWeight:600 } : undefined}>⏰ {t('報名截止：')}{c.registrationEnd}{regEnded ? t('（已截止）') : ''}</div>
+                        {c.earlyBirdDeadline && <div>🐦 {t('早鳥至：')}{c.earlyBirdDeadline}</div>}
                       </div>
                       {fee && (
                         <div style={{ fontSize:12, color:'#8B1A1A', marginBottom:8 }}>
-                          {fee.isEarlyBird ? `🐦 早鳥優惠！` : ''}報名費：NT${fee.fee}
+                          {fee.isEarlyBird ? t('🐦 早鳥優惠！') : ''}{t('報名費：NT$')}{fee.fee}
                         </div>
                       )}
                       <div style={{ fontSize:12, color:'#666', marginBottom:10, lineHeight:1.8, textAlign:'left' }}>
-                        <div>🧗 組別：</div>
+                        <div>🧗 {t('組別：')}</div>
                         {(c.divisions||[]).map(d=>{
                           const remain = Math.max(0, (d.maxParticipants||0) - (d.enrolledCount||0));
                           return (
                             <div key={d.id} style={{ paddingLeft:18 }}>
-                              {d.name}（{d.maxParticipants} 人）
+                              {d.name}（{d.maxParticipants}{t(' 人')}）
                               {remain > 0
-                                ? <span style={{ marginLeft:6, fontSize:11, fontWeight:600, color:'#1B7A3D', background:'#E4F3E8', borderRadius:8, padding:'1px 7px' }}>剩 {remain} 位</span>
-                                : <span style={{ marginLeft:6, fontSize:11, fontWeight:600, color:'#8B1A1A', background:'#F3E0E0', borderRadius:8, padding:'1px 7px' }}>額滿{(d.waitlistCount||0) < (d.waitlistMax||0) ? '・可候補' : ''}</span>}
+                                ? <span style={{ marginLeft:6, fontSize:11, fontWeight:600, color:'#1B7A3D', background:'#E4F3E8', borderRadius:8, padding:'1px 7px' }}>{tt(`剩 ${remain} 位`, `${remain} spot${remain===1?'':'s'} left`, `残り${remain}枠`)}</span>
+                                : <span style={{ marginLeft:6, fontSize:11, fontWeight:600, color:'#8B1A1A', background:'#F3E0E0', borderRadius:8, padding:'1px 7px' }}>{t('額滿')}{(d.waitlistCount||0) < (d.waitlistMax||0) ? t('・可候補') : ''}</span>}
                             </div>
                           );
                         })}
@@ -513,18 +513,18 @@ export default function MemberCompetitionsPage() {
                         return (<>
                           {names.length > 0 && (
                             <div style={{ background:'#E6F4EB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#2D7D46', fontWeight:500, marginBottom:8 }}>
-                              ✓ 已報名：{names.join('、')}
+                              {t('✓ 已報名：')}{names.join('、')}
                             </div>
                           )}
                           {!registered && regEnded && (
                             <div style={{ width:'100%', height:42, borderRadius:10, background:'#F5F5F5', color:'#999', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, fontWeight:500 }}>
-                              ⏰ 報名已截止
+                              {t('⏰ 報名已截止')}
                             </div>
                           )}
                           {!registered && !regEnded && (
                             <button onClick={()=>openRegister(c)}
                               style={{ width:'100%', height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                              {names.length > 0 ? '為其他家庭成員報名' : '立即報名'}
+                              {names.length > 0 ? t('為其他家庭成員報名') : t('立即報名')}
                             </button>
                           )}
                         </>);
@@ -537,7 +537,7 @@ export default function MemberCompetitionsPage() {
 
             {tab === 'my' && (
               <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                {myRegistrations.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>尚無報名記錄</div>}
+                {myRegistrations.length === 0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('尚無報名記錄')}</div>}
                 {myRegistrations.map(r => {
                   const ps = payStatusBadge(r);
                   return (
@@ -547,12 +547,12 @@ export default function MemberCompetitionsPage() {
                         {r._ownerName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', borderRadius:8, padding:'2px 8px', marginLeft:8 }}>👦 {r._ownerName}</span>}
                       </div>
                       <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>
-                        組別：{r.divisionName} {r.isHonorary && '（榮譽參賽）'}
-                        {r.memberNote && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>備註：{r.memberNote}</div>}
-                        {r.status==='waitlist' && <span style={{ color:'#854F0B', marginLeft:6 }}>候補第 {r.waitlistPosition} 位</span>}
+                        {t('組別：')}{r.divisionName} {r.isHonorary && t('（榮譽參賽）')}
+                        {r.memberNote && <div style={{ fontSize:12, color:'#888', marginTop:2 }}>{t('備註：')}{r.memberNote}</div>}
+                        {r.status==='waitlist' && <span style={{ color:'#854F0B', marginLeft:6 }}>{tt(`候補第 ${r.waitlistPosition} 位`, `Waitlist #${r.waitlistPosition}`, `キャンセル待ち ${r.waitlistPosition}番`)}</span>}
                       </div>
                       <div style={{ fontSize:12, marginBottom:6 }}>
-                        報名費：NT${r.registrationFee} {r.isEarlyBird?'（早鳥）':''}
+                        {t('報名費：NT$')}{r.registrationFee} {r.isEarlyBird?t('（早鳥）'):''}
                       </div>
                       <div style={{ display:'inline-block', background:ps.bg, color:ps.color, fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:8 }}>{ps.text}</div>
                       {/* 政策（2026-09-09）：轉帳逾期自動取消已停止排程，逾期不再自動取消——僅存在的
@@ -560,92 +560,92 @@ export default function MemberCompetitionsPage() {
                       {r.paymentDeadline && r.paymentMethod==='transfer' && r.paymentStatus!=='confirmed' && r.status!=='cancelled' && (() => {
                         const s = r.paymentDeadline?._seconds ?? r.paymentDeadline?.seconds;
                         const dl = s ? dayjs(s*1000).format('YYYY-MM-DD HH:mm') : null;
-                        return dl ? <div style={{ fontSize:11, color:'#A32D2D', marginTop:6, textAlign:'left' }}>⏰ 建議於 {dl} 前完成匯款，以利館方儘快為您確認</div> : null;
+                        return dl ? <div style={{ fontSize:11, color:'#A32D2D', marginTop:6, textAlign:'left' }}>{tt(`⏰ 建議於 ${dl} 前完成匯款，以利館方儘快為您確認`, `⏰ Please complete the transfer by ${dl} so the gym can confirm as soon as possible`, `⏰ ${dl}までにお振込みいただくと、施設側で速やかに確認できます`)}</div> : null;
                       })()}
                       {r.paymentMethod==='cash' && r.status !== 'cancelled' && (
                         <div style={{ fontSize:12, color:'#666', marginTop:8, textAlign:'left' }}>
-                          繳費方式：臨櫃繳款
-                          {r.paymentDate ? `　繳款日期：${r.paymentDate}` : ''}
-                          {r.paymentStatus !== 'confirmed' ? '（請至櫃檯完成繳費）' : ''}
+                          {t('繳費方式：臨櫃繳款')}
+                          {r.paymentDate ? `　${t('繳款日期：')}${r.paymentDate}` : ''}
+                          {r.paymentStatus !== 'confirmed' ? t('（請至櫃檯完成繳費）') : ''}
                         </div>
                       )}
                       {r.paymentStatus==='pending' && r.paymentMethod==='transfer' && r.status !== 'cancelled' && (
                         <div style={{ marginTop:10, background:'#FFF8E6', borderRadius:8, padding:'10px 12px' }}>
                           {r.bankLastFive ? (
                             <div style={{ fontSize:12, color:'#8B6914', textAlign:'left' }}>
-                              轉帳資訊已填寫（末五碼 {r.bankLastFive}{r.paymentDate?`・${r.paymentDate}`:''}），請等待館方確認
+                              {tt(`轉帳資訊已填寫（末五碼 ${r.bankLastFive}${r.paymentDate?`・${r.paymentDate}`:''}），請等待館方確認`, `Transfer info submitted (last 5 digits ${r.bankLastFive}${r.paymentDate?` · ${r.paymentDate}`:''}) — waiting for gym confirmation`, `振込情報を入力済み（下5桁 ${r.bankLastFive}${r.paymentDate?`・${r.paymentDate}`:''}）。施設の確認をお待ちください`)}
                               <button onClick={()=>{ setRepayTarget(r); setRepayData({ method:'transfer', paymentDate:r.paymentDate||'', bankName:r.bankName||'', bankLastFive:r.bankLastFive||'' }); setRepayErr(''); }}
-                                style={{ marginLeft:8, height:26, padding:'0 10px', borderRadius:6, background:'#fff', color:'#8B6914', border:'0.5px solid #E4D3A0', fontSize:11, cursor:'pointer' }}>修改</button>
+                                style={{ marginLeft:8, height:26, padding:'0 10px', borderRadius:6, background:'#fff', color:'#8B6914', border:'0.5px solid #E4D3A0', fontSize:11, cursor:'pointer' }}>{t('修改')}</button>
                             </div>
                           ) : (
                             <div style={{ textAlign:'left' }}>
-                              <div style={{ fontSize:12, color:'#8B6914', marginBottom:6 }}>匯款後請填寫轉帳資訊（末五碼＋日期）供館方核對</div>
+                              <div style={{ fontSize:12, color:'#8B6914', marginBottom:6 }}>{t('匯款後請填寫轉帳資訊（末五碼＋日期）供館方核對')}</div>
                               <button onClick={()=>{ setRepayTarget(r); setRepayData({ method:'transfer' }); setRepayErr(''); }}
-                                style={{ height:32, padding:'0 16px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>填寫轉帳資訊</button>
+                                style={{ height:32, padding:'0 16px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('填寫轉帳資訊')}</button>
                             </div>
                           )}
                         </div>
                       )}
                       {r.paymentStatus==='transfer_rejected' && r.status !== 'cancelled' && (
                         <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
-                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>繳費資訊被退回{r.paymentRejectReason?`：${r.paymentRejectReason}`:''}</div>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>{t('繳費資訊被退回')}{r.paymentRejectReason?`：${r.paymentRejectReason}`:''}</div>
                           <button onClick={()=>{ setRepayTarget(r); setRepayData({ method: r.paymentMethod === 'cash' ? 'cash' : 'transfer' }); setRepayErr(''); }}
                             style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                            重新填寫繳費資訊
+                            {t('重新填寫繳費資訊')}
                           </button>
                         </div>
                       )}
                       {r.formReturned && r.status !== 'cancelled' && (
                         <div style={{ marginTop:10, background:'#FFF8E6', border:'0.5px solid #E4D3A0', borderRadius:8, padding:'8px 12px' }}>
-                          <div style={{ fontSize:12, color:'#854F0B', fontWeight:600, textAlign:'left' }}>報名表被退回{r.formReturnReason?`：${r.formReturnReason}`:''}</div>
-                          <div style={{ fontSize:11, color:'#8B6914', textAlign:'left', margin:'3px 0 6px' }}>名額仍為您保留，請修改資料後重新送出。</div>
+                          <div style={{ fontSize:12, color:'#854F0B', fontWeight:600, textAlign:'left' }}>{t('報名表被退回')}{r.formReturnReason?`：${r.formReturnReason}`:''}</div>
+                          <div style={{ fontSize:11, color:'#8B6914', textAlign:'left', margin:'3px 0 6px' }}>{t('名額仍為您保留，請修改資料後重新送出。')}</div>
                           <button onClick={()=>openEdit(r)}
-                            style={{ height:30, padding:'0 14px', borderRadius:6, background:'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>修改報名資料</button>
+                            style={{ height:30, padding:'0 14px', borderRadius:6, background:'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('修改報名資料')}</button>
                         </div>
                       )}
                       {r.parentRequired && !r.isComplete && r.status !== 'cancelled' && (
                         <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
-                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>⚠ 未成年報名：尚待法定代理人簽署參賽同意書（簽署完成報名才生效）</div>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>{t('⚠ 未成年報名：尚待法定代理人簽署參賽同意書（簽署完成報名才生效）')}</div>
                           <button onClick={() => setGuardianSignTarget(r)}
                             style={{ marginTop:6, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                            ✍️ 補簽法定代理人同意書
+                            {t('✍️ 補簽法定代理人同意書')}
                           </button>
                         </div>
                       )}
                       {r.status === 'confirmed' && (
                         <button onClick={() => openCheckinQr(r)}
                           style={{ marginTop:10, marginRight:8, height:30, padding:'0 14px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                          🎫 比賽報到 QR
+                          {t('🎫 比賽報到 QR')}
                         </button>
                       )}
                       {r.status !== 'cancelled' && (
                         <button onClick={() => { setCancelModal(r); setCancelReason(''); setRefundBankName(''); setRefundBankCode(''); setRefundAccount(''); setRefundAccountName(''); }}
                           style={{ marginTop:10, height:30, padding:'0 14px', borderRadius:6, background:'#fff', color:'#A32D2D', border:'0.5px solid #A32D2D', fontSize:12, cursor:'pointer' }}>
-                          取消報名
+                          {t('取消報名')}
                         </button>
                       )}
                       {r.status === 'cancelled' && r.cancelReason === 'payment_expired' && (
                         <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
-                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>⏰ 繳費逾期，報名已自動取消</div>
-                          <div style={{ fontSize:11, color:'#8B6914', textAlign:'left', margin:'3px 0 6px' }}>可用原報名資料重新報名（免重填、免重簽），繳款期限比照原賽事規定。</div>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>{t('⏰ 繳費逾期，報名已自動取消')}</div>
+                          <div style={{ fontSize:11, color:'#8B6914', textAlign:'left', margin:'3px 0 6px' }}>{t('可用原報名資料重新報名（免重填、免重簽），繳款期限比照原賽事規定。')}</div>
                           <button onClick={()=>handleReregister(r)} disabled={reregLoading===r.id}
                             style={{ height:32, padding:'0 16px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>
-                            {reregLoading===r.id ? '處理中…' : '重新報名比賽（免重填）'}
+                            {reregLoading===r.id ? t('處理中…') : t('重新報名比賽（免重填）')}
                           </button>
                         </div>
                       )}
                       {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && r.formRejected && (
                         <div style={{ marginTop:10, background:'#FCEBEB', border:'0.5px solid #EEC1C1', borderRadius:8, padding:'8px 12px' }}>
-                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>⛔ 報名已被駁回</div>
-                          <div style={{ fontSize:11, color:'#8B5A5A', textAlign:'left', marginTop:3 }}>原因：{String(r.cancelReason||'').replace('管理員駁回：','') || '請洽館方'}</div>
+                          <div style={{ fontSize:12, color:'#A32D2D', fontWeight:600, textAlign:'left' }}>{t('⛔ 報名已被駁回')}</div>
+                          <div style={{ fontSize:11, color:'#8B5A5A', textAlign:'left', marginTop:3 }}>{t('原因：')}{String(r.cancelReason||'').replace('管理員駁回：','') || t('請洽館方')}</div>
                         </div>
                       )}
                       {r.status === 'cancelled' && r.cancelReason !== 'payment_expired' && !r.formRejected && (
                         <div style={{ marginTop:8, fontSize:11, color:'#999', textAlign:'left' }}>
-                          已取消
-                          {r.refundRequested && '・退費申請中'}
-                          {r.paymentStatus === 'refunded' && `・已退費 NT$${r.refundAmount || 0}`}
-                          {r.refundRequested && <div style={{ marginTop:3, color:'#A32D2D' }}>退費將於比賽結束後一週內統一匯款至留存帳號</div>}
+                          {t('已取消')}
+                          {r.refundRequested && t('・退費申請中')}
+                          {r.paymentStatus === 'refunded' && tt(`・已退費 NT$${r.refundAmount || 0}`, ` · Refunded NT$${r.refundAmount || 0}`, ` · 返金済み NT$${r.refundAmount || 0}`)}
+                          {r.refundRequested && <div style={{ marginTop:3, color:'#A32D2D' }}>{t('退費將於比賽結束後一週內統一匯款至留存帳號')}</div>}
                         </div>
                       )}
                     </div>
@@ -662,8 +662,8 @@ export default function MemberCompetitionsPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontWeight:600, fontSize:15 }}>完成繳費</div>
-              <button onClick={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的報名」完成繳費或改用匯款'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
+              <div style={{ fontWeight:600, fontSize:15 }}>{t('完成繳費')}</div>
+              <button onClick={()=>{ setPayFor(null); showMsg(t('報名已保留，可於「我的報名」完成繳費或改用匯款')); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <PaymentFlow
               client={memberClient}
@@ -671,8 +671,8 @@ export default function MemberCompetitionsPage() {
               orderRef={{ registrationId: payFor.registrationId }}
               amount={payFor.fee}
               gymId={payFor.gymId}
-              onPaid={()=>{ setPayFor(null); showMsg('繳費完成，報名已確認！'); load(); }}
-              onCancel={()=>{ setPayFor(null); showMsg('報名已保留，可於「我的報名」完成繳費或改用匯款'); }}
+              onPaid={()=>{ setPayFor(null); showMsg(t('繳費完成，報名已確認！')); load(); }}
+              onCancel={()=>{ setPayFor(null); showMsg(t('報名已保留，可於「我的報名」完成繳費或改用匯款')); }}
             />
           </div>
         </div>
@@ -695,7 +695,7 @@ export default function MemberCompetitionsPage() {
                       background: i+1 < step ? '#2D7D46' : i+1 === step ? '#8B1A1A' : '#E0D0D0' }}/>
                     <div style={{ fontSize:10, fontWeight: i+1===step?700:400,
                       color: i+1 < step ? '#2D7D46' : i+1 === step ? '#8B1A1A' : '#bbb' }}>
-                      {i+1 < step ? '✓' : s}
+                      {i+1 < step ? '✓' : t(s)}
                     </div>
                   </div>
                 ))}
@@ -707,46 +707,46 @@ export default function MemberCompetitionsPage() {
               {/* Step 1: 基本資料 */}
               {step===1 && (<>
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:14 }}>
-                  <div style={{ fontSize:12, color:'#666' }}>姓名：{member?.name}　生日：{member?.birthday}</div>
-                  {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginTop:4 }}>費用計算中…</div> : feeInfo && (
+                  <div style={{ fontSize:12, color:'#666' }}>{t('姓名：')}{member?.name}　{t('生日：')}{member?.birthday}</div>
+                  {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginTop:4 }}>{t('費用計算中…')}</div> : feeInfo && (
                   <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:600, marginTop:4 }}>
-                    {feeInfo.isEarlyBird ? '🐦 早鳥優惠　' : ''}{feeInfo.teamApplied ? '🧗 隊員優惠　' : ''}{feeInfo.partnerApplied ? '🧗 友館折扣　' : ''}報名費：NT${feeInfo.fee}
+                    {feeInfo.isEarlyBird ? t('🐦 早鳥優惠　') : ''}{feeInfo.teamApplied ? t('🧗 隊員優惠　') : ''}{feeInfo.partnerApplied ? t('🧗 友館折扣　') : ''}{t('報名費：NT$')}{feeInfo.fee}
                   </div>)}
                 </div>
                 {/* 為誰報名 */}
                 {familyMembers.length > 0 && (
                   <div style={{ marginBottom:14 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8, fontWeight:500 }}>為誰報名</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:8, fontWeight:500 }}>{t('為誰報名')}</label>
                     <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                       {(() => { const selfReg = personRegistered(selectedComp.id, member?.id); return (
                       <button onClick={()=>{ if (!selfReg) setRegisterForId(null); }} disabled={selfReg}
                         style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${!registerForId?'#8B1A1A':'#E8D5D5'}`, background: selfReg?'#F5F5F5':(!registerForId?'#FBF5F5':'#fff'), color: selfReg?'#aaa':(!registerForId?'#8B1A1A':'#666'), fontSize:12, cursor:selfReg?'not-allowed':'pointer', fontWeight:!registerForId?600:400 }}>
-                        👤 {member?.name}（本人）{selfReg?'・已報名':''}
+                        👤 {member?.name}{t('（本人）')}{selfReg?t('・已報名'):''}
                       </button>
                       ); })()}
                       {familyMembers.map(c=>{ const reg = personRegistered(selectedComp.id, c.id); return (
                         <button key={c.id} onClick={()=>{ if (!reg) setRegisterForId(c.id); }} disabled={reg}
                           style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${registerForId===c.id?'#8B1A1A':'#E8D5D5'}`, background: reg?'#F5F5F5':(registerForId===c.id?'#FBF5F5':'#fff'), color: reg?'#aaa':(registerForId===c.id?'#8B1A1A':'#666'), fontSize:12, cursor:reg?'not-allowed':'pointer', fontWeight:registerForId===c.id?600:400 }}>
-                          {c.gender==='male'?'👦':c.gender==='female'?'👧':'🧒'} {c.name}{reg?'・已報名':''}
+                          {c.gender==='male'?'👦':c.gender==='female'?'👧':'🧒'} {c.name}{reg?t('・已報名'):''}
                         </button>
                       ); })}
                     </div>
                     {registerForId && (
                       <div style={{ fontSize:11, color:'#8B1A1A', marginTop:6 }}>
-                        ✦ 以下資料請填寫 {familyMembers.find(c=>c.id===registerForId)?.name} 的個人資訊
+                        {tt(`✦ 以下資料請填寫 ${familyMembers.find(c=>c.id===registerForId)?.name} 的個人資訊`, `✦ Please fill in the personal information for ${familyMembers.find(c=>c.id===registerForId)?.name}`, `✦ 以下は${familyMembers.find(c=>c.id===registerForId)?.name}様の個人情報をご記入ください`)}
                       </div>
                     )}
                   </div>
                 )}
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6, fontWeight:500 }}>報名組別 *</label>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6, fontWeight:500 }}>{t('報名組別 *')}</label>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {selectedComp.divisions.map(d=>(
                       <label key={d.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${divisionId===d.id?'#8B1A1A':'#E8D5D5'}`, background:divisionId===d.id?'#FBF5F5':'#fff', cursor:'pointer' }}>
                         <input type="radio" name="division" value={d.id} checked={divisionId===d.id} onChange={()=>setDivisionId(d.id)} style={{ accentColor:'#8B1A1A' }}/>
                         <span style={{ fontSize:13, fontWeight:divisionId===d.id?600:400 }}>{d.name}</span>
                         <span style={{ fontSize:11, marginLeft:'auto', color: (d.maxParticipants-(d.enrolledCount||0))>0 ? '#1B7A3D' : '#8B1A1A', fontWeight:600 }}>
-                          {(d.maxParticipants-(d.enrolledCount||0))>0 ? `剩 ${d.maxParticipants-(d.enrolledCount||0)} 位` : `額滿${(d.waitlistCount||0)<(d.waitlistMax||0)?'・候補中':''}`}
+                          {(d.maxParticipants-(d.enrolledCount||0))>0 ? tt(`剩 ${d.maxParticipants-(d.enrolledCount||0)} 位`, `${d.maxParticipants-(d.enrolledCount||0)} spot${(d.maxParticipants-(d.enrolledCount||0))===1?'':'s'} left`, `残り${d.maxParticipants-(d.enrolledCount||0)}枠`) : tt(`額滿${(d.waitlistCount||0)<(d.waitlistMax||0)?'・候補中':''}`, `Full${(d.waitlistCount||0)<(d.waitlistMax||0)?' · Waitlist open':''}`, `満員${(d.waitlistCount||0)<(d.waitlistMax||0)?'・キャンセル待ち受付中':''}`)}
                         </span>
                       </label>
                     ))}
@@ -754,41 +754,41 @@ export default function MemberCompetitionsPage() {
                 </div>
                 <label style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16, cursor:'pointer' }}>
                   <input type="checkbox" checked={isHonorary} onChange={e=>setIsHonorary(e.target.checked)} style={{ width:16, height:16, accentColor:'#8B1A1A' }}/>
-                  <span style={{ fontSize:13, color:'#666' }}>榮譽參賽（已於相近組別獲前三名，僅參賽不計名次）</span>
+                  <span style={{ fontSize:13, color:'#666' }}>{t('榮譽參賽（已於相近組別獲前三名，僅參賽不計名次）')}</span>
                 </label>
                 {/* 性別/生日/手機/Email（自動帶入會員資料，皆必填；會員資料缺漏在此補填） */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>性別 *</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('性別 *')}</label>
                     <div style={{ display:'flex', gap:8 }}>
-                      {[{k:'male',t:'男'},{k:'female',t:'女'}].map(g=>(
+                      {[{k:'male',label:t('男')},{k:'female',label:t('女')}].map(g=>(
                         <button key={g.k} type="button" onClick={()=>setRegGender(g.k)}
                           style={{ flex:1, height:40, borderRadius:8, border:`1.5px solid ${regGender===g.k?'#8B1A1A':'#E8D5D5'}`, background:regGender===g.k?'#FBF5F5':'#fff', color:regGender===g.k?'#8B1A1A':'#666', fontSize:13, fontWeight:regGender===g.k?600:400, cursor:'pointer' }}>
-                          {g.t}
+                          {g.label}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>生日 *</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('生日 *')}</label>
                     <input type="date" value={regBirthday} onChange={e=>setRegBirthday(e.target.value)}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>手機 *</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('手機 *')}</label>
                     <input value={regPhone} onChange={e=>setRegPhone(e.target.value)} inputMode="tel" placeholder="0912345678"
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>Email *</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('Email *')}</label>
                     <input value={regEmail} onChange={e=>setRegEmail(e.target.value)} inputMode="email" placeholder="name@example.com"
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 </div>
                 {[
-                  { label:'身分證 / 護照號碼 *（保險用）', val:idNumber, set:setIdNumber, ph:'R123456789 / 外籍：國籍+護照號' },
+                  { label:t('身分證 / 護照號碼 *（保險用）'), val:idNumber, set:setIdNumber, ph:tt('R123456789 / 外籍：國籍+護照號', 'R123456789 / Foreign nationals: nationality + passport no.', 'R123456789／外国籍：国籍＋パスポート番号') },
                 ].map(({label,val,set,ph})=>(
                   <div key={label} style={{ marginBottom:12 }}>
                     <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{label}</label>
@@ -798,42 +798,42 @@ export default function MemberCompetitionsPage() {
                 ))}
                 {/* 緊急聯絡人：姓名 / 關係 / 電話 三格（關係選填） */}
                 <div style={{ marginBottom:12 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>緊急聯絡人 *</label>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('緊急聯絡人 *')}</label>
                   <div style={{ display:'flex', gap:8 }}>
-                    <input value={emergencyContact} onChange={e=>setEmergencyContact(e.target.value)} placeholder="姓名"
+                    <input value={emergencyContact} onChange={e=>setEmergencyContact(e.target.value)} placeholder={t('姓名')}
                       style={{ flex:'1.2 1 0', minWidth:0, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                    <input value={emergencyRelation} onChange={e=>setEmergencyRelation(e.target.value)} placeholder="關係"
+                    <input value={emergencyRelation} onChange={e=>setEmergencyRelation(e.target.value)} placeholder={t('關係')}
                       style={{ flex:'1 1 0', minWidth:0, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
-                    <input value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} placeholder="電話" inputMode="tel"
+                    <input value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} placeholder={t('電話')} inputMode="tel"
                       style={{ flex:'1.6 1 0', minWidth:0, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>身高（公分，定線參考）</label>
-                    <input type="number" value={height} onChange={e=>setHeight(e.target.value)} placeholder="例：170"
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('身高（公分，定線參考）')}</label>
+                    <input type="number" value={height} onChange={e=>setHeight(e.target.value)} placeholder={tt('例：170', 'e.g. 170', '例：170')}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                   <div>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>臂展（公分，定線參考）</label>
-                    <input type="number" value={armSpan} onChange={e=>setArmSpan(e.target.value)} placeholder="例：175"
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('臂展（公分，定線參考）')}</label>
+                    <input type="number" value={armSpan} onChange={e=>setArmSpan(e.target.value)} placeholder={tt('例：175', 'e.g. 175', '例：175')}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 </div>
                 {Number(selectedComp?.fees?.partnerGymDiscount) > 0 && Number(selectedComp?.fees?.partnerGymDiscount) < 1 && partnerGymList.length > 0 && (
                   <div style={{ marginTop:12 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>友館會員優惠（{Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10} 折，選填）</label>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{tt(`友館會員優惠（${Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10} 折，選填）`, `Partner Gym Discount (${Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10}0% off, optional)`, `提携ジム会員優待（${Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10}割引、任意）`)}</label>
                     <select value={partnerGymId} onChange={e=>setPartnerGymId(e.target.value)}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}>
-                      <option value=''>不使用（非友館會員）</option>
+                      <option value=''>{t('不使用（非友館會員）')}</option>
                       {partnerGymList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
                     </select>
-                    <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>選擇後享折扣，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回原價。與隊員折扣擇優、不疊加。</div>
+                    <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>{t('選擇後享折扣，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回原價。與隊員折扣擇優、不疊加。')}</div>
                   </div>
                 )}
                 <div style={{ marginTop:12 }}>
-                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>備註（選填）</label>
-                  <textarea value={memberNote} onChange={e=>setMemberNote(e.target.value)} rows={2} placeholder="有需要告知館方的事項可填寫於此"
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('備註（選填）')}</label>
+                  <textarea value={memberNote} onChange={e=>setMemberNote(e.target.value)} rows={2} placeholder={t('有需要告知館方的事項可填寫於此')}
                     style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a', resize:'vertical' }}/>
                 </div>
               </>)}
@@ -841,15 +841,15 @@ export default function MemberCompetitionsPage() {
               {/* Step 2: 付款資訊 */}
               {step===2 && (<>
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14 }}>
-                  {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginBottom:4 }}>費用計算中…</div> : (
-                  <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>報名費：<strong style={{ color:'#8B1A1A', fontSize:15 }}>NT${feeInfo?.fee}</strong> {feeInfo?.isEarlyBird?'（早鳥）':''}{feeInfo?.teamApplied?'（隊員優惠）':''}{feeInfo?.partnerApplied?'（友館折扣）':''}</div>
+                  {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginBottom:4 }}>{t('費用計算中…')}</div> : (
+                  <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>{t('報名費：')}<strong style={{ color:'#8B1A1A', fontSize:15 }}>NT${feeInfo?.fee}</strong> {feeInfo?.isEarlyBird?t('（早鳥）'):''}{feeInfo?.teamApplied?t('（隊員優惠）'):''}{feeInfo?.partnerApplied?t('（友館折扣）'):''}</div>
                   )}
                   {/* 政策（2026-09-09）：轉帳逾期自動取消已停止（sweepExpiredCompetitionPayments
                       不再排程），改與臨櫃現金一致、一律由館方人工處理，不再宣稱「逾期自動取消」。*/}
                   {(() => { const N = selectedComp?.paymentDeadlineDays ?? 3; const dl = dayjs().add(N,'day').format('YYYY-MM-DD'); return (
                     <div style={{ fontSize:11, color:'#A32D2D', lineHeight:1.6 }}>
-                      ⏰ 建議繳費時間：請於報名後 {N} 日內（<strong>{dl}</strong> 前）完成繳費，以利館方儘快為您確認名額。<br/>
-                      · <strong>銀行轉帳／臨櫃現金</strong>：皆由館方人工核對確認，逾期不會自動取消報名。
+                      {tt(`⏰ 建議繳費時間：請於報名後 ${N} 日內（`, `⏰ Recommended payment time: please complete payment within ${N} days of registration (by `, `⏰ 推奨お支払い期限：登録から${N}日以内（`)}<strong>{dl}</strong>{tt('）前）完成繳費，以利館方儘快為您確認名額。', ') so the gym can confirm your spot as soon as possible.', 'まで）にお支払いいただくと、施設側で速やかに枠を確定できます。')}<br/>
+                      · <strong>{t('銀行轉帳／臨櫃現金')}</strong>{t('：皆由館方人工核對確認，逾期不會自動取消報名。')}
                     </div>
                   ); })()}
                 </div>
@@ -866,22 +866,22 @@ export default function MemberCompetitionsPage() {
               {/* Step 3: 同意書 */}
               {step===3 && (<>
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14, fontSize:12, color:'#444', lineHeight:1.9, whiteSpace:'pre-wrap', textAlign:'left' }}>
-                  <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>參賽同意書</div>
+                  <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>{t('參賽同意書')}</div>
                   {selectedComp.waiverContent?.zh || `1. 攀登比賽具有潛在之危險性，若發生意外會導致受傷或死亡。\n2. 參賽選手應遵守比賽規則，聽從大會工作人員之指導，隨時注意自身與他人的安全。倘因個人疏失導致意外事件發生，願由選手自行負責。\n3. 本人同意所提個人資料作為大會辦理本活動使用。\n4. 比賽場地已由主辦單位投保公共意外責任險，紅石攀岩館另為選手加保活動綜合保險。\n5. 本人同意比賽報名資料皆屬實，若填寫不實將自動喪失參賽資格。`}
                 </div>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${agreedWaiver?'#2D7D46':'#E8D5D5'}`, background:agreedWaiver?'#E6F4EB':'#fff', cursor:'pointer', marginBottom:12 }}>
                   <input type="checkbox" checked={agreedWaiver} onChange={e=>setAgreedWaiver(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color:agreedWaiver?'#2D7D46':'#444' }}>本人已詳細閱讀並同意上述參賽規定與風險安全聲明</span>
+                  <span style={{ fontSize:13, fontWeight:500, color:agreedWaiver?'#2D7D46':'#444' }}>{t('本人已詳細閱讀並同意上述參賽規定與風險安全聲明')}</span>
                 </label>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${agreedPhoto?'#2D7D46':'#E8D5D5'}`, background:agreedPhoto?'#E6F4EB':'#fff', cursor:'pointer' }}>
                   <input type="checkbox" checked={agreedPhoto} onChange={e=>setAgreedPhoto(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
-                  <span style={{ fontSize:13, fontWeight:500, color:agreedPhoto?'#2D7D46':'#444' }}>本人同意比賽中的照片或影像可作為紅石攀岩館紀錄或宣傳使用</span>
+                  <span style={{ fontSize:13, fontWeight:500, color:agreedPhoto?'#2D7D46':'#444' }}>{t('本人同意比賽中的照片或影像可作為紅石攀岩館紀錄或宣傳使用')}</span>
                 </label>
                 {selectedComp.refundPolicies?.length > 0 && (
                   <div style={{ marginTop:14, background:'#FFF8E6', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#8B6914' }}>
-                    <div style={{ fontWeight:600, marginBottom:6 }}>退費政策</div>
+                    <div style={{ fontWeight:600, marginBottom:6 }}>{t('退費政策')}</div>
                     {selectedComp.refundPolicies.map((p,i)=>(
-                      <div key={i}>• {p.deadline} 前取消：{p.rule==='full_minus_admin'?`全額退（扣行政費NT$${p.adminFee}）`:p.rule==='half_minus_admin'?`50%退（扣行政費NT$${p.adminFee}）`:'不退費'}</div>
+                      <div key={i}>• {tt(`${p.deadline} 前取消：`, `Cancel before ${p.deadline}: `, `${p.deadline}までのキャンセル：`)}{p.rule==='full_minus_admin'?tt(`全額退（扣行政費NT$${p.adminFee}）`,`Full refund (minus NT$${p.adminFee} admin fee)`,`全額返金（事務手数料NT$${p.adminFee}を差し引き）`):p.rule==='half_minus_admin'?tt(`50%退（扣行政費NT$${p.adminFee}）`,`50% refund (minus NT$${p.adminFee} admin fee)`,`50%返金（事務手数料NT$${p.adminFee}を差し引き）`):t('不退費')}</div>
                     ))}
                   </div>
                 )}
@@ -890,34 +890,34 @@ export default function MemberCompetitionsPage() {
               {/* Step 4: 簽名 */}
               {step===4 && (<>
                 <div style={{ marginBottom:16 }}>
-                  <label style={{ fontSize:13, fontWeight:500, color:'#333', display:'block', marginBottom:8 }}>本人簽名</label>
+                  <label style={{ fontSize:13, fontWeight:500, color:'#333', display:'block', marginBottom:8 }}>{t('本人簽名')}</label>
                   <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
                     <SignaturePad ref={memberSigRef} height={200}/>
                   </div>
                   <div style={{ display:'flex', gap:8, marginTop:6 }}>
                     <button type="button" onClick={()=>{ memberSigRef.current?.clear(); setMemberSig(null); }}
-                      style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>清除重簽</button>
+                      style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>{t('清除重簽')}</button>
                     <button type="button" onClick={()=>{ const d=memberSigRef.current?.toDataURL(); setMemberSig(d||null); }}
-                      style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>儲存簽名</button>
+                      style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('儲存簽名')}</button>
                   </div>
-                  {memberSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 已儲存簽名</div>}
+                  {memberSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>{t('✓ 已儲存簽名')}</div>}
                 </div>
                 {isMinor && (
                   <div style={{ marginTop:16 }}>
                     <div style={{ background:'#FFF8E6', borderRadius:8, padding:'8px 12px', marginBottom:10, fontSize:12, color:'#8B6914' }}>
-                      ⚠ 未滿18歲選手需法定代理人同時簽名
+                      {t('⚠ 未滿18歲選手需法定代理人同時簽名')}
                     </div>
-                    <label style={{ fontSize:13, fontWeight:500, color:'#333', display:'block', marginBottom:8 }}>法定代理人簽名</label>
+                    <label style={{ fontSize:13, fontWeight:500, color:'#333', display:'block', marginBottom:8 }}>{t('法定代理人簽名')}</label>
                     <div style={{ border:'0.5px solid #E8D5D5', borderRadius:8, background:'#FBF5F5', overflow:'hidden' }}>
                       <SignaturePad ref={guardianSigRef} height={200}/>
                     </div>
                     <div style={{ display:'flex', gap:8, marginTop:6 }}>
                       <button type="button" onClick={()=>{ guardianSigRef.current?.clear(); setGuardianSig(null); }}
-                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>清除重簽</button>
+                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>{t('清除重簽')}</button>
                       <button type="button" onClick={()=>{ const d=guardianSigRef.current?.toDataURL(); setGuardianSig(d||null); }}
-                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>儲存簽名</button>
+                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('儲存簽名')}</button>
                     </div>
-                    {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>✓ 法定代理人已儲存簽名</div>}
+                    {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>{t('✓ 法定代理人已儲存簽名')}</div>}
                   </div>
                 )}
               </>)}
@@ -928,17 +928,17 @@ export default function MemberCompetitionsPage() {
             <div style={{ padding:'12px 20px', borderTop:'0.5px solid #F0E8E8', flexShrink:0, display:'flex', gap:8 }}>
               {step > 1 && (
                 <button onClick={()=>setStep(s=>s-1)}
-                  style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>← 上一步</button>
+                  style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('← 上一步')}</button>
               )}
               {step < STEPS.length ? (
                 <button onClick={nextStep}
                   style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                  下一步 →
+                  {t('下一步 →')}
                 </button>
               ) : (
                 <button onClick={handleSubmit} disabled={submitting || !memberSig || (isMinor && !guardianSig)}
                   style={{ flex:2, height:44, borderRadius:10, background:(!memberSig||(isMinor&&!guardianSig))?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                  {submitting ? '送出中...' : '✓ 確認報名'}
+                  {submitting ? t('送出中...') : t('✓ 確認報名')}
                 </button>
               )}
             </div>
@@ -951,20 +951,20 @@ export default function MemberCompetitionsPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'flex-end' }}>
           <div style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', padding:24, maxHeight:'85vh', overflowY:'auto' }}>
             {(() => { const isPaid = cancelModal.paymentStatus === 'confirmed'; return (<>
-            <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{isPaid ? '取消報名・申請退費' : '取消報名'}</div>
+            <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>{isPaid ? t('取消報名・申請退費') : t('取消報名')}</div>
             <div style={{ fontSize:13, color:'#999', marginBottom:14 }}>{cancelModal.competitionName}</div>
 
             {/* 未繳費：純取消，無退費 */}
             {!isPaid && (
               <div style={{ background:'#F0EDED', borderRadius:10, padding:'12px 14px', marginBottom:14, fontSize:13, color:'#555' }}>
-                尚未繳費，取消報名後無需退費，名額將立即釋出。
+                {t('尚未繳費，取消報名後無需退費，名額將立即釋出。')}
               </div>
             )}
 
             {/* 已繳費：退費計算說明 */}
             {isPaid && (
             <div style={{ background:'#FFF8E6', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
-              <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>💰 退費計算說明</div>
+              <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>{t('💰 退費計算說明')}</div>
               {cancelModal.competitionName && (() => {
                 const comp = competitions.find(c => c.id === cancelModal.competitionId);
                 const policies = comp?.refundPolicies || [];
@@ -981,16 +981,16 @@ export default function MemberCompetitionsPage() {
                   <div>
                     {sorted.map((p,i) => (
                       <div key={i} style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>
-                        • {p.deadline} 前取消：{p.rule==='full_minus_admin'?`全額退費（扣行政費 NT$${p.adminFee}）`:p.rule==='half_minus_admin'?`50% 退費（扣行政費 NT$${p.adminFee}）`:'不予退費'}
+                        • {tt(`${p.deadline} 前取消：`, `Cancel before ${p.deadline}: `, `${p.deadline}までのキャンセル：`)}{p.rule==='full_minus_admin'?tt(`全額退費（扣行政費 NT$${p.adminFee}）`,`Full refund (minus NT$${p.adminFee} admin fee)`,`全額返金（事務手数料NT$${p.adminFee}を差し引き）`):p.rule==='half_minus_admin'?tt(`50% 退費（扣行政費 NT$${p.adminFee}）`,`50% refund (minus NT$${p.adminFee} admin fee)`,`50%返金（事務手数料NT$${p.adminFee}を差し引き）`):t('不予退費')}
                       </div>
                     ))}
-                    <div style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>• {sorted[sorted.length-1]?.deadline} 之後取消：不予退費</div>
+                    <div style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>• {tt(`${sorted[sorted.length-1]?.deadline} 之後取消：不予退費`, `Cancel after ${sorted[sorted.length-1]?.deadline}: no refund`, `${sorted[sorted.length-1]?.deadline}以降のキャンセル：返金なし`)}</div>
                     <div style={{ marginTop:8, padding:'8px 10px', background:'#fff', borderRadius:8, fontSize:13, fontWeight:700, color: estimate>0 ? '#2D7D46' : '#A32D2D' }}>
-                      {`依政策試算，今日取消可退 NT$${estimate.toLocaleString()}（報名費 NT$${fee.toLocaleString()}；實際以館方核算為準）`}
+                      {tt(`依政策試算，今日取消可退 NT$${estimate.toLocaleString()}（報名費 NT$${fee.toLocaleString()}；實際以館方核算為準）`, `Based on the policy, cancelling today refunds NT$${estimate.toLocaleString()} (registration fee NT$${fee.toLocaleString()}; final amount subject to gym's calculation)`, `規定に基づく試算では、本日キャンセルすると NT$${estimate.toLocaleString()} が返金されます（参加費 NT$${fee.toLocaleString()}、実際の金額は施設の計算による）`)}
                     </div>
                   </div>
                 ) : (
-                  <div style={{ fontSize:12, color:'#8B6914' }}>請聯絡館方確認退費方式</div>
+                  <div style={{ fontSize:12, color:'#8B6914' }}>{t('請聯絡館方確認退費方式')}</div>
                 );
               })()}
             </div>
@@ -999,51 +999,51 @@ export default function MemberCompetitionsPage() {
             {/* 已繳費：退費帳號填寫 */}
             {isPaid && (
             <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
-              <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>🏦 退費匯款帳號（必填）</div>
+              <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>{t('🏦 退費匯款帳號（必填）')}</div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>銀行代碼 *</label>
-                  <input value={refundBankCode} onChange={e=>setRefundBankCode(e.target.value)} placeholder="如：812"
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('銀行代碼 *')}</label>
+                  <input value={refundBankCode} onChange={e=>setRefundBankCode(e.target.value)} placeholder={tt('如：812', 'e.g. 812', '例：812')}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>銀行名稱</label>
-                  <input value={refundBankName} onChange={e=>setRefundBankName(e.target.value)} placeholder="如：台新銀行"
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('銀行名稱')}</label>
+                  <input value={refundBankName} onChange={e=>setRefundBankName(e.target.value)} placeholder={tt('如：台新銀行', 'e.g. Taishin Bank', '例：台新銀行')}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                 </div>
               </div>
               <div style={{ marginBottom:8 }}>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>帳號 *</label>
-                <input value={refundAccount} onChange={e=>setRefundAccount(e.target.value)} placeholder="請填寫完整帳號"
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('帳號 *')}</label>
+                <input value={refundAccount} onChange={e=>setRefundAccount(e.target.value)} placeholder={t('請填寫完整帳號')}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
               </div>
               <div>
-                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>戶名</label>
-                <input value={refundAccountName} onChange={e=>setRefundAccountName(e.target.value)} placeholder="請填寫帳戶戶名"
+                <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('戶名')}</label>
+                <input value={refundAccountName} onChange={e=>setRefundAccountName(e.target.value)} placeholder={t('請填寫帳戶戶名')}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
               </div>
-              <div style={{ fontSize:11, color:'#A32D2D', marginTop:8 }}>退費將於比賽結束後一週內統一匯款至此帳號</div>
+              <div style={{ fontSize:11, color:'#A32D2D', marginTop:8 }}>{t('退費將於比賽結束後一週內統一匯款至此帳號')}</div>
             </div>
             )}
             </>); })()}
 
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>取消原因（選填）</label>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('取消原因（選填）')}</label>
               <textarea value={cancelReason} onChange={e=>setCancelReason(e.target.value)} rows={2}
-                placeholder="請說明取消原因"
+                placeholder={t('請說明取消原因')}
                 style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
             </div>
 
             <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', marginBottom:16, fontSize:12, color:'#A32D2D' }}>
-              ⚠ 取消後名額立即釋出，其他報名者可補位
+              {t('⚠ 取消後名額立即釋出，其他報名者可補位')}
             </div>
 
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={() => setCancelModal(null)}
-                style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>返回</button>
+                style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('返回')}</button>
               <button onClick={handleCancel} disabled={cancelling}
                 style={{ flex:2, height:44, borderRadius:10, background:'#A32D2D', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                {cancelling ? '處理中...' : '確認取消報名'}
+                {cancelling ? t('處理中...') : t('確認取消報名')}
               </button>
             </div>
           </div>
@@ -1053,27 +1053,27 @@ export default function MemberCompetitionsPage() {
       {guardianSignTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:230, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:400, maxHeight:'88vh', overflowY:'auto' }}>
-            <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>✍️ 法定代理人簽署</div>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>{t('✍️ 法定代理人簽署')}</div>
             <div style={{ fontSize:13, color:'#666', marginBottom:10 }}>{guardianSignTarget.competitionName}・{guardianSignTarget.memberName}</div>
             <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#444', lineHeight:1.8, whiteSpace:'pre-wrap', textAlign:'left', marginBottom:12, maxHeight:180, overflowY:'auto' }}>
-              {competitions.find(c=>c.id===guardianSignTarget.competitionId)?.waiverContent?.zh || '參賽同意書內容請洽館方。'}
+              {competitions.find(c=>c.id===guardianSignTarget.competitionId)?.waiverContent?.zh || t('參賽同意書內容請洽館方。')}
             </div>
-            <div style={{ fontSize:12, color:'#666', marginBottom:6, textAlign:'left' }}>本人作為法定代理人，已閱讀並同意上述內容，同意子女參加此項賽事。法定代理人簽名：</div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:6, textAlign:'left' }}>{t('本人作為法定代理人，已閱讀並同意上述內容，同意子女參加此項賽事。法定代理人簽名：')}</div>
             <SignaturePad ref={guardianSigRef} height={180}/>
             <div style={{ display:'flex', gap:8, marginTop:12 }}>
               <button onClick={()=>setGuardianSignTarget(null)}
-                style={{ flex:1, height:40, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
+                style={{ flex:1, height:40, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={async ()=>{
                 const sig = guardianSigRef.current?.toDataURL();
-                if (!sig || guardianSigRef.current?.isEmpty?.()) { showMsg('請先完成法定代理人簽名','red'); return; }
+                if (!sig || guardianSigRef.current?.isEmpty?.()) { showMsg(t('請先完成法定代理人簽名'),'red'); return; }
                 try {
                   await memberClient.post(`/competitions/registrations/${guardianSignTarget.id}/guardian-sign`, { signatureData: sig, parentName: member?.name });
                   setGuardianSignTarget(null);
-                  showMsg('簽署完成，報名已生效');
+                  showMsg(t('簽署完成，報名已生效'));
                   load();
-                } catch (e) { showMsg(e.response?.data?.message || '簽署失敗','red'); }
+                } catch (e) { showMsg(e.response?.data?.message || t('簽署失敗'),'red'); }
               }}
-                style={{ flex:2, height:40, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>確認簽署</button>
+                style={{ flex:2, height:40, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>{t('確認簽署')}</button>
             </div>
           </div>
         </div>
@@ -1082,25 +1082,25 @@ export default function MemberCompetitionsPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:230, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}
           onClick={() => setCheckinQr(null)}>
           <div style={{ background:'#fff', borderRadius:16, padding:24, width:'100%', maxWidth:320, textAlign:'center' }} onClick={e=>e.stopPropagation()}>
-            <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>🎫 比賽報到</div>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>{t('🎫 比賽報到')}</div>
             <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>{checkinQr.comp}・{checkinQr.division}</div>
             {checkinQr.checkedInAt
-              ? <div style={{ background:'#E6F4EB', borderRadius:10, padding:'20px 12px', color:'#2D7D46', fontWeight:700, fontSize:15 }}>✅ 已完成報到<div style={{ fontSize:11, fontWeight:400, marginTop:4 }}>祝比賽順利！</div></div>
+              ? <div style={{ background:'#E6F4EB', borderRadius:10, padding:'20px 12px', color:'#2D7D46', fontWeight:700, fontSize:15 }}>{t('✅ 已完成報到')}<div style={{ fontSize:11, fontWeight:400, marginTop:4 }}>{t('祝比賽順利！')}</div></div>
               : <>
-                  <img src={checkinQr.dataUrl} alt="報到QR" style={{ width:220, height:220 }}/>
+                  <img src={checkinQr.dataUrl} alt={t('報到QR')} style={{ width:220, height:220 }}/>
                   <div style={{ fontSize:12, color:'#999', marginTop:8, lineHeight:1.7, textAlign:'left' }}>
-                    比賽日當天請出示此 QR 給工作人員掃描報到入場（報到不需墜落測驗）。
+                    {t('比賽日當天請出示此 QR 給工作人員掃描報到入場（報到不需墜落測驗）。')}
                   </div>
                 </>}
             <button onClick={() => setCheckinQr(null)}
-              style={{ marginTop:14, width:'100%', height:40, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>關閉</button>
+              style={{ marginTop:14, width:'100%', height:40, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>{t('關閉')}</button>
           </div>
         </div>
       )}
       {reupTarget && (
         <TransferReuploadModal target={reupTarget} memberName={member?.name}
           onClose={()=>setReupTarget(null)}
-          onDone={()=>{ setReupTarget(null); showMsg('已重新送出，等待館方確認收款'); member?.id && getMemberRegistrations(member.id).then(r=>setMyRegistrations(r.data.registrations||[])).catch(()=>{}); }} />
+          onDone={()=>{ setReupTarget(null); showMsg(t('已重新送出，等待館方確認收款')); member?.id && getMemberRegistrations(member.id).then(r=>setMyRegistrations(r.data.registrations||[])).catch(()=>{}); }} />
       )}
       {/* 報名表被退回 → 修改報名資料後重送 */}
       {editTarget && (() => {
@@ -1112,15 +1112,15 @@ export default function MemberCompetitionsPage() {
         return (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
           <div style={{ background:'#fff', borderRadius:'16px 16px 0 0', width:'100%', maxWidth:480, padding:20, maxHeight:'88vh', overflowY:'auto' }}>
-            <div style={{ fontWeight:600, fontSize:15, marginBottom:2 }}>修改報名資料</div>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:2 }}>{t('修改報名資料')}</div>
             <div style={{ fontSize:12, color:'#666', marginBottom:4 }}>{editTarget.competitionName}</div>
             {editTarget.formReturnReason && (
-              <div style={{ background:'#FFF8E6', borderRadius:8, padding:'8px 10px', fontSize:12, color:'#854F0B', marginBottom:12, textAlign:'left' }}>退回原因：{editTarget.formReturnReason}</div>
+              <div style={{ background:'#FFF8E6', borderRadius:8, padding:'8px 10px', fontSize:12, color:'#854F0B', marginBottom:12, textAlign:'left' }}>{t('退回原因：')}{editTarget.formReturnReason}</div>
             )}
             <div style={{ display:'grid', gap:10 }}>
               {divisions.length > 0 && (
                 <div>
-                  <label style={lbl}>報名組別 *</label>
+                  <label style={lbl}>{t('報名組別 *')}</label>
                   <select value={editForm.divisionId} onChange={e=>set('divisionId', e.target.value)} style={{ ...inp, appearance:'auto' }}>
                     {divisions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
@@ -1128,49 +1128,49 @@ export default function MemberCompetitionsPage() {
               )}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <div>
-                  <label style={lbl}>性別 *</label>
+                  <label style={lbl}>{t('性別 *')}</label>
                   <select value={editForm.gender} onChange={e=>set('gender', e.target.value)} style={{ ...inp, appearance:'auto' }}>
-                    <option value="">請選擇</option><option value="male">男</option><option value="female">女</option>
+                    <option value="">{t('請選擇')}</option><option value="male">{t('男')}</option><option value="female">{t('女')}</option>
                   </select>
                 </div>
                 <div>
-                  <label style={lbl}>生日 *</label>
+                  <label style={lbl}>{t('生日 *')}</label>
                   <input type="date" value={editForm.birthday} onChange={e=>set('birthday', e.target.value)} style={inp}/>
                 </div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                <div><label style={lbl}>手機 *</label><input value={editForm.phone} onChange={e=>set('phone', e.target.value)} style={inp}/></div>
-                <div><label style={lbl}>Email *</label><input value={editForm.email} onChange={e=>set('email', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>{t('手機 *')}</label><input value={editForm.phone} onChange={e=>set('phone', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>{t('Email *')}</label><input value={editForm.email} onChange={e=>set('email', e.target.value)} style={inp}/></div>
               </div>
-              <div><label style={lbl}>身分證/護照號碼</label><input value={editForm.idNumber} onChange={e=>set('idNumber', e.target.value)} style={inp}/></div>
+              <div><label style={lbl}>{t('身分證/護照號碼')}</label><input value={editForm.idNumber} onChange={e=>set('idNumber', e.target.value)} style={inp}/></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-                <div><label style={lbl}>緊急聯絡人 *</label><input value={editForm.emergencyContact} onChange={e=>set('emergencyContact', e.target.value)} style={inp}/></div>
-                <div><label style={lbl}>關係</label><input value={editForm.emergencyRelation} onChange={e=>set('emergencyRelation', e.target.value)} style={inp}/></div>
-                <div><label style={lbl}>電話 *</label><input value={editForm.emergencyPhone} onChange={e=>set('emergencyPhone', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>{t('緊急聯絡人 *')}</label><input value={editForm.emergencyContact} onChange={e=>set('emergencyContact', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>{t('關係')}</label><input value={editForm.emergencyRelation} onChange={e=>set('emergencyRelation', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>{t('電話 *')}</label><input value={editForm.emergencyPhone} onChange={e=>set('emergencyPhone', e.target.value)} style={inp}/></div>
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                <div><label style={lbl}>身高(cm)</label><input value={editForm.height} onChange={e=>set('height', e.target.value)} style={inp}/></div>
-                <div><label style={lbl}>臂展(cm)</label><input value={editForm.armSpan} onChange={e=>set('armSpan', e.target.value)} style={inp}/></div>
-                <div style={{ gridColumn:'1/-1' }}><label style={lbl}>備註</label><textarea value={editForm.memberNote||''} onChange={e=>set('memberNote', e.target.value)} rows={2} style={{ ...inp, height:'auto', padding:'8px 10px', resize:'vertical' }}/></div>
+                <div><label style={lbl}>{t('身高(cm)')}</label><input value={editForm.height} onChange={e=>set('height', e.target.value)} style={inp}/></div>
+                <div><label style={lbl}>{t('臂展(cm)')}</label><input value={editForm.armSpan} onChange={e=>set('armSpan', e.target.value)} style={inp}/></div>
+                <div style={{ gridColumn:'1/-1' }}><label style={lbl}>{t('備註')}</label><textarea value={editForm.memberNote||''} onChange={e=>set('memberNote', e.target.value)} rows={2} style={{ ...inp, height:'auto', padding:'8px 10px', resize:'vertical' }}/></div>
               </div>
               <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, color:'#444' }}>
-                <input type="checkbox" checked={editForm.isHonorary} onChange={e=>set('isHonorary', e.target.checked)}/> 榮譽參賽（不列入排名）
+                <input type="checkbox" checked={editForm.isHonorary} onChange={e=>set('isHonorary', e.target.checked)}/> {t('榮譽參賽（不列入排名）')}
               </label>
               {editForm._paid ? (
-                <div style={{ marginTop:12, paddingTop:12, borderTop:'0.5px solid #F0E8E8', fontSize:12, color:'#999' }}>此報名已確認收款，繳費資訊不可修改。</div>
+                <div style={{ marginTop:12, paddingTop:12, borderTop:'0.5px solid #F0E8E8', fontSize:12, color:'#999' }}>{t('此報名已確認收款，繳費資訊不可修改。')}</div>
               ) : (
                 <div style={{ marginTop:12, paddingTop:12, borderTop:'0.5px solid #F0E8E8' }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:10 }}>繳費資訊</div>
+                  <div style={{ fontSize:13, fontWeight:600, color:'#8B1A1A', marginBottom:10 }}>{t('繳費資訊')}</div>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-                    <div><label style={lbl}>付款方式 *</label>
+                    <div><label style={lbl}>{t('付款方式 *')}</label>
                       <select value={editForm.paymentMethod||'transfer'} onChange={e=>set('paymentMethod', e.target.value)} style={{ ...inp, appearance:'auto' }}>
-                        <option value="transfer">轉帳</option><option value="cash">現金（臨櫃）</option>
+                        <option value="transfer">{t('轉帳')}</option><option value="cash">{t('現金（臨櫃）')}</option>
                       </select></div>
-                    <div><label style={lbl}>{editForm.paymentMethod==='cash'?'繳款日期 *':'轉帳日期 *'}</label>
+                    <div><label style={lbl}>{editForm.paymentMethod==='cash'?t('繳款日期 *'):t('轉帳日期 *')}</label>
                       <input type="date" value={editForm.paymentDate||''} onChange={e=>set('paymentDate', e.target.value)} style={inp}/></div>
                     {editForm.paymentMethod==='transfer' && (<>
-                      <div><label style={lbl}>匯款帳號末五碼 *</label><input value={editForm.bankLastFive||''} maxLength={5} onChange={e=>set('bankLastFive', e.target.value.slice(0,5))} style={inp}/></div>
-                      <div><label style={lbl}>匯款銀行名稱</label><input value={editForm.bankName||''} onChange={e=>set('bankName', e.target.value)} style={inp}/></div>
+                      <div><label style={lbl}>{t('匯款帳號末五碼 *')}</label><input value={editForm.bankLastFive||''} maxLength={5} onChange={e=>set('bankLastFive', e.target.value.slice(0,5))} style={inp}/></div>
+                      <div><label style={lbl}>{t('匯款銀行名稱')}</label><input value={editForm.bankName||''} onChange={e=>set('bankName', e.target.value)} style={inp}/></div>
                     </>)}
                   </div>
                 </div>
@@ -1178,8 +1178,8 @@ export default function MemberCompetitionsPage() {
             </div>
             {editErr && <div style={{ fontSize:12, color:'#A32D2D', marginTop:10 }}>{editErr}</div>}
             <div style={{ display:'flex', gap:8, marginTop:16 }}>
-              <button onClick={()=>setEditTarget(null)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={submitEdit} disabled={editSaving} style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>{editSaving ? '送出中…' : '送出修改'}</button>
+              <button onClick={()=>setEditTarget(null)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
+              <button onClick={submitEdit} disabled={editSaving} style={{ flex:2, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>{editSaving ? t('送出中…') : t('送出修改')}</button>
             </div>
           </div>
         </div>
@@ -1190,11 +1190,11 @@ export default function MemberCompetitionsPage() {
       {repayTarget && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:380 }}>
-            <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{repayTarget.paymentRejectReason ? '重新填寫繳費資訊' : '填寫轉帳資訊'}</div>
+            <div style={{ fontWeight:600, fontSize:15, marginBottom:4 }}>{repayTarget.paymentRejectReason ? t('重新填寫繳費資訊') : t('填寫轉帳資訊')}</div>
             <div style={{ fontSize:12, color:'#666', marginBottom:10 }}>{repayTarget.competitionName}・NT${repayTarget.registrationFee}</div>
             {repayTarget.paymentRejectReason && (
               <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#A32D2D', marginBottom:12, textAlign:'left' }}>
-                退回原因:{repayTarget.paymentRejectReason}
+                {t('退回原因:')}{repayTarget.paymentRejectReason}
               </div>
             )}
             <PaymentSection
@@ -1207,10 +1207,10 @@ export default function MemberCompetitionsPage() {
             />
             {repayErr && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:10 }}>{repayErr}</div>}
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={()=>setRepayTarget(null)} style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+              <button onClick={()=>setRepayTarget(null)} style={{ flex:1, height:42, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={submitRepay} disabled={repaySaving}
                 style={{ flex:2, height:42, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-                {repaySaving ? '送出中…' : '送出'}
+                {repaySaving ? t('送出中…') : t('送出')}
               </button>
             </div>
           </div>
