@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t, tt } from '../../utils/memberI18n';
+import { t, tt, isEn } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -111,6 +111,14 @@ function FullContractTermsBox({ course, text }) {
 }
 
 const WEEKDAYS = ['日','一','二','三','四','五','六'];
+const WD_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const WD_JA = ['日','月','火','水','木','金','土'];
+// 單一星期幾（例：週四 / Thu / 木）——傳入 0-6 的 index
+const wdShort = (idx) => tt(WEEKDAYS[idx], WD_EN[idx], WD_JA[idx]);
+// 從日期算單一星期幾，供「（週四）」這類括號附註使用
+const wdOf = (dateLike) => wdShort(dayjs(dateLike).day());
+// 多個星期幾的清單，供「每週一、三、五」這類重複班表使用
+const wdList = (days) => (days || []).map(wdShort).join(isEn() ? ', ' : '、');
 
 export default function MemberCoursesPage() {
   const { member } = useMember();
@@ -1280,7 +1288,7 @@ export default function MemberCoursesPage() {
               {[{id:'',label:'全部館別'},{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g => (
                 <button key={g.id} onClick={() => { setBrowseGymId(g.id); setSelectedCategory(null); }}
                   style={{ height:34, padding:'0 14px', borderRadius:20, border:`1.5px solid ${browseGymId===g.id?'#8B1A1A':'#E8D5D5'}`, background:browseGymId===g.id?'#8B1A1A':'#fff', color:browseGymId===g.id?'#fff':'#666', fontSize:12, fontWeight:browseGymId===g.id?600:400, cursor:'pointer' }}>
-                  {g.label}
+                  {t(g.label)}
                 </button>
               ))}
             </div>
@@ -1295,7 +1303,7 @@ export default function MemberCoursesPage() {
                 .filter(c => c.hasFutureSession !== false);
               if (list.length === 0) return (
                 <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-                  {browseGymId ? '此館目前沒有開放報名的課程' : '目前沒有開放報名的課程'}
+                  {browseGymId ? t('此館目前沒有開放報名的課程') : t('目前沒有開放報名的課程')}
                 </div>
               );
               const groups = {};
@@ -1307,8 +1315,8 @@ export default function MemberCoursesPage() {
                 const cohorts = groups[selectedCategory] || [];
                 if (cohorts.length === 0) return (
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center', color:'#999', fontSize:13 }}>
-                    此類別目前沒有開放報名的梯次
-                    <div><button onClick={() => setSelectedCategory(null)} style={{ marginTop:12, background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>← 返回類別</button></div>
+                    {t('此類別目前沒有開放報名的梯次')}
+                    <div><button onClick={() => setSelectedCategory(null)} style={{ marginTop:12, background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer' }}>{t('← 返回類別')}</button></div>
                   </div>
                 );
                 // 梯次排序：週一→週日（週日排最後），同日再依開始時間
@@ -1321,8 +1329,8 @@ export default function MemberCoursesPage() {
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
                       <button onClick={() => setSelectedCategory(null)}
                         style={{ background:'none', border:'none', fontSize:20, color:'#8B1A1A', cursor:'pointer' }}>←</button>
-                      <div style={{ fontWeight:700, fontSize:16 }}>{(() => { const ids = [...new Set(cohorts.map(c => c.gymId))]; return ids.length === 1 ? gymPrefix(ids[0]) : ''; })()}{selectedCategory}</div>
-                      <span style={{ fontSize:12, color:'#999' }}>{cohorts.length} 梯</span>
+                      <div style={{ fontWeight:700, fontSize:16 }}>{(() => { const ids = [...new Set(cohorts.map(c => c.gymId))]; return ids.length === 1 ? gymPrefix(ids[0]) : ''; })()}{selectedCategory === '其他' ? t('其他') : selectedCategory}</div>
+                      <span style={{ fontSize:12, color:'#999' }}>{tt(`${cohorts.length} 梯`, `${cohorts.length} sessions`, `${cohorts.length} 期`)}</span>
                     </div>
                     {/* 先看到圖片＋課程說明，再看各梯資訊 */}
                     {(catPoster || catDesc) && (
@@ -1348,13 +1356,13 @@ export default function MemberCoursesPage() {
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                             <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(c.gymId)}{c.name}</div>
                             {isFull
-                              ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E0E0', color:'#8B1A1A' }}>額滿</span>
-                              : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>尚有名額</span>}
+                              ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E0E0', color:'#8B1A1A' }}>{t('額滿')}</span>
+                              : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>{t('尚有名額')}</span>}
                           </div>
                           <div style={{ fontSize:12, color:'#777', lineHeight:1.7 }}>
-                            {c.type !== 'workshop' && <div>🗓 每週{c.weekdays?.map(d => WEEKDAYS[d]).join('、')} {c.startTime}～{c.endTime}</div>}
+                            {c.type !== 'workshop' && <div>🗓 {tt('每週','Every ','毎週')}{wdList(c.weekdays)} {c.startTime}～{c.endTime}</div>}
                             <div>📅 {c.startDate} ～ {c.endDate}</div>
-                            <div>👟 教練：{c.instructor || '—'}</div>
+                            <div>👟 {t('教練')}：{c.instructor || '—'}</div>
                           </div>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:8 }}>
                             <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
@@ -1362,7 +1370,7 @@ export default function MemberCoursesPage() {
                             </div>
                             <div style={{ display:'flex', gap:6 }}>
                               <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
-                                {c.type === 'weekly' ? '週課' : '工作坊'}
+                                {c.type === 'weekly' ? t('週課') : t('工作坊')}
                               </span>
                               {c.installment?.enabled && (
                                 <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
@@ -1399,7 +1407,7 @@ export default function MemberCoursesPage() {
                     <div style={{ padding:16 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                       <div style={{ fontWeight:700, fontSize:16 }}>{catPrefix}{gname}</div>
-                      <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{single ? '報名 ›' : `${g.length} 梯 ›`}</span>
+                      <span style={{ fontSize:12, color:'#8B1A1A', fontWeight:600 }}>{single ? t('報名 ›') : tt(`${g.length} 梯 ›`, `${g.length} sessions ›`, `${g.length} 期 ›`)}</span>
                     </div>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
@@ -1407,7 +1415,7 @@ export default function MemberCoursesPage() {
                       </div>
                       <div style={{ display:'flex', gap:6 }}>
                         <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>
-                          {g[0].type === 'weekly' ? '週課' : '工作坊'}
+                          {g[0].type === 'weekly' ? t('週課') : t('工作坊')}
                         </span>
                         {anyInstallment && (
                           <span style={{ fontSize:10, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>可分期</span>
@@ -1416,7 +1424,7 @@ export default function MemberCoursesPage() {
                     </div>
                     {single && g[0].type !== 'workshop' && (
                       <div style={{ fontSize:12, color:'#999', marginTop:6 }}>
-                        每週{g[0].weekdays?.map(d => WEEKDAYS[d]).join('、')} {g[0].startTime}～{g[0].endTime} · {g[0].startDate} 起
+                        {tt('每週','Every ','毎週')}{wdList(g[0].weekdays)} {g[0].startTime}～{g[0].endTime} · {tt(`${g[0].startDate} 起`, `From ${g[0].startDate}`, `${g[0].startDate}〜`)}
                       </div>
                     )}
                     </div>
@@ -1425,7 +1433,7 @@ export default function MemberCoursesPage() {
               };
               return GROUP_ORDER.filter(gk => byGroup[gk]?.length).map(gk => (
                 <div key={gk} style={{ marginBottom:18 }}>
-                  <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', margin:'0 0 8px 2px', textAlign:'left' }}>{GROUP_LABEL[gk]}</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', margin:'0 0 8px 2px', textAlign:'left' }}>{t(GROUP_LABEL[gk])}</div>
                   {byGroup[gk].map(gname => renderCatCard(gname))}
                 </div>
               ));
@@ -1455,16 +1463,16 @@ export default function MemberCoursesPage() {
                 return (
                   <div style={{ margin:'12px 14px 0', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:10, padding:'10px 12px', fontSize:12.5, color:'#8A5A00', lineHeight:1.7, textAlign:'left' }}>
                     {openNotice && (
-                      <div>⏰ {ao && _t < ao ? `本課程 ${ao} 起開放「舊生續報」、${eo} 全面開放報名。`
-                         : ao ? `目前為舊生續報期間（同班別在籍或上一期學員可先報名）；${eo} 起全面開放。`
-                         : `本課程 ${eo} 開放報名。`}</div>
+                      <div>⏰ {ao && _t < ao ? tt(`本課程 ${ao} 起開放「舊生續報」、${eo} 全面開放報名。`, `Renewal for returning students opens ${ao}; open to everyone from ${eo}.`, `本コースは${ao}より「既存生継続」を受付開始、${eo}より一般募集を開始します。`)
+                         : ao ? tt(`目前為舊生續報期間（同班別在籍或上一期學員可先報名）；${eo} 起全面開放。`, `Currently in the returning-student renewal period (students enrolled in this class or the previous term may register first); open to everyone from ${eo}.`, `現在は既存生継続期間です（同クラス在籍または前期の受講者が優先登録できます）。${eo}より一般募集を開始します。`)
+                         : tt(`本課程 ${eo} 開放報名。`, `Registration for this course opens ${eo}.`, `本コースは${eo}より登録受付開始します。`)}</div>
                     )}
                     {renewalActive && (
-                      <div>🎁 續報優惠：
-                        {cdOn ? `前一期整期學員（續報）${Math.round(cdRate*10)}折` : ''}
-                        {cdOn && pdOn ? '、' : ''}
-                        {pdOn ? `舊生（曾報名/插班）${Math.round(pdRate*100)}折` : ''}
-                        {rdl ? `（${rdl} 止，系統自動折抵）` : '（系統自動折抵）'}
+                      <div>🎁 {t('續報優惠：')}
+                        {cdOn ? tt(`前一期整期學員（續報）${Math.round(cdRate*10)}折`, `Returning full-term students (renewal): ${Math.round(cdRate*100)}% of original price`, `前期通期受講者（継続）：元料金の${Math.round(cdRate*100)}%`) : ''}
+                        {cdOn && pdOn ? (isEn() ? ', ' : '、') : ''}
+                        {pdOn ? tt(`舊生（曾報名/插班）${Math.round(pdRate*100)}折`, `Alumni (previously enrolled or joined mid-term): ${Math.round(pdRate*100)}% of original price`, `既存生（受講歴あり・途中参加含む）：元料金の${Math.round(pdRate*100)}%`) : ''}
+                        {rdl ? tt(`（${rdl} 止，系統自動折抵）`, ` (through ${rdl}, applied automatically)`, `（${rdl}まで、自動適用）`) : t('（系統自動折抵）')}
                       </div>
                     )}
                   </div>
@@ -1478,11 +1486,11 @@ export default function MemberCoursesPage() {
                 <div style={{ padding:14 }}>
                   <div style={{ fontSize:12, color:'#666' }}>
                     {selectedCourse.startDate} ～ {selectedCourse.endDate}
-                    {selectedCourse.instructor && ` · 教練：${selectedCourse.instructor}`}
+                    {selectedCourse.instructor && tt(` · 教練：${selectedCourse.instructor}`, ` · Coach: ${selectedCourse.instructor}`, ` · コーチ：${selectedCourse.instructor}`)}
                   </div>
                   {selectedCourse.type !== 'workshop' && (
                   <div style={{ fontSize:13, color:'#999', marginTop:4 }}>
-                    每週{selectedCourse.weekdays?.map(d => WEEKDAYS[d]).join('、')} {selectedCourse.startTime}～{selectedCourse.endTime}
+                    {tt('每週','Every ','毎週')}{wdList(selectedCourse.weekdays)} {selectedCourse.startTime}～{selectedCourse.endTime}
                   </div>
                   )}
                 </div>
@@ -1514,21 +1522,22 @@ export default function MemberCoursesPage() {
                 const eo = selectedCourse.enrollOpenDate, ao = selectedCourse.alumniOpenDate;
                 const alumniWindowOk = !!(ao && today >= ao && quote?.alumni?.isAlumni);
                 const enrollOpenNow = !eo || today >= eo || alumniWindowOk;
+                const _tgtName = enrollTarget?.name || t('此對象');
                 const openBlockMsg = !enrollOpenNow
-                  ? (ao && today < ao ? `此課程 ${ao} 起開放「舊生續報」、${eo} 全面開放報名——${enrollTarget?.name || '此對象'}非本班別舊生`
-                     : ao ? `目前為舊生續報期間（${eo} 全面開放）；${enrollTarget?.name || '此對象'}非本班別舊生，請於開放日後報名`
-                     : `此課程 ${eo} 開放報名`)
+                  ? (ao && today < ao ? tt(`此課程 ${ao} 起開放「舊生續報」、${eo} 全面開放報名——${_tgtName}非本班別舊生`, `This course opens renewal for returning students on ${ao}, and to everyone on ${eo} — ${_tgtName} is not an alumnus of this class.`, `本コースは${ao}より「既存生継続」を受付開始、${eo}より一般募集を開始します——${_tgtName}は本クラスの既存生ではありません`)
+                     : ao ? tt(`目前為舊生續報期間（${eo} 全面開放）；${_tgtName}非本班別舊生，請於開放日後報名`, `Currently in the returning-student renewal period (open to everyone from ${eo}); ${_tgtName} is not an alumnus of this class — please register after the general opening date.`, `現在は既存生継続期間です（${eo}より一般募集開始）。${_tgtName}は本クラスの既存生ではないため、一般募集開始後にご登録ください`)
+                     : tt(`此課程 ${eo} 開放報名`, `Registration for this course opens ${eo}`, `本コースは${eo}より登録受付開始します`))
                   : '';
 
                 return (
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                     {familyMembers.length > 0 && (
                       <div style={{ marginBottom:14 }}>
-                        <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>為誰報名</div>
+                        <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>{t('為誰報名')}</div>
                         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                           <button onClick={()=>setEnrollForMemberId(null)}
                             style={{ padding:'6px 14px', borderRadius:20, border:`1.5px solid ${!enrollForMemberId?'#8B1A1A':'#E8D5D5'}`, background:!enrollForMemberId?'#FBF5F5':'#fff', color:!enrollForMemberId?'#8B1A1A':'#666', fontSize:12, cursor:'pointer', fontWeight:!enrollForMemberId?600:400 }}>
-                            👤 {member?.name}（本人）
+                            👤 {member?.name}{t('（本人）')}
                           </button>
                           {familyMembers.map(c=>(
                             <button key={c.id} onClick={()=>setEnrollForMemberId(c.id)}
@@ -1541,7 +1550,7 @@ export default function MemberCoursesPage() {
                     )}
                     {youthAgeBlocked && !alreadyEnrolled && (
                       <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#B3261E', lineHeight:1.7, textAlign:'left' }}>
-                        ⚠️ 此課程限未滿 18 歲學員報名。{enrollTarget?.name || '目前選定的報名對象'} 不符資格，請確認上方「為誰報名」是否已切換成正確的子女帳號。
+                        ⚠️ {tt(`此課程限未滿 18 歲學員報名。${enrollTarget?.name || t('目前選定的報名對象')} 不符資格，請確認上方「為誰報名」是否已切換成正確的子女帳號。`, `This course is limited to students under 18. ${enrollTarget?.name || 'The currently selected registrant'} does not qualify — please check the "Register For" section above and make sure you've switched to the correct child's account.`, `このコースは18歳未満限定です。${enrollTarget?.name || '現在選択中の登録対象'}は対象外です。上記「登録対象」で正しいお子様のアカウントに切り替えているかご確認ください。`)}
                       </div>
                     )}
                     {feeReady && !enrollOpenNow && !alreadyEnrolled && (
@@ -1550,68 +1559,68 @@ export default function MemberCoursesPage() {
                       </div>
                     )}
                     <div style={{ fontSize:13, color:'#666', marginBottom:12 }}>
-                      共 {totalCount} 堂 · 已開始 {completedCount} 堂 · 剩餘 {remainingCount} 堂
+                      {tt(`共 ${totalCount} 堂 · 已開始 ${completedCount} 堂 · 剩餘 ${remainingCount} 堂`, `${totalCount} classes total · ${completedCount} already started · ${remainingCount} remaining`, `全${totalCount}回・開始済み${completedCount}回・残り${remainingCount}回`)}
                     </div>
                     {isCourseFull && !alreadyEnrolled && (
                       <div style={{ background:'#F3E0E0', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#8B1A1A', lineHeight:1.7, textAlign:'left' }}>
-                        ⚠️ 此班正取已額滿。報名將加入<b>候補名單</b>，<b>候補期間不需付款</b>；待有名額遞補為正取後，我們會另行通知您繳費。
+                        ⚠️ {tt('此班正取已額滿。報名將加入', 'This class is full. Registering will add you to the ', 'このクラスは満員です。登録すると')}<b>{t('候補名單')}</b>{tt('，', ' — ', 'に登録され、')}<b>{t('候補期間不需付款')}</b>{tt('；待有名額遞補為正取後，我們會另行通知您繳費。', '. No payment is needed while waitlisted; we will notify you once a spot opens up.', '。キャンセル待ち中はお支払い不要です。空きが出ましたら別途お支払いのご連絡をいたします。')}
                       </div>
                     )}
                     {/* 完整計費明細：原價 → 插班比例 → 續報/舊生折抵 → 隊員九折 → 應繳（金額全依後端權威 quote，與實收一致） */}
                     {feeReady && (isLateJoin || renewalDiscount > 0 || teamDiscount > 0) && (
                       <div style={{ background:'#FAFAFA', border:'0.5px solid #EEE', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#444', textAlign:'left' }}>
-                        <div style={{ fontWeight:600, color:'#666', marginBottom:6 }}>計費明細</div>
+                        <div style={{ fontWeight:600, color:'#666', marginBottom:6 }}>{t('計費明細')}</div>
                         <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0' }}>
-                          <span>原價（單期全額）</span>
+                          <span>{t('原價（單期全額）')}</span>
                           <span style={{ fontFamily:'monospace' }}>NT${(quote?.price || 0).toLocaleString()}</span>
                         </div>
                         {isLateJoin && (
                           <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0' }}>
-                            <span>插班計費（剩 {remainingCount}/{totalCount} 堂）</span>
+                            <span>{tt(`插班計費（剩 ${remainingCount}/${totalCount} 堂）`, `Mid-term joining (${remainingCount}/${totalCount} classes remaining)`, `途中参加料金（残り${remainingCount}/${totalCount}回）`)}</span>
                             <span style={{ fontFamily:'monospace' }}>NT${baseFee.toLocaleString()}</span>
                           </div>
                         )}
                         {renewalDiscount > 0 && (
                           <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0', color:'#2D7D46' }}>
-                            <span>🎁 {quote?.renewalDiscountType === 'full_term_renewal' ? '續報優惠' : '舊生優惠'}</span>
+                            <span>🎁 {quote?.renewalDiscountType === 'full_term_renewal' ? t('續報優惠') : t('舊生優惠')}</span>
                             <span style={{ fontFamily:'monospace' }}>− NT${renewalDiscount.toLocaleString()}</span>
                           </div>
                         )}
                         {teamDiscount > 0 && (
                           <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0', color:'#2D7D46' }}>
-                            <span>🏔️ 隊員九折</span>
+                            <span>🏔️ {t('隊員九折')}</span>
                             <span style={{ fontFamily:'monospace' }}>− NT${teamDiscount.toLocaleString()}</span>
                           </div>
                         )}
                         <div style={{ borderTop:'0.5px solid #E0E0E0', marginTop:6, paddingTop:6, display:'flex', justifyContent:'space-between', fontWeight:700, color:'#8B1A1A' }}>
-                          <span>應繳</span>
+                          <span>{t('應繳')}</span>
                           <span style={{ fontFamily:'monospace' }}>NT${fee.toLocaleString()}</span>
                         </div>
                         {instPeriods && (
-                          <div style={{ fontSize:11, color:'#999', textAlign:'right', marginTop:2 }}>此課程提供分期付款・共 {instPeriods.length} 期</div>
+                          <div style={{ fontSize:11, color:'#999', textAlign:'right', marginTop:2 }}>{tt(`此課程提供分期付款・共 ${instPeriods.length} 期`, `This course offers installment payment · ${instPeriods.length} payments`, `本コースは分割払い対応・全${instPeriods.length}回`)}</div>
                         )}
                       </div>
                     )}
                     {feeReady && isLateJoin && !alreadyEnrolled && (
                       <div style={{ background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:8, padding:'10px 12px', marginBottom:12, fontSize:12.5, color:'#8A5A00', lineHeight:1.7, textAlign:'left' }}>
-                        ⚠️ 插班報名可請假次數會依據報名堂數調整，以館方計算結果為準。
+                        ⚠️ {t('插班報名可請假次數會依據報名堂數調整，以館方計算結果為準。')}
                       </div>
                     )}
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                       <div style={{ fontSize:20, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>
                         {quoteError ? (
-                          <span style={{ fontSize:13, color:'#A32D2D', fontFamily:'inherit' }}>費用計算失敗</span>
+                          <span style={{ fontSize:13, color:'#A32D2D', fontFamily:'inherit' }}>{t('費用計算失敗')}</span>
                         ) : !feeReady ? (
-                          <span style={{ fontSize:14, color:'#999', fontFamily:'inherit' }}>費用計算中…</span>
+                          <span style={{ fontSize:14, color:'#999', fontFamily:'inherit' }}>{t('費用計算中…')}</span>
                         ) : (<>
-                          <span style={{ fontSize:13, color:'#666', fontFamily:'inherit', fontWeight:600, marginRight:8 }}>應繳</span>
+                          <span style={{ fontSize:13, color:'#666', fontFamily:'inherit', fontWeight:600, marginRight:8 }}>{t('應繳')}</span>
                           NT${fee.toLocaleString()}
-                          {isCourseFull && <span style={{ fontSize:12, color:'#999', fontFamily:'inherit', marginLeft:8 }}>（遞補後收費）</span>}
+                          {isCourseFull && <span style={{ fontSize:12, color:'#999', fontFamily:'inherit', marginLeft:8 }}>{t('（遞補後收費）')}</span>}
                         </>)}
                       </div>
                       {feeReady && teamDiscount > 0 && (
                         <span style={{ fontSize:10, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FAEEDA', color:'#854F0B' }}>
-                          🏔️ 隊員九折
+                          🏔️ {t('隊員九折')}
                         </span>
                       )}
                     </div>
@@ -1620,16 +1629,16 @@ export default function MemberCoursesPage() {
                         {quoteError}
                         <button onClick={() => setQuoteRetryKey(k => k + 1)}
                           style={{ display:'block', marginTop:6, background:'#fff', border:'0.5px solid #E8B5B5', borderRadius:6, padding:'4px 10px', fontSize:12, color:'#A32D2D', cursor:'pointer' }}>
-                          重新整理費用
+                          {t('重新整理費用')}
                         </button>
                       </div>
                     )}
                     {feeReady && instPeriods && !isCourseFull && (
-                      <div style={{ fontSize:11, color:'#999', marginBottom:12, marginTop:-8 }}>此課程提供分期付款・共 {instPeriods.length} 期</div>
+                      <div style={{ fontSize:11, color:'#999', marginBottom:12, marginTop:-8 }}>{tt(`此課程提供分期付款・共 ${instPeriods.length} 期`, `This course offers installment payment · ${instPeriods.length} payments`, `本コースは分割払い対応・全${instPeriods.length}回`)}</div>
                     )}
                     {alreadyEnrolled ? (
                       <div style={{ textAlign:'center', padding:'10px 0', color:'#2D7D46', fontWeight:600, fontSize:14 }}>
-                        ✓ 已報名此課程
+                        ✓ {t('已報名此課程')}
                       </div>
                     ) : (
                       <button disabled={!feeReady || !enrollOpenNow || youthAgeBlocked} onClick={() => {
@@ -1640,7 +1649,7 @@ export default function MemberCoursesPage() {
                         setShowEnrollModal(true);
                       }}
                         style={{ width:'100%', height:44, borderRadius:10, background: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'#ccc':(isCourseFull?'#B5651D':'#8B1A1A'), color:'#fff', border:'none', fontSize:15, fontWeight:500, cursor: (!feeReady || !enrollOpenNow || youthAgeBlocked)?'not-allowed':'pointer' }}>
-                        {quoteError ? '費用計算失敗' : !feeReady ? '費用計算中…' : youthAgeBlocked ? '報名對象不符資格' : !enrollOpenNow ? '尚未開放報名' : (isCourseFull ? '加入候補名單' : '報名課程')}
+                        {quoteError ? t('費用計算失敗') : !feeReady ? t('費用計算中…') : youthAgeBlocked ? t('報名對象不符資格') : !enrollOpenNow ? t('尚未開放報名') : (isCourseFull ? t('加入候補名單') : t('報名課程'))}
                       </button>
                     )}
                   </div>
@@ -1659,7 +1668,7 @@ export default function MemberCoursesPage() {
                 return (
                   <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16, marginTop:12 }}>
                     <div style={{ fontSize:13, fontWeight:600, color:'#666', marginBottom:10, textAlign:'left' }}>
-                      📅 此梯次上課場次（共 {activeCount} 堂）
+                      📅 {tt(`此梯次上課場次（共 ${activeCount} 堂）`, `Sessions for this term (${activeCount} classes total)`, `本期の受講回（全${activeCount}回）`)}
                     </div>
                     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
                       {cohortSessions.map(s => {
@@ -1668,12 +1677,12 @@ export default function MemberCoursesPage() {
                         return (
                           <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', borderRadius:8, background: isCancelled ? '#FBFBFB' : (isPast ? '#F5F5F5' : '#FBF5F5'), opacity: (isPast && !isCancelled) ? 0.6 : 1 }}>
                             <div style={{ fontSize:13, color: isCancelled ? '#999' : '#1a1a1a', textAlign:'left' }}>
-                              {dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}） {s.startTime}～{s.endTime}
+                              {dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}） {s.startTime}～{s.endTime}
                               {!isCancelled && s.instructor && <span style={{ color:'#999', marginLeft:6 }}>· {s.instructor}</span>}
                             </div>
                             {isCancelled
-                              ? <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 7px', borderRadius:8, flexShrink:0 }}>停課</span>
-                              : (isPast && <span style={{ fontSize:11, color:'#999', flexShrink:0 }}>已上課</span>)}
+                              ? <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 7px', borderRadius:8, flexShrink:0 }}>{t('停課')}</span>
+                              : (isPast && <span style={{ fontSize:11, color:'#999', flexShrink:0 }}>{t('已上課')}</span>)}
                           </div>
                         );
                       })}
@@ -1706,7 +1715,7 @@ export default function MemberCoursesPage() {
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div>
                         <div style={{ fontWeight:600, fontSize:14 }}>
-                          {dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）
+                          {dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）
                         </div>
                         <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                           {s.startTime}～{s.endTime}{s.instructor && ` · ${s.instructor}`}
@@ -1768,7 +1777,7 @@ export default function MemberCoursesPage() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                         <div>
                           <div style={{ fontWeight: 600, fontSize: 14 }}>{gymPrefix(b.gymId)}{b.courseName}</div>
-                          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{dayjs(b.bookingDate).format('YYYY/MM/DD')}（{WEEKDAYS[dayjs(b.bookingDate).day()]}）{b.bookingTime}</div>
+                          <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{dayjs(b.bookingDate).format('YYYY/MM/DD')}（{wdOf(b.bookingDate)}）{b.bookingTime}</div>
                         </div>
                         <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0 }}>{sl.text}</span>
                       </div>
@@ -1863,7 +1872,7 @@ export default function MemberCoursesPage() {
                 {sess.map(sx => (
                   <div key={sx.id} style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
-                      <div style={{ fontSize:14, fontWeight:600 }}>{dayjs(sx.date).format('MM/DD')}（{WEEKDAYS[dayjs(sx.date).day()]}）{sx.startTime}～{sx.endTime}</div>
+                      <div style={{ fontSize:14, fontWeight:600 }}>{dayjs(sx.date).format('MM/DD')}（{wdOf(sx.date)}）{sx.startTime}～{sx.endTime}</div>
                       <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{sx.instructor?`教練 ${sx.instructor} · `:''}試上費 NT${(sx.trialPrice||0).toLocaleString()}{sx.isFull?' · 額滿可候補':` · 剩 ${sx.remaining}`}</div>
                     </div>
                     <button onClick={() => { setTrialModal(sx); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' }); }}
@@ -1972,7 +1981,7 @@ export default function MemberCoursesPage() {
             </div>
             <div style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:14, fontSize:13 }}>
               <div style={{ fontWeight:600 }}>{gymPrefix(trialModal.gymId)}{trialModal.courseName}</div>
-              <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{WEEKDAYS[dayjs(trialModal.date).day()]}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?` · 教練 ${trialModal.instructor}`:''}</div>
+              <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{wdOf(trialModal.date)}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?` · 教練 ${trialModal.instructor}`:''}</div>
               <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>試上費 NT${(trialModal.trialPrice||0).toLocaleString()}</div>
             </div>
             {familyMembers.length > 0 && (
@@ -2107,7 +2116,7 @@ export default function MemberCoursesPage() {
                   });
                   return (
                     <div>
-                      <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{dayjs(calendarSelectedDate).format('MM月DD日')}（{WEEKDAYS[dayjs(calendarSelectedDate).day()]}）</div>
+                      <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{dayjs(calendarSelectedDate).format('MM月DD日')}（{wdOf(calendarSelectedDate)}）</div>
                       {experiencesForDate(calendarSelectedDate).map(b => (
                         <div key={b.id} style={{ background:'#E6F1FB', borderRadius:12, border:'0.5px solid #B5D4F4', padding:12, marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                           <div>
@@ -2158,7 +2167,7 @@ export default function MemberCoursesPage() {
                               <div style={{ marginTop:10, paddingTop:10, borderTop:'0.5px solid #F5EFEF' }}>
                                 {group.sessions.sort((a,b) => a.date.localeCompare(b.date) || (a.startTime||'').localeCompare(b.startTime||'')).map(s => (
                                   <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, padding:'7px 0', fontSize:12, borderBottom:'0.5px solid #FBF5F5' }}>
-                                    <span>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}
+                                    <span>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}
                                       {s.isMakeup && <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>補課</span>}
                                     </span>
                                     {s.instructor && (
@@ -2496,7 +2505,7 @@ export default function MemberCoursesPage() {
                     <div style={{ background:'#FBF5F5', borderRadius:8, padding:'8px 12px', marginBottom:10 }}>
                       <div style={{ fontSize:11, color:'#999', marginBottom:3 }}>下一堂</div>
                       <div style={{ fontSize:13, fontWeight:500 }}>
-                        {dayjs(next.date).format('MM/DD')}（{WEEKDAYS[dayjs(next.date).day()]}）{next.startTime}～{next.endTime}
+                        {dayjs(next.date).format('MM/DD')}（{wdOf(next.date)}）{next.startTime}～{next.endTime}
                       </div>
                     </div>
                   )}
@@ -2510,7 +2519,7 @@ export default function MemberCoursesPage() {
                             const a = attendedLabel(s);
                             return (
                               <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
-                                <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
+                                <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}</span>
                                 <span style={{ fontSize:10, fontWeight:600, color:a.color, background:a.bg, padding:'2px 7px', borderRadius:8 }}>{a.text}</span>
                               </div>
                             );
@@ -2523,7 +2532,7 @@ export default function MemberCoursesPage() {
                           <div style={{ fontSize:11, color:'#999', fontWeight:600, marginBottom:6 }}>停課</div>
                           {closureCancelled.sort((a,b) => b.date.localeCompare(a.date)).map(s => (
                             <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
-                              <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
+                              <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}</span>
                               <span style={{ fontSize:10, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 7px', borderRadius:8 }}>停課</span>
                             </div>
                           ))}
@@ -2537,7 +2546,7 @@ export default function MemberCoursesPage() {
                             const notStarted = s.date >= dayjs().format('YYYY-MM-DD'); // 課未開始才可取消請假（後端權威再驗上課時間/名額）
                             return (
                             <div key={s.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4, gap:6, flexWrap:'wrap' }}>
-                              <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
+                              <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}</span>
                               <span style={{ display:'flex', alignItems:'center', gap:6 }}>
                                 <span style={{ fontSize:10, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'2px 7px', borderRadius:8 }}>請假{s.leaveReason ? `：${s.leaveReason}` : ''}</span>
                                 {notStarted && !refundFrozen && (
@@ -2557,7 +2566,7 @@ export default function MemberCoursesPage() {
                           {future.map(s => (
                             <div key={s.id} style={{ padding:'7px 10px', background:'#FBFBFB', borderRadius:6, marginBottom:4 }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                                <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）{s.startTime}～{s.endTime}</span>
+                                <span style={{ fontSize:12 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）{s.startTime}～{s.endTime}</span>
                                 {s.isMakeup ? (
                                   <span style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                                     <span style={{ fontSize:10, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 7px', borderRadius:8 }}>補課</span>
@@ -2687,7 +2696,7 @@ export default function MemberCoursesPage() {
               <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 12px', marginBottom:14 }}>
                 <div style={{ fontSize:12, color:'#666' }}>
                   {enrollForMemberId ? `報名人：${familyMembers.find(c=>c.id===enrollForMemberId)?.name} ｜ ` : ''}
-                  {dayjs(enrollSession.date).format('MM/DD')}（{WEEKDAYS[dayjs(enrollSession.date).day()]}）{enrollSession.startTime && enrollSession.endTime ? ` ${enrollSession.startTime}～${enrollSession.endTime}` : ''}
+                  {dayjs(enrollSession.date).format('MM/DD')}（{wdOf(enrollSession.date)}）{enrollSession.startTime && enrollSession.endTime ? ` ${enrollSession.startTime}～${enrollSession.endTime}` : ''}
                 </div>
               </div>
               {enrollSession.isWaitlist ? (
@@ -2961,7 +2970,7 @@ export default function MemberCoursesPage() {
                 {appliedList.map(s => (
                   <div key={`ap_${s.id}`} style={{ background:'#F0F8F0', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
-                      <div style={{ fontWeight:500, fontSize:14 }}>{dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）</div>
+                      <div style={{ fontWeight:500, fontSize:14 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）</div>
                       <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{s.startTime}～{s.endTime} · {s.courseName}</div>
                     </div>
                     <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'3px 10px', borderRadius:8, flexShrink:0 }}>已申請補課</span>
@@ -2983,7 +2992,7 @@ export default function MemberCoursesPage() {
               <div key={s.id} style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', opacity: notStarted ? 0.6 : 1 }}>
                 <div>
                   <div style={{ fontWeight:500, fontSize:14 }}>
-                    {dayjs(s.date).format('MM/DD')}（{WEEKDAYS[dayjs(s.date).day()]}）
+                    {dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）
                   </div>
                   <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
                     {s.startTime}～{s.endTime} · {s.courseName}
