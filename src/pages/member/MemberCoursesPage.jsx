@@ -3021,20 +3021,20 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:400, maxHeight:'85vh', overflowY:'auto', boxSizing:'border-box' }}>
             <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>
-              {adjustModal.type === 'refund' ? '申請退費' : adjustModal.type === 'transfer' ? '申請轉讓' : '申請暫停課程'}
+              {adjustModal.type === 'refund' ? t('申請退費') : adjustModal.type === 'transfer' ? t('申請轉讓') : t('申請暫停課程')}
             </div>
             <div style={{ fontSize:13, color:'#999', marginBottom:16 }}>{adjustModal.courseName}</div>
             {adjustModal.type === 'pause' && (
               <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#8B6914' }}>
-                ⚠ 暫停期間將移除課程學員入場資格，恢復後由管理員重新加回
+                ⚠ {t('暫停期間將移除課程學員入場資格，恢復後由管理員重新加回')}
               </div>
             )}
             {adjustModal.type === 'transfer' && (
               <div style={{ background:'#EAF2FB', border:'0.5px solid #B7D3EF', borderRadius:8, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#185FA5', textAlign:'left' }}>
-                ⚠ 轉讓費 NT$600（現場另行收取，不透過本申請扣款）；僅「尚未上課」的堂數會過戶給接收對象，已上過的堂維持原紀錄。
+                ⚠ {t('轉讓費 NT$600（現場另行收取，不透過本申請扣款）；僅「尚未上課」的堂數會過戶給接收對象，已上過的堂維持原紀錄。')}
               </div>
             )}
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>事由 *</label>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('事由 *')}</label>
             <select value={adjustReasonKey} onChange={e => setAdjustReasonKey(e.target.value)}
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:10, background:'#fff', color:'#1a1a1a' }}>
               <option value="">請選擇事由</option>
@@ -3042,63 +3042,63 @@ export default function MemberCoursesPage() {
             </select>
             {adjustModal.type === 'transfer' && (
               <div style={{ marginBottom:14 }}>
-                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>接收對象電話 *</label>
-                <input value={transferPhone} onChange={e => setTransferPhone(e.target.value)} placeholder="請輸入對方手機號碼"
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('接收對象電話 *')}</label>
+                <input value={transferPhone} onChange={e => setTransferPhone(e.target.value)} placeholder={t('請輸入對方手機號碼')}
                   style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:8 }} />
                 {transferRecipients.length > 1 && (
                   <select value={transferPickId} onChange={e => setTransferPickId(e.target.value)}
                     style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', marginBottom:8 }}>
-                    {transferRecipients.map(r => (<option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? '（家庭成員）' : ''}</option>))}
+                    {transferRecipients.map(r => (<option key={r.id} value={r.id}>{r.name}{r.isChildAccount ? t('（家庭成員）') : ''}</option>))}
                   </select>
                 )}
                 {transferPhone.trim().length >= 7 && transferRecipients.length === 0 && (
-                  <div style={{ fontSize:12, color:'#A32D2D' }}>查無此電話對應的會員，請確認</div>
+                  <div style={{ fontSize:12, color:'#A32D2D' }}>{t('查無此電話對應的會員，請確認')}</div>
                 )}
                 {_pickedRecipient && (
-                  <div style={{ fontSize:12, color:'#2D7D46' }}>✓ 接收對象：{_pickedRecipient.name}</div>
+                  <div style={{ fontSize:12, color:'#2D7D46' }}>✓ {tt(`接收對象：${_pickedRecipient.name}`, `Recipient: ${_pickedRecipient.name}`, `受取人：${_pickedRecipient.name}`)}</div>
                 )}
                 {_youthCourse && _pickedRecipient && !_pickedRecipient.isChildAccount && (
-                  <div style={{ fontSize:12, color:'#A32D2D', marginTop:4 }}>⚠ 此課程限未滿 18 歲學員，請確認接收對象是否符合資格（後端仍會權威覆核）</div>
+                  <div style={{ fontSize:12, color:'#A32D2D', marginTop:4 }}>⚠ {t('此課程限未滿 18 歲學員，請確認接收對象是否符合資格（後端仍會權威覆核）')}</div>
                 )}
               </div>
             )}
-            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>補充說明（選填）</label>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('補充說明（選填）')}</label>
             <textarea value={adjustReason} onChange={e => setAdjustReason(e.target.value)} rows={3}
-              placeholder="如有其他需說明事項請填寫"
+              placeholder={t('如有其他需說明事項請填寫')}
               style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 10px', fontSize:13, resize:'none', outline:'none', boxSizing:'border-box' }} />
             {adjustModal.type === 'refund' && (
               <div style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginTop:14 }}>
-                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>🏦 退款指定帳戶{adjustModal.paid ? '（必填）' : '（選填，若已付款請填寫）'}</div>
+                <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>🏦 {t('退款指定帳戶')}{adjustModal.paid ? t('（必填）') : t('（選填，若已付款請填寫）')}</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
                   <div>
-                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>銀行代碼{adjustModal.paid ? ' *' : ''}</label>
-                    <input value={refundBankCode} onChange={e => setRefundBankCode(e.target.value)} placeholder="如：812"
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('銀行代碼')}{adjustModal.paid ? ' *' : ''}</label>
+                    <input value={refundBankCode} onChange={e => setRefundBankCode(e.target.value)} placeholder={t('如：812')}
                       style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                   </div>
                   <div>
-                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>銀行名稱</label>
-                    <input value={refundBankName} onChange={e => setRefundBankName(e.target.value)} placeholder="如：台新銀行"
+                    <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('銀行名稱')}</label>
+                    <input value={refundBankName} onChange={e => setRefundBankName(e.target.value)} placeholder={t('如：台新銀行')}
                       style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                   </div>
                 </div>
                 <div style={{ marginBottom:8 }}>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>帳號{adjustModal.paid ? ' *' : ''}</label>
-                  <input value={refundAccount} onChange={e => setRefundAccount(e.target.value)} placeholder="請填寫完整帳號"
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('帳號')}{adjustModal.paid ? ' *' : ''}</label>
+                  <input value={refundAccount} onChange={e => setRefundAccount(e.target.value)} placeholder={t('請填寫完整帳號')}
                     style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                 </div>
                 <div>
-                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>戶名</label>
-                  <input value={refundAccountName} onChange={e => setRefundAccountName(e.target.value)} placeholder="請填寫帳戶戶名"
+                  <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>{t('戶名')}</label>
+                  <input value={refundAccountName} onChange={e => setRefundAccountName(e.target.value)} placeholder={t('請填寫帳戶戶名')}
                     style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
                 </div>
               </div>
             )}
             <div style={{ display:'flex', gap:10, marginTop:14 }}>
               <button onClick={() => { setAdjustModal(null); resetAdjustFields(); }}
-                style={{ flex:1, height:42, borderRadius:10, background:'#fff', color:'#666', border:'0.5px solid #E8D5D5', fontSize:14, cursor:'pointer' }}>取消</button>
+                style={{ flex:1, height:42, borderRadius:10, background:'#fff', color:'#666', border:'0.5px solid #E8D5D5', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={handleAdjustSubmit} disabled={adjustLoading}
                 style={{ flex:2, height:42, borderRadius:10, background: adjustModal.type === 'refund' ? '#A32D2D' : adjustModal.type === 'transfer' ? '#185FA5' : '#8B6914', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>
-                {adjustLoading ? '送出中...' : '送出申請'}
+                {adjustLoading ? t('送出中...') : t('送出申請')}
               </button>
             </div>
           </div>

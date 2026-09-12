@@ -1541,6 +1541,23 @@ const DICT_EN = {
   '可補課的場次': 'Available Makeup Sessions',
   '目前沒有可補課的場次': 'No makeup sessions currently available',
   '尚未開課': 'Not Yet Started',
+  // ── 課程頁 · 段8：退費/暫停/轉讓申請Modal ──
+  '申請暫停課程': 'Request Course Pause',
+  '暫停期間將移除課程學員入場資格，恢復後由管理員重新加回': 'During the pause, course-student entry eligibility will be removed and restored by an administrator when the pause ends',
+  '轉讓費 NT$600（現場另行收取，不透過本申請扣款）；僅「尚未上課」的堂數會過戶給接收對象，已上過的堂維持原紀錄。': 'A transfer fee of NT$600 applies (collected separately in person, not through this request); only classes "not yet attended" will be transferred to the recipient — classes already attended remain on the original record.',
+  '事由 *': 'Reason *',
+  '接收對象電話 *': 'Recipient\'s Phone Number *',
+  '請輸入對方手機號碼': 'Enter the recipient\'s mobile number',
+  '（家庭成員）': ' (Family Member)',
+  '查無此電話對應的會員，請確認': 'No member found for this phone number — please check and try again',
+  '此課程限未滿 18 歲學員，請確認接收對象是否符合資格（後端仍會權威覆核）': 'This course is limited to students under 18 — please confirm the recipient qualifies (this will also be verified server-side).',
+  '如有其他需說明事項請填寫': 'Please fill in any additional details here',
+  '退款指定帳戶': 'Designated Refund Account',
+  '（必填）': ' (Required)',
+  '（選填，若已付款請填寫）': ' (Optional, fill in if already paid)',
+  '銀行代碼': 'Bank Code',
+  '如：812': 'e.g. 812',
+  '帳號': 'Account Number',
 };
 
 const DICT_JA = {
@@ -3081,6 +3098,23 @@ const DICT_JA = {
   '可補課的場次': '補講可能な回',
   '目前沒有可補課的場次': '現在補講可能な回はありません',
   '尚未開課': '未開講',
+  // ── 課程頁 · 段8：退費/暫停/轉讓申請Modal ──
+  '申請暫停課程': 'コースの休止を申請',
+  '暫停期間將移除課程學員入場資格，恢復後由管理員重新加回': '休止期間中はコース学生の入館資格が解除され、休止解除後に管理者が再度付与します',
+  '轉讓費 NT$600（現場另行收取，不透過本申請扣款）；僅「尚未上課」的堂數會過戶給接收對象，已上過的堂維持原紀錄。': '譲渡手数料 NT$600（現地にて別途徴収、本申請での引き落としはありません）。「未受講」の回のみ譲渡先に移管され、受講済みの回は元の記録のまま残ります。',
+  '事由 *': '事由 *',
+  '接收對象電話 *': '譲渡先の電話番号 *',
+  '請輸入對方手機號碼': '相手の携帯電話番号を入力してください',
+  '（家庭成員）': '（家族）',
+  '查無此電話對應的會員，請確認': 'この電話番号に該当する会員が見つかりません。ご確認ください',
+  '此課程限未滿 18 歲學員，請確認接收對象是否符合資格（後端仍會權威覆核）': 'このコースは18歳未満限定です。譲渡先が条件を満たしているかご確認ください（サーバー側でも確認されます）',
+  '如有其他需說明事項請填寫': 'その他ご説明事項があればご記入ください',
+  '退款指定帳戶': '返金先口座',
+  '（必填）': '（必須）',
+  '（選填，若已付款請填寫）': '（任意、支払い済みの場合はご記入ください）',
+  '銀行代碼': '銀行コード',
+  '如：812': '例：812',
+  '帳號': '口座番号',
 };
 
 export const getMemberLang = () => {
