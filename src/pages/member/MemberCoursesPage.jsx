@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t } from '../../utils/memberI18n';
+import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -15,35 +15,35 @@ function LeaveMakeupRulesBox({ course }) {
   const _n = course?.ruleMaxLeaves ?? 2;
   const _h = course?.ruleLeaveDeadlineHours ?? 2;
   const _d = course?.ruleMakeupDeadlineDays ?? 60;
-  const _x = `${_d} 天`; // 一律顯示天數（30 天≠1 個月，曆月換算有歧義）
+  const _x = tt(`${_d} 天`, `${_d} days`, `${_d}日`); // 一律顯示天數（30 天≠1 個月，曆月換算有歧義）
   return (
     <div style={RULE_BOX_STYLE}>
-      <strong>1. 請假次數限制</strong><br/>
-      ・每期課程最多可請假 <strong>{_n}</strong> 次，超過次數則不予補課。<br/>
-      ・若遇特殊狀況（如受傷等不可抗因素），得另行申請展延。<br/>
-      ・若為中途插班，可請假補課次數則另行計算。<br/>
-      <strong>2. 請假時限</strong><br/>
-      ・請假最晚須於課前 <strong>{_h}</strong> 小時送出請假申請，否則視為自行放棄，不予補課。<br/>
-      <strong>3. 取消請假規則</strong><br/>
-      ・取消已送出的請假，可補課次數將重新計算。<br/>
-      ・若取消請假的該堂課名額已額滿（如已安排他人補課或試上），則無法取消請假。<br/>
-      ・注意：取消請假時，請先取消已預約的補課。<br/>
-      <strong>4. 補課安排與時限</strong><br/>
-      ・補課可安排至其他梯次，需自行提出申請。<br/>
-      ・補課請於課程結束後 <strong>{_x}</strong> 內完成，逾期視同放棄。
+      <strong>{t('1. 請假次數限制')}</strong><br/>
+      {tt('・每期課程最多可請假 ', '・You may take up to ', '・各期最大')}<strong>{_n}</strong>{tt(' 次，超過次數則不予補課。', ' leave(s) per term; makeup classes will not be granted beyond this limit.', '回まで欠席できます。上限を超えた分は補講の対象外となります。')}<br/>
+      {t('・若遇特殊狀況（如受傷等不可抗因素），得另行申請展延。')}<br/>
+      {t('・若為中途插班，可請假補課次數則另行計算。')}<br/>
+      <strong>{t('2. 請假時限')}</strong><br/>
+      {tt('・請假最晚須於課前 ', '・Leave requests must be submitted at least ', '・欠席の連絡は授業開始の')}<strong>{_h}</strong>{tt(' 小時送出請假申請，否則視為自行放棄，不予補課。', ' hours before class, otherwise it will be treated as a forfeited session with no makeup class.', '時間前までにお願いします。それ以降は自己都合による欠席とみなされ、補講の対象外となります。')}<br/>
+      <strong>{t('3. 取消請假規則')}</strong><br/>
+      {t('・取消已送出的請假，可補課次數將重新計算。')}<br/>
+      {t('・若取消請假的該堂課名額已額滿（如已安排他人補課或試上），則無法取消請假。')}<br/>
+      {t('・注意：取消請假時，請先取消已預約的補課。')}<br/>
+      <strong>{t('4. 補課安排與時限')}</strong><br/>
+      {t('・補課可安排至其他梯次，需自行提出申請。')}<br/>
+      {tt('・補課請於課程結束後 ', '・Makeup classes must be completed within ', '・補講は授業終了後')}<strong>{_x}</strong>{tt(' 內完成，逾期視同放棄。', ' of the course ending, otherwise the right will be forfeited.', '以内に完了してください。期限を過ぎた場合は権利を放棄したものとみなされます。')}
     </div>
   );
 }
 function ExtensionRefundApplicationBox() {
   return (
     <div style={RULE_BOX_STYLE}>
-      若遇以下事項可辦理展延或退費，須事先提出相關文件證明/釋明下列事由之一者：<br/>
-      1. 出國逾一個月。<br/>
-      2. 受傷、疾病或身體不適致不宜運動。<br/>
-      3. 懷孕、育嬰、侍親之需要。<br/>
-      4. 服兵役致難以履約。<br/>
-      5. 職務異動或遷居致難以履約。<br/>
-      6. 其他事由致難以履約。
+      {t('若遇以下事項可辦理展延或退費，須事先提出相關文件證明/釋明下列事由之一者：')}<br/>
+      {t('1. 出國逾一個月。')}<br/>
+      {t('2. 受傷、疾病或身體不適致不宜運動。')}<br/>
+      {t('3. 懷孕、育嬰、侍親之需要。')}<br/>
+      {t('4. 服兵役致難以履約。')}<br/>
+      {t('5. 職務異動或遷居致難以履約。')}<br/>
+      {t('6. 其他事由致難以履約。')}
     </div>
   );
 }
@@ -60,13 +60,13 @@ function RefundRulesBox({ course }) {
       .slice().sort((a, b) => b.daysBefore - a.daysBefore);
     return (
       <div style={RULE_BOX_STYLE}>
-        <strong>1. 退費方式</strong><br/>
-        ・工作坊為<strong>整筆退課</strong>（無法只取消其中一堂，一經申請即取消整個報名）。<br/>
-        ・依申請當下「距開課天數」決定退費比例，比例 × 已繳費用即為建議退費金額。<br/>
-        ・未透過系統收費之工作坊（費用另計，如直接支付予講師）無退費金額。<br/>
-        <strong>2. 退費比例級距</strong><br/>
-        {tiers.map((t, i) => (<span key={i}>・距開課 <strong>{t.daysBefore}</strong> 天以上：退 <strong>{Math.round(t.rate * 100)}%</strong><br/></span>))}
-        ・未達最低級距天數（含開課當天或之後）：不予退費
+        <strong>{t('1. 退費方式')}</strong><br/>
+        {tt('・工作坊為', '・Workshops use ', '・ワークショップは')}<strong>{tt('整筆退課', 'full-registration refunds', '全額返金')}</strong>{tt('（無法只取消其中一堂，一經申請即取消整個報名）。', ' (individual sessions cannot be cancelled separately; requesting a refund cancels the entire registration).', '方式です（一部のみのキャンセルはできません。申請すると登録全体が取り消されます）。')}<br/>
+        {t('・依申請當下「距開課天數」決定退費比例，比例 × 已繳費用即為建議退費金額。')}<br/>
+        {t('・未透過系統收費之工作坊（費用另計，如直接支付予講師）無退費金額。')}<br/>
+        <strong>{t('2. 退費比例級距')}</strong><br/>
+        {tiers.map((tier, i) => (<span key={i}>{tt('・距開課 ', '・', '・開講')}<strong>{tier.daysBefore}</strong>{tt(' 天以上：退 ', ' or more days before: refund ', '日以上前：返金')}<strong>{Math.round(tier.rate * 100)}%</strong><br/></span>))}
+        {t('・未達最低級距天數（含開課當天或之後）：不予退費')}
       </div>
     );
   }
@@ -75,18 +75,18 @@ function RefundRulesBox({ course }) {
   const _exFee = Math.round(6000 * _r / 100);
   return (
     <div style={RULE_BOX_STYLE}>
-      <strong>1. 退費金額計算公式</strong><br/>
-      ・退費金額＝<strong>剩餘堂數價金 − 手續費</strong><br/>
-      ・每堂單價：課程費用 ÷ 總堂數<br/>
-      ・剩餘堂數：總堂數 − 已開課堂數（不論學員實際有無出席或請假，皆以已開課天數計算）。<br/>
-      <strong>2. 手續費比例</strong><br/>
-      ・開課前申請退費：收取總課程費用之 <strong>{_p}%</strong>。<br/>
-      ・開課後申請退費：收取剩餘堂數價金之 <strong>{_r}%</strong>。<br/>
-      <strong>3. 試算範例（以 8 堂 8,000 元計算）</strong><br/>
-      ・報名 8 堂課共 8,000 元（每堂單價 1,000 元），已開課 2 堂後申請退費。<br/>
-      ・剩餘堂數價金：6 堂 × 1,000 元 = 6,000 元<br/>
-      ・手續費（開課後 {_r}%）：6,000 元 × {_r}% = {_exFee.toLocaleString()} 元<br/>
-      ・實際退還金額：6,000 元 − {_exFee.toLocaleString()} 元 = {(6000 - _exFee).toLocaleString()} 元
+      <strong>{t('1. 退費金額計算公式')}</strong><br/>
+      {tt('・退費金額＝', '・Refund amount = ', '・返金額＝')}<strong>{tt('剩餘堂數價金 − 手續費', 'remaining session value − handling fee', '残り回数分の金額 − 手数料')}</strong><br/>
+      {t('・每堂單價：課程費用 ÷ 總堂數')}<br/>
+      {t('・剩餘堂數：總堂數 − 已開課堂數（不論學員實際有無出席或請假，皆以已開課天數計算）。')}<br/>
+      <strong>{t('2. 手續費比例')}</strong><br/>
+      {tt('・開課前申請退費：收取總課程費用之 ', '・Refund requested before the course starts: ', '・開講前の返金申請：総費用の')}<strong>{_p}%</strong>{tt('。', ' of the total course fee is charged.', 'を手数料として差し引きます。')}<br/>
+      {tt('・開課後申請退費：收取剩餘堂數價金之 ', '・Refund requested after the course starts: ', '・開講後の返金申請：残り回数分の金額の')}<strong>{_r}%</strong>{tt('。', ' of the remaining session value is charged.', 'を手数料として差し引きます。')}<br/>
+      <strong>{t('3. 試算範例（以 8 堂 8,000 元計算）')}</strong><br/>
+      {t('・報名 8 堂課共 8,000 元（每堂單價 1,000 元），已開課 2 堂後申請退費。')}<br/>
+      {t('・剩餘堂數價金：6 堂 × 1,000 元 = 6,000 元')}<br/>
+      {tt(`・手續費（開課後 ${_r}%）：6,000 元 × ${_r}% = ${_exFee.toLocaleString()} 元`, `・Handling fee (${_r}% after start): NT$6,000 × ${_r}% = NT$${_exFee.toLocaleString()}`, `・手数料（開講後${_r}%）：6,000元 × ${_r}% = ${_exFee.toLocaleString()}元`)}<br/>
+      {tt(`・實際退還金額：6,000 元 − ${_exFee.toLocaleString()} 元 = ${(6000 - _exFee).toLocaleString()} 元`, `・Actual refund: NT$6,000 − NT$${_exFee.toLocaleString()} = NT$${(6000 - _exFee).toLocaleString()}`, `・実際の返金額：6,000元 − ${_exFee.toLocaleString()}元 = ${(6000 - _exFee).toLocaleString()}元`)}
     </div>
   );
 }
@@ -254,11 +254,11 @@ export default function MemberCoursesPage() {
   };
 
   const handleAdjustSubmit = async () => {
-    if (!adjustReasonKey) { showMsg('請選擇事由', 'red'); return; }
-    if (adjustModal.type === 'transfer' && !transferPickId) { showMsg('請輸入接收對象電話並選定', 'red'); return; }
+    if (!adjustReasonKey) { showMsg(t('請選擇事由'), 'red'); return; }
+    if (adjustModal.type === 'transfer' && !transferPickId) { showMsg(t('請輸入接收對象電話並選定'), 'red'); return; }
     // 已付費的退費申請，前端先擋（後端仍為權威——若判定與此處猜測不同，見下方 catch 對 MISSING_REFUND_ACCOUNT 的處理）
     if (adjustModal.type === 'refund' && adjustModal.paid && (!refundBankCode.trim() || !refundAccount.trim())) {
-      showMsg('請填寫退款銀行代碼與帳號', 'red'); return;
+      showMsg(t('請填寫退款銀行代碼與帳號'), 'red'); return;
     }
     setAdjustLoading(true);
     try {
@@ -268,13 +268,13 @@ export default function MemberCoursesPage() {
           ...reasonPayload,
           ...(refundBankCode.trim() || refundAccount.trim() ? { refundBankCode, refundBankName, refundAccount, refundAccountName } : {}),
         });
-        showMsg(`退費申請已送出（建議退款 NT$${res.data.suggestedRefund}），等待管理員審核`);
+        showMsg(tt(`退費申請已送出（建議退款 NT$${res.data.suggestedRefund}），等待管理員審核`, `Refund request submitted (suggested refund NT$${res.data.suggestedRefund}) — pending admin review`, `返金申請を送信しました（推奨返金額 NT$${res.data.suggestedRefund}）。管理者の審査をお待ちください`));
       } else if (adjustModal.type === 'transfer') {
         await requestCourseTransfer(adjustModal.enrollmentId, { ...reasonPayload, transferToMemberId: transferPickId });
-        showMsg('轉讓申請已送出，等待管理員審核');
+        showMsg(t('轉讓申請已送出，等待管理員審核'));
       } else {
         await requestCoursePause(adjustModal.enrollmentId, reasonPayload);
-        showMsg('暫停申請已送出，等待管理員審核');
+        showMsg(t('暫停申請已送出，等待管理員審核'));
       }
       // 記錄已申請，禁止重複申請（key 含報名對象，家長/子女分開）
       setPendingAdjust(prev => new Map(prev).set(adjKey(adjustModal.enrollmentId, adjustModal.memberId), adjustModal.type));
@@ -282,7 +282,7 @@ export default function MemberCoursesPage() {
       resetAdjustFields();
       loadMyEnrollments(); // 退費凍結旗標已寫入 → 重載讓請假/補課等 UI 即時隱藏
     } catch (err) {
-      showMsg(err.response?.data?.message || '申請失敗', 'red');
+      showMsg(err.response?.data?.message || t('申請失敗'), 'red');
       // 前端猜測「未付費」但後端判定實際已付費（MISSING_REFUND_ACCOUNT）：保留 modal 讓會員補填帳戶再送出，
       // 不清空原因，避免打回重打；其餘錯誤維持原行為（關閉 modal，避免卡住）
       if (err.response?.data?.error !== 'MISSING_REFUND_ACCOUNT') {
@@ -336,10 +336,10 @@ export default function MemberCoursesPage() {
   const trialTargetIsMinor = trialTarget?.isMinor ?? (trialTarget?.birthday ? dayjs().diff(dayjs(trialTarget.birthday), 'year') < 18 : false);
   const trialYouthAgeBlocked = trialModal?.categoryGroup === 'youth' && !trialTargetIsMinor;
   const submitTrial = async () => {
-    if (trialTargetUnder4) { showMsg('未滿 4 歲無法報名課程／試上', 'red'); return; }
-    if (trialYouthAgeBlocked) { showMsg('此課程限未滿 18 歲學員報名，請確認報名對象是否正確選擇子女', 'red'); return; }
-    if (!trialConsent) { showMsg('請先勾選同意免責同意書', 'red'); return; }
-    if (!isTransferInfoComplete(trialPay)) { showMsg('請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
+    if (trialTargetUnder4) { showMsg(t('未滿 4 歲無法報名課程／試上'), 'red'); return; }
+    if (trialYouthAgeBlocked) { showMsg(t('此課程限未滿 18 歲學員報名，請確認報名對象是否正確選擇子女'), 'red'); return; }
+    if (!trialConsent) { showMsg(t('請先勾選同意免責同意書'), 'red'); return; }
+    if (!isTransferInfoComplete(trialPay)) { showMsg(t('請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
     setTrialSubmitting(true);
     try {
       const res = await memberClient.post('/experience-bookings', {
@@ -370,11 +370,11 @@ export default function MemberCoursesPage() {
       setTrialModal(null); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' });
       memberClient.get('/courses/trial-sessions').then(r => setTrialSessions(r.data.sessions || [])).catch(() => {});
       loadMyTrialBookings();
-      if (res.data.isWaitlist) showMsg('此場次已額滿，已為您排入候補；名額釋出將依序轉正', 'orange');
+      if (res.data.isWaitlist) showMsg(t('此場次已額滿，已為您排入候補；名額釋出將依序轉正'), 'orange');
       // 政策（2026-09-09）：試上逾期自動釋出已停止（sweepExpiredTrialPayments 不再排程），
       // 名額由館方人工確認收款後才完成報名，不再宣稱「逾期名額將釋出」（已非事實）。
-      else showMsg('試上名額已保留！請盡快完成付款（可至上方「已預約試上」查看），館方確認收款後即完成報名');
-    } catch (e) { showMsg(e.response?.data?.message || '送出失敗', 'red'); }
+      else showMsg(t('試上名額已保留！請盡快完成付款（可至上方「已預約試上」查看），館方確認收款後即完成報名'));
+    } catch (e) { showMsg(e.response?.data?.message || t('送出失敗'), 'red'); }
     finally { setTrialSubmitting(false); }
   };
 
@@ -393,13 +393,13 @@ export default function MemberCoursesPage() {
   const doTrialBkCancel = async () => {
     if (!trialBkCancel) return;
     const { b, form } = trialBkCancel;
-    if (trialBkPaid(b) && (!form.bankCode || !form.account)) { showMsg('請填寫退款銀行代碼與帳號', 'red'); return; }
+    if (trialBkPaid(b) && (!form.bankCode || !form.account)) { showMsg(t('請填寫退款銀行代碼與帳號'), 'red'); return; }
     setTrialBkSaving(true);
     try {
       const res = await memberClient.post(`/experience-bookings/${b.id}/member-cancel`,
         trialBkPaid(b) ? { refundBankCode: form.bankCode, refundAccount: form.account, refundAccountName: form.accountName || '' } : {});
-      showMsg(res.data?.message || '試上預約已取消'); setTrialBkCancel(null); loadMyTrialBookings();
-    } catch (err) { showMsg(err.response?.data?.message || '取消失敗', 'red'); }
+      showMsg(res.data?.message || t('試上預約已取消')); setTrialBkCancel(null); loadMyTrialBookings();
+    } catch (err) { showMsg(err.response?.data?.message || t('取消失敗'), 'red'); }
     finally { setTrialBkSaving(false); }
   };
   const doTrialBkEdit = async () => {
@@ -408,8 +408,8 @@ export default function MemberCoursesPage() {
     setTrialBkSaving(true);
     try {
       const res = await memberClient.put(`/experience-bookings/${b.id}/member-edit`, { sessionId: form.sessionId });
-      showMsg(res.data?.message || '已改期'); setTrialBkEdit(null); loadMyTrialBookings();
-    } catch (err) { showMsg(err.response?.data?.message || '改期失敗', 'red'); }
+      showMsg(res.data?.message || t('已改期')); setTrialBkEdit(null); loadMyTrialBookings();
+    } catch (err) { showMsg(err.response?.data?.message || t('改期失敗'), 'red'); }
     finally { setTrialBkSaving(false); }
   };
 
@@ -459,7 +459,7 @@ export default function MemberCoursesPage() {
     setQuoteLoading(true);
     memberClient.get(`/courses/${selectedCourse.id}/quote`, { params: { memberId: targetId } })
       .then(r => setQuote(r.data))
-      .catch(err => { setQuote(null); setQuoteError(err.response?.data?.message || err.message || '無法取得費用，請重試'); })
+      .catch(err => { setQuote(null); setQuoteError(err.response?.data?.message || err.message || t('無法取得費用，請重試')); })
       .finally(() => setQuoteLoading(false));
   }, [selectedCourse, enrollForMemberId, member?.id, quoteRetryKey]);
   // 報價更新時，同步報名 modal 已捕捉的費用（切換報名對象後付款金額跟著對）
@@ -636,7 +636,7 @@ export default function MemberCoursesPage() {
 
   const handleEnroll = async () => {
     if (!enrollSession) return;
-    if (!isTransferInfoComplete(paymentData)) { showMsg('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return; }
+    if (!isTransferInfoComplete(paymentData)) { showMsg(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
     const enrollGymId = selectedCourse?.gymId || enrollSession?.gymId || gymId; // 用課程所屬館（銀行帳號/待收款歸該館）
     setLoading(true);
     try {
@@ -678,7 +678,7 @@ export default function MemberCoursesPage() {
           ...extraFields,
         });
       }
-      if (res.data?.isSimulation) { showMsg(res.data.message || '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名', 'ok'); resetEnrollModal(); return; }
+      if (res.data?.isSimulation) { showMsg(res.data.message || t('🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名'), 'ok'); resetEnrollModal(); return; }
       const isWaitlisted = !!(res.data.isWaitlist);
       setEnrollWaitlisted(isWaitlisted);
       const enrInfo = enrollSession.isCourse
@@ -706,9 +706,9 @@ export default function MemberCoursesPage() {
           if (paymentData.paymentDate) formData.append('paymentDate', paymentData.paymentDate);
           if (paymentData.paidAmount) formData.append('paidAmount', paymentData.paidAmount);
           await memberClient.post('/transfers/upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-          showMsg('轉帳資料已提交，等待工作人員確認收款');
+          showMsg(t('轉帳資料已提交，等待工作人員確認收款'));
         } catch (uploadErr) {
-          showMsg('報名成功，但轉帳資料提交失敗，請至付款紀錄補交');
+          showMsg(t('報名成功，但轉帳資料提交失敗，請至付款紀錄補交'));
         }
       }
       resetEnrollModal();
@@ -721,7 +721,7 @@ export default function MemberCoursesPage() {
         setEnrollSuccess(true); // 跳出「已報名成功」確認（非線上付款流程）
       }
     } catch (err) {
-      showMsg(err.response?.data?.message || '報名失敗', 'red');
+      showMsg(err.response?.data?.message || t('報名失敗'), 'red');
     } finally { setLoading(false); }
   };
 
@@ -788,7 +788,7 @@ export default function MemberCoursesPage() {
       });
       setMakeupSessions(res.data.sessions || []);
     } catch (e) {
-      setMakeupError('載入補課場次失敗，請檢查網路連線後重試');
+      setMakeupError(t('載入補課場次失敗，請檢查網路連線後重試'));
     } finally {
       setMakeupLoading(false);
     }
@@ -802,27 +802,27 @@ export default function MemberCoursesPage() {
         memberId: selectedMakeup._ownerId || selectedMakeup.memberId || member.id, // 券擁有者（家長代子女時為子女）
         targetSessionId,
       });
-      showMsg(res.data.message || '補課報名成功');
+      showMsg(res.data.message || t('補課報名成功'));
       setShowMakeupModal(false);
       await loadMakeupRights();
       await loadMyEnrollments();
     } catch (err) {
-      showMsg(err.response?.data?.message || '補課失敗', 'red');
+      showMsg(err.response?.data?.message || t('補課失敗'), 'red');
     } finally { setLoading(false); }
   };
 
   const handleLeave = async (enrollmentId, forMemberId) => {
-    if (!leaveReason.trim()) { showMsg('請填寫請假原因', 'red'); return; }
+    if (!leaveReason.trim()) { showMsg(t('請填寫請假原因'), 'red'); return; }
     setLoading(true);
     try {
       const r = await memberClient.post(`/courses/enrollments/${enrollmentId}/leave`, { reason: leaveReason, memberId: forMemberId });
-      showMsg(r.data?.message || '請假成功');
+      showMsg(r.data?.message || t('請假成功'));
       setLeavingId(null);
       setLeaveReason('');
       setOverLimitConfirm(null);
       await loadMyEnrollments();
     } catch (err) {
-      showMsg(err.response?.data?.message || '請假失敗', 'red');
+      showMsg(err.response?.data?.message || t('請假失敗'), 'red');
     } finally { setLoading(false); }
   };
 
@@ -846,7 +846,7 @@ export default function MemberCoursesPage() {
       setCancelLeavePreN(n => n + 1); // 重跑預檢
       loadMyEnrollments(); loadMakeupRights(); // 背景刷新主頁補課/課程卡
     } catch (err) {
-      showMsg(err.response?.data?.message || '取消補課失敗', 'red');
+      showMsg(err.response?.data?.message || t('取消補課失敗'), 'red');
     } finally { setInlineMkCancel(''); }
   };
 
@@ -856,12 +856,12 @@ export default function MemberCoursesPage() {
     setLoading(true);
     try {
       const r = await memberClient.post(`/courses/enrollments/${cancelMakeupTarget.enrollmentId}/cancel-makeup`, { memberId: cancelMakeupTarget.memberId });
-      showMsg(r.data?.message || '已取消補課');
+      showMsg(r.data?.message || t('已取消補課'));
       setCancelMakeupTarget(null);
       await loadMyEnrollments();
       await loadMakeupRights(); // 重載本人＋子女全部補課券（勿用單一 member 覆蓋）
     } catch (err) {
-      showMsg(err.response?.data?.message || '取消補課失敗', 'red');
+      showMsg(err.response?.data?.message || t('取消補課失敗'), 'red');
       setCancelMakeupTarget(null);
     } finally { setLoading(false); }
   };
@@ -871,11 +871,11 @@ export default function MemberCoursesPage() {
     setLoading(true);
     try {
       const r = await memberClient.post(`/courses/enrollments/${cancelLeaveTarget.enrollmentId}/cancel-leave`, { memberId: cancelLeaveTarget.memberId });
-      showMsg(r.data?.message || '已取消請假');
+      showMsg(r.data?.message || t('已取消請假'));
       setCancelLeaveTarget(null);
       await loadMyEnrollments();
     } catch (err) {
-      showMsg(err.response?.data?.message || '取消請假失敗', 'red');
+      showMsg(err.response?.data?.message || t('取消請假失敗'), 'red');
       setCancelLeaveTarget(null);
     } finally { setLoading(false); }
   };
@@ -885,13 +885,13 @@ export default function MemberCoursesPage() {
     try {
       const targetId = group.memberId || member?.id;
       await memberClient.post(`/courses/${group.courseId}/cancel-waitlist`, { memberId: targetId });
-      showMsg('已取消候補');
+      showMsg(t('已取消候補'));
       setCancelWaitlistTarget(null);
       // 樂觀移除該課候補列（避免 Firestore 讀寫延遲導致卡片短暫殘留）
       setMyEnrollments(prev => prev.filter(e => e.courseId !== group.courseId));
       await loadMyEnrollments();
     } catch (err) {
-      showMsg(err.response?.data?.message || '取消候補失敗', 'red');
+      showMsg(err.response?.data?.message || t('取消候補失敗'), 'red');
     } finally { setLoading(false); }
   };
 
@@ -900,12 +900,12 @@ export default function MemberCoursesPage() {
     setLoading(true);
     try {
       await memberClient.post(`/courses/enrollments/${target.enrollmentId}/cancel`, { memberId: target.memberId });
-      showMsg('已取消報名，名額已釋出');
+      showMsg(t('已取消報名，名額已釋出'));
       setCancelWorkshopTarget(null);
       setMyEnrollments(prev => prev.filter(e => e.courseId !== target.courseId || e.memberId !== target.memberId));
       await loadMyEnrollments();
     } catch (err) {
-      showMsg(err.response?.data?.message || '取消報名失敗', 'red');
+      showMsg(err.response?.data?.message || t('取消報名失敗'), 'red');
     } finally { setLoading(false); }
   };
 
@@ -934,17 +934,17 @@ export default function MemberCoursesPage() {
       setReuploadLoading(true);
       try {
         await memberClient.post(`/courses/enrollments/${reuploadTarget.enrollmentId}/choose-cash`, { memberId: reuploadTarget.memberId || member.id });
-        showMsg('已選擇現金付款，請至櫃檯繳費');
+        showMsg(t('已選擇現金付款，請至櫃檯繳費'));
         setReuploadTarget(null);
         setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
         await loadMyEnrollments();
       } catch (err) {
-        showMsg(err.response?.data?.message || '提交失敗', 'red');
+        showMsg(err.response?.data?.message || t('提交失敗'), 'red');
       } finally { setReuploadLoading(false); }
       return;
     }
     if (!isTransferInfoComplete(reuploadData)) {
-      showMsg('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額', 'red'); return;
+      showMsg(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return;
     }
     setReuploadLoading(true);
     try {
@@ -963,12 +963,12 @@ export default function MemberCoursesPage() {
       fd.append('paymentDate', reuploadData.paymentDate);
       fd.append('paidAmount', reuploadData.paidAmount);
       await memberClient.post('/transfers/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
-      showMsg(reuploadTarget.mode === 'promoted' || reuploadTarget.mode === 'initial' ? '已提交轉帳資訊，等待工作人員確認收款' : '已重新提交轉帳，等待工作人員確認收款');
+      showMsg(reuploadTarget.mode === 'promoted' || reuploadTarget.mode === 'initial' ? t('已提交轉帳資訊，等待工作人員確認收款') : t('已重新提交轉帳，等待工作人員確認收款'));
       setReuploadTarget(null); setReuploadFile(null);
       setReuploadData({ method:'transfer', paymentDate:'', bankLastFive:'', bankName:'' });
       await loadMyEnrollments();
     } catch (err) {
-      showMsg(err.response?.data?.message || '重新提交失敗', 'red');
+      showMsg(err.response?.data?.message || t('重新提交失敗'), 'red');
     } finally { setReuploadLoading(false); }
   };
 
