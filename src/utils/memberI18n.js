@@ -1436,6 +1436,22 @@ const DICT_EN = {
   // ── 課程頁 · 段3b：課程總覽(browse) 後半：工作坊選場次 ──
   '隊員價': 'Team Price',
   '報名': 'Register',
+  // ── 課程頁 · 段4a：試上瀏覽/取消試上預約 ──
+  '已預約試上': 'Booked Trials',
+  '保險自理': 'insurance is self-arranged',
+  '報名日 2 週內': 'within 2 weeks of the registration date',
+  '目前沒有開放試上的課程': 'No courses currently open for trial',
+  '← 返回班別': '← Back to Categories',
+  '← 返回梯次': '← Back to Sessions',
+  '此梯次目前無可試上場次': 'No trial sessions currently available for this term',
+  '取消試上預約': 'Cancel Trial Booking',
+  '額滿可候補': 'Full — waitlist available',
+  '改期': 'Reschedule',
+  // ── 課程頁 · 段4b：試上改期/試上報名Modal ──
+  '報名試上': 'Register for Trial',
+  '報名對象': 'Register For',
+  '送出試上報名': 'Submit Trial Registration',
+  '免責同意書／攀岩活動風險告知': 'Liability Waiver / Climbing Activity Risk Disclosure',
 };
 
 const DICT_JA = {
@@ -2871,6 +2887,22 @@ const DICT_JA = {
   // ── 課程頁 · 段3b：課程總覽(browse) 後半：工作坊選場次 ──
   '隊員價': 'チーム会員料金',
   '報名': '登録',
+  // ── 課程頁 · 段4a：試上瀏覽/取消試上預約 ──
+  '已預約試上': '予約済みの体験',
+  '保險自理': '保険は各自ご加入ください',
+  '報名日 2 週內': '登録日から2週間以内',
+  '目前沒有開放試上的課程': '現在体験受付中のコースはありません',
+  '← 返回班別': '← カテゴリーに戻る',
+  '← 返回梯次': '← 期に戻る',
+  '此梯次目前無可試上場次': 'この期には現在体験可能な回はありません',
+  '取消試上預約': '体験予約のキャンセル',
+  '額滿可候補': '満員・キャンセル待ち可',
+  '改期': '日程変更',
+  // ── 課程頁 · 段4b：試上改期/試上報名Modal ──
+  '報名試上': '体験登録',
+  '報名對象': '登録対象',
+  '送出試上報名': '体験登録を送信',
+  '免責同意書／攀岩活動風險告知': '免責同意書・クライミング活動リスク告知',
 };
 
 export const getMemberLang = () => {

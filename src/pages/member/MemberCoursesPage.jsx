@@ -1764,14 +1764,14 @@ export default function MemberCoursesPage() {
         return (
           <div style={{ padding:'12px 16px' }}>
             <div style={{ fontSize:12, color:'#8A5A00', background:'#FFF8E6', border:'0.5px solid #EAD3A0', borderRadius:10, padding:'10px 12px', margin:'0 0 12px', lineHeight:1.7, textAlign:'left' }}>
-              🧗 試上為常態課程單堂體驗、另收試上費、<strong>保險自理</strong>；僅開放<strong>報名日 2 週內</strong>的場次，額滿不顯示。
+              🧗 {tt('試上為常態課程單堂體驗、另收試上費、', 'Trial classes are single-session try-outs for regular courses, with an additional trial fee. ', '体験は通常コースの単発体験で、別途体験料がかかります。')}<strong>{t('保險自理')}</strong>{tt('；僅開放', '; only ', '。表示されるのは')}<strong>{t('報名日 2 週內')}</strong>{tt('的場次，額滿不顯示。', ' sessions are shown; full sessions are hidden.', 'の枠のみで、満員の回は表示されません。')}
             </div>
             {/* 已預約試上（在館別選單上方） */}
             {myTrialBookings.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>已預約試上</div>
+                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>{t('已預約試上')}</div>
                 {myTrialBookings.map(b => {
-                  const sl = { pending: { bg: '#FAEEDA', color: '#854F0B', text: '待確認' }, confirmed: { bg: '#E6F4EB', color: '#2D7D46', text: '已確認' } }[b.status] || { bg: '#F0EDED', color: '#666', text: b.status };
+                  const sl = { pending: { bg: '#FAEEDA', color: '#854F0B', text: t('待確認') }, confirmed: { bg: '#E6F4EB', color: '#2D7D46', text: t('已確認') } }[b.status] || { bg: '#F0EDED', color: '#666', text: b.status };
                   return (
                     <div key={b.id} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8D5D5', padding: 14, marginBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -1783,26 +1783,26 @@ export default function MemberCoursesPage() {
                       </div>
                       {b.paymentStatus === 'transfer_rejected' && (
                         <div style={{ marginTop: 10, background: '#FCEBEB', border: '0.5px solid #EEC1C1', borderRadius: 8, padding: '8px 12px' }}>
-                          <div style={{ fontSize: 12, color: '#A32D2D', fontWeight: 600, textAlign: 'left' }}>轉帳被退回{b.paymentRejectReason ? `：${b.paymentRejectReason}` : ''}</div>
+                          <div style={{ fontSize: 12, color: '#A32D2D', fontWeight: 600, textAlign: 'left' }}>{t('轉帳被退回')}{b.paymentRejectReason ? `：${b.paymentRejectReason}` : ''}</div>
                           <button onClick={() => setTrialReupTarget({ orderType: 'experience', refId: b.id, orderName: `試上 ${b.courseName}`, amount: b.totalFee, gymId: b.gymId, reason: b.paymentRejectReason })}
                             style={{ marginTop: 6, height: 30, padding: '0 14px', borderRadius: 6, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>
-                            重新上傳轉帳
+                            {t('重新上傳轉帳')}
                           </button>
                         </div>
                       )}
                       {b.paymentStatus === 'pending_confirm' && (
-                        <div style={{ marginTop: 8, fontSize: 11, color: '#854F0B' }}>轉帳已重新送出，等待館方確認</div>
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#854F0B' }}>{t('轉帳已重新送出，等待館方確認')}</div>
                       )}
                       {trialBkEditable(b) && (
                         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
                           <button onClick={() => setTrialBkEdit({ b, form: { sessionId: '' } })}
-                            style={{ height: 30, padding: '0 14px', borderRadius: 8, background: '#fff', border: '0.5px solid #E8D5D5', color: '#444', fontSize: 12, cursor: 'pointer' }}>改期</button>
+                            style={{ height: 30, padding: '0 14px', borderRadius: 8, background: '#fff', border: '0.5px solid #E8D5D5', color: '#444', fontSize: 12, cursor: 'pointer' }}>{t('改期')}</button>
                           <button onClick={() => setTrialBkCancel({ b, form: { bankCode: '', account: '', accountName: '' } })}
-                            style={{ height: 30, padding: '0 14px', borderRadius: 8, background: '#fff', border: '0.5px solid #C0392B', color: '#C0392B', fontSize: 12, cursor: 'pointer' }}>取消預約</button>
+                            style={{ height: 30, padding: '0 14px', borderRadius: 8, background: '#fff', border: '0.5px solid #C0392B', color: '#C0392B', fontSize: 12, cursor: 'pointer' }}>{t('取消預約')}</button>
                         </div>
                       )}
                       {['pending', 'confirmed'].includes(b.status) && !trialBkEditable(b) && (
-                        <div style={{ marginTop: 8, fontSize: 11, color: '#999' }}>活動一天前已鎖定，如需異動請洽櫃檯</div>
+                        <div style={{ marginTop: 8, fontSize: 11, color: '#999' }}>{t('活動一天前已鎖定，如需異動請洽櫃檯')}</div>
                       )}
                     </div>
                   );
@@ -1814,14 +1814,14 @@ export default function MemberCoursesPage() {
               <div style={{ display:'flex', gap:8, marginBottom:12 }}>
                 {[{id:'',label:'全部館別'},{id:'gym-hsinchu',label:'新竹館'},{id:'gym-shilin',label:'士林館'}].map(g => (
                   <button key={g.id} onClick={() => setTrialGymId(g.id)}
-                    style={{ flex:1, height:32, borderRadius:8, border:'0.5px solid #E8D5D5', background: trialGymId===g.id?'#8B1A1A':'#fff', color: trialGymId===g.id?'#fff':'#666', fontSize:12, cursor:'pointer' }}>{g.label}</button>
+                    style={{ flex:1, height:32, borderRadius:8, border:'0.5px solid #E8D5D5', background: trialGymId===g.id?'#8B1A1A':'#fff', color: trialGymId===g.id?'#fff':'#666', fontSize:12, cursor:'pointer' }}>{t(g.label)}</button>
                 ))}
               </div>
               {(() => {
                 const cats = {};
                 list.forEach(sx => { const k = sx.categoryName || '其他'; (cats[k] = cats[k] || []).push(sx); });
                 const names = Object.keys(cats).sort((a,b)=> a==='其他'?1:b==='其他'?-1:a.localeCompare(b,'zh-Hant'));
-                if (names.length === 0) return <div style={{ textAlign:'center', color:'#999', padding:40 }}>目前沒有開放試上的課程</div>;
+                if (names.length === 0) return <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('目前沒有開放試上的課程')}</div>;
                 return names.map(cn => {
                   const gyms = [...new Set(cats[cn].map(x=>x.gymId))];
                   const nCohorts = new Set(cats[cn].map(x=>x.courseId)).size;
@@ -1829,8 +1829,8 @@ export default function MemberCoursesPage() {
                     <div key={cn} onClick={() => setTrialCategory(cn)}
                       style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div>
-                        <div style={{ fontSize:15, fontWeight:600 }}>{gyms.length===1?gymPrefix(gyms[0]):''}{cn}</div>
-                        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{nCohorts} 個梯次開放試上</div>
+                        <div style={{ fontSize:15, fontWeight:600 }}>{gyms.length===1?gymPrefix(gyms[0]):''}{cn === '其他' ? t('其他') : cn}</div>
+                        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{tt(`${nCohorts} 個梯次開放試上`, `${nCohorts} sessions open for trial`, `${nCohorts} 期で体験受付中`)}</div>
                       </div>
                       <span style={{ color:'#8B1A1A', fontSize:13 }}>›</span>
                     </div>
@@ -1844,8 +1844,8 @@ export default function MemberCoursesPage() {
               list.filter(sx => (sx.categoryName||'其他')===trialCategory).forEach(sx => { (cohorts[sx.courseId] = cohorts[sx.courseId] || { name: sx.courseName, gymId: sx.gymId, sessions: [] }).sessions.push(sx); });
               const ids = Object.keys(cohorts);
               return (<>
-                <button onClick={() => setTrialCategory(null)} style={{ background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer', marginBottom:10 }}>← 返回班別</button>
-                <div style={{ fontSize:16, fontWeight:700, marginBottom:12 }}>{trialCategory}</div>
+                <button onClick={() => setTrialCategory(null)} style={{ background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer', marginBottom:10 }}>{t('← 返回班別')}</button>
+                <div style={{ fontSize:16, fontWeight:700, marginBottom:12 }}>{trialCategory === '其他' ? t('其他') : trialCategory}</div>
                 {ids.map(cid => {
                   const c = cohorts[cid];
                   return (
@@ -1853,7 +1853,7 @@ export default function MemberCoursesPage() {
                       style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div>
                         <div style={{ fontSize:15, fontWeight:600 }}>{gymPrefix(c.gymId)}{c.name}</div>
-                        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{c.sessions.length} 個可試上場次 · 試上費 NT${(c.sessions[0]?.trialPrice||0).toLocaleString()}</div>
+                        <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{tt(`${c.sessions.length} 個可試上場次 · 試上費 NT$${(c.sessions[0]?.trialPrice||0).toLocaleString()}`, `${c.sessions.length} sessions available for trial · Trial fee NT$${(c.sessions[0]?.trialPrice||0).toLocaleString()}`, `体験可能な回：${c.sessions.length} · 体験料 NT$${(c.sessions[0]?.trialPrice||0).toLocaleString()}`)}</div>
                       </div>
                       <span style={{ color:'#8B1A1A', fontSize:13 }}>›</span>
                     </div>
@@ -1866,17 +1866,17 @@ export default function MemberCoursesPage() {
               const sess = list.filter(sx => sx.courseId === trialCourseId).sort((a,b)=> (a.date+a.startTime).localeCompare(b.date+b.startTime));
               const cname = sess[0]?.courseName || '';
               return (<>
-                <button onClick={() => setTrialCourseId(null)} style={{ background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer', marginBottom:10 }}>← 返回梯次</button>
+                <button onClick={() => setTrialCourseId(null)} style={{ background:'none', border:'none', color:'#8B1A1A', fontSize:13, cursor:'pointer', marginBottom:10 }}>{t('← 返回梯次')}</button>
                 <div style={{ fontSize:16, fontWeight:700, marginBottom:12 }}>{sess[0]?gymPrefix(sess[0].gymId):''}{cname}</div>
-                {sess.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>此梯次目前無可試上場次</div>}
+                {sess.length===0 && <div style={{ textAlign:'center', color:'#999', padding:40 }}>{t('此梯次目前無可試上場次')}</div>}
                 {sess.map(sx => (
                   <div key={sx.id} style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
                       <div style={{ fontSize:14, fontWeight:600 }}>{dayjs(sx.date).format('MM/DD')}（{wdOf(sx.date)}）{sx.startTime}～{sx.endTime}</div>
-                      <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{sx.instructor?`教練 ${sx.instructor} · `:''}試上費 NT${(sx.trialPrice||0).toLocaleString()}{sx.isFull?' · 額滿可候補':` · 剩 ${sx.remaining}`}</div>
+                      <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{sx.instructor?tt(`教練 ${sx.instructor} · `, `Coach ${sx.instructor} · `, `コーチ ${sx.instructor} · `):''}{tt(`試上費 NT$${(sx.trialPrice||0).toLocaleString()}`, `Trial fee NT$${(sx.trialPrice||0).toLocaleString()}`, `体験料 NT$${(sx.trialPrice||0).toLocaleString()}`)}{sx.isFull?(' · '+t('額滿可候補')):(' · '+tt(`剩 ${sx.remaining}`, `${sx.remaining} left`, `残り${sx.remaining}`))}</div>
                     </div>
                     <button onClick={() => { setTrialModal(sx); setTrialConsent(false); setTrialFor('self'); setTrialPay({ method:'transfer', paymentDate:'', bankLastFive:'' }); }}
-                      style={{ height:38, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', flexShrink:0 }}>試上</button>
+                      style={{ height:38, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', flexShrink:0 }}>{t('試上')}</button>
                   </div>
                 ))}
               </>);
@@ -1894,33 +1894,33 @@ export default function MemberCoursesPage() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
             onClick={() => { if (!trialBkSaving) setTrialBkCancel(null); }}>
             <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '24px 22px', width: 330, maxWidth: '92vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,.18)' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8, textAlign: 'left' }}>取消試上預約</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 8, textAlign: 'left' }}>{t('取消試上預約')}</div>
               <div style={{ fontSize: 13, color: '#666', lineHeight: 1.7, marginBottom: 12, textAlign: 'left' }}>
-                確定取消 {dayjs(b.bookingDate).format('YYYY/MM/DD')} {b.bookingTime} 的試上預約嗎？
+                {tt(`確定取消 ${dayjs(b.bookingDate).format('YYYY/MM/DD')} ${b.bookingTime} 的試上預約嗎？`, `Cancel the trial booking on ${dayjs(b.bookingDate).format('YYYY/MM/DD')} ${b.bookingTime}?`, `${dayjs(b.bookingDate).format('YYYY/MM/DD')} ${b.bookingTime}の体験予約をキャンセルしますか？`)}
               </div>
               {trialBkPaid(b) ? (
                 <>
                   <div style={{ background: '#FBF5F5', borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12, color: '#444', lineHeight: 1.8, textAlign: 'left' }}>
-                    已繳金額 NT${(b.totalFee || 0).toLocaleString()} − 手續費 NT${fee.toLocaleString()} ＝ <strong style={{ color: '#8B1A1A' }}>預計退款 NT${refund.toLocaleString()}</strong><br />
-                    退款將由館方匯至您提供的帳號。
+                    {tt(`已繳金額 NT$${(b.totalFee || 0).toLocaleString()} − 手續費 NT$${fee.toLocaleString()} ＝ `, `Paid NT$${(b.totalFee || 0).toLocaleString()} − Fee NT$${fee.toLocaleString()} = `, `支払済 NT$${(b.totalFee || 0).toLocaleString()} − 手数料 NT$${fee.toLocaleString()} = `)}<strong style={{ color: '#8B1A1A' }}>{tt(`預計退款 NT$${refund.toLocaleString()}`, `Estimated refund NT$${refund.toLocaleString()}`, `返金予定額 NT$${refund.toLocaleString()}`)}</strong><br />
+                    {t('退款將由館方匯至您提供的帳號。')}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', gap: 8, marginBottom: 8 }}>
                     <input value={trialBkCancel.form.bankCode} onChange={e => setTrialBkCancel(t => ({ ...t, form: { ...t.form, bankCode: e.target.value.replace(/\D/g, '').slice(0, 3) } }))}
-                      placeholder="銀行代碼 *" style={{ height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+                      placeholder={t('銀行代碼 *')} style={{ height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
                     <input value={trialBkCancel.form.account} onChange={e => setTrialBkCancel(t => ({ ...t, form: { ...t.form, account: e.target.value.replace(/\D/g, '').slice(0, 16) } }))}
-                      placeholder="退款帳號 *" style={{ height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
+                      placeholder={t('退款帳號 *')} style={{ height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box' }} />
                   </div>
                   <input value={trialBkCancel.form.accountName} onChange={e => setTrialBkCancel(t => ({ ...t, form: { ...t.form, accountName: e.target.value } }))}
-                    placeholder="戶名（選填）" style={{ width: '100%', height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box', marginBottom: 14 }} />
+                    placeholder={t('戶名（選填）')} style={{ width: '100%', height: 40, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, boxSizing: 'border-box', marginBottom: 14 }} />
                 </>
               ) : (
-                <div style={{ fontSize: 12, color: '#999', marginBottom: 14, textAlign: 'left' }}>尚未繳費，取消後無需退款。</div>
+                <div style={{ fontSize: 12, color: '#999', marginBottom: 14, textAlign: 'left' }}>{t('尚未繳費，取消後無需退款。')}</div>
               )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setTrialBkCancel(null)} disabled={trialBkSaving}
-                  style={{ flex: 1, height: 44, borderRadius: 12, border: '0.5px solid #E8D5D5', background: '#fff', fontSize: 14, color: '#6b6b6b', cursor: 'pointer' }}>返回</button>
+                  style={{ flex: 1, height: 44, borderRadius: 12, border: '0.5px solid #E8D5D5', background: '#fff', fontSize: 14, color: '#6b6b6b', cursor: 'pointer' }}>{t('返回')}</button>
                 <button onClick={doTrialBkCancel} disabled={trialBkSaving}
-                  style={{ flex: 1, height: 44, borderRadius: 12, background: '#C0392B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{trialBkSaving ? '處理中...' : '確定取消'}</button>
+                  style={{ flex: 1, height: 44, borderRadius: 12, background: '#C0392B', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>{trialBkSaving ? t('處理中...') : t('確定取消')}</button>
               </div>
             </div>
           </div>
@@ -1935,9 +1935,9 @@ export default function MemberCoursesPage() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}
             onClick={() => { if (!trialBkSaving) setTrialBkEdit(null); }}>
             <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 16, padding: '22px 20px', width: 330, maxWidth: '92vw', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,.18)' }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 12, textAlign: 'left' }}>試上改期（換場次）</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1a1a1a', marginBottom: 12, textAlign: 'left' }}>{t('試上改期（換場次）')}</div>
               {candidates.length === 0 ? (
-                <div style={{ fontSize: 13, color: '#999', marginBottom: 14, textAlign: 'left' }}>目前沒有其他可改期的同價場次；如需變更請取消後重新報名。</div>
+                <div style={{ fontSize: 13, color: '#999', marginBottom: 14, textAlign: 'left' }}>{t('目前沒有其他可改期的同價場次；如需變更請取消後重新報名。')}</div>
               ) : (
                 <div style={{ marginBottom: 14 }}>
                   {candidates.map(sx => (
@@ -1951,10 +1951,10 @@ export default function MemberCoursesPage() {
               )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setTrialBkEdit(null)} disabled={trialBkSaving}
-                  style={{ flex: 1, height: 44, borderRadius: 12, border: '0.5px solid #E8D5D5', background: '#fff', fontSize: 14, color: '#6b6b6b', cursor: 'pointer' }}>返回</button>
+                  style={{ flex: 1, height: 44, borderRadius: 12, border: '0.5px solid #E8D5D5', background: '#fff', fontSize: 14, color: '#6b6b6b', cursor: 'pointer' }}>{t('返回')}</button>
                 <button onClick={doTrialBkEdit} disabled={trialBkSaving || !trialBkEdit.form.sessionId}
                   style={{ flex: 2, height: 44, borderRadius: 12, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 14, fontWeight: 600, cursor: (trialBkSaving || !trialBkEdit.form.sessionId) ? 'not-allowed' : 'pointer', opacity: (trialBkSaving || !trialBkEdit.form.sessionId) ? .6 : 1 }}>
-                  {trialBkSaving ? '儲存中...' : '確認修改'}</button>
+                  {trialBkSaving ? t('儲存中...') : t('確認修改')}</button>
               </div>
             </div>
           </div>
@@ -1964,7 +1964,7 @@ export default function MemberCoursesPage() {
       {trialReupTarget && (
         <TransferReuploadModal target={trialReupTarget} memberName={member?.name}
           onClose={() => setTrialReupTarget(null)}
-          onDone={() => { setTrialReupTarget(null); showMsg('已重新送出，等待館方確認收款'); loadMyTrialBookings(); }} />
+          onDone={() => { setTrialReupTarget(null); showMsg(t('已重新送出，等待館方確認收款')); loadMyTrialBookings(); }} />
       )}
 
       {/* 試上報名 Modal */}
@@ -1976,20 +1976,20 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
           <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:420, maxHeight:'90vh', overflowY:'auto' }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-              <div style={{ fontWeight:700, fontSize:16 }}>🧗 報名試上</div>
+              <div style={{ fontWeight:700, fontSize:16 }}>🧗 {t('報名試上')}</div>
               <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <div style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:14, fontSize:13 }}>
               <div style={{ fontWeight:600 }}>{gymPrefix(trialModal.gymId)}{trialModal.courseName}</div>
-              <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{wdOf(trialModal.date)}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?` · 教練 ${trialModal.instructor}`:''}</div>
-              <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>試上費 NT${(trialModal.trialPrice||0).toLocaleString()}</div>
+              <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{wdOf(trialModal.date)}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?tt(` · 教練 ${trialModal.instructor}`, ` · Coach ${trialModal.instructor}`, ` · コーチ ${trialModal.instructor}`):''}</div>
+              <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>{tt(`試上費 NT$${(trialModal.trialPrice||0).toLocaleString()}`, `Trial fee NT$${(trialModal.trialPrice||0).toLocaleString()}`, `体験料 NT$${(trialModal.trialPrice||0).toLocaleString()}`)}</div>
             </div>
             {familyMembers.length > 0 && (
               <div style={{ marginBottom:12 }}>
-                <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>報名對象</div>
+                <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>{t('報名對象')}</div>
                 <select value={trialFor} onChange={e=>setTrialFor(e.target.value)} style={{ ...inp, width:'100%' }}>
-                  <option value="self">{member?.name || '本人'}（本人）</option>
-                  {familyMembers.map(c => <option key={c.id} value={c.id}>{c.name}（子女）</option>)}
+                  <option value="self">{member?.name || t('本人')}{t('（本人）')}</option>
+                  {familyMembers.map(c => <option key={c.id} value={c.id}>{c.name}{t('（子女）')}</option>)}
                 </select>
               </div>
             )}
@@ -2001,21 +2001,21 @@ export default function MemberCoursesPage() {
             </div>
             <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:12, color:'#444', cursor:'pointer', marginBottom:14, lineHeight:1.6 }}>
               <input type="checkbox" checked={trialConsent} onChange={e=>setTrialConsent(e.target.checked)} style={{ marginTop:2 }}/>
-              <span>我已閱讀並同意<strong>免責同意書／攀岩活動風險告知</strong>，並瞭解試上為常態課程單堂體驗、保險自理。</span>
+              <span>{tt('我已閱讀並同意', 'I have read and agree to the ', '')}<strong>{t('免責同意書／攀岩活動風險告知')}</strong>{tt('，並瞭解試上為常態課程單堂體驗、保險自理。', ', and understand that the trial is a single-session try-out of a regular course, with insurance to be self-arranged.', 'に同意し、内容を確認しました。体験は通常コースの単発体験であり、保険は各自ご加入いただくことをご了承いただきます。')}</span>
             </label>
             {trialTargetUnder4 && (
               <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
-                {trialTarget?.name || '報名對象'} 未滿 4 歲，無法報名課程／試上。
+                {tt(`${trialTarget?.name || t('報名對象')} 未滿 4 歲，無法報名課程／試上。`, `${trialTarget?.name || 'The registrant'} is under 4 years old and cannot register for courses or trials.`, `${trialTarget?.name || '登録対象'}は4歳未満のため、コース／体験に登録できません。`)}
               </div>
             )}
             {trialYouthAgeBlocked && (
               <div style={{ background:'#FDECEC', border:'0.5px solid #F0C4C4', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#B3261E', textAlign:'left' }}>
-                此課程限未滿 18 歲學員試上。{trialTarget?.name || '報名對象'} 不符資格，請切換成正確的子女帳號。
+                {tt(`此課程限未滿 18 歲學員試上。${trialTarget?.name || t('報名對象')} 不符資格，請切換成正確的子女帳號。`, `This trial is limited to students under 18. ${trialTarget?.name || 'The registrant'} does not qualify — please switch to the correct child's account.`, `この体験は18歳未満限定です。${trialTarget?.name || '登録対象'}は対象外です。正しいお子様のアカウントに切り替えてください。`)}
               </div>
             )}
             <div style={{ display:'flex', gap:8 }}>
-              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>取消</button>
-              <button onClick={submitTrial} disabled={trialSubmitting || trialTargetUnder4 || trialYouthAgeBlocked} style={{ flex:2, height:44, borderRadius:10, background:(trialSubmitting||trialTargetUnder4||trialYouthAgeBlocked)?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:((trialTargetUnder4||trialYouthAgeBlocked)?'not-allowed':'pointer') }}>{trialSubmitting?'送出中…':'送出試上報名'}</button>
+              <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} disabled={trialSubmitting} style={{ flex:1, height:44, borderRadius:10, background:'#f5f5f5', border:'none', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
+              <button onClick={submitTrial} disabled={trialSubmitting || trialTargetUnder4 || trialYouthAgeBlocked} style={{ flex:2, height:44, borderRadius:10, background:(trialSubmitting||trialTargetUnder4||trialYouthAgeBlocked)?'#C0B8B8':'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:((trialTargetUnder4||trialYouthAgeBlocked)?'not-allowed':'pointer') }}>{trialSubmitting?t('送出中…'):t('送出試上報名')}</button>
             </div>
           </div>
         </div>
