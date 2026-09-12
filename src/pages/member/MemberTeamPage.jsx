@@ -155,7 +155,7 @@ export default function MemberTeamPage() {
     <div style={{ minHeight:'100vh', background:'#FBF5F5', paddingBottom:80 }}>
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={() => navigate('/member/home')} style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
-        <div style={{ fontSize:18, fontWeight:700 }}>⚡ RedFlash 紅石攀岩隊</div>
+        <div style={{ fontSize:18, fontWeight:700 }}>{t('⚡ RedFlash 紅石攀岩隊')}</div>
       </div>
 
       <ErrorAlertModal modal={alertModal} onClose={() => setAlertModal(null)} />

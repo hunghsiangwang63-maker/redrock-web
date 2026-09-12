@@ -867,7 +867,11 @@ export default function MemberCompetitionsPage() {
               {step===3 && (<>
                 <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', marginBottom:14, fontSize:12, color:'#444', lineHeight:1.9, whiteSpace:'pre-wrap', textAlign:'left' }}>
                   <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>{t('參賽同意書')}</div>
-                  {selectedComp.waiverContent?.zh || `1. 攀登比賽具有潛在之危險性，若發生意外會導致受傷或死亡。\n2. 參賽選手應遵守比賽規則，聽從大會工作人員之指導，隨時注意自身與他人的安全。倘因個人疏失導致意外事件發生，願由選手自行負責。\n3. 本人同意所提個人資料作為大會辦理本活動使用。\n4. 比賽場地已由主辦單位投保公共意外責任險，紅石攀岩館另為選手加保活動綜合保險。\n5. 本人同意比賽報名資料皆屬實，若填寫不實將自動喪失參賽資格。`}
+                  {selectedComp.waiverContent?.zh || tt(
+                    `1. 攀登比賽具有潛在之危險性，若發生意外會導致受傷或死亡。\n2. 參賽選手應遵守比賽規則，聽從大會工作人員之指導，隨時注意自身與他人的安全。倘因個人疏失導致意外事件發生，願由選手自行負責。\n3. 本人同意所提個人資料作為大會辦理本活動使用。\n4. 比賽場地已由主辦單位投保公共意外責任險，紅石攀岩館另為選手加保活動綜合保險。\n5. 本人同意比賽報名資料皆屬實，若填寫不實將自動喪失參賽資格。`,
+                    `1. Climbing competitions carry inherent risks; accidents may result in injury or death.\n2. Participants must comply with competition rules and follow the instructions of event staff, remaining mindful of their own and others' safety at all times. Should an accident occur due to personal negligence, the participant agrees to bear full responsibility.\n3. I consent to the personal information provided being used by the organizer for the purposes of this event.\n4. The competition venue is covered by public liability insurance arranged by the organizer; RedRock Climbing Gym additionally provides comprehensive event insurance for participants.\n5. I confirm that all registration information provided is true and accurate; providing false information will automatically result in disqualification.`,
+                    `1. クライミング競技には固有の危険性があり、事故により負傷または死亡に至る場合があります。\n2. 参加選手は競技規則を遵守し、大会スタッフの指示に従うとともに、常に自身及び他者の安全に配慮してください。個人の過失により事故が発生した場合、選手本人がその責任を負うことに同意するものとします。\n3. 本人は、提供した個人情報が大会運営のために使用されることに同意します。\n4. 競技会場は主催者により施設賠償責任保険に加入しており、RedRockクライミングジムは選手のために別途総合保険にも加入しています。\n5. 本人は、参加申込情報が全て事実であることを保証し、虚偽の記載があった場合は自動的に参加資格を失うことに同意します。`
+                  )}
                 </div>
                 <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${agreedWaiver?'#2D7D46':'#E8D5D5'}`, background:agreedWaiver?'#E6F4EB':'#fff', cursor:'pointer', marginBottom:12 }}>
                   <input type="checkbox" checked={agreedWaiver} onChange={e=>setAgreedWaiver(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>

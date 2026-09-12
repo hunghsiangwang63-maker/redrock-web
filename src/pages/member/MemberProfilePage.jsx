@@ -79,10 +79,10 @@ export default function MemberProfilePage() {
     setFtBusyChild(childId); setFamilyMsg('');
     try {
       await createFallTestBooking({ gymId, targetMemberId: childId });
-      setFamilyMsg('已為家庭成員安排墜落測驗');
+      setFamilyMsg(t('已為家庭成員安排墜落測驗'));
       await loadChildBookings();
     } catch (e) {
-      setFamilyMsg(e.response?.data?.message || '安排失敗');
+      setFamilyMsg(e.response?.data?.message || t('安排失敗'));
     } finally { setFtBusyChild(null); }
   };
 
@@ -92,7 +92,7 @@ export default function MemberProfilePage() {
       await cancelFallTestBooking(bookingId);
       await loadChildBookings();
     } catch (e) {
-      setFamilyMsg(e.response?.data?.message || '取消失敗');
+      setFamilyMsg(e.response?.data?.message || t('取消失敗'));
     } finally { setFtBusyChild(null); }
   };
 
@@ -101,18 +101,18 @@ export default function MemberProfilePage() {
   // 新的手機號碼獨立登入即可看到全部歷史資料；升級後也會從此清單消失（不再是您的家庭成員）。
   const handlePromoteChild = async (childId) => {
     if (!promoteForm.phone.trim() || !promoteForm.email.trim() || !promoteForm.password.trim()) {
-      setFamilyMsg('請完整填寫手機、Email 與密碼'); return;
+      setFamilyMsg(t('請完整填寫手機、Email 與密碼')); return;
     }
-    if (promoteForm.password.length < 8) { setFamilyMsg('密碼至少需 8 碼'); return; }
+    if (promoteForm.password.length < 8) { setFamilyMsg(t('密碼至少需 8 碼')); return; }
     setPromoting(true); setFamilyMsg('');
     try {
       const r = await memberClient.post(`/members/my/children/${childId}/promote`, promoteForm);
-      setFamilyMsg(r.data.message || '已升級為正式會員');
+      setFamilyMsg(r.data.message || t('已升級為正式會員'));
       setPromoteTarget(null);
       setPromoteForm({ phone:'', email:'', password:'' });
       await loadChildren();
     } catch (e) {
-      setFamilyMsg(e.response?.data?.message || '升級失敗，請確認手機/Email 是否已被使用');
+      setFamilyMsg(e.response?.data?.message || t('升級失敗，請確認手機/Email 是否已被使用'));
     } finally { setPromoting(false); }
   };
 
@@ -144,9 +144,9 @@ export default function MemberProfilePage() {
   };
 
   const handleAddChild = async () => {
-    if (!childName.trim()) { setFamilyMsg('請填寫姓名'); return; }
-    if (!childBirthday) { setFamilyMsg('請填寫生日（用於判斷入場資格）'); return; }
-    if (isUnder4(childBirthday)) { setFamilyMsg('未滿 4 歲無法成為會員'); return; }
+    if (!childName.trim()) { setFamilyMsg(t('請填寫姓名')); return; }
+    if (!childBirthday) { setFamilyMsg(t('請填寫生日（用於判斷入場資格）')); return; }
+    if (isUnder4(childBirthday)) { setFamilyMsg(t('未滿 4 歲無法成為會員')); return; }
     const childAge = dayjs().diff(dayjs(childBirthday), 'year');
     if (childAge >= 18) { setAgeLimitModal({ age: childAge }); return; } // 超齡 → 跳 modal
     setAddingChild(true);
@@ -154,12 +154,12 @@ export default function MemberProfilePage() {
       const r = await memberClient.post('/members/my/children', {
         name: childName.trim(), birthday: childBirthday||null, gender: childGender||null,
       });
-      setFamilyMsg(r.data.message || '新增成功');
+      setFamilyMsg(r.data.message || t('新增成功'));
       setChildName(''); setChildBirthday(''); setChildGender('');
       setShowAddChild(false);
       await loadChildren();
     } catch(err) {
-      setFamilyMsg(err.response?.data?.message || '新增失敗');
+      setFamilyMsg(err.response?.data?.message || t('新增失敗'));
     } finally { setAddingChild(false); }
   };
   const [showWaiver, setShowWaiver] = useState(false);

@@ -24,16 +24,16 @@ export default function MemberRegisterPage() {
     setError('');
     // 前端友善提示（後端仍為權威）：未滿 4 歲無法成為會員
     if (isUnder4(form.birthday)) {
-      setError('未滿 4 歲無法成為會員');
+      setError(t('未滿 4 歲無法成為會員'));
       return;
     }
     if (form.password !== confirmPassword) {
-      setError('兩次密碼不一致');
+      setError(t('兩次密碼不一致'));
       return;
     }
     // 未滿 18 歲：家長姓名/電話/關係皆必填
     if (minor && (!form.parentName.trim() || !form.parentPhone.trim() || !form.parentRelation.trim())) {
-      setError('未滿 18 歲需填寫法定代理人姓名、電話與關係');
+      setError(t('未滿 18 歲需填寫法定代理人姓名、電話與關係'));
       return;
     }
     setLoading(true);
@@ -44,7 +44,7 @@ export default function MemberRegisterPage() {
       setDone(true);
     } catch (err) {
       const details = err.response?.data?.details;
-      setError(err.response?.data?.message || (details && details[0]?.msg) || '註冊失敗，請確認資料是否正確');
+      setError(err.response?.data?.message || (details && details[0]?.msg) || t('註冊失敗，請確認資料是否正確'));
     } finally { setLoading(false); }
   };
 
