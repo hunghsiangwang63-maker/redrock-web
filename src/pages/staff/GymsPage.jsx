@@ -3,9 +3,23 @@ import { getGyms, getAnnouncements, updateGymInfo, updateGymHours, createAnnounc
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import { gymLabel } from '../../utils/gymLabel';
 
 const DAYS = ['sun','mon','tue','wed','thu','fri','sat'];
 const DAY_LABELS = { mon:'週一', tue:'週二', wed:'週三', thu:'週四', fri:'週五', sat:'週六', sun:'週日' };
+const BLANK_ANN_FORM = { title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', showOnBanner:false, publishAt:'', publishUntil:'', bannerImage:'' };
+const blankDailyRow = (date, prev) => ({
+  date, gymId: prev?.gymId ?? '', open: prev?.allDayClosed ? '' : (prev?.open || ''), close: prev?.allDayClosed ? '' : (prev?.close || ''), allDayClosed: false,
+});
+// 逐日時段列（allDayClosed → 00:00-00:00，比照 special_hours 既有「整天無時段＝視同休館」慣例）
+const rowsToDailyHours = (rows, crossGymMode) => [...rows]
+  .sort((a, b) => a.date.localeCompare(b.date))
+  .map(r => ({
+    date: r.date,
+    gymId: crossGymMode ? (r.gymId || null) : null,
+    open: r.allDayClosed ? '00:00' : r.open,
+    close: r.allDayClosed ? '00:00' : r.close,
+  }));
 
 // 公告排程發布時間：Firestore Timestamp → datetime-local 字串 / 毫秒
 const tsToLocalInput = (ts) => {
@@ -35,7 +49,12 @@ export default function GymsPage({ embedded = false }) {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddAnn, setShowAddAnn] = useState(false);
-  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'', bannerImage:'' });
+  const [annForm, setAnnForm] = useState({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', showOnBanner:false, publishAt:'', publishUntil:'', bannerImage:'' });
+  // 特殊營業時間專用：逐日（可跨館）時段設定，取代單一 specialOpen/specialClose 對整段效期一律套用同一組時間。
+  // crossGymMode：本則涵蓋兩館、逐列可各自指定館別（僅 super_admin 於「新增」時可選；編輯時鎖定沿用原本範圍，
+  // 因公告的 gymId 範圍本身不可透過編輯變更）。dailyRows：[{date, gymId(''=依模式決定/兩館皆同), open, close, allDayClosed}]
+  const [crossGymMode, setCrossGymMode] = useState(false);
+  const [dailyRows, setDailyRows] = useState([]);
   const [annImageFile, setAnnImageFile] = useState(null);   // 待上傳的公告圖片（儲存時上傳）
   const [affectCourses, setAffectCourses] = useState('no'); // 休館/特殊時間是否影響課程（yes→停課發券流程）
   const [affectModal, setAffectModal] = useState(null);       // {sessions, checked:Set, running}
@@ -131,16 +150,28 @@ const runAffectClosure = async () => {
   };
 
   const handleAddAnn = async () => {
-    if (!annForm.title || !annForm.effectiveFrom) { setAnnMsg('請填寫標題和開始日期'); return; }
+    const isSpecial = annForm.type === 'special_hours';
+    if (!annForm.title || (!isSpecial && !annForm.effectiveFrom)) { setAnnMsg('請填寫標題和開始日期'); return; }
+
+    // 特殊營業時間：以逐日表格為準，效期自動取列的最早／最晚日期，不用另外填生效日期
+    let payload = annForm;
+    if (isSpecial) {
+      if (!dailyRows.length) { setAnnMsg('請至少新增一天的時段設定'); return; }
+      const invalid = dailyRows.some(r => !r.date || (!r.allDayClosed && (!r.open || !r.close)));
+      if (invalid) { setAnnMsg('請完整填寫每一列的日期與時段（或勾選「全天休館」）'); return; }
+      const dailyHours = rowsToDailyHours(dailyRows, crossGymMode);
+      payload = { ...annForm, effectiveFrom: dailyHours[0].date, effectiveTo: dailyHours[dailyHours.length - 1].date, dailyHours };
+    }
+
     setAnnSaving(true);
     try {
-      const gymPathId = editingAnn ? (editingAnn.gymId || 'all') : (selected?.id || 'all');
+      const gymPathId = editingAnn ? (editingAnn.gymId || 'all') : (isSpecial && crossGymMode ? 'all' : (selected?.id || 'all'));
       let annId = editingAnn?.id || null;
       if (editingAnn) {
-        await updateAnnouncement(gymPathId, editingAnn.id, annForm);
+        await updateAnnouncement(gymPathId, editingAnn.id, payload);
         setAnnMsg('公告已更新');
       } else {
-        const cr = await createAnnouncement(gymPathId, annForm);
+        const cr = await createAnnouncement(gymPathId, payload);
         annId = cr.data?.announcement?.id || null;
         setAnnMsg('公告已新增');
       }
@@ -157,7 +188,7 @@ const runAffectClosure = async () => {
       // 休館/特殊營業時間且勾「影響課程」→ 列出生效期間內場次供逐堂停課（發豁免補課券）
       if (['closure','special_hours'].includes(annForm.type) && affectCourses === 'yes') {
         try {
-          const from = annForm.effectiveFrom, to = annForm.effectiveTo || annForm.effectiveFrom;
+          const from = payload.effectiveFrom, to = payload.effectiveTo || payload.effectiveFrom;
           const params = { fromDate: from, toDate: to };
           if (gymPathId && gymPathId !== 'all') params.gymId = gymPathId;
           const sr = await client.get('/courses/sessions', { params });
@@ -168,7 +199,9 @@ const runAffectClosure = async () => {
         } catch (e) { setAnnMsg('公告已儲存，但場次載入失敗——請至課程場次管理逐堂按「休館停課」'); }
       }
       setAffectCourses('no');
-      setAnnForm({ title:'', content:'', type:'general', effectiveFrom:'', effectiveTo:'', specialOpen:'', specialClose:'', showOnBanner:false, publishAt:'', publishUntil:'', bannerImage:'' });
+      setAnnForm(BLANK_ANN_FORM);
+      setCrossGymMode(false);
+      setDailyRows([]);
       setAnnImageFile(null);
       const aRes = await getAnnouncements();
       setAnnouncements(aRes.data.announcements || []);
@@ -177,13 +210,57 @@ const runAffectClosure = async () => {
     } finally { setAnnSaving(false); }
   };
 
+  // 由公告資料重建逐日表格的一列（allDayClosed 由 00:00-00:00 反推）
+  const rowFromLegacy = (date, open, close) => {
+    const closed = open === '00:00' && close === '00:00';
+    return { date, gymId: '', open: closed ? '' : (open || ''), close: closed ? '' : (close || ''), allDayClosed: closed };
+  };
+
   const openEditAnn = (a) => {
     setEditingAnn(a);
-    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', specialOpen:a.specialOpen||'', specialClose:a.specialClose||'', showOnBanner:!!a.showOnBanner, publishAt:tsToLocalInput(a.publishAt), publishUntil:tsToLocalInput(a.publishUntil), bannerImage:a.bannerImage||'' });
+    const isSpecial = a.type === 'special_hours';
+    setCrossGymMode(isSpecial ? a.gymId == null : false);
+    if (isSpecial) {
+      if (a.dailyHours && a.dailyHours.length) {
+        setDailyRows(a.dailyHours.map(r => ({ ...rowFromLegacy(r.date, r.open, r.close), gymId: r.gymId || '' })));
+      } else {
+        setDailyRows([rowFromLegacy(a.effectiveFrom, a.specialOpen, a.specialClose)]);
+      }
+    } else {
+      setDailyRows([]);
+    }
+    setAnnForm({ title:a.title, content:a.content||'', type:a.type, effectiveFrom:a.effectiveFrom, effectiveTo:a.effectiveTo||'', showOnBanner:!!a.showOnBanner, publishAt:tsToLocalInput(a.publishAt), publishUntil:tsToLocalInput(a.publishUntil), bannerImage:a.bannerImage||'' });
     setAnnImageFile(null);
     setAnnMsg('');
     setShowAddAnn(true);
   };
+
+  const openAddAnn = () => {
+    setEditingAnn(null);
+    setAnnForm(BLANK_ANN_FORM);
+    setCrossGymMode(false);
+    setDailyRows([]);
+    setAnnImageFile(null);
+    setAffectCourses('no');
+    setAnnMsg('');
+    setShowAddAnn(true);
+  };
+
+  const closeAnnModal = () => {
+    setShowAddAnn(false);
+    setEditingAnn(null);
+    setAnnMsg('');
+  };
+
+  const addDailyRow = () => {
+    setDailyRows(rows => {
+      const last = rows[rows.length - 1];
+      const nextDate = last ? dayjs(last.date).add(1, 'day').format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD');
+      return [...rows, blankDailyRow(nextDate, last)];
+    });
+  };
+  const updateDailyRow = (idx, patch) => setDailyRows(rows => rows.map((r, i) => i === idx ? { ...r, ...patch } : r));
+  const removeDailyRow = (idx) => setDailyRows(rows => rows.length > 1 ? rows.filter((_, i) => i !== idx) : rows);
 
   const handleDeleteAnn = async (a) => {
     if (!window.confirm(`確定要下架「${a.title}」？`)) return;
@@ -357,7 +434,7 @@ const runAffectClosure = async () => {
         <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', overflow:'hidden' }}>
           <div style={{ padding:'12px 16px', borderBottom:'1px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>公告列表</span>
-            <button onClick={() => setShowAddAnn(true)} style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>＋ 新增公告</button>
+            <button onClick={openAddAnn} style={{ height:28, padding:'0 10px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>＋ 新增公告</button>
           </div>
           {announcements.length === 0 ? (
             <div style={{ padding:24, textAlign:'center', color:'#999', fontSize:13 }}>目前無公告</div>
@@ -372,6 +449,16 @@ const runAffectClosure = async () => {
               <div style={{ fontSize:13, fontWeight:500 }}>{a.title}</div>
               {a.content && <div style={{ fontSize:12, color:'#6b6b6b', marginTop:3 }}>{a.content}</div>}
               {a.effectiveTo && <div style={{ fontSize:11, color:'#999', marginTop:4 }}>有效至 {a.effectiveTo}</div>}
+              {a.type === 'special_hours' && a.dailyHours?.length > 0 && (
+                <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:2 }}>
+                  {a.dailyHours.map((r, i) => (
+                    <div key={i} style={{ fontSize:11, color:'#B5762B' }}>
+                      {dayjs(r.date).format('MM/DD')}（{DAY_LABELS[DAYS[dayjs(r.date).day()]]}）{r.gymId ? gymLabel(r.gymId) : '兩館'}
+                      {' '}{r.open === '00:00' && r.close === '00:00' ? '全天休館' : `${r.open}–${r.close}`}
+                    </div>
+                  ))}
+                </div>
+              )}
               {annPublishMs(a.publishAt) > Date.now() && <div style={{ fontSize:11, color:'#854F0B', marginTop:4 }}>預計發布 {tsToLocalInput(a.publishAt).replace('T',' ')}</div>}
               <div style={{ display:'flex', gap:6, marginTop:8 }}>
                 <button onClick={() => openEditAnn(a)} style={{ height:24, padding:'0 9px', borderRadius:6, background:'#fff', border:'0.5px solid #E8D5D5', color:'#666', fontSize:10, cursor:'pointer' }}>編輯</button>
@@ -443,8 +530,10 @@ const runAffectClosure = async () => {
             {[
               { label:'標題', key:'title', placeholder:'公告標題', type:'text' },
               { label:'內容（選填）', key:'content', placeholder:'公告詳細內容', type:'text' },
-              { label:'生效開始日期（休館／營業調整生效起）', key:'effectiveFrom', placeholder:'', type:'date' },
-              { label:'生效結束日期（選填）', key:'effectiveTo', placeholder:'', type:'date' },
+              ...(annForm.type === 'special_hours' ? [] : [
+                { label:'生效開始日期（休館／營業調整生效起）', key:'effectiveFrom', placeholder:'', type:'date' },
+                { label:'生效結束日期（選填）', key:'effectiveTo', placeholder:'', type:'date' },
+              ]),
             ].map(f => (
               <div key={f.key} style={{ marginBottom:12 }}>
                 <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{f.label}</label>
@@ -455,7 +544,11 @@ const runAffectClosure = async () => {
             ))}
             <div style={{ marginBottom:16 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>類型</label>
-              <select value={annForm.type} onChange={e => setAnnForm(p => ({...p, type: e.target.value}))}
+              <select value={annForm.type} onChange={e => {
+                  const v = e.target.value;
+                  setAnnForm(p => ({...p, type: v}));
+                  if (v === 'special_hours' && dailyRows.length === 0) setDailyRows([blankDailyRow(dayjs().format('YYYY-MM-DD'))]);
+                }}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a' }}>
                 <option value="general">一般公告</option>
                 {!annOnly && <option value="closure">休館</option>}
@@ -489,21 +582,69 @@ const runAffectClosure = async () => {
             {annForm.type === 'special_hours' && (
               <>
                 <div style={{ background:'#FFF3E0', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#B5762B', marginBottom:12, lineHeight:1.6 }}>
-                  此類型會自動覆蓋有效期間內當天顯示的營業時間，不需另外調整標準營業時間。請填寫當天實際的營業時段。
+                  此類型會自動覆蓋下方逐日設定的日期當天顯示的營業時間，不需另外調整標準營業時間；未設定的日期照常顯示標準營業時間。可針對連續多天（如連假）各自設定不同時段，勾選「全天休館」代表當天不開放。
                 </div>
-                <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-                  <div style={{ flex:1 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>當天開始時間</label>
-                    <input type="time" value={annForm.specialOpen}
-                      onChange={e => setAnnForm(p => ({...p, specialOpen: e.target.value}))}
-                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+
+                {isSuperAdmin && !editingAnn && (
+                  <div style={{ marginBottom:12 }}>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>涵蓋範圍</label>
+                    <div style={{ display:'flex', gap:8 }}>
+                      <label style={{ flex:1, display:'flex', alignItems:'center', gap:6, fontSize:12.5, padding:'8px 10px', borderRadius:8, border:`1px solid ${!crossGymMode?'#8B1A1A':'#E8D5D5'}`, background: !crossGymMode?'#FBF0EE':'#fff', cursor:'pointer' }}>
+                        <input type="radio" name="crossGymMode" checked={!crossGymMode} onChange={()=>setCrossGymMode(false)} />
+                        僅 {selected?.shortName || selected?.name || '目前選定館別'}
+                      </label>
+                      <label style={{ flex:1, display:'flex', alignItems:'center', gap:6, fontSize:12.5, padding:'8px 10px', borderRadius:8, border:`1px solid ${crossGymMode?'#8B1A1A':'#E8D5D5'}`, background: crossGymMode?'#FBF0EE':'#fff', cursor:'pointer' }}>
+                        <input type="radio" name="crossGymMode" checked={crossGymMode} onChange={()=>setCrossGymMode(true)} />
+                        跨館（可逐日分別設定）
+                      </label>
+                    </div>
                   </div>
-                  <div style={{ flex:1 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>當天結束時間</label>
-                    <input type="time" value={annForm.specialClose}
-                      onChange={e => setAnnForm(p => ({...p, specialClose: e.target.value}))}
-                      style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+                )}
+                {editingAnn && (
+                  <div style={{ fontSize:11, color:'#999', marginBottom:12 }}>
+                    涵蓋範圍：{crossGymMode ? '跨館（新竹＋士林）' : (gymLabel(editingAnn.gymId) || '單一館別')}（建立後不可變更）
                   </div>
+                )}
+
+                {editingAnn && !(editingAnn.dailyHours && editingAnn.dailyHours.length) && editingAnn.effectiveTo && editingAnn.effectiveTo !== editingAnn.effectiveFrom && (
+                  <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 10px', fontSize:11.5, color:'#A32D2D', marginBottom:12, lineHeight:1.6 }}>
+                    此為舊格式公告，原效期 {editingAnn.effectiveFrom} ~ {editingAnn.effectiveTo} 皆套用同一時段。儲存後將改為僅涵蓋下方逐日表格設定的日期，如需保留原本的多天範圍，請自行為每一天新增一列。
+                  </div>
+                )}
+
+                <div style={{ marginBottom:16 }}>
+                  {dailyRows.map((row, idx) => (
+                    <div key={idx} style={{ border:'0.5px solid #E8D5D5', borderRadius:8, padding:8, marginBottom:8, background:'#FBF5F5' }}>
+                      <div style={{ display:'flex', gap:6, marginBottom:6, flexWrap:'wrap', alignItems:'center' }}>
+                        <input type="date" value={row.date} onChange={e=>updateDailyRow(idx,{date:e.target.value})}
+                          style={{ flex: crossGymMode ? '1 1 120px' : '1 1 auto', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, background:'#fff', outline:'none' }} />
+                        {crossGymMode && (
+                          <select value={row.gymId} onChange={e=>updateDailyRow(idx,{gymId:e.target.value})}
+                            style={{ flex:'1 1 100px', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 6px', fontSize:12, background:'#fff', outline:'none' }}>
+                            <option value="">兩館皆同</option>
+                            {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
+                          </select>
+                        )}
+                        <button type="button" onClick={()=>removeDailyRow(idx)} disabled={dailyRows.length<=1}
+                          style={{ width:26, height:26, borderRadius:6, border:'0.5px solid #E8D5D5', background:'#fff', color: dailyRows.length<=1?'#ccc':'#A32D2D', fontSize:13, cursor: dailyRows.length<=1?'not-allowed':'pointer' }}>✕</button>
+                      </div>
+                      <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+                        <input type="time" value={row.open} disabled={row.allDayClosed} onChange={e=>updateDailyRow(idx,{open:e.target.value})}
+                          style={{ flex:'1 1 90px', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 6px', fontSize:12, background: row.allDayClosed?'#F0EDED':'#fff', outline:'none' }} />
+                        <span style={{ fontSize:11, color:'#999' }}>–</span>
+                        <input type="time" value={row.close} disabled={row.allDayClosed} onChange={e=>updateDailyRow(idx,{close:e.target.value})}
+                          style={{ flex:'1 1 90px', height:34, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 6px', fontSize:12, background: row.allDayClosed?'#F0EDED':'#fff', outline:'none' }} />
+                        <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'#666', cursor:'pointer', whiteSpace:'nowrap', flex:'0 0 auto' }}>
+                          <input type="checkbox" checked={row.allDayClosed} onChange={e=>updateDailyRow(idx,{allDayClosed:e.target.checked})} />
+                          全天休館
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                  <button type="button" onClick={addDailyRow}
+                    style={{ width:'100%', height:34, borderRadius:8, border:'1px dashed #C9B8B8', background:'#fff', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>
+                    ＋ 新增一天
+                  </button>
                 </div>
               </>
             )}
@@ -552,7 +693,7 @@ const runAffectClosure = async () => {
 
             {/* 底部按鈕固定黏底（手機不用捲就看得到確認鍵）*/}
             <div style={{ display:'flex', gap:8, position:'sticky', bottom:-24, background:'#fff', paddingTop:12, paddingBottom:12, marginTop:8, marginLeft:-24, marginRight:-24, marginBottom:-24, paddingLeft:24, paddingRight:24, borderTop:'0.5px solid #F0EAEA' }}>
-              <button onClick={() => { setShowAddAnn(false); setEditingAnn(null); setAnnMsg(''); }}
+              <button onClick={closeAnnModal}
                 style={{ flex:1, height:40, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#333', fontSize:13, cursor:'pointer' }}>取消</button>
               <button onClick={handleAddAnn} disabled={annSaving}
                 style={{ flex:2, height:40, borderRadius:8, background: annSaving?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: annSaving?'not-allowed':'pointer' }}>
