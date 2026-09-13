@@ -453,7 +453,7 @@ const runAffectClosure = async () => {
                 <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:2 }}>
                   {a.dailyHours.map((r, i) => (
                     <div key={i} style={{ fontSize:11, color:'#B5762B' }}>
-                      {dayjs(r.date).format('MM/DD')}（{DAY_LABELS[DAYS[dayjs(r.date).day()]]}）{r.gymId ? gymLabel(r.gymId) : '兩館'}
+                      {dayjs(r.date).format('MM/DD')}（{DAY_LABELS[DAYS[dayjs(r.date).day()]]}）{a.gymId ? gymLabel(a.gymId) : (r.gymId ? gymLabel(r.gymId) : '兩館')}
                       {' '}{r.open === '00:00' && r.close === '00:00' ? '全天休館' : `${r.open}–${r.close}`}
                     </div>
                   ))}
