@@ -650,8 +650,8 @@ export default function PassesPage() {
 
                 {/* 優惠卡、黑卡（上下排列，版面規格與定期票/單日券/紅利一致） */}
                 {[
-                  { title:'🎫 優惠卡', stats: discountStats, type:'discounts', total: discountStats.total, active: discountStats.active, fullyUsed: discountStats.fullyUsed, expired: discountStats.expired, creditsIssued: discountStats.totalCreditsIssued, creditsUsed: discountStats.totalCreditsUsed, creditsLeft: discountStats.totalCreditsRemaining },
-                  { title:'⬛ 黑卡', stats: blackStats, type:'blacks', total: blackStats.total, active: blackStats.active, fullyUsed: blackStats.fullyUsed, expired: blackStats.expired, creditsIssued: blackStats.totalCreditsIssued, creditsUsed: blackStats.totalCreditsUsed, creditsLeft: blackStats.totalCreditsRemaining },
+                  { title:'🎫 優惠卡', stats: discountStats, type:'discounts', total: discountStats.total, active: discountStats.active, fullyUsed: discountStats.fullyUsed, expired: discountStats.expired, creditsIssued: discountStats.totalCreditsIssued, creditsUsed: discountStats.totalCreditsUsed, creditsLeft: discountStats.totalCreditsRemaining, unbound: discountStats.unbound },
+                  { title:'⬛ 黑卡', stats: blackStats, type:'blacks', total: blackStats.total, active: blackStats.active, fullyUsed: blackStats.fullyUsed, expired: blackStats.expired, creditsIssued: blackStats.totalCreditsIssued, creditsUsed: blackStats.totalCreditsUsed, creditsLeft: blackStats.totalCreditsRemaining, unbound: blackStats.unbound },
                 ].map(s => (
                   <div key={s.type} style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
@@ -678,6 +678,11 @@ export default function PassesPage() {
                     <div style={{ fontSize:11, color:'#666', textAlign:'center', marginTop:4 }}>
                       總次數 {(s.creditsIssued||0).toLocaleString()}　已用 {(s.creditsUsed||0).toLocaleString()}　剩餘 {(s.creditsLeft||0).toLocaleString()}
                     </div>
+                    {s.unbound != null && (
+                      <div style={{ fontSize:11, color:'#B5762B', textAlign:'center', marginTop:6, paddingTop:6, borderTop:'1px dashed #E8D5D5' }}>
+                        📇 實體卡未綁定：{s.unbound.toLocaleString()} 張（已售出、尚未有客人拿來綁定）
+                      </div>
+                    )}
                   </div>
                 ))}
 
