@@ -3,6 +3,7 @@ import { getRevenueSummary, getDailyReport, getCheckinStats, getAdjustments, exp
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import PayoutsPanel from './PayoutsPanel';
 
 // 日報表分類欄位（入場/租借/定期票 拆開）
 const DAILY_COLS = [
@@ -107,6 +108,7 @@ export default function RevenuePage({ embedded = false }) {
   const TABS = [
     { key: 'overview', label: '營收總覽' },
     { key: 'checkin',  label: '入場統計' },
+    { key: 'payouts',  label: '人事報酬' },
   ];
 
   return (
@@ -116,7 +118,7 @@ export default function RevenuePage({ embedded = false }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-          {[7, 14, 30].map(d => (
+          {tab !== 'payouts' && [7, 14, 30].map(d => (
             <button key={d} onClick={() => setDays(d)}
               style={{ height:30, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background: days===d ? '#8B1A1A' : '#fff', color: days===d ? '#fff' : '#666', fontSize:12, cursor:'pointer' }}>
               {d}天
@@ -125,7 +127,10 @@ export default function RevenuePage({ embedded = false }) {
         </div>
       </div>
 
-      {loading ? (
+      {/* ── 人事報酬（不依賴上方營收/入場資料載入狀態，獨立渲染）── */}
+      {tab === 'payouts' && <PayoutsPanel gymFilter={gymFilter} />}
+
+      {tab !== 'payouts' && (loading ? (
         <div style={{ textAlign:'center', padding:60, color:'#999', fontSize:14 }}>載入中...</div>
       ) : (
         <>
@@ -350,7 +355,7 @@ export default function RevenuePage({ embedded = false }) {
             </>
           )}
         </>
-      )}
+      ))}
     </div>
   );
 }
