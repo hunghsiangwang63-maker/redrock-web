@@ -21,7 +21,10 @@ const DENOMINATIONS = [
 // 不經過 RedRock 後端——純機器內部動作，代理未啟動/未連接印表機時會連線失敗，此為預期行為（非本機不會誤觸）。
 const PRINT_AGENT_URL = 'http://localhost:3399';
 
-const DEDUCTION_TYPES = ['教練費','定線費','現金領取','現金補入','押金收取','押金退還','其他退款','其他'];
+const DEDUCTION_TYPES = ['教練費','定線費','拆點費','現金領取','現金補入','押金收取','押金退還','其他退款','其他'];
+// 這三種加減項是給人的報酬，結帳時須填姓名——會自動同步一筆結構化紀錄到「財務→人事報酬」頁
+// （供日後申報所得查資料用），跟每日結帳「加減項」機制分開存放，見後端 dailySettlements.js 檔頭說明。
+const PAYOUT_LINKED_TYPES = ['教練費','定線費','拆點費'];
 const INCOME_KEYS = ['entry', 'shoeRental', 'equipmentRental', 'product', 'course', 'pass', 'competition'];
 
 // ── 入場費固定六分類（結帳畫面預設就顯示、可逐類手動輸入）──────────────────
@@ -246,7 +249,7 @@ export default function DailySettlementPage() {
       ? manualIncomeTotal(settlement?.income, incomeManual)
       : (settlement?.income?.total || 0);
 
-  const addDeduction = () => setDeductions(prev => [...prev, { sign: '-', type: DEDUCTION_TYPES[0], amount: '', note: '' }]);
+  const addDeduction = () => setDeductions(prev => [...prev, { sign: '-', type: DEDUCTION_TYPES[0], amount: '', note: '', payeeName: '' }]);
   const removeDeduction = (i) => setDeductions(prev => prev.filter((_, idx) => idx !== i));
 
   const cleanSegments = () => invoiceSegments.map(sg => ({ track: String(sg.track || '').trim().toUpperCase(), start: String(sg.start || '').trim(), last: String(sg.last || '').trim() })).filter(sg => sg.track || sg.start || sg.last);
@@ -276,6 +279,9 @@ export default function DailySettlementPage() {
       const segs = cleanSegments();
       if (!segs.length || !segs[segs.length - 1].last) { showMsg('請至少填一段發票，且最後一段需填末號', 'err'); return; }
     }
+    // 教練費/定線費/拆點費須登記姓名（後端也會權威擋，這裡先擋一次省一次來回）
+    const missingPayee = deductions.find(d => !d.auto && PAYOUT_LINKED_TYPES.includes(d.type) && !String(d.payeeName || '').trim());
+    if (missingPayee) { showMsg(`「${missingPayee.type}」加減項須填寫領款人姓名`, 'err'); return; }
     setShowConfirm(true);
   };
 
@@ -690,6 +696,13 @@ export default function DailySettlementPage() {
                       <button onClick={() => removeDeduction(i)}
                         style={{ height:36, width:36, borderRadius:8, border:'0.5px solid #E8D5D5', background:'#fff', color:'#A32D2D', cursor:'pointer', fontSize:16 }}>✕</button>
                     </div>
+                    {PAYOUT_LINKED_TYPES.includes(d.type) && (
+                      <div style={{ marginBottom:6 }}>
+                        <input value={d.payeeName || ''} placeholder="領款人姓名（必填，自動同步至「人事報酬」供報稅查詢）"
+                          onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, payeeName: e.target.value} : x))}
+                          style={{ ...s.input, width:'100%', boxSizing:'border-box', borderColor: String(d.payeeName || '').trim() ? '#E8D5D5' : '#D98C8C' }} />
+                      </div>
+                    )}
                     <input value={d.note} placeholder="備註（選填）"
                       onChange={e => setDeductions(prev => prev.map((x,idx) => idx===i ? {...x, note: e.target.value} : x))}
                       style={{ ...s.input, width:'100%' }} />
@@ -1088,7 +1101,7 @@ function SettlementSummary({ invoiceTotal, manualTotal, compareLabel = '手計',
             {deductions.map((d, i) => (
               <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12.5 }}>
                 <span style={{ color: d.sign === '+' ? '#2D7D46' : '#A32D2D', textAlign:'left' }}>
-                  {d.sign === '+' ? '＋' : '－'}{d.type}{d.note ? `（${d.note}）` : ''}
+                  {d.sign === '+' ? '＋' : '－'}{d.type}{d.payeeName ? `・${d.payeeName}` : ''}{d.note ? `（${d.note}）` : ''}
                 </span>
                 <span style={{ color: d.sign === '+' ? '#2D7D46' : '#A32D2D' }}>{d.sign === '+' ? '+' : '−'}{money(Math.abs(Number(d.amount) || 0))}</span>
               </div>
