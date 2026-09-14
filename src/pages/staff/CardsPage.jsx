@@ -89,11 +89,12 @@ function DiscountCards({ member, cards, onRefresh }) {
   };
 
   const handleBind = async () => {
+    if (!bindForm.barcode.trim()) { setMsg('請先輸入卡片條碼'); return; }
     if (!bindForm.remainingCredits || parseInt(bindForm.remainingCredits) < 1) { setMsg('請輸入剩餘次數（至少 1）'); return; }
     if (parseInt(bindForm.remainingCredits) > 10) { setMsg('優惠卡剩餘次數上限為 10'); return; }
     setLoading(true);
     try {
-      await bindDiscountCard({ memberId: member.id, remainingCredits: parseInt(bindForm.remainingCredits), barcode: bindForm.barcode || undefined });
+      await bindDiscountCard({ memberId: member.id, remainingCredits: parseInt(bindForm.remainingCredits), barcode: bindForm.barcode.trim() });
       setMsg('優惠卡轉入成功！');
       setShowBind(false); setBindForm({ barcode:'', remainingCredits:'' });
       onRefresh();
@@ -189,15 +190,16 @@ function DiscountCards({ member, cards, onRefresh }) {
             將既有（舊系統／實體）優惠卡轉入本系統並設定剩餘次數。轉入後即可 8 折入場、可移轉；用完（含移轉子卡累計）觸發紅利，與購買卡相同。有效期自轉入日起 1 年。
           </div>
           <div style={{ marginBottom:12 }}>
-            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>卡片條碼（選填）</label>
+            <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>卡片條碼（必填，不用打「－」）</label>
             <input value={bindForm.barcode} onChange={e => setBindForm(f => ({ ...f, barcode:e.target.value }))}
-              placeholder="可手動輸入或留空" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+              placeholder="例如 AT190001" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
           </div>
           <div style={{ marginBottom:16 }}>
             <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>剩餘次數</label>
-            <input type="number" min={1} max={10} required value={bindForm.remainingCredits}
+            <input type="number" min={1} max={10} required disabled={!bindForm.barcode.trim()} value={bindForm.remainingCredits}
               onChange={e => setBindForm(f => ({ ...f, remainingCredits:e.target.value }))}
-              placeholder="輸入卡片目前剩餘的八折入場次數（上限 10）" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
+              placeholder={bindForm.barcode.trim() ? '輸入卡片目前剩餘的八折入場次數（上限 10）' : '請先填寫卡片條碼'}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background: bindForm.barcode.trim() ? '#FBF5F5' : '#F0EDED', outline:'none', boxSizing:'border-box', cursor: bindForm.barcode.trim() ? 'text' : 'not-allowed' }} />
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setShowBind(false)}
@@ -304,11 +306,12 @@ function BlackCards({ member, cards, onRefresh }) {
 
   const handleBind = async (e) => {
     e.preventDefault();
+    if (!bindForm.barcode.trim()) { setMsg('請先輸入黑卡條碼'); return; }
     setLoading(true);
     try {
       await bindBlackCard({
         memberId: member.id,
-        barcode: bindForm.barcode || undefined,
+        barcode: bindForm.barcode.trim(),
         remainingCredits: parseInt(bindForm.remainingCredits),
       });
       setMsg('黑卡綁定成功！');
@@ -384,17 +387,17 @@ function BlackCards({ member, cards, onRefresh }) {
         <Modal title={`綁定黑卡 — ${member.name}`} onClose={() => setShowBind(false)} width={400}>
           <form onSubmit={handleBind}>
             <div style={{ marginBottom:14 }}>
-              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>黑卡條碼（選填，可手動輸入）</label>
+              <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>黑卡條碼（必填，不用打「－」）</label>
               <input value={bindForm.barcode} onChange={e => setBindForm(f => ({ ...f, barcode:e.target.value }))}
-                placeholder="BC-XXXX-XXXXX"
+                placeholder="例如 AT190001"
                 style={{ width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
             <div style={{ marginBottom:20 }}>
               <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>剩餘次數（店員目視確認）</label>
-              <input type="number" min={1} max={12} required value={bindForm.remainingCredits}
+              <input type="number" min={1} max={12} required disabled={!bindForm.barcode.trim()} value={bindForm.remainingCredits}
                 onChange={e => setBindForm(f => ({ ...f, remainingCredits:e.target.value }))}
-                placeholder="1 - 12"
-                style={{ width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+                placeholder={bindForm.barcode.trim() ? '1 - 12' : '請先填寫黑卡條碼'}
+                style={{ width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 11px', fontSize:13, background: bindForm.barcode.trim() ? '#FBF5F5' : '#EAEAEA', outline:'none', color:'#1a1a1a', boxSizing:'border-box', cursor: bindForm.barcode.trim() ? 'text' : 'not-allowed' }}/>
             </div>
             <div style={{ background:'#FAEEDA', border:'1px solid #FAC775', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#633806', marginBottom:14 }}>
               ⚠ 請先確認剩餘格數後再輸入，綁定後即以此數字為準
