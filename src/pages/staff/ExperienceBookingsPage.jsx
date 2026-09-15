@@ -478,7 +478,11 @@ export default function ExperienceBookingsPage() {
                       {b.status!=='cancelled' && (
                         <button onClick={()=>openEditParticipants(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #8B1A1A', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>✏️ 編輯資訊</button>
                       )}
-                      {b.status==='confirmed' && (
+                      {/* 週課試上（kind:'trial'）本就綁在既有週課場次上，教練已由該課程排定——後端
+                          /confirm 對 kind==='trial' 走專屬分支、完全不讀取也不儲存 coachName/coachId
+                          （見 experienceBookings.js 532 行起），此按鈕對試上是無效死路（填了也不會存、
+                          畫面上還被前端擋著一定要填），故排除試上，只給一般體驗預約用 */}
+                      {b.status==='confirmed' && b.kind!=='trial' && (
                         <button onClick={()=>openCoach(b)} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', border:'0.5px solid #2D7D46', color:'#2D7D46', fontSize:12, cursor:'pointer' }}>{b.coachName?'👟 改教練':'👟 指定教練'}</button>
                       )}
                       {b.status==='confirmed' && canInvoice && (() => {
