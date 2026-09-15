@@ -21,10 +21,10 @@ const DENOMINATIONS = [
 // 不經過 RedRock 後端——純機器內部動作，代理未啟動/未連接印表機時會連線失敗，此為預期行為（非本機不會誤觸）。
 const PRINT_AGENT_URL = 'http://localhost:3399';
 
-const DEDUCTION_TYPES = ['教練費','定線費','拆點費','現金領取','現金補入','押金收取','押金退還','其他退款','其他'];
+const DEDUCTION_TYPES = ['教練費','定線費','拆點費','講師費','肢體評估費用','現金領取','現金補入','押金收取','押金退還','其他退款','其他'];
 // 這三種加減項是給人的報酬，結帳時須填姓名——會自動同步一筆結構化紀錄到「財務→人事報酬」頁
 // （供日後申報所得查資料用），跟每日結帳「加減項」機制分開存放，見後端 dailySettlements.js 檔頭說明。
-const PAYOUT_LINKED_TYPES = ['教練費','定線費','拆點費'];
+const PAYOUT_LINKED_TYPES = ['教練費','定線費','拆點費','講師費','肢體評估費用'];
 const INCOME_KEYS = ['entry', 'shoeRental', 'equipmentRental', 'product', 'course', 'pass', 'competition'];
 
 // ── 入場費固定六分類（結帳畫面預設就顯示、可逐類手動輸入）──────────────────

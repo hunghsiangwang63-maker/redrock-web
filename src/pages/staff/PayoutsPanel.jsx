@@ -5,7 +5,7 @@ import { useAuth } from '../../store/authStore';
 import Modal from '../../components/Modal';
 
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
-const CATEGORY_SUGGESTIONS = ['教練費', '定線費', '拆點費', '其他'];
+const CATEGORY_SUGGESTIONS = ['教練費', '定線費', '拆點費', '講師費', '肢體評估費用', '其他'];
 const NT = (n) => `NT$${(n || 0).toLocaleString()}`;
 
 const emptyForm = (defaultGymId) => ({
