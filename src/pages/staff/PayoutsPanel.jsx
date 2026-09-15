@@ -120,12 +120,10 @@ export default function PayoutsPanel({ gymFilter }) {
           style={{ height:32, padding:'0 14px', borderRadius:6, border:'none', background:'#8B1A1A', color:'#fff', fontSize:13, cursor:'pointer', fontWeight:600 }}>
           ＋ 新增
         </button>
-        {records.length > 0 && (
-          <button onClick={handleExport}
-            style={{ height:32, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>
-            ↓ 匯出 Excel
-          </button>
-        )}
+        <button onClick={handleExport}
+          style={{ height:32, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>
+          ↓ 匯出 Excel
+        </button>
       </div>
 
       <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
