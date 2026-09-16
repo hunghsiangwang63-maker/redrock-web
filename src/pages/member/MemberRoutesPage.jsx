@@ -20,7 +20,15 @@ export default function MemberRoutesPage() {
   const { member } = useMember();
   const navigate = useNavigate();
   const [tab, setTab] = useState('routes'); // routes | rankings
-  const [gymId, setGymId] = useState(() => localStorage.getItem('memberRouteGym') || 'gym-hsinchu');
+  // 深連結帶館別（2026-09-16 新增，見 PublicRoutePage.jsx 的登入導向 ?gym=）：從公開分享頁登入進來時
+  // 優先用連結指定的館別（否則分享士林館路線、卻用預設/上次選的新竹館，會找不到那條路線可高亮）；
+  // 一般直接進頁（無 gym 參數）沿用既有 localStorage 記憶，行為不變。用 window.location 讀取而非
+  // useSearchParams（該 hook 在下方才宣告），純初始化一次性讀取不需要響應式更新。
+  const [gymId, setGymId] = useState(() => {
+    const fromLink = new URLSearchParams(window.location.search).get('gym');
+    if (fromLink === 'gym-hsinchu' || fromLink === 'gym-shilin') return fromLink;
+    return localStorage.getItem('memberRouteGym') || 'gym-hsinchu';
+  });
   // 家長代子會員操作（2026-09-02 新增）：子會員無獨立登入，完攀記錄/積分/暱稱/標記朋友皆可切換
   // 檢視對象代為操作——viewAsId 貫穿整頁所有讀寫（記錄完攀為誰記錄、排名看誰的、暱稱改誰的、
   // 標記朋友以誰的身份發起），單一選擇器統一控管，避免多套各自獨立的「為誰」選單造成混淆。
@@ -147,27 +155,45 @@ export default function MemberRoutesPage() {
       }))
       .catch(() => {}); // 計數失敗不影響分享本身已完成的事實，靜默即可
   };
-  const shareIg = async (r) => {
-    const title = `${r.area || ''} ${r.color || ''} ${r.grade} ${t('路線示範')}`.trim();
-    try {
-      if (navigator.share) { await navigator.share({ title, url: r.igUrl }); bumpShareCount(r.id); return; }
-      await navigator.clipboard.writeText(r.igUrl);
-      bumpShareCount(r.id);
-      setShareToast(t('已複製示範影片連結')); setTimeout(() => setShareToast(''), 2000);
-    } catch (e) { /* 使用者取消分享等，靜默 */ }
-  };
-
-  // 分享「這條路線」本身（深連結，不限有無 IG 示範影片；跟上面 shareIg 分享 IG 連結是兩個獨立功能，
-  // 但計數共用同一個 shareCount——兩者都代表「這條路線被分享出去」，排序熱門度不需要拆開看）
+  // 分享「這條路線」本身——2026-09-16 改連到免登入公開頁（/route?id=，PublicRoutePage.jsx），原本
+  // 連的 /member/routes?route= 需要登入才看得到資料，分享出去起不到讓其他人（含非會員）看到的效果。
   const shareRoute = async (r) => {
     const title = `${r.area || ''} ${r.color || ''} ${r.grade}${r.name ? ' · ' + r.name : ''}`.trim();
-    const url = `${window.location.origin}/member/routes?route=${r.id}`;
+    const url = `${window.location.origin}/route?id=${r.id}`;
     try {
       if (navigator.share) { await navigator.share({ title: `${t('紅石路線攻略')}：${title}`, url }); bumpShareCount(r.id); return; }
       await navigator.clipboard.writeText(url);
       bumpShareCount(r.id);
       setShareToast(t('已複製路線連結')); setTimeout(() => setShareToast(''), 2000);
     } catch (e) { /* 使用者取消分享等，靜默 */ }
+  };
+
+  // 分享「我的完攀影片」（2026-09-16 新增）：貼自己的 IG 完攀影片連結，公開展示給其他會員查看
+  // （跟上面路線本身的分享、以及路線卡上「📹 示範」館方提供的示範影片是三個獨立概念，不要混用）。
+  const [videoModal, setVideoModal] = useState(null); // 開啟的路線
+  const [videoUrlInput, setVideoUrlInput] = useState('');
+  const [videoSaving, setVideoSaving] = useState(false);
+  const [videoMsg, setVideoMsg] = useState(null);
+  const openVideoModal = (r) => {
+    setVideoModal(r);
+    setVideoUrlInput(myAscents[r.id]?.videoUrl || '');
+    setVideoMsg(null);
+  };
+  const saveVideo = async () => {
+    setVideoSaving(true); setVideoMsg(null);
+    try {
+      await memberClient.put(`/climbing-routes/${videoModal.id}/ascents/video`, { videoUrl: videoUrlInput.trim(), targetMemberId: effectiveViewAsId });
+      setVideoModal(null); load();
+    } catch (e) { setVideoMsg(e.response?.data?.message || t('儲存失敗')); }
+    finally { setVideoSaving(false); }
+  };
+  const clearVideo = async () => {
+    setVideoSaving(true); setVideoMsg(null);
+    try {
+      await memberClient.put(`/climbing-routes/${videoModal.id}/ascents/video`, { videoUrl: '', targetMemberId: effectiveViewAsId });
+      setVideoModal(null); load();
+    } catch (e) { setVideoMsg(e.response?.data?.message || t('刪除失敗')); }
+    finally { setVideoSaving(false); }
   };
 
   // 讚：toggle，不限入館。防連點（送出中忽略再次點擊）；成功後直接更新本地 data 避免重新整個 reload。
@@ -423,17 +449,12 @@ export default function MemberRoutesPage() {
                             <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{sortMode !== 'area' && r.area ? `📍 ${r.area} · ` : ''}{t('基本分')} {r.basePoints}{r.setter ? ` · ${t('定線')} ${r.setter}` : ''}{r.plannedRemoveAt ? ` · ${tt('預計換線', 'Planned removal', '交換予定')} ${r.plannedRemoveAt}` : ''}</div>
                             {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2, textAlign:'left' }}>💬 {r.note}</div>}
                           </div>
-                          {r.igUrl && (<>
+                          {r.igUrl && (
                             <button onClick={() => window.open(r.igUrl, '_blank', 'noopener')}
                               style={{ fontSize:11, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 9px', cursor:'pointer', whiteSpace:'nowrap' }}>
                               📹 {t('示範')}
                             </button>
-                            <button onClick={() => shareIg(r)} aria-label={t('分享示範影片連結')}
-                              style={{ display:'flex', alignItems:'center', gap:3, fontSize:12, fontWeight:600, color:'#B03E96', background:'#fff', border:'1px solid #E8C9E0', borderRadius:8, padding:'5px 8px', cursor:'pointer', whiteSpace:'nowrap' }}>
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-                              {t('分享影片')}
-                            </button>
-                          </>)}
+                          )}
                         </div>
                         <div style={{ marginTop:8, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
                           {mine ? (
@@ -465,6 +486,14 @@ export default function MemberRoutesPage() {
                             style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
                             👥 {t('標記朋友')}{r.tagCount > 0 ? ` ${r.tagCount}` : ''}
                           </button>
+                          {/* 分享我的完攀影片（2026-09-16 新增）：需先完攀（mine 存在）才能貼自己的 IG 連結 */}
+                          {mine && (
+                            <button onClick={() => openVideoModal(r)}
+                              style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer',
+                                border: mine.videoUrl ? '1px solid #F0C9C9' : '1px solid #E8D5D5', background: mine.videoUrl ? '#FBEFEF' : '#fff', color: mine.videoUrl ? '#8B1A1A' : '#999' }}>
+                              🎥 {mine.videoUrl ? t('我的完攀影片') : t('分享我的完攀影片')}
+                            </button>
+                          )}
                         </div>
                         {r.tags && r.tags.length > 0 && (
                           <div style={{ marginTop:6, fontSize:11, color:'#999', textAlign:'left', lineHeight:1.6 }}>
@@ -472,6 +501,17 @@ export default function MemberRoutesPage() {
                               <span key={i}>👥 {tt(`${tg.from} 標記了 ${tg.tagged}`, `${tg.from} tagged ${tg.tagged}`, `${tg.from}が${tg.tagged}をタグ付け`)}{i < Math.min(r.tags.length, 3) - 1 ? '、' : ''}</span>
                             ))}
                             {r.tags.length > 3 && <span>{tt(`　等共 ${r.tags.length} 筆`, ` and ${r.tags.length} more`, `　他計${r.tags.length}件`)}</span>}
+                          </div>
+                        )}
+                        {r.videos && r.videos.length > 0 && (
+                          <div style={{ marginTop:6, fontSize:11, color:'#B03E96', textAlign:'left', lineHeight:1.8 }}>
+                            🎥 {t('會員完攀影片')}：
+                            {r.videos.map((v, i) => (
+                              <span key={i}>
+                                <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ color:'#B03E96', fontWeight:600, textDecoration:'underline' }}>{v.name}</a>
+                                {i < r.videos.length - 1 ? '、' : ''}
+                              </span>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -731,6 +771,39 @@ export default function MemberRoutesPage() {
               style={{ width:'100%', background: (!tagSelected.length || tagSubmitting) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: (!tagSelected.length || tagSubmitting) ? 'default' : 'pointer' }}>
               {tagSubmitting ? t('送出中...') : tt(`標記 ${tagSelected.length || ''} 位朋友`, `Tag ${tagSelected.length || ''} Friend${tagSelected.length === 1 ? '' : 's'}`, `${tagSelected.length || ''}人をタグ付け`)}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 分享我的完攀影片 Modal（2026-09-16 新增）*/}
+      {videoModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:400, maxWidth:'95vw' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <div style={{ fontSize:15, fontWeight:700, color:'#333' }}>🎥 {t('分享我的完攀影片')}</div>
+              <button onClick={() => setVideoModal(null)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
+            </div>
+            <div style={{ fontSize:12, color:'#666', marginBottom:10, textAlign:'left' }}>
+              <span style={{ fontWeight:700, color:'#fff', background: GRADE_COLORS[videoModal.grade]||'#666', padding:'2px 7px', borderRadius:6, marginRight:6 }}>{videoModal.grade}</span>
+              {videoModal.area} · {videoModal.color}{videoModal.name ? ` · ${videoModal.name}` : ''}
+            </div>
+            <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
+              {t('貼上你在這條路線的 Instagram 完攀影片連結，其他會員在這條路線都看得到（會用你的暱稱顯示，未設定暱稱則部分遮蔽本名）。')}
+            </div>
+            <input value={videoUrlInput} onChange={e => setVideoUrlInput(e.target.value)}
+              placeholder="https://www.instagram.com/reel/..."
+              style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
+            {videoMsg && <div style={{ fontSize:12, color:'#A32D2D', marginTop:8, textAlign:'left' }}>{videoMsg}</div>}
+            <button onClick={saveVideo} disabled={videoSaving || !videoUrlInput.trim()}
+              style={{ width:'100%', marginTop:14, background: (videoSaving || !videoUrlInput.trim()) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: (videoSaving || !videoUrlInput.trim()) ? 'default' : 'pointer' }}>
+              {videoSaving ? t('儲存中...') : t('儲存')}
+            </button>
+            {myAscents[videoModal.id]?.videoUrl && (
+              <button onClick={clearVideo} disabled={videoSaving}
+                style={{ width:'100%', marginTop:8, background:'#fff', color:'#A32D2D', border:'1px solid #EBC9C9', borderRadius:10, padding:'9px 0', fontSize:12, cursor:'pointer' }}>
+                {t('移除我的影片')}
+              </button>
+            )}
           </div>
         </div>
       )}

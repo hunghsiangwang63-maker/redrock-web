@@ -11,6 +11,7 @@ import PublicCourseEnrollPage from './pages/public/PublicCourseEnrollPage';
 import PublicCourseCategoryPage from './pages/public/PublicCourseCategoryPage';
 import PublicWorkshopEnrollPage from './pages/public/PublicWorkshopEnrollPage';
 import PublicCompetitionRegisterPage from './pages/public/PublicCompetitionRegisterPage';
+import PublicRoutePage from './pages/public/PublicRoutePage';
 import CheckinPage from './pages/staff/CheckinPage';
 import MembersPage from './pages/staff/MembersPage';
 import PassesPage from './pages/staff/PassesPage';
@@ -119,6 +120,7 @@ function MemberRoutes() {
       <Route path="/book/category" element={<PublicCourseCategoryPage />} />
       <Route path="/book/workshop" element={<PublicWorkshopEnrollPage />} />
       <Route path="/book/competition" element={<PublicCompetitionRegisterPage />} />
+      <Route path="/route" element={<PublicRoutePage />} />
       <Route path="/member/verify"   element={<MemberVerifyResultPage />} />
       <Route path="/member/home"    element={<MemberRoute><MemberHomePage /></MemberRoute>} />
       <Route path="/member/qr"      element={<MemberRoute><MemberQRPage /></MemberRoute>} />
