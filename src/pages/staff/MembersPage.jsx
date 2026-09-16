@@ -102,7 +102,7 @@ function MemberRecords({ records }) {
         {sortCards(r.discountCards||[]).map((c,i) => { const v=cardValid(c); return (
           <div key={i} style={{ background:'#fff', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', opacity:v?1:0.55 }}>
             <div style={{ display:'flex', justifyContent:'space-between' }}>
-              <div style={{ fontSize:12, fontWeight:500 }}>{c._kind==='legacy'?'實體優惠卡':'優惠卡'}{c.source==='transferred'?'（轉入）':''}{c.barcode?' · '+c.barcode:''}</div>
+              <div style={{ fontSize:12, fontWeight:500 }}>優惠卡{c.source==='transferred'?'（轉入）':''}{c.barcode?' · '+c.barcode:''}</div>
               <span style={{ fontSize:10, padding:'1px 6px', borderRadius:6, background:v?'#E6F4EB':'#F0EDED', color:v?'#2D7D46':'#999' }}>{v?`剩 ${c.remainingCredits ?? 0}/${c.originalCredits ?? '—'} 次`:cardInvalidReason(c)}</span>
             </div>
             <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{v?'剩 '+(c.remainingCredits??0)+'/'+(c.originalCredits??'—')+' 次 · ':''}到期 {fmtExp(c.expiresAt)}</div>
@@ -527,7 +527,7 @@ export default function MembersPage() {
   const loadMemberRecords = async (memberId) => {
     setRecordsLoading(true);
     try {
-      const [checkins, passes, courses, comps, adjs, passAdjs, disc, legacyDisc, black, bonus] = await Promise.allSettled([
+      const [checkins, passes, courses, comps, adjs, passAdjs, disc, black, bonus] = await Promise.allSettled([
         client.get('/checkin/history', { params: { memberId, limit:30 } }),
         client.get('/passes/member/' + memberId),
         client.get('/courses/member/' + memberId + '/enrollments'),
@@ -535,16 +535,11 @@ export default function MembersPage() {
         client.get('/course-adjustments/member/' + memberId),
         client.get('/pass-adjustments/requests/member/' + memberId),
         client.get('/cards/discount/member/' + memberId, { params:{ all:1 } }),
-        client.get('/cards/legacy-discount/member/' + memberId, { params:{ all:1 } }),
         client.get('/cards/black/member/' + memberId, { params:{ all:1 } }),
         client.get('/cards/bonus/member/' + memberId, { params:{ all:1 } }),
       ]);
       const ok = (x, key) => x.status==='fulfilled' ? (x.value.data[key] || []) : [];
-      // 優惠卡：新優惠卡 + 舊優惠卡（實體）合併，各標來源
-      const discountCards = [
-        ...ok(disc, 'cards').map(c => ({ ...c, _kind:'discount' })),
-        ...ok(legacyDisc, 'cards').map(c => ({ ...c, _kind:'legacy' })),
-      ];
+      const discountCards = ok(disc, 'cards').map(c => ({ ...c, _kind:'discount' }));
       setMemberRecords({
         checkins: checkins.status==='fulfilled' ? (checkins.value.data.checkIns || checkins.value.data || []) : [],
         passes: passes.status==='fulfilled' ? (passes.value.data.passes || []) : [],
@@ -1316,8 +1311,8 @@ export default function MembersPage() {
                   ))}
                   {cards.map(c => (
                     <div key={c.id} style={box('#FBF5F5','#E8D5D5')}>
-                      <div style={{ fontWeight:500, color:'#8B1A1A' }}>{c.kind==='legacy'?'🎟️ 舊折扣卡':c.kind==='black'?'🖤 黑卡':'🎟️ 優惠卡'}{c.source==='transferred'?'（轉入）':''}</div>
-                      <div style={{ color:'#6b6b6b', marginTop:2 }}>剩 {c.remainingCredits} {c.kind==='legacy'?'次':'格'} · 到期 {c.expiresAt || '無期限'}</div>
+                      <div style={{ fontWeight:500, color:'#8B1A1A' }}>{c.kind==='black'?'🖤 黑卡':'🎟️ 優惠卡'}{c.source==='transferred'?'（轉入）':''}</div>
+                      <div style={{ color:'#6b6b6b', marginTop:2 }}>剩 {c.remainingCredits} 格 · 到期 {c.expiresAt || '無期限'}</div>
                     </div>
                   ))}
                   {tickets.map(t => {

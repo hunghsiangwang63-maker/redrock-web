@@ -394,11 +394,10 @@ export default function MemberPassesPage() {
         ...Object.fromEntries(children.map(c => [c.id, c.birthday || null])),
       });
       const perOwner = await Promise.all(owners.map(async (o) => {
-        const [p, dc, bc, ldc, se, bn, reqs] = await Promise.all([
+        const [p, dc, bc, se, bn, reqs] = await Promise.all([
           memberClient.get(`/passes/member/${o.id}`).catch(() => ({ data: { passes: [] } })),
           memberClient.get(`/cards/discount/member/${o.id}`).catch(() => ({ data: { cards: [] } })),
           memberClient.get(`/cards/black/member/${o.id}`).catch(() => ({ data: { cards: [] } })),
-          memberClient.get(`/cards/legacy-discount/member/${o.id}`).catch(() => ({ data: { cards: [] } })),
           memberClient.get(`/passes/single-entry/member/${o.id}`).catch(() => ({ data: { tickets: [] } })),
           memberClient.get(`/cards/bonus/member/${o.id}`).catch(() => ({ data: { bonuses: [] } })),
           // 定期票異動申請：後端限本人查詢（帶子女 id 會 403）→ 僅本人載入，子女視為無
@@ -406,7 +405,7 @@ export default function MemberPassesPage() {
         ]);
         return {
           passes: tagOwner(p.data.passes, o),
-          discount: [...tagOwner(dc.data.cards, o), ...tagOwner(ldc.data.cards, o)],
+          discount: tagOwner(dc.data.cards, o),
           black: tagOwner(bc.data.cards, o),
           single: tagOwner(se.data.tickets, o),
           bonus: tagOwner(bn.data.bonuses, o),
@@ -460,7 +459,7 @@ export default function MemberPassesPage() {
     catch (e) { setMsg(e?.response?.data?.message || t('取消失敗')); }
     finally { setXferBusy(false); }
   };
-  const ticketTypeLabel = (ty) => t({ bonus:'紅利入場', single_entry:'單次入場券', discount_card:'優惠卡', legacy_discount_card:'舊優惠卡', black_card:'黑卡' }[ty] || '票券');
+  const ticketTypeLabel = (ty) => t({ bonus:'紅利入場', single_entry:'單次入場券', discount_card:'優惠卡', black_card:'黑卡' }[ty] || '票券');
   const acceptTicketXfer = async (tk) => {
     setXferBusy(true);
     try { await memberClient.post(`/ticket-transfers/${tk.id}/accept`, { confirmedExpiry: 'true' }); setMsg(t('已接收此票券')); await loadTransfers(); await reloadCards(); }
