@@ -83,15 +83,23 @@ export default function PublicCourseCategoryPage() {
             {c.type === 'workshop' && expandedWorkshop === c.id && (
               <div style={{ marginTop: 12, borderTop: '1px dashed #EEE', paddingTop: 12 }}>
                 {(!c.sessions || c.sessions.length === 0) && <div style={{ fontSize: 13, color: '#999' }}>{t('目前沒有開放中的場次')}</div>}
-                {(c.sessions || []).map(s => (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F5EFEF' }}>
-                    <div style={{ fontSize: 13 }}>🗓 {s.date}　⏰ {s.startTime}–{s.endTime}</div>
-                    <button onClick={() => navigate(`/book/workshop?course=${c.id}&session=${s.id}`)}
-                      style={{ height: 32, padding: '0 12px', borderRadius: 8, background: RED, color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>
-                      {t('報名 →')}
-                    </button>
-                  </div>
-                ))}
+                {(c.sessions || []).map(s => {
+                  // 已額滿（如每時段限 1 人的運動按摩）：maxStudents 為 null 代表無上限，不判定額滿。
+                  const full = s.maxStudents != null && s.enrolledCount >= s.maxStudents;
+                  return (
+                    <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F5EFEF' }}>
+                      <div style={{ fontSize: 13 }}>🗓 {s.date}　⏰ {s.startTime}–{s.endTime}</div>
+                      {full ? (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#A32D2D', padding: '4px 10px' }}>{t('已額滿')}</span>
+                      ) : (
+                        <button onClick={() => navigate(`/book/workshop?course=${c.id}&session=${s.id}`)}
+                          style={{ height: 32, padding: '0 12px', borderRadius: 8, background: RED, color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer' }}>
+                          {t('報名 →')}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

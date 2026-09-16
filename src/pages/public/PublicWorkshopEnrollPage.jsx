@@ -30,6 +30,8 @@ export default function PublicWorkshopEnrollPage() {
   }, [courseId, sessionId]);
 
   const goEnroll = () => navigate(`/member/courses?course=${courseId}`);
+  // 已額滿（如每時段限 1 人的運動按摩）：maxStudents 為 null 代表無上限，不判定額滿。
+  const full = session && session.maxStudents != null && session.enrolledCount >= session.maxStudents;
 
   const wrap = { maxWidth: 600, margin: '0 auto', padding: '0 16px 60px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' };
   const card = { background: '#fff', borderRadius: 16, border: '1px solid #EEE2E2', padding: 18, marginTop: 16, boxShadow: '0 1px 3px rgba(80,20,20,.05)' };
@@ -49,18 +51,30 @@ export default function PublicWorkshopEnrollPage() {
         <div style={card}>
           <div style={{ fontWeight: 700, fontSize: 16 }}>{course.name}</div>
           {course.description && <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{course.description}</div>}
-          <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>🗓 {session.date}　⏰ {session.startTime}–{session.endTime}</div>
+          <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>
+            🗓 {session.date}　⏰ {session.startTime}–{session.endTime}
+            {full && <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 700, color: '#A32D2D', background: '#FCEBEB', borderRadius: 8, padding: '2px 8px' }}>{t('已額滿')}</span>}
+          </div>
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
             {t('費用：')}<b style={{ color: RED, fontSize: 17 }}>NT${course.price}</b>
           </div>
         </div>
 
         <div style={{ ...card, textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('登入或註冊會員即可完成報名')}</div>
-          <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>{t('報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）')}</div>
+          {full ? (
+            <>
+              <div style={{ fontWeight: 700, fontSize: 15, color: '#A32D2D' }}>{t('此時段已額滿')}</div>
+              <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>{t('已有其他人報名此時段，請至課程頁面查看是否有其他可預約時段')}</div>
+            </>
+          ) : (
+            <>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{t('登入或註冊會員即可完成報名')}</div>
+              <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>{t('報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）')}</div>
+            </>
+          )}
           <button onClick={goEnroll}
             style={{ width: '100%', height: 50, borderRadius: 12, background: RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 16 }}>
-            {t('登入 / 註冊並報名 →')}
+            {full ? t('查看其他時段 →') : t('登入 / 註冊並報名 →')}
           </button>
         </div>
 
