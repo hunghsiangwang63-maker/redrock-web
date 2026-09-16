@@ -153,6 +153,26 @@ export default function RoutesPage() {
   });
   const [bulkConfirm, setBulkConfirm] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkStatusBusy, setBulkStatusBusy] = useState(null); // null | 'active' | 'archived'
+  // 批次上/下架：不像刪除是破壞性動作（保留完攀成績、可再上架），比照單一路線的下架/上架按鈕
+  // 直接動作、不跳確認彈窗——與「刪除選取」需要確認彈窗的既有慣例區分。
+  const doBulkStatus = async (status) => {
+    setBulkStatusBusy(status);
+    try {
+      const ids = [...selected];
+      const res = await client.post('/climbing-routes/bulk-status', { ids, status });
+      const { updatedCount, skipped } = res.data;
+      const label = status === 'archived' ? '下架' : '上架';
+      setMsg({
+        ok: true,
+        text: skipped.length
+          ? `已${label} ${updatedCount} 條；${skipped.length} 條略過（非本館路線或找不到）`
+          : `已${label} ${updatedCount} 條路線${status === 'archived' ? '（完攀成績保留）' : ''}`,
+      });
+      setSelected(new Set()); load();
+    } catch (e) { setMsg({ ok:false, text: e.response?.data?.message || `批次${status === 'archived' ? '下架' : '上架'}失敗` }); }
+    finally { setBulkStatusBusy(null); }
+  };
   const doBulkDelete = async () => {
     setBulkBusy(true);
     try {
@@ -175,6 +195,10 @@ export default function RoutesPage() {
   const archived = routes.filter(r => r.status === 'archived');
   // 依區域分組
   const byArea = active.reduce((m, r) => { (m[r.area || '未分區'] = m[r.area || '未分區'] || []).push(r); return m; }, {});
+  // 選取內容是否含現行/已下架路線——決定下方浮動列要顯示「下架選取」還是「上架選取」（或兩者皆有，
+  // 供跨區塊勾選的邊界情況）。「整區全選」勾選的正是同一個 selected 狀態，故整區下架＝勾整區＋按下架選取。
+  const selectedHasActive = active.some(r => selected.has(r.id));
+  const selectedHasArchived = archived.some(r => selected.has(r.id));
 
   const RouteRow = ({ r, isArchived }) => (
     <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', opacity: isArchived ? .55 : 1 }}>
@@ -284,8 +308,20 @@ export default function RoutesPage() {
       {selected.size > 0 && (
         <div style={{ position:'sticky', bottom:16, marginTop:16, background:'#fff', border:'1px solid #E8D5D5', borderRadius:12, padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center', boxShadow:'0 2px 10px rgba(0,0,0,.08)' }}>
           <div style={{ fontSize:13, color:'#444' }}>已選取 {selected.size} 條路線</div>
-          <div style={{ display:'flex', gap:8 }}>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
             <button onClick={() => setSelected(new Set())} style={{ fontSize:12, padding:'7px 12px', borderRadius:8, border:'1px solid #ddd', background:'#fff', cursor:'pointer', color:'#666' }}>取消選取</button>
+            {selectedHasActive && (
+              <button onClick={() => doBulkStatus('archived')} disabled={!!bulkStatusBusy}
+                style={{ fontSize:12, padding:'7px 12px', borderRadius:8, border:'1px solid #E8D5A9', background:'#fff', cursor: bulkStatusBusy?'default':'pointer', color:'#854F0B', fontWeight:600 }}>
+                {bulkStatusBusy === 'archived' ? '下架中...' : '下架選取'}
+              </button>
+            )}
+            {selectedHasArchived && (
+              <button onClick={() => doBulkStatus('active')} disabled={!!bulkStatusBusy}
+                style={{ fontSize:12, padding:'7px 12px', borderRadius:8, border:'1px solid #C9DFC9', background:'#fff', cursor: bulkStatusBusy?'default':'pointer', color:'#2D7D46', fontWeight:600 }}>
+                {bulkStatusBusy === 'active' ? '上架中...' : '上架選取'}
+              </button>
+            )}
             <button onClick={() => setBulkConfirm(true)} style={{ fontSize:12, padding:'7px 12px', borderRadius:8, border:'none', background:'#A32D2D', color:'#fff', fontWeight:600, cursor:'pointer' }}>刪除選取</button>
           </div>
         </div>
