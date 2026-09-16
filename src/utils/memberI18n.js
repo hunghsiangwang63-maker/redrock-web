@@ -1195,6 +1195,8 @@ const DICT_EN = {
   '會員完攀影片': 'Member Ascent Videos',
   '貼上你在這條路線的 Instagram 完攀影片連結，其他會員在這條路線都看得到（會用你的暱稱顯示，未設定暱稱則部分遮蔽本名）。': 'Paste your Instagram video link for your ascent of this route — other members will be able to see it here (shown with your nickname, or a partially masked name if you haven\'t set one).',
   '移除我的影片': 'Remove My Video',
+  '請先記錄這條路線的完攀，才能分享你的完攀影片。': 'Please record your ascent of this route first before you can share your video.',
+  '前往記錄完攀': 'Record My Ascent',
   // ── 免登入公開路線頁（/route）── '紅石路線攻略' 已在上方「路線攻略頁」區段定義，共用不重複
   '連結缺少路線資訊，請聯繫櫃檯': 'The link is missing route information — please contact the front desk',
   '找不到此路線，可能已下架或連結錯誤': 'This route could not be found — it may have been retired or the link may be incorrect',
@@ -2777,6 +2779,8 @@ const DICT_JA = {
   '會員完攀影片': '会員の完登動画',
   '貼上你在這條路線的 Instagram 完攀影片連結，其他會員在這條路線都看得到（會用你的暱稱顯示，未設定暱稱則部分遮蔽本名）。': 'このルートを完登したInstagram動画のリンクを貼ってください。他の会員もこのページで見ることができます（ニックネーム設定済みならニックネーム表示、未設定の場合は本名の一部を伏せて表示）。',
   '移除我的影片': '動画を削除',
+  '請先記錄這條路線的完攀，才能分享你的完攀影片。': 'まずこのルートの完登を記録してから、動画をシェアできます。',
+  '前往記錄完攀': '完登を記録する',
   // ── 免登入公開路線頁（/route）── '紅石路線攻略' 已在上方「路線攻略頁」區段定義，共用不重複
   '連結缺少路線資訊，請聯繫櫃檯': 'リンクにルート情報が含まれていません。フロントにお問い合わせください',
   '找不到此路線，可能已下架或連結錯誤': 'このルートが見つかりません。撤去されたか、リンクが正しくない可能性があります',

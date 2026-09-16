@@ -486,14 +486,14 @@ export default function MemberRoutesPage() {
                             style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer', border:'1px solid #E8D5D5', background:'#fff', color:'#999' }}>
                             👥 {t('標記朋友')}{r.tagCount > 0 ? ` ${r.tagCount}` : ''}
                           </button>
-                          {/* 分享我的完攀影片（2026-09-16 新增）：需先完攀（mine 存在）才能貼自己的 IG 連結 */}
-                          {mine && (
-                            <button onClick={() => openVideoModal(r)}
-                              style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer',
-                                border: mine.videoUrl ? '1px solid #F0C9C9' : '1px solid #E8D5D5', background: mine.videoUrl ? '#FBEFEF' : '#fff', color: mine.videoUrl ? '#8B1A1A' : '#999' }}>
-                              🎥 {mine.videoUrl ? t('我的完攀影片') : t('分享我的完攀影片')}
-                            </button>
-                          )}
+                          {/* 分享我的完攀影片（2026-09-16 新增）：一律顯示，後端要求先完攀才能真的貼連結——
+                              原本按 mine 存在與否整顆按鈕藏起來，回報「按鍵怎麼不見了」（沒完攀時完全找不到
+                              這個功能、也不知道為什麼），改成一律可點，未完攀時 modal 內用文字說明取代輸入框。 */}
+                          <button onClick={() => openVideoModal(r)}
+                            style={{ fontSize:12, fontWeight:600, padding:'5px 9px', borderRadius:8, cursor:'pointer',
+                              border: mine?.videoUrl ? '1px solid #F0C9C9' : '1px solid #E8D5D5', background: mine?.videoUrl ? '#FBEFEF' : '#fff', color: mine?.videoUrl ? '#8B1A1A' : '#999' }}>
+                            🎥 {mine?.videoUrl ? t('我的完攀影片') : t('分享我的完攀影片')}
+                          </button>
                         </div>
                         {r.tags && r.tags.length > 0 && (
                           <div style={{ marginTop:6, fontSize:11, color:'#999', textAlign:'left', lineHeight:1.6 }}>
@@ -787,22 +787,37 @@ export default function MemberRoutesPage() {
               <span style={{ fontWeight:700, color:'#fff', background: GRADE_COLORS[videoModal.grade]||'#666', padding:'2px 7px', borderRadius:6, marginRight:6 }}>{videoModal.grade}</span>
               {videoModal.area} · {videoModal.color}{videoModal.name ? ` · ${videoModal.name}` : ''}
             </div>
-            <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
-              {t('貼上你在這條路線的 Instagram 完攀影片連結，其他會員在這條路線都看得到（會用你的暱稱顯示，未設定暱稱則部分遮蔽本名）。')}
-            </div>
-            <input value={videoUrlInput} onChange={e => setVideoUrlInput(e.target.value)}
-              placeholder="https://www.instagram.com/reel/..."
-              style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
-            {videoMsg && <div style={{ fontSize:12, color:'#A32D2D', marginTop:8, textAlign:'left' }}>{videoMsg}</div>}
-            <button onClick={saveVideo} disabled={videoSaving || !videoUrlInput.trim()}
-              style={{ width:'100%', marginTop:14, background: (videoSaving || !videoUrlInput.trim()) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: (videoSaving || !videoUrlInput.trim()) ? 'default' : 'pointer' }}>
-              {videoSaving ? t('儲存中...') : t('儲存')}
-            </button>
-            {myAscents[videoModal.id]?.videoUrl && (
-              <button onClick={clearVideo} disabled={videoSaving}
-                style={{ width:'100%', marginTop:8, background:'#fff', color:'#A32D2D', border:'1px solid #EBC9C9', borderRadius:10, padding:'9px 0', fontSize:12, cursor:'pointer' }}>
-                {t('移除我的影片')}
-              </button>
+            {!myAscents[videoModal.id] ? (
+              // 尚未記錄完攀（後端 NOT_ASCENDED 的前端提前說明）：不給輸入框，直接引導去記錄完攀。
+              <>
+                <div style={{ fontSize:12, color:'#854F0B', background:'#FAEEDA', borderRadius:8, padding:'9px 10px', marginBottom:12, textAlign:'left', lineHeight:1.6 }}>
+                  {t('請先記錄這條路線的完攀，才能分享你的完攀影片。')}
+                </div>
+                <button onClick={() => { setVideoModal(null); openRecord(videoModal); }}
+                  style={{ width:'100%', background:'#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+                  {t('前往記錄完攀')}
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize:11, color:'#999', marginBottom:10, textAlign:'left' }}>
+                  {t('貼上你在這條路線的 Instagram 完攀影片連結，其他會員在這條路線都看得到（會用你的暱稱顯示，未設定暱稱則部分遮蔽本名）。')}
+                </div>
+                <input value={videoUrlInput} onChange={e => setVideoUrlInput(e.target.value)}
+                  placeholder="https://www.instagram.com/reel/..."
+                  style={{ width:'100%', boxSizing:'border-box', padding:'9px 10px', borderRadius:8, border:'1px solid #ddd', fontSize:13, color:'#333', background:'#fff' }} />
+                {videoMsg && <div style={{ fontSize:12, color:'#A32D2D', marginTop:8, textAlign:'left' }}>{videoMsg}</div>}
+                <button onClick={saveVideo} disabled={videoSaving || !videoUrlInput.trim()}
+                  style={{ width:'100%', marginTop:14, background: (videoSaving || !videoUrlInput.trim()) ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', borderRadius:10, padding:'11px 0', fontSize:14, fontWeight:600, cursor: (videoSaving || !videoUrlInput.trim()) ? 'default' : 'pointer' }}>
+                  {videoSaving ? t('儲存中...') : t('儲存')}
+                </button>
+                {myAscents[videoModal.id]?.videoUrl && (
+                  <button onClick={clearVideo} disabled={videoSaving}
+                    style={{ width:'100%', marginTop:8, background:'#fff', color:'#A32D2D', border:'1px solid #EBC9C9', borderRadius:10, padding:'9px 0', fontSize:12, cursor:'pointer' }}>
+                    {t('移除我的影片')}
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
