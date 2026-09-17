@@ -445,7 +445,16 @@ export default function MemberRoutesPage() {
                         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                           <span style={{ fontSize:12, fontWeight:700, color:'#fff', background: GRADE_COLORS[r.grade]||'#666', padding:'3px 9px', borderRadius:8, minWidth:28, textAlign:'center' }}>{r.grade}</span>
                           <div style={{ flex:1, minWidth:0 }}>
-                            <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>{r.color}{r.name ? ` · ${r.name}` : ''}</div>
+                            <div style={{ fontSize:13, fontWeight:600, color:'#333', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                              {r.color}{r.name ? ` · ${r.name}` : ''}
+                              {r.removingSoon && (
+                                <span style={{ fontSize:10, fontWeight:700, color:'#fff', background:'#C1462A', padding:'2px 7px', borderRadius:6, whiteSpace:'nowrap' }}>
+                                  ⚠️ {r.daysUntilRemoval === 0
+                                    ? tt('今日下架', 'Retiring today', '本日撤去')
+                                    : tt(`即將下架・還有 ${r.daysUntilRemoval} 天`, `Retiring in ${r.daysUntilRemoval} days`, `あと${r.daysUntilRemoval}日で撤去`)}
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize:11, color:'#999', marginTop:2 }}>{sortMode !== 'area' && r.area ? `📍 ${r.area} · ` : ''}{t('基本分')} {r.basePoints}{r.setter ? ` · ${t('定線')} ${r.setter}` : ''}{r.plannedRemoveAt ? ` · ${tt('預計換線', 'Planned removal', '交換予定')} ${r.plannedRemoveAt}` : ''}</div>
                             {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2, textAlign:'left' }}>💬 {r.note}</div>}
                           </div>

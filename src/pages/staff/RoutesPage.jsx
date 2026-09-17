@@ -219,6 +219,7 @@ export default function RoutesPage() {
             : <span> · 預計下架 {r.plannedRemoveAt}</span>)}
         </div>
         {r.note && <div style={{ fontSize:11, color:'#854F0B', marginTop:2 }}>💬 {r.note}</div>}
+        {isArchived && r.autoArchivedNote && <div style={{ fontSize:10, color:'#999', marginTop:2 }}>🤖 {r.autoArchivedNote}</div>}
       </div>
       {r.igUrl && (
         <a href={r.igUrl} target="_blank" rel="noopener noreferrer"
@@ -362,7 +363,7 @@ export default function RoutesPage() {
               <div style={{ fontSize:11, color:'#999', marginTop:4 }}>同一支影片示範多條路線時，下方一次加多條——全部共用這個連結</div>
             </div>
             <div>
-              <label style={labelStyle}>預計下架日期（選填，會員看得到；僅提示、到期不會自動下架）</label>
+              <label style={labelStyle}>預計下架日期（選填，會員看得到；日期到當天系統會自動下架，成績保留）</label>
               <input type="date" style={inputStyle} value={form.plannedRemoveAt} onChange={e => setForm(f => ({ ...f, plannedRemoveAt:e.target.value }))} />
             </div>
 
@@ -443,7 +444,7 @@ export default function RoutesPage() {
               <input style={inputStyle} value={form.igUrl} onChange={e => setForm(f => ({ ...f, igUrl:e.target.value }))} placeholder="https://www.instagram.com/p/..." />
             </div>
             <div>
-              <label style={labelStyle}>預計下架日期（選填，會員看得到；僅提示、到期不會自動下架）</label>
+              <label style={labelStyle}>預計下架日期（選填，會員看得到；日期到當天系統會自動下架，成績保留）</label>
               <input type="date" style={inputStyle} value={form.plannedRemoveAt} onChange={e => setForm(f => ({ ...f, plannedRemoveAt:e.target.value }))} />
             </div>
             <div>
