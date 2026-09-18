@@ -46,6 +46,7 @@ export default function PublicTrialBookingPage() {
     if (!info?.allowTrial) return setErr(t('此課程未開放試上'));
     if (!guestName.trim()) return setErr(t('請填寫姓名'));
     if (!guestPhone.trim()) return setErr(t('請填寫聯絡電話'));
+    if (!guestEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(guestEmail.trim())) return setErr(t('請填寫有效的 Email'));
     if (!guestBirthday) return setErr(t('請填寫生日'));
     if (under4(guestBirthday)) return setErr(t('未滿 4 歲無法報名試上'));
     if (!sigRef.current || sigRef.current.isEmpty()) return setErr(t('請完成簽名'));
@@ -126,8 +127,8 @@ export default function PublicTrialBookingPage() {
           <input type="date" value={guestBirthday} onChange={e => setGuestBirthday(e.target.value)} style={dinput} />
           <label style={label}>{t('聯絡電話 *')}</label>
           <input value={guestPhone} onChange={e => setGuestPhone(e.target.value)} style={input} placeholder="0912345678" inputMode="tel" />
-          <label style={label}>{t('Email（選填）')}</label>
-          <input value={guestEmail} onChange={e => setGuestEmail(e.target.value)} style={input} inputMode="email" />
+          <label style={label}>{t('Email *')}</label>
+          <input value={guestEmail} onChange={e => setGuestEmail(e.target.value)} style={input} inputMode="email" required />
           {under4(guestBirthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>{t('未滿 4 歲無法報名試上')}</div>}
         </div>
 

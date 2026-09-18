@@ -57,6 +57,7 @@ export default function PublicExperienceBookingPage() {
     setErr('');
     if (!contactName.trim()) return setErr(t('請填寫聯絡人姓名'));
     if (!contactPhone.trim()) return setErr(t('請填寫聯絡電話'));
+    if (!contactEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contactEmail.trim())) return setErr(t('請填寫有效的 Email'));
     if (!gymId) return setErr(t('請選擇場館'));
     if (!bookingDate) return setErr(t('請選擇體驗日期'));
     if (participants.some(p => !p.name.trim())) return setErr(t('請填寫每位參加者姓名'));
@@ -163,8 +164,8 @@ export default function PublicExperienceBookingPage() {
           <input value={contactName} onChange={e => setContactName(e.target.value)} style={input} />
           <label style={label}>{t('聯絡電話 *')}</label>
           <input value={contactPhone} onChange={e => setContactPhone(e.target.value)} style={input} placeholder="0912345678" inputMode="tel" />
-          <label style={label}>{t('Email（選填）')}</label>
-          <input value={contactEmail} onChange={e => setContactEmail(e.target.value)} style={input} inputMode="email" />
+          <label style={label}>{t('Email *')}</label>
+          <input value={contactEmail} onChange={e => setContactEmail(e.target.value)} style={input} inputMode="email" required />
           <label style={label}>{t('Facebook 名稱（選填）')}</label>
           <input value={facebookName} onChange={e => setFacebookName(e.target.value)} style={input} />
         </div>
