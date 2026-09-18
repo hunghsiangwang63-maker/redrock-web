@@ -51,6 +51,7 @@ const NOTIF_CAT = {
   legacy_vip_claimed:'member',
   // 結帳（現金差異提醒／發票列印金額被人工改過／分期付款即將到期提醒）
   settlement_difference:'settlement', invoice_amount_modified:'settlement', installment_upcoming:'settlement',
+  installment_payment_reported:'settlement',
   // 系統（明確列出、非僅靠 fallback，供之後對照）
   stocktake_discrepancy:'system',
 };
@@ -71,7 +72,7 @@ const NOTIF_LINK = {
   pass_adjustment: '/staff/pending-tasks',
   competition_refund_request: '/staff/pending-tasks', competition_reg_claimed: '/staff/competitions',
   settlement_difference: '/staff/settlement', invoice_amount_modified: '/staff/settlement', stocktake_discrepancy: '/staff/sales',
-  installment_upcoming: '/staff/installments',
+  installment_upcoming: '/staff/installments', installment_payment_reported: '/staff/installments',
   checkin_cancelled: '/staff/checkin',
 };
 const REG_CAT = { course:'課程報名', competition:'比賽報名', experience:'體驗報名', team:'入隊申請' };
@@ -364,11 +365,14 @@ export default function PendingTasksPage() {
       }
       case 'fall_test_pending':
         return <><button onClick={() => setModal({ kind:'falltest', record: task.record })} style={primaryBtn('#8B1A1A')}>檢視／登記</button></>;
-      case 'installment':
+      case 'installment': {
+        // 若學員已自行回報過付款方式（installments.js report-payment），預先帶入，管理員只需核對後直接確認
+        const reportedMethod = (task.record?.installments||[]).find(i=>i.seq===task.dueSeq)?.memberReported?.paymentMethod;
         return <>
-          <button onClick={() => { setInstallMethod('cash'); setInstallError(''); setModal({ kind:'installment', record: task.record, props:{ seq: task.dueSeq, amount: task.dueAmount, desc: task.desc } }); }} style={primaryBtn('#2D7D46')}>確認收款</button>
+          <button onClick={() => { setInstallMethod(reportedMethod || 'cash'); setInstallError(''); setModal({ kind:'installment', record: task.record, props:{ seq: task.dueSeq, amount: task.dueAmount, desc: task.desc } }); }} style={primaryBtn('#2D7D46')}>確認收款</button>
           {goLink(task)}
         </>;
+      }
       case 'member_inquiry':
         return <button onClick={() => setModal({ kind:'inquiry', record: task.record })} style={primaryBtn('#2D7D46')}>回覆</button>;
       default:
@@ -632,10 +636,12 @@ export default function PendingTasksPage() {
                       {(p.installments||[]).map(i => (
                         <div key={i.seq} style={{ fontSize:11.5, color: i.status==='overdue' ? '#A32D2D' : '#666', display:'flex', justifyContent:'space-between', gap:8, flexWrap:'wrap' }}>
                           <span>第{i.seq}期 · NT${i.amount.toLocaleString()} · 到期{i.dueDate}</span>
-                          <span>
+                          <span style={i.status!=='paid' && i.memberReported ? { color:'#854F0B', fontWeight:600 } : undefined}>
                             {i.status === 'paid'
                               ? `已收（${dayjs(i.paidAt?._seconds ? i.paidAt._seconds*1000 : i.paidAt).format('MM/DD')} · ${PM_LABEL[i.paymentMethod] || i.paymentMethod || '—'}${i.note ? `・${i.note}` : ''}）`
-                              : i.status === 'overdue' ? '逾期未繳' : '尚未到期'}
+                              : i.memberReported
+                                ? `📢 學員已回報 · ${PM_LABEL[i.memberReported.paymentMethod] || i.memberReported.paymentMethod}${i.memberReported.note ? `・${i.memberReported.note}` : ''}`
+                                : i.status === 'overdue' ? '逾期未繳' : '尚未到期'}
                           </span>
                         </div>
                       ))}

@@ -256,6 +256,16 @@ const DICT_EN = {
   '無比賽報名紀錄': 'No competition registration records',
   '已繳費': 'Paid',
   '待繳費': 'Payment Pending',
+  '分期付款': 'Installments',
+  '無分期付款紀錄': 'No installment plan records',
+  '已繳款': 'Paid',
+  '已回報，待館方確認': 'Reported, awaiting confirmation',
+  '回報已繳款': 'Report payment',
+  '重新回報': 'Update report',
+  '付款方式': 'Payment Method',
+  '已通知館方核對，請等候確認收款': 'The gym has been notified and will confirm your payment.',
+  '回報失敗，請重試': 'Failed to report, please try again',
+  '回報分期繳款': 'Report Installment Payment',
 
   // ── 我的票券頁 ──
   '會員': 'a member',
@@ -1840,6 +1850,16 @@ const DICT_JA = {
   '無比賽報名紀錄': '大会申込履歴はありません',
   '已繳費': '支払済み',
   '待繳費': '支払待ち',
+  '分期付款': '分割払い',
+  '無分期付款紀錄': '分割払いの記録はありません',
+  '已繳款': '支払済み',
+  '已回報，待館方確認': '報告済み・確認待ち',
+  '回報已繳款': '入金報告',
+  '重新回報': '報告を更新',
+  '付款方式': 'お支払い方法',
+  '已通知館方核對，請等候確認收款': '館側に通知しました。確認をお待ちください。',
+  '回報失敗，請重試': '報告に失敗しました。もう一度お試しください',
+  '回報分期繳款': '分割払いの入金報告',
 
   // ── 我的票券頁 ──
   '會員': '会員',

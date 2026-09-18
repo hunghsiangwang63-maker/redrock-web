@@ -15,7 +15,16 @@ const TABS = [
   { key:'courses',     icon:'📚', label:'課程' },
   { key:'adjustments', icon:'📋', label:'退費/請假' },
   { key:'competitions',icon:'🏆', label:'比賽' },
+  { key:'installments',icon:'💳', label:'分期付款' },
 ]; // label 顯示時走 t() 查字典（見下方 TABS.map），此處保留中文原字串當 key
+
+const PAY_METHODS = [
+  { key:'cash',      label:'現金' },
+  { key:'transfer',  label:'轉帳' },
+  { key:'linepay',   label:'LinePay' },
+  { key:'jkopay',    label:'街口支付' },
+  { key:'taiwanpay', label:'台灣Pay' },
+];
 
 export default function MemberRecordsPage() {
   const { member } = useMember();
@@ -28,6 +37,12 @@ export default function MemberRecordsPage() {
   const [viewId, setViewId] = useState(null);      // 目前檢視對象
   const [expandedYears, setExpandedYears] = useState({});   // 入場：超過三個月的年度展開狀態
   const [expandedCourses, setExpandedCourses] = useState({}); // 課程：梯次展開狀態
+  const [reportModal, setReportModal] = useState(null); // 分期回報 modal：{ planId, seq, amount, itemName }
+  const [reportMethod, setReportMethod] = useState('transfer');
+  const [reportNote, setReportNote] = useState('');
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reportMsg, setReportMsg] = useState('');
+  const [toast, setToast] = useState('');
 
   // 載入家庭成員（本人＋子女）供下拉選單
   useEffect(() => {
@@ -51,16 +66,46 @@ export default function MemberRecordsPage() {
       memberClient.get(`/courses/member/${viewId}/enrollments`),
       memberClient.get(`/course-adjustments/member/${viewId}`),
       memberClient.get(`/competitions/registrations/member/${viewId}`),
-    ]).then(([checkins, passes, courses, adjustments, comps]) => {
+      memberClient.get(`/installments/member/${viewId}`),
+    ]).then(([checkins, passes, courses, adjustments, comps, installments]) => {
       setRecords({
         checkins: checkins.status==='fulfilled' ? checkins.value.data.checkIns || checkins.value.data || [] : [],
         passes: passes.status==='fulfilled' ? passes.value.data.passes || [] : [],
         courses: courses.status==='fulfilled' ? courses.value.data.enrollments || [] : [],
         adjustments: adjustments.status==='fulfilled' ? adjustments.value.data.requests || [] : [],
         competitions: comps.status==='fulfilled' ? comps.value.data.registrations || [] : [],
+        installments: installments.status==='fulfilled' ? installments.value.data.plans || [] : [],
       });
     }).finally(() => setLoading(false));
   }, [viewId]);
+
+  const reloadInstallments = () => {
+    if (!viewId) return;
+    memberClient.get(`/installments/member/${viewId}`)
+      .then(r => setRecords(v => ({ ...v, installments: r.data.plans || [] })))
+      .catch(() => {});
+  };
+
+  const openReportModal = (planId, seq, amount, itemName) => {
+    setReportModal({ planId, seq, amount, itemName });
+    setReportMethod('transfer'); setReportNote(''); setReportMsg('');
+  };
+
+  const submitReport = async () => {
+    if (!reportModal) return;
+    setReportBusy(true); setReportMsg('');
+    try {
+      await memberClient.post(`/installments/${reportModal.planId}/${reportModal.seq}/report-payment`, {
+        paymentMethod: reportMethod, note: reportNote.trim(),
+      });
+      setReportModal(null);
+      reloadInstallments();
+      setToast(t('已通知館方核對，請等候確認收款'));
+      setTimeout(()=>setToast(''), 4000);
+    } catch (e) {
+      setReportMsg(e.response?.data?.message || t('回報失敗，請重試'));
+    } finally { setReportBusy(false); }
+  };
 
   const NavBar = () => <MemberBottomNav navigate={navigate} />;
 
@@ -260,7 +305,102 @@ export default function MemberRecordsPage() {
             ))}
           </div>
         )}
+
+        {!loading && tab==='installments' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {!records?.installments?.length && <Empty text={t('無分期付款紀錄')}/>}
+            {(records?.installments||[]).map((p,i) => {
+              const paidCount = (p.installments||[]).filter(x=>x.status==='paid').length;
+              return (
+                <Card key={i}>
+                  <div style={{ fontSize:13, fontWeight:600 }}>{p.itemName}</div>
+                  <div style={{ fontSize:11, color:'#999', marginTop:2, marginBottom:8 }}>
+                    {tt(`總額 NT$${(p.totalAmount||0).toLocaleString()} · 已繳 ${paidCount}/${(p.installments||[]).length} 期`,
+                        `Total NT$${(p.totalAmount||0).toLocaleString()} · Paid ${paidCount}/${(p.installments||[]).length}`,
+                        `合計 NT$${(p.totalAmount||0).toLocaleString()} · 支払済 ${paidCount}/${(p.installments||[]).length}`)}
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    {(p.installments||[]).map(x => (
+                      <div key={x.seq} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 10px', background: x.status==='overdue' ? '#FCEBEB' : '#FBFBFB', borderRadius:6, gap:8 }}>
+                        <div style={{ fontSize:12, flex:1 }}>
+                          {tt(`第 ${x.seq} 期 · NT$${(x.amount||0).toLocaleString()} · 到期 ${x.dueDate}`,
+                              `#${x.seq} · NT$${(x.amount||0).toLocaleString()} · Due ${x.dueDate}`,
+                              `第${x.seq}回 · NT$${(x.amount||0).toLocaleString()} · 期限 ${x.dueDate}`)}
+                          {x.status==='paid' && x.paidAt && (
+                            <span style={{ color:'#999', marginLeft:6 }}>
+                              （{dayjs(x.paidAt?._seconds ? x.paidAt._seconds*1000 : x.paidAt).format('MM/DD')} {t('已繳款')} · {PAY_METHODS.find(m=>m.key===x.paymentMethod)?.label || x.paymentMethod}）
+                            </span>
+                          )}
+                          {x.status!=='paid' && x.memberReported && (
+                            <div style={{ fontSize:10, color:'#854F0B', marginTop:3 }}>
+                              {tt(`已回報：${PAY_METHODS.find(m=>m.key===x.memberReported.paymentMethod)?.label || x.memberReported.paymentMethod}${x.memberReported.note?`・${x.memberReported.note}`:''}`,
+                                  `Reported: ${PAY_METHODS.find(m=>m.key===x.memberReported.paymentMethod)?.label || x.memberReported.paymentMethod}${x.memberReported.note?` · ${x.memberReported.note}`:''}`,
+                                  `報告済み：${PAY_METHODS.find(m=>m.key===x.memberReported.paymentMethod)?.label || x.memberReported.paymentMethod}${x.memberReported.note?`・${x.memberReported.note}`:''}`)}
+                            </div>
+                          )}
+                        </div>
+                        {x.status==='paid' ? (
+                          <StatusBadge status="active" labels={{ active:t('已繳款') }}/>
+                        ) : x.memberReported ? (
+                          <button onClick={()=>openReportModal(p.id, x.seq, x.amount, p.itemName)}
+                            style={{ flexShrink:0, height:26, padding:'0 10px', borderRadius:6, background:'#fff', border:'0.5px solid #854F0B', color:'#854F0B', fontSize:11, cursor:'pointer' }}>
+                            {t('重新回報')}
+                          </button>
+                        ) : (
+                          <button onClick={()=>openReportModal(p.id, x.seq, x.amount, p.itemName)}
+                            style={{ flexShrink:0, height:26, padding:'0 10px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>
+                            {t('回報已繳款')}
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* 回報分期繳款 Modal */}
+      {reportModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:16, padding:20, width:'100%', maxWidth:400, maxHeight:'90vh', overflowY:'auto' }}>
+            <div style={{ fontSize:16, fontWeight:700, marginBottom:4 }}>{t('回報分期繳款')}</div>
+            <div style={{ fontSize:12, color:'#999', marginBottom:14 }}>
+              {reportModal.itemName} · {tt(`第 ${reportModal.seq} 期 · NT$${(reportModal.amount||0).toLocaleString()}`, `#${reportModal.seq} · NT$${(reportModal.amount||0).toLocaleString()}`, `第${reportModal.seq}回 · NT$${(reportModal.amount||0).toLocaleString()}`)}
+            </div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('付款方式')}</label>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:14 }}>
+              {PAY_METHODS.map(pm => (
+                <button key={pm.key} onClick={()=>setReportMethod(pm.key)}
+                  style={{ height:38, borderRadius:8, border: reportMethod===pm.key?'none':'0.5px solid #E8D5D5', background: reportMethod===pm.key?'#8B1A1A':'#fff', color: reportMethod===pm.key?'#fff':'#666', fontSize:13, cursor:'pointer' }}>
+                  {t(pm.label)}
+                </button>
+              ))}
+            </div>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('備註（選填）')}</label>
+            <input value={reportNote} onChange={e=>setReportNote(e.target.value)} maxLength={200}
+              style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box', marginBottom:14 }}/>
+            {reportMsg && <div style={{ background:'#FCEBEB', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#A32D2D', marginBottom:12 }}>{reportMsg}</div>}
+            <div style={{ display:'flex', gap:8 }}>
+              <button onClick={()=>setReportModal(null)} disabled={reportBusy}
+                style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>{t('取消')}</button>
+              <button onClick={submitReport} disabled={reportBusy}
+                style={{ flex:2, height:42, borderRadius:9, background: reportBusy?'#B98B8B':'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor: reportBusy?'not-allowed':'pointer' }}>
+                {reportBusy ? '…' : t('送出')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', background:'#1a1a1a', color:'#fff', padding:'10px 20px', borderRadius:10, fontSize:13, zIndex:300, maxWidth:'85vw', textAlign:'center', boxShadow:'0 4px 16px rgba(0,0,0,.2)' }}>
+          {toast}
+        </div>
+      )}
+
       <MemberLogoutButton />
       <NavBar/>
     </div>

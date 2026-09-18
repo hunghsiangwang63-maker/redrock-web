@@ -164,7 +164,9 @@ export default function InstallmentsPage({ embedded = false }) {
   };
 
   const openPayModal = (plan, seq) => {
-    setPayingPlan(plan); setPayingSeq(seq); setPayMethod('cash'); setPayNote('');
+    // 學員已自行回報過付款方式（我的紀錄→分期付款）時預先帶入，管理員核對金額/期數對得上即可直接確認
+    const reported = plan.installments.find(i => i.seq === seq)?.memberReported;
+    setPayingPlan(plan); setPayingSeq(seq); setPayMethod(reported?.paymentMethod || 'cash'); setPayNote(reported?.note || '');
   };
 
   const handleMarkPaid = async () => {
@@ -284,6 +286,11 @@ export default function InstallmentsPage({ embedded = false }) {
                           <span style={{ color:'#999', marginLeft:6 }}>
                             （{dayjs(i.paidAt?._seconds ? i.paidAt._seconds*1000 : i.paidAt).format('MM/DD')} 已收 · {PAY_METHODS.find(m=>m.key===i.paymentMethod)?.label || i.paymentMethod}{i.note ? `・${i.note}` : ''}）
                           </span>
+                        )}
+                        {i.status !== 'paid' && i.memberReported && (
+                          <div style={{ fontSize:11, color:'#854F0B', fontWeight:600, marginTop:2 }}>
+                            📢 學員已回報 · {PAY_METHODS.find(m=>m.key===i.memberReported.paymentMethod)?.label || i.memberReported.paymentMethod}{i.memberReported.note ? `・${i.memberReported.note}` : ''}
+                          </div>
                         )}
                       </div>
                       {i.status === 'paid' ? (
