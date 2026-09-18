@@ -18,6 +18,13 @@ const PAY_METHODS = [
   { key:'taiwanpay', label:'台灣Pay' },
 ];
 
+// 促銷價正規化：只有「留空」（''／null／undefined）才視為「沒有促銷」，其餘（含明確填 0，代表免費
+// 出清/贈送）一律 parseInt 保留——原本各處 `v.promoPrice ? ... : ...` 真值判斷會把數字 0 誤判為
+// falsy 一併當成沒填，除了結帳算錯價，編輯商品時（哪怕只是調庫存）還會把既有的 promoPrice:0 存回 null。
+const normalizePromoPrice = (raw) => (raw === '' || raw === null || raw === undefined) ? null : parseInt(raw);
+// 促銷是否生效：讀已存的 promoPrice 判斷是否顯示促銷樣式/用促銷價結帳時一律用這個（同上，0 是合法值）。
+const isPromoActive = (promoPrice) => promoPrice !== null && promoPrice !== undefined;
+
 const Modal = ({ title, onClose, children, width=480 }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center' }}>
     <div style={{ background:'#fff', borderRadius:16, padding:24, width, maxWidth:'95vw', maxHeight:'90vh', overflowY:'auto', border:'0.5px solid #E8D5D5' }}>
@@ -58,7 +65,7 @@ const VariantForm = ({ variants, onChange }) => {
             ].map(f => (
               <div key={f.key} style={{ gridColumn: f.key==='size'||f.key==='color' ? 'auto' : f.key==='stock'?'1/-1':'auto' }}>
                 <label style={{ fontSize:10, color:'#666', display:'block', marginBottom:3 }}>{f.label}</label>
-                <input type={f.type||'text'} value={v[f.key]||''} placeholder={f.placeholder}
+                <input type={f.type||'text'} value={v[f.key] ?? ''} placeholder={f.placeholder}
                   min={f.type==='number' ? 0 : undefined}
                   onChange={e => { let val = e.target.value; if (f.type==='number' && val !== '' && Number(val) < 0) val = '0'; updateVariant(i, f.key, val); }}
                   style={{ width:'100%', height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:12, outline:'none', boxSizing:'border-box', background:'#fff', color:'#1a1a1a' }}/>
@@ -241,7 +248,7 @@ export default function SalesPage({ embedded = false }) {
       setCart(cart.map(c => c.key === key ? {...c, quantity: c.quantity+1} : c));
     } else {
       if (variant.stock <= 0) { showMsg('庫存不足', 'red'); return; }
-      const unitPrice = variant.promoPrice ? variant.promoPrice : variant.price;  // 有填促銷價即生效
+      const unitPrice = isPromoActive(variant.promoPrice) ? variant.promoPrice : variant.price;  // 有填促銷價即生效（含填0）
       setCart([...cart, { key, productId: product.id, variantId: variant.id,
         productName: product.name, brand: product.brand,
         size: variant.size, color: variant.color,
@@ -295,8 +302,8 @@ export default function SalesPage({ embedded = false }) {
           const stockNum = Math.max(0, parseInt(v.stock)||0);
           // 倉庫模式：初始庫存放倉庫；具體館模式：放該館
           return isWarehouse
-            ? { ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: 0, gymStock: {}, warehouseStock: stockNum }
-            : { ...v, price: parseInt(v.price)||0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: stockNum, gymStock: { [targetGymId]: stockNum } };
+            ? { ...v, price: parseInt(v.price)||0, promoPrice: normalizePromoPrice(v.promoPrice), stock: 0, gymStock: {}, warehouseStock: stockNum }
+            : { ...v, price: parseInt(v.price)||0, promoPrice: normalizePromoPrice(v.promoPrice), stock: stockNum, gymStock: { [targetGymId]: stockNum } };
         })
       });
       showMsg('商品已建立'); setShowAddProduct(false);
@@ -312,10 +319,10 @@ export default function SalesPage({ embedded = false }) {
       // 編輯的 stock 對應「目前操作對象」：倉庫模式→warehouseStock；具體館→該館 gymStock（重算跨館總量避免不同步）
       const variants = (productForm.variants || []).map(v => {
         const stockNum = Math.max(0, parseInt(v.stock) || 0);
-        if (isWarehouse) return { ...v, price: parseInt(v.price) || 0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, warehouseStock: stockNum };
+        if (isWarehouse) return { ...v, price: parseInt(v.price) || 0, promoPrice: normalizePromoPrice(v.promoPrice), warehouseStock: stockNum };
         const gymStock = { ...(v.gymStock || {}), [targetGymId]: stockNum };
         const total = Object.values(gymStock).reduce((s, n) => s + (Number(n) || 0), 0);
-        return { ...v, price: parseInt(v.price) || 0, promoPrice: v.promoPrice ? parseInt(v.promoPrice) : null, stock: total, gymStock };
+        return { ...v, price: parseInt(v.price) || 0, promoPrice: normalizePromoPrice(v.promoPrice), stock: total, gymStock };
       });
       await updateProduct(editingProduct.id, { ...productForm, variants });
       showMsg('商品已更新'); setEditingProduct(null); await loadProducts();
@@ -470,7 +477,7 @@ export default function SalesPage({ embedded = false }) {
   // 計算商品最低價
   const getProductPriceRange = (product) => {
     if (!product.variants?.length) return '—';
-    const prices = product.variants.map(v => v.promoPrice ? v.promoPrice : v.price);
+    const prices = product.variants.map(v => isPromoActive(v.promoPrice) ? v.promoPrice : v.price);
     const min = Math.min(...prices), max = Math.max(...prices);
     return min === max ? `NT$${min}` : `NT$${min}～${max}`;
   };
@@ -715,7 +722,7 @@ export default function SalesPage({ embedded = false }) {
                     <div style={{ fontSize:13, fontWeight:500 }}>{item.productName}</div>
                     <div style={{ fontSize:11, color:'#999' }}>
                       {[item.size, item.color].filter(Boolean).join(' / ')}
-                      {item.promoPrice && (
+                      {isPromoActive(item.promoPrice) && (
                         <span style={{ color:'#A32D2D', marginLeft:4 }}>促銷 NT${item.promoPrice}</span>
                       )}
                     </div>
@@ -772,9 +779,13 @@ export default function SalesPage({ embedded = false }) {
             {lastSale && (
               <div style={{ marginTop:12, background:'#E6F4EB', borderRadius:10, border:'0.5px solid #2D7D4633', padding:12, display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
                 <div style={{ fontSize:12, color:'#2D7D46' }}>✓ 銷售完成 NT${lastSale.totalAmount?.toLocaleString()}</div>
-                <InvoiceButtonAuto sourceType="product" refId={lastSale.id} refreshToken={saleInvRefresh}
-                  onClick={() => setSaleInvoiceTarget(lastSale)}
-                  style={{ height:'auto', padding:'4px 10px' }} />
+                {/* 0 元銷售（促銷/贈送）不顯示開發票按鈕——後端一律擋 INVALID_AMOUNT，點了會撲空，
+                    比照課程/比賽/入場既有的 0 元隱藏慣例 */}
+                {(lastSale.totalAmount || 0) > 0 && (
+                  <InvoiceButtonAuto sourceType="product" refId={lastSale.id} refreshToken={saleInvRefresh}
+                    onClick={() => setSaleInvoiceTarget(lastSale)}
+                    style={{ height:'auto', padding:'4px 10px' }} />
+                )}
               </div>
             )}
           </div>
@@ -959,8 +970,8 @@ export default function SalesPage({ embedded = false }) {
                     <span style={{ color: v.stock === 0 ? '#999' : '#1a1a1a' }}>{v.size || '—'}</span>
                     <span style={{ color: v.stock === 0 ? '#999' : '#1a1a1a' }}>{v.color || '—'}</span>
                     <span style={{ fontFamily:'monospace' }}>NT${v.price}</span>
-                    <span style={{ fontFamily:'monospace', color: v.promoPrice ? '#8B1A1A' : '#ccc' }}>
-                      {v.promoPrice ? `NT$${v.promoPrice}` : '—'}
+                    <span style={{ fontFamily:'monospace', color: isPromoActive(v.promoPrice) ? '#8B1A1A' : '#ccc' }}>
+                      {isPromoActive(v.promoPrice) ? `NT$${v.promoPrice}` : '—'}
                     </span>
                     <span style={{ color: hsinchuStock === 0 ? '#A32D2D' : hsinchuStock <= p.lowStockAlert ? '#854F0B' : '#2D7D46', fontWeight:500 }}>
                       {hsinchuStock}
@@ -1060,7 +1071,7 @@ export default function SalesPage({ embedded = false }) {
         <Modal title={`選擇規格 — ${selectedProduct.name}`} onClose={() => setSelectedProduct(null)} width={400}>
           {selectedProduct.brand && <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>{selectedProduct.brand}</div>}
           {sortedVariants(selectedProduct).map(v => {
-            const unitPrice = v.promoPrice ? v.promoPrice : v.price;
+            const unitPrice = isPromoActive(v.promoPrice) ? v.promoPrice : v.price;
             const inCart = cart.find(c => c.variantId === v.id);
             return (
               <div key={v.id} onClick={() => v.stock > 0 && addToCart(selectedProduct, v)}
@@ -1070,7 +1081,7 @@ export default function SalesPage({ embedded = false }) {
                   <div style={{ fontSize:11, color:'#999', marginTop:2 }}>庫存：{v.stock} 件</div>
                 </div>
                 <div style={{ textAlign:'right' }}>
-                  {v.promoPrice ? (
+                  {isPromoActive(v.promoPrice) ? (
                     <>
                       <div style={{ fontSize:14, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace' }}>NT${v.promoPrice}</div>
                       <div style={{ fontSize:11, color:'#999', textDecoration:'line-through' }}>NT${v.price}</div>
