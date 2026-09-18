@@ -650,8 +650,8 @@ export default function PassesPage() {
 
                 {/* 優惠卡、黑卡（上下排列，版面規格與定期票/單日券/紅利一致） */}
                 {[
-                  { title:'🎫 優惠卡', stats: discountStats, type:'discounts', total: discountStats.total, active: discountStats.active, fullyUsed: discountStats.fullyUsed, expired: discountStats.expired, creditsIssued: discountStats.totalCreditsIssued, creditsUsed: discountStats.totalCreditsUsed, creditsLeft: discountStats.totalCreditsRemaining, unbound: discountStats.unbound },
-                  { title:'⬛ 黑卡', stats: blackStats, type:'blacks', total: blackStats.total, active: blackStats.active, fullyUsed: blackStats.fullyUsed, expired: blackStats.expired, creditsIssued: blackStats.totalCreditsIssued, creditsUsed: blackStats.totalCreditsUsed, creditsLeft: blackStats.totalCreditsRemaining, unbound: blackStats.unbound },
+                  { title:'🎫 優惠卡', stats: discountStats, type:'discounts', total: discountStats.total, active: discountStats.active, fullyUsed: discountStats.fullyUsed, expired: discountStats.expired, creditsIssued: discountStats.totalCreditsIssued, creditsUsed: discountStats.totalCreditsUsed, creditsLeft: discountStats.totalCreditsRemaining, unbound: discountStats.unbound, boundThisMonth: discountStats.boundThisMonth },
+                  { title:'⬛ 黑卡', stats: blackStats, type:'blacks', total: blackStats.total, active: blackStats.active, fullyUsed: blackStats.fullyUsed, expired: blackStats.expired, creditsIssued: blackStats.totalCreditsIssued, creditsUsed: blackStats.totalCreditsUsed, creditsLeft: blackStats.totalCreditsRemaining, unbound: blackStats.unbound, boundThisMonth: blackStats.boundThisMonth },
                 ].map(s => (
                   <div key={s.type} style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
@@ -681,6 +681,11 @@ export default function PassesPage() {
                     {s.unbound != null && (
                       <div style={{ fontSize:11, color:'#B5762B', textAlign:'center', marginTop:6, paddingTop:6, borderTop:'1px dashed #E8D5D5' }}>
                         📇 實體卡未綁定：{s.unbound.toLocaleString()} 張（已售出、尚未有客人拿來綁定）
+                      </div>
+                    )}
+                    {s.boundThisMonth != null && (
+                      <div style={{ fontSize:11, color:'#5A7A9A', textAlign:'center', marginTop:4 }}>
+                        📅 本月已綁定：{s.boundThisMonth.toLocaleString()} 張
                       </div>
                     )}
                   </div>
