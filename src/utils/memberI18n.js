@@ -956,6 +956,7 @@ const DICT_EN = {
   '（投保用，須填寫真實姓名，不可用暱稱代替）': ' (for insurance purposes, please use your real name, not a nickname)',
   '：請所有參加體驗課程的朋友先註冊紅石會員，以加速入場流程（需完成': ': Please have everyone joining the experience course register as a RedRock member first to speed up entry (requires signing the ',
   '🧗 體驗課程預約': '🧗 Experience Course Reservation',
+  '體驗課程預約': 'Experience Course Reservation',
   '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名': '🧪 Simulation registration complete! A confirmation email has been sent — this is a simulation, not an actual registration',
   // ── 比賽報名頁 ──
   ' 人': ' people',
@@ -2550,6 +2551,7 @@ const DICT_JA = {
   '（投保用，須填寫真實姓名，不可用暱稱代替）': '（保険加入用、本名でご記入ください。ニックネーム不可）',
   '：請所有參加體驗課程的朋友先註冊紅石會員，以加速入場流程（需完成': '：体験コースに参加される方は、入場をスムーズにするため事前に紅石会員登録をお願いします（',
   '🧗 體驗課程預約': '🧗 体験コース予約',
+  '體驗課程預約': '体験コース予約',
   '🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名': '🧪 模擬登録が完了しました！確認メールを送信しました。これはシミュレーションであり、実際の登録ではありません',
   // ── 比賽報名頁 ──
   ' 人': '人',

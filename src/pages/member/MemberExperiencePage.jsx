@@ -214,7 +214,10 @@ export default function MemberExperiencePage() {
       <div style={{ background:'#8B1A1A', padding:'16px 20px 14px', color:'#fff', display:'flex', alignItems:'center', gap:12 }}>
         <button onClick={()=>{ if (view==='general' && !hasTabParam) setView('choose'); else navigate('/member/home'); }}
           style={{ background:'none', border:'none', color:'#fff', fontSize:20, cursor:'pointer', padding:0 }}>‹</button>
-        <div style={{ fontSize:18, fontWeight:700 }}>{t('🧗 體驗課程預約')}</div>
+        <div style={{ fontSize:18, fontWeight:700, display:'flex', alignItems:'center', gap:7 }}>
+          <img src="/experience-course.jpg" alt="" style={{ width:22, height:22, objectFit:'cover', borderRadius:5, display:'block' }}/>
+          {t('體驗課程預約')}
+        </div>
       </div>
 
       <ErrorAlertModal modal={alertModal} onClose={() => setAlertModal(null)} />
@@ -224,7 +227,7 @@ export default function MemberExperiencePage() {
           <div style={{ fontSize:13, color:'#666', marginBottom:2 }}>{t('請選擇要進行的項目：')}</div>
           <div onClick={()=>setView('general')}
             style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'18px 16px', cursor:'pointer', display:'flex', alignItems:'center', gap:14 }}>
-            <div style={{ fontSize:28 }}>🧗</div>
+            <img src="/experience-course.jpg" alt="" style={{ width:36, height:36, objectFit:'cover', borderRadius:8, flexShrink:0 }}/>
             <div style={{ flex:1, textAlign:'left' }}>
               <div style={{ fontSize:15, fontWeight:600 }}>{t('抱石體驗課程')}</div>
               <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('依人數計費的專班體驗，適合初次接觸攀岩')}</div>

@@ -2120,7 +2120,7 @@ export default function MemberCoursesPage() {
                       {experiencesForDate(calendarSelectedDate).map(b => (
                         <div key={b.id} style={{ background:'#E6F1FB', borderRadius:12, border:'0.5px solid #B5D4F4', padding:12, marginBottom:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                           <div>
-                            <div style={{ fontWeight:600, fontSize:14 }}>{t('🧗 體驗課程預約')}</div>
+                            <div style={{ fontWeight:600, fontSize:14 }}>{t('體驗課程預約')}</div>
                             <div style={{ fontSize:12, color:'#666', marginTop:3 }}>
                               {b.bookingTime} · {b.gymId==='gym-hsinchu'?t('新竹館'):t('士林館')} · {tt(`${b.numParticipants}人`, `${b.numParticipants} people`, `${b.numParticipants}名`)}
                             </div>
@@ -2128,7 +2128,7 @@ export default function MemberCoursesPage() {
                               {b.status==='confirmed'?('✓ '+t('已確認')):t('待確認付款')}
                             </div>
                           </div>
-                          <div style={{ fontSize:22 }}>🧗</div>
+                          <img src="/experience-course.jpg" alt="" style={{ width:28, height:28, objectFit:'cover', borderRadius:6, flexShrink:0 }}/>
                         </div>
                       ))}
                       {competitionsForDate(calendarSelectedDate).map(r => (
