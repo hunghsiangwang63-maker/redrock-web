@@ -307,7 +307,7 @@ export default function RentalsPage({ embedded = false }) {
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 }}>
                   <thead>
                     <tr style={{ background:'#FBF5F5' }}>
-                      {['會員','館別','租借期間','器材','租金','押金','付款','狀態','押金處理','經手'].map(h => (
+                      {['會員','館別','租借期間','器材','租金','押金','付款','狀態','押金處理','經手','發票'].map(h => (
                         <th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>
                       ))}
                     </tr>
@@ -329,6 +329,15 @@ export default function RentalsPage({ embedded = false }) {
                             : <span style={{ color:'#A32D2D' }} title={r.depositDeductNote}>扣除{r.depositDeductNote?`：${r.depositDeductNote}`:''}</span>}
                         </td>
                         <td style={{ padding:'8px 10px', whiteSpace:'nowrap', color:'#666' }}>{r.depositReturnedBy || r.returnedByName || r.cancelledBy || '—'}</td>
+                        <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
+                          {/* 已取消或租金0元不需要開發票；已歸還且有租金才顯示——回報「找不到開發票按鍵」
+                              才發現原本只有歸還當下那張浮動卡有這顆按鈕，離開頁面/重整後就再也找不到
+                              入口（2026-09-19），補一顆持久的按鈕在歷史紀錄列上。 */}
+                          {r.status==='returned' && Number(r.totalRentalFee)>0 ? (
+                            <InvoiceButtonAuto sourceType="rental" refId={r.id} refreshToken={rentalInvRefresh}
+                              onClick={() => setRentalInvoiceTarget(r)} />
+                          ) : '—'}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
