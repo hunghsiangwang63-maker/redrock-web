@@ -320,7 +320,10 @@ export default function MemberRoutesPage() {
       {/* 頂部 */}
       <div style={{ background:'linear-gradient(135deg,#8B1A1A,#6B1414)', padding:'18px 16px 16px', color:'#fff' }}>
         <div onClick={() => navigate('/member/home')} style={{ fontSize:13, opacity:.85, cursor:'pointer', marginBottom:8 }}>{t('← 返回首頁')}</div>
-        <div style={{ fontSize:19, fontWeight:700 }}>🪨 {t('路線攻略')}</div>
+        <div style={{ fontSize:19, fontWeight:700, display:'flex', alignItems:'center', gap:7 }}>
+          <img src="/climbing-routes.jpg" alt="" style={{ width:22, height:22, objectFit:'cover', borderRadius:5, display:'block' }}/>
+          {t('路線攻略')}
+        </div>
         <div style={{ fontSize:11, opacity:.8, marginTop:3 }}>{t('看路線示範影片、記錄完攀、累積積分排名')}</div>
       </div>
 

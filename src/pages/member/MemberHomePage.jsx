@@ -408,7 +408,7 @@ export default function MemberHomePage() {
           { iconClass:'ti ti-qrcode', label:'入場QR碼',   path:'/member/qr', highlight:true },
           { icon:'📋', label:'我的紀錄', path:'/member/records' },
           // 抱石路線攻略：2026-09-02 正式放上首頁；標籤 2026-09-13 由「施工中」改「新上線」。
-          { icon:'🪨', label:'路線攻略', path:'/member/routes', badge:'新上線' },
+          { img:'/climbing-routes.jpg', label:'路線攻略', path:'/member/routes', badge:'新上線' },
           { icon:'🏆', label:'比賽報名', path:'/member/competitions' },
         { icon:'🧗', label:'體驗課程', path:'/member/experience' },
           { img:'/climbing-team.webp', label:'加入攀岩隊', path:'/member/team' },

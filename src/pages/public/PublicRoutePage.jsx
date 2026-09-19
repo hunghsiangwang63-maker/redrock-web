@@ -47,7 +47,10 @@ export default function PublicRoutePage() {
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
       <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center', position: 'relative' }}>
         <div onClick={toggleMemberLang} style={langBtn}>🌐 {nextLangLabel()}</div>
-        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>🪨 {t('紅石路線攻略')}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <img src="/climbing-routes.jpg" alt="" style={{ width: 24, height: 24, objectFit: 'cover', borderRadius: 5, display: 'block' }}/>
+          {t('紅石路線攻略')}
+        </div>
         <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免登入瀏覽路線資訊，登入或註冊會員後可記錄完攀、按讚、分享你的完攀影片')}</div>
       </div>
       <div style={wrap}>
