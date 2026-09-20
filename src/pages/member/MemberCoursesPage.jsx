@@ -1500,7 +1500,12 @@ export default function MemberCoursesPage() {
               {selectedCourse.type === 'weekly' && (() => {
                 // 只看「目前選定的報名對象」是否已報名——避免選到還沒報名的子女，卻因為本人或另一位子女已報名而誤判成已報名
                 const _curTargetId = enrollForMemberId || member?.id;
-                const alreadyEnrolled = myEnrollments.some(e => e.courseId === selectedCourse.id && e.memberId === _curTargetId && e.status !== 'cancelled');
+                // 補課/試上的單堂佔位紀錄不算「已報名整期」——比照後端 enroll-all 去重檢查同一套排除慣例
+                // （src/routes/courses.js `!x.isMakeup && !x.isTrial`，2026-09-10 修過試上案例）。這裡原本
+                // 沒有排除，導致補課到「下一期課程」的學員（該堂 courseId=下一期課程）被前端誤判成已報名
+                // 整期，畫面直接卡在「已報名」狀態、連報名按鈕都看不到，永遠無法正常報名下一期整期課程
+                // （2026-09-20 回報）。後端本就正確放行，純粹是前端這份獨立判斷忘了跟著排除。
+                const alreadyEnrolled = myEnrollments.some(e => e.courseId === selectedCourse.id && e.memberId === _curTargetId && e.status !== 'cancelled' && !e.isMakeup && !e.isTrial);
                 const today = dayjs().format('YYYY-MM-DD');
                 // 金額一律以後端權威報價（插班×續報/舊生×隊員折）為準＝實收；未回前鎖住顯示與報名鈕避免溢繳
                 const feeReady = !!quote && !quoteLoading && !sessionsLoading;
