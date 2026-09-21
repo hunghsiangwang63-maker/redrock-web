@@ -206,6 +206,7 @@ export default function CoursesPage({ embedded = false }) {
       endTime: session.endTime || '',
       instructor: session.instructor || '',
       notes: session.notes || '',
+      makeupClosed: session.makeupClosed === true,
     });
     setEditingSession(session);
   };
@@ -1596,6 +1597,11 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                                 {sessionRemain(s) === 0 ? '額滿' : `剩 ${sessionRemain(s)}`}
                               </span>
                             )}
+                            {s.status !== 'cancelled' && s.makeupClosed === true && (
+                              <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:'#F0EDED', color:'#777' }}>
+                                補課已關閉
+                              </span>
+                            )}
                             {s.status !== 'cancelled' && (
                               <button onClick={e => { e.stopPropagation(); openEditSession(s); }}
                                 style={{ fontSize:10, color:'#666', background:'none', border:'0.5px solid #E8D5D5', borderRadius:4, padding:'1px 5px', cursor:'pointer' }}>
@@ -2381,6 +2387,14 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
           ))}
+          <div style={{ marginBottom:12 }}>
+            <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:12.5, color:'#444', cursor:'pointer' }}>
+              <input type="checkbox" checked={!!sessionForm.makeupClosed}
+                onChange={e => setSessionForm({ ...sessionForm, makeupClosed: e.target.checked })} />
+              關閉此堂補課名額
+            </label>
+            <div style={{ fontSize:11, color:'#999', marginTop:3 }}>只影響這一堂——其他日期梯次的補課設定不受影響（整梯次補課開關在「加開梯次/編輯梯次」）。</div>
+          </div>
           {(() => {
             const _course = courses.find(c => c.id === editingSession.courseId) || (selectedCourse?.id === editingSession.courseId ? selectedCourse : null);
             const issue = sessionScheduleIssue(_course, sessionForm);
