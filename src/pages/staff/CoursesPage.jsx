@@ -93,6 +93,10 @@ export default function CoursesPage({ embedded = false }) {
   const enabledPay = useEnabledPayments();
   const { staff, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
+  // 「政策上不自動發補課券」的課程（如虹瑩進階班），館方可手動核發補課券——管理員不限課程，
+  // 一般員工限 staff.makeupOverrideCategoryIds 授權的班別（此欄位為登入當下快照，改權限後需重新登入）
+  const isManagerRole = ['super_admin', 'gym_manager'].includes(staff?.role);
+  const canManualMakeup = (categoryId) => isManagerRole || (categoryId && (staff?.makeupOverrideCategoryIds || []).includes(categoryId));
   // super_admin 走頂部「檢視場館」選單 viewGym（全館＝''）；一般員工用自己館別
   const effectiveGymId = activeGymId || staff?.gymId || (isSuperAdmin ? (viewGym || '') : '');
   const GYMS = [
@@ -908,6 +912,15 @@ export default function CoursesPage({ embedded = false }) {
       if (seq !== lmSeqRef.current) return;
       setLmSummary({ loading: false, ...r.data });
     } catch (e) { if (seq === lmSeqRef.current) { setLmSummary(null); alert(e.response?.data?.message || '載入失敗'); } }
+  };
+  // 政策上不自動發補課券的課程（如虹瑩進階班）——館方協助手動核發；核發後重新載入目前檢視（全部/單一課程皆共用 lmSummary）
+  const handleManualMakeup = async (memberId, courseId) => {
+    if (!window.confirm('確定要手動核發 1 張補課券給此學員？')) return;
+    try {
+      await client.post('/courses/manual-makeup-credit', { memberId, courseId });
+      if (lmSummary?.mode === 'all') await loadLmAll(lmSummary.sel);
+      else await loadLeaveMakeup({ id: courseId, name: lmSummary?.course?.name || lmSummary?.courseName || '' });
+    } catch (e) { alert(e.response?.data?.message || '核發失敗'); }
   };
 const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 {session}
   const doClosureCancel = async () => {
@@ -2785,7 +2798,17 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{r.memberName}</td>
                   <td style={{ padding:'6px 10px' }}>{(r.leaves||[]).length ? (r.leaves||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
                   <td style={{ padding:'6px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
-                  <td style={{ padding:'6px 10px', whiteSpace:'nowrap' }}>{r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px', whiteSpace:'nowrap' }}>
+                    {r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}
+                    {g.course.allowMakeup === false && r.leaveCount > 0 && canManualMakeup(g.course.categoryId) && (
+                      <div style={{ marginTop:4 }}>
+                        <button onClick={() => handleManualMakeup(r.memberId, g.course.id)}
+                          style={{ fontSize:10, padding:'2px 6px', borderRadius:5, background:'#8B1A1A', color:'#fff', border:'none', cursor:'pointer', whiteSpace:'nowrap' }}>
+                          手動核發（{r.manualIssued||0}/{r.leaveCount}）
+                        </button>
+                      </div>
+                    )}
+                  </td>
                   <td style={{ padding:'6px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
                 </tr>
               ))}
@@ -2870,7 +2893,17 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                     <td style={{ padding:'8px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{r.memberName}<div style={{ fontSize:10, color:'#999', fontWeight:400 }}>{r.memberPhone}</div></td>
                     <td style={{ padding:'8px 10px' }}>{(r.leaves||[]).length ? (r.leaves||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
-                    <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>{r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
+                      {r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}
+                      {lmSummary.course?.allowMakeup === false && r.leaveCount > 0 && canManualMakeup(lmSummary.course?.categoryId) && (
+                        <div style={{ marginTop:4 }}>
+                          <button onClick={() => handleManualMakeup(r.memberId, lmSummary.course.id)}
+                            style={{ fontSize:10, padding:'2px 6px', borderRadius:5, background:'#8B1A1A', color:'#fff', border:'none', cursor:'pointer', whiteSpace:'nowrap' }}>
+                            手動核發（{r.manualIssued||0}/{r.leaveCount}）
+                          </button>
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap', fontSize:11, color:'#666' }}>{r.makeupExpiresAt || '—'}</td>
                     <td style={{ padding:'8px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
                   </tr>

@@ -6,6 +6,7 @@ import { useAuth } from '../../store/authStore';
 import { getGyms, getAllGyms } from '../../api/gyms';
 import { getStaffList, createStaff, updateStaff, resetStaffPassword, toggleStaffActive, deleteStaff } from '../../api/staff';
 import { getStations, createStation, updateStation } from '../../api/stations';
+import { getCategories } from '../../api/courseCategories';
 import SaveButton from '../../components/SaveButton';
 import GymsPage from './GymsPage';
 import { RealPrintPanel } from '../../components/InvoiceIssuer';
@@ -80,6 +81,11 @@ export default function SettingsPage() {
   useEffect(() => {
     getAllGyms().then(res => setGyms(res.data.gyms || [])).catch(() => {});
   }, []);
+  // 「政策上不自動發補課券」的班別清單（虹瑩進階班等）——供「補課核發範圍」逐人授權多選用
+  const [noMakeupCategories, setNoMakeupCategories] = useState([]);
+  useEffect(() => {
+    getCategories().then(res => setNoMakeupCategories((res.data.categories || []).filter(c => c.allowMakeup === false))).catch(() => {});
+  }, []);
   const isAdmin = ['super_admin', 'admin'].includes(staff?.role);
   // 支援深連結 /staff/settings?tab=xxx（如結帳頁「換發票本」提醒導向發票號碼管理）；
   // 若此角色看不到該分頁，下方 effect 會自動切到第一個可見分頁
@@ -106,7 +112,7 @@ export default function SettingsPage() {
   const [staffLoading, setStaffLoading] = useState(false);
   const [showStaffForm, setShowStaffForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
-  const [staffForm, setStaffForm] = useState({ name:'', email:'', phone:'', role:'full_time', gymId:'', notificationEmail:'', password:'', permissionOverrides:{} });
+  const [staffForm, setStaffForm] = useState({ name:'', email:'', phone:'', role:'full_time', gymId:'', notificationEmail:'', password:'', permissionOverrides:{}, makeupOverrideCategoryIds:[] });
   const [staffSaving, setStaffSaving] = useState(false);
   const [staffFormMsg, setStaffFormMsg] = useState('');
   const [resettingPasswordFor, setResettingPasswordFor] = useState(null);
@@ -245,14 +251,14 @@ export default function SettingsPage() {
 
   const openAddStaff = () => {
     setEditingStaff(null);
-    setStaffForm({ name:'', email:'', phone:'', role:'full_time', gymId: gyms[0]?.id || '', notificationEmail:'', password:'', permissionOverrides: defaultFullTimeOverrides() });
+    setStaffForm({ name:'', email:'', phone:'', role:'full_time', gymId: gyms[0]?.id || '', notificationEmail:'', password:'', permissionOverrides: defaultFullTimeOverrides(), makeupOverrideCategoryIds:[] });
     setStaffFormMsg('');
     setShowStaffForm(true);
   };
 
   const openEditStaff = (s) => {
     setEditingStaff(s);
-    setStaffForm({ name:s.name, email:s.email, phone:s.phone||'', role:s.role, gymId:s.gymId||'', notificationEmail:s.notificationEmail||'', password:'', permissionOverrides: defaultFullTimeOverrides(s.permissionOverrides) });
+    setStaffForm({ name:s.name, email:s.email, phone:s.phone||'', role:s.role, gymId:s.gymId||'', notificationEmail:s.notificationEmail||'', password:'', permissionOverrides: defaultFullTimeOverrides(s.permissionOverrides), makeupOverrideCategoryIds: s.makeupOverrideCategoryIds || [] });
     setStaffFormMsg('');
     setShowStaffForm(true);
   };
@@ -265,7 +271,9 @@ export default function SettingsPage() {
     setStaffFormMsg('');
     try {
       // 逐人覆寫僅正職適用（其餘角色的這 5 類權限全站統一由角色矩陣決定，無個別差異需求）
-      const permOverridePayload = staffForm.role === 'full_time' ? { permissionOverrides: staffForm.permissionOverrides } : {};
+      const permOverridePayload = staffForm.role === 'full_time'
+        ? { permissionOverrides: staffForm.permissionOverrides, makeupOverrideCategoryIds: staffForm.makeupOverrideCategoryIds }
+        : {};
       if (editingStaff) {
         await updateStaff(editingStaff.id, {
           name: staffForm.name, email: staffForm.email, phone: staffForm.phone,
@@ -2047,6 +2055,29 @@ export default function SettingsPage() {
                     );
                   })}
                 </div>
+              </div>
+            )}
+            {staffForm.role === 'full_time' && noMakeupCategories.length > 0 && (
+              <div style={{ marginBottom:12 }}>
+                <label style={s.label}>補課核發範圍（僅限「政策上不自動發補課券」的班別，如虹瑩進階班）</label>
+                <div style={{ display:'flex', flexDirection:'column', gap:6, background:'#FAF7F7', borderRadius:8, padding:'8px 10px', border:'0.5px solid #EDE5E5' }}>
+                  {noMakeupCategories.map(c => {
+                    const checked = (staffForm.makeupOverrideCategoryIds || []).includes(c.id);
+                    return (
+                      <label key={c.id} style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+                        <input type="checkbox" checked={checked}
+                          onChange={e => {
+                            const next = e.target.checked
+                              ? [...(staffForm.makeupOverrideCategoryIds || []), c.id]
+                              : (staffForm.makeupOverrideCategoryIds || []).filter(id => id !== c.id);
+                            setStaffForm({ ...staffForm, makeupOverrideCategoryIds: next });
+                          }} />
+                        <span style={{ fontSize:13, color:'#333' }}>{c.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div style={{ fontSize:11, color:'#999', marginTop:4 }}>勾選後，此員工可在這些班別的「假補總表」手動為請假學員核發補課券；不勾選的班別不受影響（管理員不受此限制）。</div>
               </div>
             )}
             {staffForm.role !== 'super_admin' && (
