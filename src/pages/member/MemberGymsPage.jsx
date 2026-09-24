@@ -3,7 +3,7 @@ import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
 import AnnouncementCarousel from '../../components/AnnouncementCarousel';
 import { useMember } from '../../store/memberStore.jsx';
-import { t, tt } from '../../utils/memberI18n';
+import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getGyms, getAnnouncements } from '../../api/gyms';
 import dayjs from 'dayjs';
@@ -82,12 +82,19 @@ export default function MemberGymsPage() {
   // （底部選單連去的頁面都需要登入，對訪客沒有意義）。
   return (
     <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom: isLoggedIn ? 80 : 24 }}>
-      {isLoggedIn ? <MemberLogoutButton /> : (
-        <button onClick={() => navigate('/member/login')}
-          style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 8px)', right:10, zIndex:120, height:36, padding:'0 16px', borderRadius:18, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', boxShadow:'0 1px 4px rgba(0,0,0,.12)' }}>
-          {t('登入')}
-        </button>
-      )}
+      {/* 語言切換＋登入/登出鈕：同一個固定列，免登入時也能切中/英/日 */}
+      <div style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 8px)', right:10, zIndex:120, display:'flex', alignItems:'center', gap:8 }}>
+        <div onClick={toggleMemberLang}
+          style={{ height:36, padding:'0 14px', borderRadius:18, background:'rgba(255,255,255,.92)', border:'0.5px solid #E8D5D5', color:'#8B1A1A', fontSize:12, fontWeight:600, display:'flex', alignItems:'center', gap:4, cursor:'pointer', boxShadow:'0 1px 4px rgba(0,0,0,.12)' }}>
+          🌐 {nextLangLabel()}
+        </div>
+        {isLoggedIn ? <MemberLogoutButton inline /> : (
+          <button onClick={() => navigate('/member/login')}
+            style={{ height:36, padding:'0 16px', borderRadius:18, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', boxShadow:'0 1px 4px rgba(0,0,0,.12)', whiteSpace:'nowrap' }}>
+            {t('登入或註冊')}
+          </button>
+        )}
+      </div>
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
         {isLoggedIn && <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>}
         <div style={{ fontWeight:600, fontSize:15 }}>{isLoggedIn ? t('場館資訊') : t('紅石攀岩館')}</div>
