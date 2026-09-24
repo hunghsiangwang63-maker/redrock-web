@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
+import AnnouncementCarousel from '../../components/AnnouncementCarousel';
+import { useMember } from '../../store/memberStore.jsx';
 import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getGyms, getAnnouncements } from '../../api/gyms';
@@ -12,6 +14,7 @@ const DAY_LABELS = { mon:'週一', tue:'週二', wed:'週三', thu:'週四', fri
 
 export default function MemberGymsPage() {
   const navigate = useNavigate();
+  const { isLoggedIn } = useMember();
   const [searchParams] = useSearchParams();
   const targetGymId = searchParams.get('gym');
   const gymRefs = useRef({});
@@ -74,12 +77,36 @@ export default function MemberGymsPage() {
     return out;
   })();
 
+  // 2026-09-25 起本頁免登入公開（同時是根路徑 "/" 與 /member/gyms）——已登入沿用原本的登出鈕
+  // ＋返回首頁＋底部選單；未登入則改顯示登入按鈕、不顯示返回鍵（本身就是入口首頁）與底部選單
+  // （底部選單連去的頁面都需要登入，對訪客沒有意義）。
   return (
-    <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
-      <MemberLogoutButton />
+    <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom: isLoggedIn ? 80 : 24 }}>
+      {isLoggedIn ? <MemberLogoutButton /> : (
+        <button onClick={() => navigate('/member/login')}
+          style={{ position:'fixed', top:'calc(env(safe-area-inset-top, 0px) + 8px)', right:10, zIndex:120, height:36, padding:'0 16px', borderRadius:18, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer', boxShadow:'0 1px 4px rgba(0,0,0,.12)' }}>
+          {t('登入')}
+        </button>
+      )}
       <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
-        <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>
-        <div style={{ fontWeight:600, fontSize:15 }}>{t('場館資訊')}</div>
+        {isLoggedIn && <div onClick={() => navigate('/member/home')} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>}
+        <div style={{ fontWeight:600, fontSize:15 }}>{isLoggedIn ? t('場館資訊') : t('紅石攀岩館')}</div>
+      </div>
+
+      <AnnouncementCarousel />
+
+      {/* 快速功能（免登入即可用的兩個公開頁面） */}
+      <div style={{ display:'flex', gap:10, margin:'14px 14px 0' }}>
+        <div onClick={() => navigate('/book/courses')}
+          style={{ flex:1, background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 10px', textAlign:'center', cursor:'pointer' }}>
+          <div style={{ fontSize:22 }}>📋</div>
+          <div style={{ fontSize:12, fontWeight:600, marginTop:4 }}>{t('課程總覽')}</div>
+        </div>
+        <div onClick={() => navigate('/book/experience')}
+          style={{ flex:1, background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 10px', textAlign:'center', cursor:'pointer' }}>
+          <div style={{ fontSize:22 }}>🧗</div>
+          <div style={{ fontSize:12, fontWeight:600, marginTop:4 }}>{t('體驗課程預約')}</div>
+        </div>
       </div>
 
       {/* 場館切換 */}
@@ -292,7 +319,7 @@ export default function MemberGymsPage() {
           </div>
         </>
       )}
-      <MemberBottomNav navigate={navigate} />
+      {isLoggedIn && <MemberBottomNav navigate={navigate} />}
     </div>
   );
 }

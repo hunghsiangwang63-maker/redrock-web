@@ -11,6 +11,7 @@ import PublicCourseEnrollPage from './pages/public/PublicCourseEnrollPage';
 import PublicCourseCategoryPage from './pages/public/PublicCourseCategoryPage';
 import PublicWorkshopEnrollPage from './pages/public/PublicWorkshopEnrollPage';
 import PublicCompetitionRegisterPage from './pages/public/PublicCompetitionRegisterPage';
+import PublicCoursesPage from './pages/public/PublicCoursesPage';
 import PublicRoutePage from './pages/public/PublicRoutePage';
 import CheckinPage from './pages/staff/CheckinPage';
 import MembersPage from './pages/staff/MembersPage';
@@ -120,13 +121,17 @@ function MemberRoutes() {
       <Route path="/book/category" element={<PublicCourseCategoryPage />} />
       <Route path="/book/workshop" element={<PublicWorkshopEnrollPage />} />
       <Route path="/book/competition" element={<PublicCompetitionRegisterPage />} />
+      <Route path="/book/courses" element={<PublicCoursesPage />} />
       <Route path="/route" element={<PublicRoutePage />} />
       <Route path="/member/verify"   element={<MemberVerifyResultPage />} />
       <Route path="/member/home"    element={<MemberRoute><MemberHomePage /></MemberRoute>} />
       <Route path="/member/qr"      element={<MemberRoute><MemberQRPage /></MemberRoute>} />
       <Route path="/member/passes"  element={<MemberRoute><MemberPassesPage /></MemberRoute>} />
       <Route path="/member/profile" element={<MemberRoute><MemberProfilePage /></MemberRoute>} />
-      <Route path="/member/gyms"    element={<MemberRoute><MemberGymsPage /></MemberRoute>} />
+      {/* 場館資訊頁 2026-09-25 起免登入公開（後端 API 本就不需要登入）——當作公開首頁，
+          根路徑 "/" 也指到同一個元件，登入與否只影響頁內顯示的按鈕（登入按鈕 vs 登出按鈕/底部選單）。 */}
+      <Route path="/"               element={<MemberGymsPage />} />
+      <Route path="/member/gyms"    element={<MemberGymsPage />} />
       <Route path="/member/courses" element={<MemberRoute><MemberCoursesPage /></MemberRoute>} />
       <Route path="/member/waiver"  element={<MemberRoute><MemberWaiverPage /></MemberRoute>} />
       <Route path="/member/fall-test" element={<MemberRoute><MemberFallTestPage /></MemberRoute>} />
