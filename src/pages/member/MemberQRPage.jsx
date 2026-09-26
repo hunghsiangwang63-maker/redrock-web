@@ -7,7 +7,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
-import QRCode from 'qrcode';
+import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
+import { reportClientError } from '../../utils/reportClientError';
 import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import dayjs from 'dayjs';
 import { isChild } from '../../utils/age';
@@ -314,13 +315,16 @@ export default function MemberQRPage() {
 
       const res = await memberClient.post('/checkin/qr/create', payload);
       const { qrToken, expiresAt } = res.data;
-      const dataUrl = await QRCode.toDataURL(qrToken, { width: 220, margin: 2 });
+      const dataUrl = await generateQrDataUrl(qrToken, { width: 220, margin: 2 });
       setQrToken(qrToken);
       setQrExpiry(expiresAt);
       setQrDataUrl(dataUrl);
       setRentShoes(shoes);
       setStep('qr');
     } catch (err) {
+      // 後端 pendingCheckIn 可能已成功建立（見下方 qrToken 判斷），只是產生 QR 圖片這步失敗——
+      // 回報實際錯誤內容，供之後查（2026-09-26 曾發生此路徑靜默失敗、無法定位根因）。
+      reportClientError(err, 'MemberQRPage.handleGenerateQR');
       setError(err.response?.data?.message || t('產生 QR Code 失敗'));
     } finally {
       setLoading(false);

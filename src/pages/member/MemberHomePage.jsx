@@ -10,7 +10,8 @@ import MemberOnboardingGate from '../../components/MemberOnboardingGate';
 import useRefetchOnFocus from '../../hooks/useRefetchOnFocus';
 import dayjs from 'dayjs';
 import { gymOpenLabel } from '../../utils/gymOpenStatus';
-import QRCode from 'qrcode';
+import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
+import { reportClientError } from '../../utils/reportClientError';
 import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
 import PaymentSection from '../../components/PaymentSection';
 import { getMyReminders } from '../../api/memberReminders';
@@ -52,10 +53,11 @@ export default function MemberHomePage() {
       const res = await requestRentalAddon(todayCheckin.checkInId, { addShoes: raSel.shoes, addChalk: raSel.chalk, paymentMethod: raPayment });
       const { token, cost } = res.data;
       setRaToken(token); setRaCost(cost);
-      const dataUrl = await QRCode.toDataURL(token, { width: 220, margin: 2 });
+      const dataUrl = await generateQrDataUrl(token, { width: 220, margin: 2 });
       setRaQrDataUrl(dataUrl);
       setRaStep('qr');
     } catch (err) {
+      reportClientError(err, 'MemberHomePage.submitRentalAddon');
       setRaError(err.response?.data?.message || t('補租失敗，請重試'));
     } finally { setRaBusy(false); }
   };

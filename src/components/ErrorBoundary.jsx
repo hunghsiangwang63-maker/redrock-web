@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { reportClientError } from '../utils/reportClientError';
 
 // 回報「顯示QR時內容全黑、像卡在頁面轉場的空白畫面、等待也不會恢復」——查證全站原本沒有任何
 // React Error Boundary：任何未捕捉的 render 例外都會讓 React 把整棵樹直接卸載、只剩空的
@@ -7,29 +8,8 @@ import { Component } from 'react';
 // 這個元件包住整個 App：崩潰時不再讓使用者卡在無法辨識的黑畫面，改顯示「發生錯誤／重新整理」
 // 且用 sendBeacon 盡力回報錯誤內容到後端（見 index.js /client-errors，純寫 log 不進 Firestore），
 // 下次真的再發生時才有實際的錯誤訊息可查，不用再靠猜的。
-// ⚠️ 刻意不依賴任何其他 app 內部模組（i18n/store/api client 等）——這是最後一道防線，要越簡單
-//   越不容易「連錯誤畫面本身也一起壞掉」。
-const REPORT_URL = 'https://api.redrocktaiwan.com/client-errors';
-
-const reportError = (error, info) => {
-  try {
-    let memberId = '';
-    try { memberId = JSON.parse(localStorage.getItem('member') || 'null')?.id || ''; } catch (e) { /* ignore */ }
-    const payload = JSON.stringify({
-      message: error?.message,
-      stack: error?.stack,
-      componentStack: info?.componentStack,
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-      memberId,
-    });
-    if (navigator.sendBeacon) {
-      navigator.sendBeacon(REPORT_URL, new Blob([payload], { type: 'application/json' }));
-    } else {
-      fetch(REPORT_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
-    }
-  } catch (e) { /* 回報本身絕不能再拋錯，否則會蓋掉下面的錯誤畫面 */ }
-};
+// ⚠️ 這裡是最後一道防線，import 要越少越好，避免「連錯誤畫面本身也一起壞掉」——
+//   reportClientError 本身除了 fetch/sendBeacon 沒有其他相依，風險可接受。
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -42,7 +22,7 @@ export default class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    reportError(error, info);
+    reportClientError(error, 'ErrorBoundary', { componentStack: info?.componentStack });
   }
 
   render() {

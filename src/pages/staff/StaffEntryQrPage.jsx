@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import QRCode from 'qrcode';
+import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
+import { reportClientError } from '../../utils/reportClientError';
 import client from '../../api/client';
 import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 
@@ -18,10 +19,11 @@ export default function StaffEntryQrPage() {
     try {
       const res = await client.post('/staff-entry/qr', {});
       setElig(res.data);
-      const dataUrl = await QRCode.toDataURL(res.data.token, { width: 240, margin: 2 });
+      const dataUrl = await generateQrDataUrl(res.data.token, { width: 240, margin: 2 });
       setQr(dataUrl);
       setExpiry(Date.now() + 30 * 60000);
     } catch (e) {
+      reportClientError(e, 'StaffEntryQrPage.gen');
       setErr(e.response?.data?.message || '產生失敗，請重新登入或稍後再試');
     } finally { setLoading(false); }
   };

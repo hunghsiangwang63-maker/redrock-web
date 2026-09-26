@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import QRCode from 'qrcode';
+import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
+import { reportClientError } from '../../utils/reportClientError';
 import client from '../../api/client';
 import SaveButton from '../../components/SaveButton';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
@@ -372,7 +373,7 @@ export default function ExperienceBookingsPage() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <div style={{ fontSize:20, fontWeight:700 }}>🧗 體驗課程預約管理</div>
         <div style={{ display:'flex', gap:8 }}>
-          <button onClick={() => { setShowLinkModal(true); QRCode.toDataURL(PUBLIC_BOOK_URL, { width: 240, margin: 2 }).then(setLinkQr).catch(()=>setLinkQr('')); }}
+          <button onClick={() => { setShowLinkModal(true); generateQrDataUrl(PUBLIC_BOOK_URL, { width: 240, margin: 2 }).then(setLinkQr).catch((e)=>{ reportClientError(e, 'ExperienceBookingsPage.publicLinkQr'); setLinkQr(''); }); }}
             style={{ height:36, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>🔗 產生免登入預約連結</button>
           {isAdmin && <button onClick={downloadXLS} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>⬇ XLS 名單</button>}
           {isAdmin && <button onClick={()=>downloadInsurance()} style={{ height:36, padding:'0 14px', borderRadius:8, background:'#185FA5', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>📋 保險名冊</button>}

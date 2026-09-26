@@ -11,7 +11,8 @@ import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
-import QRCode from 'qrcode';
+import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
+import { reportClientError } from '../../utils/reportClientError';
 import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
@@ -29,9 +30,12 @@ export default function MemberCompetitionsPage() {
   const openCheckinQr = async (r) => {
     try {
       const res = await memberClient.post(`/competitions/registrations/${r.id}/checkin-token`);
-      const dataUrl = await QRCode.toDataURL(res.data.token, { width: 260, margin: 1 });
+      const dataUrl = await generateQrDataUrl(res.data.token, { width: 260, margin: 1 });
       setCheckinQr({ regId: r.id, name: r.memberName, comp: r.competitionName, division: r.divisionName, dataUrl, checkedInAt: res.data.checkedInAt });
-    } catch (e) { showMsg(e.response?.data?.message || t('無法產生報到 QR'), 'red'); }
+    } catch (e) {
+      reportClientError(e, 'MemberCompetitionsPage.openCheckinQr');
+      showMsg(e.response?.data?.message || t('無法產生報到 QR'), 'red');
+    }
   };
   // QR 開著時每 3 秒輪詢報到狀態（比照入場 QR 既有輪詢模式）——工作人員掃完碼，
   // 選手手機畫面即時切換成「✅ 已完成報到」，不用關掉重開才看得到（2026-08-30 比賽日現場需求）。
