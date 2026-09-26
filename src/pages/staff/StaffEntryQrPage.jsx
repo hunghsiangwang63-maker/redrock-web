@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import QRCode from 'qrcode';
 import client from '../../api/client';
+import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 
 const RED = '#8B1A1A';
 
@@ -25,6 +26,8 @@ export default function StaffEntryQrPage() {
     } finally { setLoading(false); }
   };
   useEffect(() => { gen(); }, []);
+  // QR 開著時保持螢幕常亮，見 hooks/useScreenWakeLock.js 檔頭說明
+  useScreenWakeLock(!!qr && !loading);
 
   const tierColor = elig?.free ? '#2D7D46' : elig?.tier === 'half' ? '#B5651D' : '#A32D2D';
   const tierLabel = elig?.free ? '免費入館' : elig?.tier === 'half' ? `半價 NT$${elig.fee}` : `一般價 NT$${elig?.fee}`;

@@ -12,6 +12,7 @@ import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import SignaturePad from '../../components/SignaturePad.jsx';
 import dayjs from 'dayjs';
 import QRCode from 'qrcode';
+import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 
@@ -44,6 +45,8 @@ export default function MemberCompetitionsPage() {
     }, 3000);
     return () => clearInterval(timer);
   }, [checkinQr?.regId, checkinQr?.checkedInAt]);
+  // 報到 QR 開著時保持螢幕常亮，見 hooks/useScreenWakeLock.js 檔頭說明
+  useScreenWakeLock(!!checkinQr);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'my' ? 'my' : 'open'); // open | my（退回通知帶 ?tab=my 直接開我的報名）
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');

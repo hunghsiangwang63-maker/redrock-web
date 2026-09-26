@@ -8,6 +8,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import QRCode from 'qrcode';
+import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import dayjs from 'dayjs';
 import { isChild } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
@@ -335,6 +336,9 @@ export default function MemberQRPage() {
       handleGenerateQR(justPaidRentalRef.current.shoes, justPaidRentalRef.current.chalk);
     }
   }, [autoGenQR, selectedEntry]); // eslint-disable-line
+
+  // 顯示入場 QR 時保持螢幕常亮，見 hooks/useScreenWakeLock.js 檔頭說明
+  useScreenWakeLock(step === 'qr');
 
   // 線上支付（pay-first）完成：僅 mock（本機測試）用得到——真實 gateway 整頁導轉會直接銷毀
   // 這個元件實例，onPaid 永遠不會被呼叫（見 returnUrls 傳入處註解），改由 ?paid=1 網址標記處理。

@@ -14,6 +14,7 @@ import QRCode from 'qrcode';
 import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
 import PaymentSection from '../../components/PaymentSection';
 import { getMyReminders } from '../../api/memberReminders';
+import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
@@ -78,6 +79,8 @@ export default function MemberHomePage() {
     }, 3000);
     return () => clearInterval(timer);
   }, [raStep, raToken]);
+  // 補租器材 QR 開著時保持螢幕常亮，見 hooks/useScreenWakeLock.js 檔頭說明
+  useScreenWakeLock(raStep === 'qr');
   const bannerLen = banners.length || 1;
 
   // ⚠️ 由 mount effect 與 useRefetchOnFocus（視窗取得焦點）兩處觸發，快速切回分頁時可能與前一次
