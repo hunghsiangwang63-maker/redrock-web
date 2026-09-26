@@ -81,22 +81,32 @@ export default function StaffLayout() {
   // ①間隔 3 分鐘拉長到 15 分鐘（badge 本就非即時必要）②分頁切到背景/視窗失焦時整個暫停輪詢
   // （對「常駐開著」的櫃檯電腦screen本身不會被切背景，這條幫不上忙；但對員工自己開很多分頁、
   // 這頁被晾在背景的情況有幫助）——切回可見時立刻補抓一次，避免看到過期數字。
+  // ⚠ 2026-09-26 三補：上線後實測（真實業務時段流量）發現頻率仍遠高於「15分鐘一次」的預期——
+  // 追查發現主因是「切回可見時立刻補抓一次」這條：櫃檯人員忙起來會頻繁在多個分頁/視窗間切換，
+  // 每次切回這頁都會觸發一次，累積起來遠比15分鐘計時器本身頻繁（雖然每次呼叫本身已經很便宜，
+  // countOnly=1 跳過昂貴子查詢，這裡要降的是「呼叫次數」本身，不是單次成本）。補一個 2 分鐘節流：
+  // 15分鐘計時器與掛載當下一律照打（force=true），但「切回可見」這個額外補抓在 2 分鐘內已經
+  // 抓過的話就跳過——短時間內來回切分頁不會重複打，離開夠久才會真的補抓最新數字。
   useEffect(() => {
     if (!isOperational) { setPendingCount(0); return; }
     let timer = null;
-    const fetchCount = () => {
+    let lastFetchAt = 0;
+    const MIN_REFETCH_INTERVAL_MS = 120000; // 2 分鐘節流，僅套用在「切回可見」觸發的補抓
+    const fetchCount = (force) => {
       if (document.visibilityState === 'hidden') return; // 背景分頁不打
+      if (!force && Date.now() - lastFetchAt < MIN_REFETCH_INTERVAL_MS) return;
+      lastFetchAt = Date.now();
       client.get('/pending-tasks', { params: { countOnly: 1 } }).then(r => {
         setPendingCount(r.data?.total || 0);
       }).catch(() => {});
     };
-    const startTimer = () => { if (!timer) timer = setInterval(fetchCount, 900000); };
+    const startTimer = () => { if (!timer) timer = setInterval(() => fetchCount(true), 900000); };
     const stopTimer = () => { if (timer) { clearInterval(timer); timer = null; } };
     const onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') { fetchCount(); startTimer(); }
+      if (document.visibilityState === 'visible') { fetchCount(false); startTimer(); }
       else { stopTimer(); }
     };
-    fetchCount(); // 立即執行一次
+    fetchCount(true); // 立即執行一次（掛載當下，不受節流限制）
     startTimer();
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
