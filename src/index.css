@@ -17,9 +17,13 @@
 
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
-  color-scheme: light dark;
+  /* 全站沒有真正做深色主題（各頁一律 inline style 寫死淺色系）——`light dark` 會讓部分
+     瀏覽器（尤其 Android Chrome 的「網頁強制深色」heuristic）對沒被明確設色的區域自作主張
+     套深色，疊加 html/body 背景瞬間透出時就是「黑屏」（見 ErrorBoundary.jsx 檔頭說明）。
+     固定只回報 light，同時也讓原生表單控制項（checkbox/日期選擇器等）維持與頁面一致的淺色。 */
+  color-scheme: light;
   color: var(--text);
-  background: var(--bg);
+  background: #F7F3F3;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -56,6 +60,11 @@ html, body {
      (表格/月曆等，各自已有 overflow-x:auto) 溢出時，若整個頁面沒有這道防線，
      溢出會一路頂開整個 body，逼手機瀏覽器把版面縮小顯示，需要使用者手動放大/縮小才能對齊。 */
   overflow-x: hidden;
+  /* :root（即 html 本身）已固定淺色背景（見上方 :root 區塊），這裡對 body 補同一份——
+     body 不繼承 :root 的 background 屬性，任何未被子元件蓋掉背景的瞬間（頁面轉場、React
+     崩潰導致樹被卸載等）才不會漏掉 body 這層、透出瀏覽器預設的白/黑。見 ErrorBoundary.jsx
+     檔頭說明整個問題成因。 */
+  background: #F7F3F3;
 }
 
 input, textarea, select {
@@ -83,6 +92,7 @@ input, textarea, select {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  background: #F7F3F3; /* 同上 html/body：固定淺色，見該處註解 */
 }
 
 h1,
