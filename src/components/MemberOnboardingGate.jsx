@@ -135,20 +135,17 @@ export default function MemberOnboardingGate({ children }) {
     return overlay(<>
       <div style={{ fontSize:15, color:'#666', lineHeight:1.7, marginBottom:18 }}>
         {tt(
-          <>入場前請先簽署 <strong>風險安全聲明（Waiver）</strong> 與 <strong>安全墜落測驗同意書</strong>，兩者皆完成後即可安排墜落測驗。</>,
-          <>Before entering, please sign the <strong>Liability Waiver</strong> and the <strong>Fall Test Consent Form</strong>. Once both are done you can schedule your fall test.</>,
-          <>入場前に<strong>免責同意書</strong>と<strong>安全確認テスト同意書</strong>への署名が必要です。両方完了後、テストの予約が可能になります。</>
+          <>入場前請先閱讀並簽署 <strong>風險安全聲明書</strong> 與 <strong>墜落測驗同意書</strong>，只需簽名一次即可完成兩份文件，完成後就能安排墜落測驗。</>,
+          <>Before entering, please read and sign the <strong>Liability Waiver</strong> and the <strong>Fall Test Consent Form</strong> — one signature completes both. Once done you can schedule your fall test.</>,
+          <>入場前に<strong>免責同意書</strong>と<strong>安全確認テスト同意書</strong>をお読みの上、署名してください——一度の署名で両方完了します。完了後、テストの予約が可能になります。</>
         )}
       </div>
-      {/* 未成年：本人 waiver + 墜測同意書「兩份都簽完」才寄家長 email → 兩份都簽完才顯示「待家長簽署」 */}
-      <Box icon="📝" title={t('風險安全聲明')} sub={t('RedRock 攀岩館入場免責與安全聲明書')}
-        done={!needsWaiver || parentPending}
-        doneText={!needsWaiver ? t('已完成簽署') : (awaitingParent ? t('已簽署（待法定代理人簽署）') : t('已簽署'))}
-        onClick={() => navigate('/member/waiver?onboarding=1')} />
-      <Box icon="🧗" title={t('安全墜落測驗同意書')} sub={t('觀看安全影片並簽署墜落測驗同意書')}
-        done={consentSigned}
-        doneText={awaitingParent ? t('已簽署（待法定代理人簽署）') : t('已簽署同意書')}
-        onClick={() => setShowFallTestWarn(true)} />
+      {/* 2026-09-26 合併簽署：兩份文件現在只需一個簽名動作即可完成（/member/waiver），合併成一個框；
+          兩份本人皆簽完才寄家長 email → 兩份都簽完才顯示「待家長簽署」 */}
+      <Box icon="📝🧗" title={t('簽署入場文件')} sub={t('風險安全聲明書＋墜落測驗同意書（一次簽名完成）')}
+        done={awaitingParent}
+        doneText={t('已簽署（待法定代理人簽署）')}
+        onClick={() => { if (!consentSigned) setShowFallTestWarn(true); else navigate('/member/waiver?onboarding=1'); }} />
 
       {/* 進墜測同意書前的警語：安全影片不可快轉 */}
       {showFallTestWarn && (
@@ -173,7 +170,7 @@ export default function MemberOnboardingGate({ children }) {
                 <span style={{ color:'#666' }}>問題が発生した場合は、ブラウザを再度開くか更新してお試しください。</span></>
               )}
             </div>
-            <button onClick={() => { setShowFallTestWarn(false); navigate('/member/fall-test?onboarding=1'); }}
+            <button onClick={() => { setShowFallTestWarn(false); navigate('/member/waiver?onboarding=1'); }}
               style={{ width:'100%', height:46, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>
               {tt('我知道了，開始觀看', 'Got it, start watching', '了解しました。視聴を開始する')}
             </button>

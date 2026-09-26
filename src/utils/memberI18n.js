@@ -836,6 +836,18 @@ const DICT_EN = {
   '重新發送Email連結': 'Resend Email Link',
   '（尚未設定聲明書內容，請聯絡館方）': '(Waiver content not yet set — please contact the gym)',
 
+  // ── 2026-09-26 合併簽署（風險安全聲明書＋墜落測驗同意書一次簽名）──
+  // 「入場文件簽署」沿用既有 704 行已定義的翻譯（重啟入場簽署提示原本就用這個詞），不重複定義。
+  '簽署入場文件': 'Sign Entry Documents',
+  '風險安全聲明書＋墜落測驗同意書（一次簽名完成）': 'Liability Waiver + Fall Test Consent Form (one signature completes both)',
+  '風險安全聲明書＋墜落測驗同意書': 'Liability Waiver + Fall Test Consent Form',
+  '✓ 已簽入場文件': '✓ Entry documents signed',
+  '⚠ 代簽入場文件': '⚠ Sign on their behalf',
+  '聲明書': 'Waiver',
+  '入場前請詳閱以下「風險安全聲明書」與「墜落測驗同意書」，全部確認後於下方簽名一次即完成兩份文件。': 'Please review the "Liability Waiver" and "Fall Test Consent Form" below. Once everything is checked, sign once below to complete both.',
+  '請詳閱以下「風險安全聲明書」，確認後於下方簽名。': 'Please review the "Liability Waiver" below, then sign below.',
+  '請觀看安全影片並詳閱以下「墜落測驗同意書」，確認後於下方簽名。': 'Please watch the safety video and review the "Fall Test Consent Form" below, then sign below.',
+
   // ── 家長遠端代簽風險安全聲明書頁 ──
   '紅石攀岩館 RedRock Climbing': 'RedRock Climbing',
   '此連結已過期（有效期限72小時），請聯絡館方重新發送連結。': 'This link has expired (valid for 72 hours). Please contact the gym to resend the link.',
@@ -2431,6 +2443,18 @@ const DICT_JA = {
   '選填': '任意',
   '重新發送Email連結': 'メールリンクを再送信',
   '（尚未設定聲明書內容，請聯絡館方）': '（免責同意書の内容が未設定です。ジムにお問い合わせください）',
+
+  // ── 2026-09-26 合併簽署（風險安全聲明書＋墜落測驗同意書一次簽名）──
+  // 「入場文件簽署」沿用既有 2312 行已定義的翻譯，不重複定義。
+  '簽署入場文件': '入場書類に署名',
+  '風險安全聲明書＋墜落測驗同意書（一次簽名完成）': '免責同意書＋墜落テスト同意書（一度の署名で完了）',
+  '風險安全聲明書＋墜落測驗同意書': '免責同意書＋墜落テスト同意書',
+  '✓ 已簽入場文件': '✓ 入場書類署名済み',
+  '⚠ 代簽入場文件': '⚠ 代理で署名',
+  '聲明書': '免責同意書',
+  '入場前請詳閱以下「風險安全聲明書」與「墜落測驗同意書」，全部確認後於下方簽名一次即完成兩份文件。': '入場前に以下の「免責同意書」と「墜落テスト同意書」をご確認の上、下記で一度署名すると両方完了します。',
+  '請詳閱以下「風險安全聲明書」，確認後於下方簽名。': '以下の「免責同意書」をご確認の上、下記で署名してください。',
+  '請觀看安全影片並詳閱以下「墜落測驗同意書」，確認後於下方簽名。': '安全動画をご視聴の上、以下の「墜落テスト同意書」をご確認いただき、下記で署名してください。',
 
   // ── 家長遠端代簽風險安全聲明書頁 ──
   '紅石攀岩館 RedRock Climbing': 'RedRock クライミングジム',

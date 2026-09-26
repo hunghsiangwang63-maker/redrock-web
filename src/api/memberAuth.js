@@ -19,3 +19,9 @@ export const memberSelfRegister = (data) =>
 
 export const getMyWaiver = (memberId) =>
   memberClient.get(`/members/${memberId}/waiver`);
+
+// 合併簽署：風險安全聲明書＋墜落測驗同意書一次簽名（2026-09-26）。data 依實際需要簽署的
+// 部分帶對應欄位：waiver 相關 signatureData/parentEmail/parentName/parentPhone/parentRelation，
+// 墜測同意書相關另加 watchPercent/agreedParagraphs；只需要簽其中一份時對方欄位可省略。
+export const signEntryDocs = (memberId, data) =>
+  memberClient.post(`/members/${memberId}/entry-docs/sign`, data);

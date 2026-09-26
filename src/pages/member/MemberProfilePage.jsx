@@ -6,7 +6,7 @@ import PasswordInput from '../../components/PasswordInput';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMyWaiver } from '../../api/memberAuth';
-import { getMyFallTestStatus } from '../../api/fallTests';
+import { getMyFallTestStatus, getFallTestSignature } from '../../api/fallTests';
 import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } from '../../api/fallTestBookings';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
@@ -167,6 +167,11 @@ export default function MemberProfilePage() {
   const [fallTestStatus, setFallTestStatus] = useState(null);
   const [fallTestSignature, setFallTestSignature] = useState(null);
   const [fallTestLoading, setFallTestLoading] = useState(true);
+  // 「入場文件簽署」卡片（風險安全聲明書＋墜落測驗同意書合併狀態，2026-09-26）：直接讀本人
+  // waivers 文件（而非 blockReasons）判斷 memberSignedAt/parentRequired/parentSignedAt，
+  // 與合併簽署頁（/member/waiver）同一套精準判斷，避免用較粗略的 blockReasons 推論。
+  const [entryWaiverDoc, setEntryWaiverDoc] = useState(null);
+  const [entryDocsLoading, setEntryDocsLoading] = useState(true);
 
   useEffect(() => {
     if (!member?.id) return;
@@ -174,13 +179,26 @@ export default function MemberProfilePage() {
       if (res.data?.member) updateMember(res.data.member);
     }).catch(() => {});
     getMyFallTestStatus(member.id).then(res => setFallTestStatus(res.data)).catch(() => {});
-    import('../../api/fallTests').then(({ getFallTestSignature }) => {
-      getFallTestSignature(member.id).then(res => {
-        setFallTestSignature(res.data.signature);
-        setFallTestLoading(false);
-      }).catch(() => setFallTestLoading(false));
+    setEntryDocsLoading(true);
+    Promise.all([
+      getFallTestSignature(member.id).then(res => res.data.signature).catch(() => null),
+      getMyWaiver(member.id).then(res => res.data.waiver).catch(() => null),
+    ]).then(([sig, waiver]) => {
+      setFallTestSignature(sig);
+      setFallTestLoading(false);
+      setEntryWaiverDoc(waiver);
+      setEntryDocsLoading(false);
     });
   }, [member?.id]);
+
+  // 入場文件簽署合併狀態（沿用 /member/waiver 同一套判斷：memberSignedAt 而非 isComplete，
+  // 才能正確分辨「等家長」與「員工退回重簽、本人尚未重簽」）
+  const entryMemberSigned = !!entryWaiverDoc?.memberSignedAt;
+  const entryWaiverComplete = !!entryWaiverDoc?.isComplete;
+  const entryParentPendingOnly = !!(entryWaiverDoc && entryMemberSigned && entryWaiverDoc.parentRequired && !entryWaiverDoc.parentSignedAt);
+  const entryFallTestSigned = !!fallTestSignature;
+  const entryBothDone = entryWaiverComplete && entryFallTestSigned;
+  const entryAwaitingParent = entryParentPendingOnly && entryFallTestSigned;
   const [waiverLoading, setWaiverLoading] = useState(false);
 
   const handleViewWaiver = async () => {
@@ -255,52 +273,39 @@ export default function MemberProfilePage() {
             <div style={{ fontSize:13, fontWeight:500 }}>{member.emergencyContact}</div>
           </div>
         )}
-        {/* Waiver */}
+        {/* 入場文件簽署（風險安全聲明書＋墜落測驗同意書，2026-09-26 起一次簽名完成兩份） */}
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>Waiver {t('風險安全聲明書')}</div>
+          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('入場文件簽署')}</div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div><div style={{ fontSize:13, fontWeight:500 }}>{t('風險安全聲明書')}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('入場必要條件')}</div></div>
-            {member?.blockReasons?.includes('waiver_unsigned') ? (
-              <div><span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>{t('未完成')}</span>
-                <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('立即簽署')}</button></div>
+            <div><div style={{ fontSize:13, fontWeight:500 }}>{t('風險安全聲明書＋墜落測驗同意書')}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('入場必要條件')}</div></div>
+            {entryDocsLoading ? (
+              <span style={{ fontSize:11, color:'#999' }}>{t('載入中...')}</span>
+            ) : entryBothDone ? (
+              <div style={{ textAlign:'right' }}>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('已完成')}</span>
+                <div style={{ display:'flex', gap:6, marginTop:8 }}>
+                  <button onClick={handleViewWaiver} style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('聲明書')}</button>
+                  <button onClick={() => navigate('/member/fall-test')} style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('同意書')}</button>
+                </div>
               </div>
-            ) : member?.blockReasons?.includes('parent_waiver_pending') ? (
+            ) : entryAwaitingParent ? (
               <div style={{ textAlign:'right' }}>
                 <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FFF3E0', color:'#B5762B' }}>{t('等待法定代理人簽署')}</span>
                 <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('查看狀態')}</button></div>
               </div>
             ) : (
               <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('已完成')}</span>
-                <div style={{ fontSize:11, color:'#999', marginTop:4 }}>{t('永久鎖定 🔒')}</div>
-                <div style={{ marginTop:8 }}><button onClick={handleViewWaiver} style={{ height:30, padding:'0 14px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('查看簽署內容')}</button></div>
+                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>{t('未完成')}</span>
+                <div style={{ marginTop:8 }}><button onClick={() => navigate('/member/waiver')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('立即簽署')}</button></div>
               </div>
             )}
           </div>
         </div>
-        {/* 墜落測驗 */}
-        <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('墜落測驗')}</div>
-          {/* 同意書狀態 */}
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: fallTestStatus?.status === 'passed' ? 0 : 12 }}>
-            <div><div style={{ fontSize:13, fontWeight:500 }}>{t('安全墜落測驗同意書')}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('入場必要條件')}</div></div>
-            {fallTestLoading ? (
-              <span style={{ fontSize:11, color:'#999' }}>{t('載入中...')}</span>
-            ) : fallTestSignature ? (
-              <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#E6F4EB', color:'#2D7D46' }}>{t('已完成')}</span>
-                <div style={{ marginTop:6 }}><button onClick={() => navigate('/member/fall-test')} style={{ height:30, padding:'0 12px', borderRadius:8, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:12, cursor:'pointer' }}>{t('檢視副本')}</button></div>
-              </div>
-            ) : (
-              <div style={{ textAlign:'right' }}>
-                <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>{t('尚未完成')}</span>
-                <div style={{ marginTop:6 }}><button onClick={() => navigate('/member/fall-test')} style={{ height:32, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('立即簽署')}</button></div>
-              </div>
-            )}
-          </div>
-          {/* 測驗通過狀態（簽署後才顯示） */}
-          {fallTestSignature && (
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', paddingTop:10, borderTop:'0.5px solid #F5EFEF' }}>
+        {/* 墜落測驗（實際測驗通過與否，與上方簽署狀態完全獨立；同意書尚未簽署時無此項可看，不顯示） */}
+        {fallTestSignature && (
+          <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:12 }}>
+            <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:12 }}>{t('墜落測驗')}</div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div><div style={{ fontSize:13, fontWeight:500 }}>{t('墜落測驗')}</div><div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t('需工作人員測驗')}</div></div>
               {fallTestStatus?.status === 'passed' ? (
                 <div style={{ textAlign:'right' }}>
@@ -313,8 +318,8 @@ export default function MemberProfilePage() {
                 <span style={{ fontSize:11, fontWeight:600, padding:'3px 9px', borderRadius:10, background:'#F5F0FF', color:'#6B21A8' }}>{t('等待測驗')}</span>
               )}
             </div>
-          )}
-        </div>
+          </div>
+        )}
         {/* 隊員 */}
         {member?.isTeamMember && (
           <div style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:14, padding:16, color:'#fff', marginBottom:12 }}>
@@ -369,22 +374,15 @@ export default function MemberProfilePage() {
                   </div>
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  {/* Waiver 狀態 */}
-                  {c.waiverSigned ? (
-                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>{t('✓ 已簽風險安全聲明')}</span>
+                  {/* 入場文件簽署狀態（風險安全聲明書＋墜落測驗同意書，一次簽名代簽完成兩份，
+                      2026-09-26）：以「兩份是否皆已簽」判斷，非測驗是否通過；只要缺一份都導去
+                      合併簽署頁，該頁會自動只顯示缺的那部分（含員工個別退回重簽的修復情境） */}
+                  {c.waiverSigned && c.fallTestSigned ? (
+                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>{t('✓ 已簽入場文件')}</span>
                   ) : (
                     <button onClick={() => navigate(`/member/waiver?forChild=${c.id}&childName=${encodeURIComponent(c.name)}`)}
                       style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FCEBEB', color:'#A32D2D', border:'none', cursor:'pointer' }}>
-                      {t('⚠ 代簽風險安全聲明')}
-                    </button>
-                  )}
-                  {/* 墜落測驗同意書（代簽）狀態：以「同意書是否已簽」判斷，而非測驗是否通過 */}
-                  {c.fallTestSigned ? (
-                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#E6F4EB', color:'#2D7D46' }}>{t('✓ 已簽墜測同意書')}</span>
-                  ) : (
-                    <button onClick={() => navigate(`/member/fall-test?forChild=${c.id}&childName=${encodeURIComponent(c.name)}`)}
-                      style={{ fontSize:11, padding:'3px 10px', borderRadius:8, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', cursor:'pointer' }}>
-                      {t('代簽墜落測驗同意書')}
+                      {t('⚠ 代簽入場文件')}
                     </button>
                   )}
                 </div>

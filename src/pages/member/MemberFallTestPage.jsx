@@ -1,54 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
-import { getFallTestSettings, signFallTestAgreement, getFallTestSignature, getMyFallTestStatus } from '../../api/fallTests';
+import { getFallTestSettings, getFallTestSignature, getMyFallTestStatus } from '../../api/fallTests';
 import { getMyFallTestBookings, createFallTestBooking, cancelFallTestBooking } from '../../api/fallTestBookings';
-import SignaturePad from '../../components/SignaturePad';
-import CheckTick from '../../components/CheckTick';
 import dayjs from 'dayjs';
-import { detectInAppBrowser } from '../../utils/inAppBrowser';
-import { isMinor } from '../../utils/age';
 import { t, tt } from '../../utils/memberI18n';
 
-const extractYoutubeId = (url) => {
-  if (!url) return null;
-  const patterns = [
-    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/watch\?v=([a-zA-Z0-9_-]{11})/,
-    /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/,
-  ];
-  for (const p of patterns) { const m = url.match(p); if (m) return m[1]; }
-  return null;
-};
-
+// 2026-09-26：「簽署」子畫面已合併進 /member/waiver（風險安全聲明書＋墜落測驗同意書一次
+// 簽名，見該檔頭註解）。此頁只保留跟「怎麼簽的」無關的三件事：測驗通過/過期狀態、檢視
+// 已簽副本、安排墜落測驗（選場館）。「尚未簽署」的 CTA 一律導去合併簽署頁。
 export default function MemberFallTestPage() {
   const [searchParams] = useSearchParams();
   const forChildId = searchParams.get('forChild');
-  const forChildName = searchParams.get('childName');
-  const onboarding = searchParams.get('onboarding') === '1';  // 新會員入場前置流程：簽完回 gate
   const { member } = useMember();
-  const targetId = forChildId || member?.id; // 代簽子帳號時為子帳號 id，否則為本人
+  const targetId = forChildId || member?.id;
   const navigate = useNavigate();
-  const sigRef = useRef(null);
-  const guardianSigRef = useRef(null);
-  const playerRef = useRef(null);
-  const watchedSecondsRef = useRef(new Set());
-  const progressIntervalRef = useRef(null);
 
   const [settings, setSettings] = useState(null);
   const [status, setStatus] = useState(null);
   const [signature, setSignature] = useState(null);
-  const [signatureLoading, setSignatureLoading] = useState(true); // 已簽署副本
-  const [view, setView] = useState('main'); // 'main' | 'sign' | 'copy'
-  const [lang, setLang] = useState('zh');
-  const [playerReady, setPlayerReady] = useState(false);
-  const inAppBrowser = detectInAppBrowser(); // in-app WebView（LINE/FB/IG…）影片進度常無法追蹤
-  const [linkCopied, setLinkCopied] = useState(false);
-  const [watchPercent, setWatchPercent] = useState(0);
-  const [agreedParagraphs, setAgreedParagraphs] = useState(new Set());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [signatureLoading, setSignatureLoading] = useState(true);
+  const [view, setView] = useState('main'); // 'main' | 'copy'
   // 安排墜落測驗（選場館）
   const FT_GYMS = [{ id: 'gym-hsinchu', name: '新竹館' }, { id: 'gym-shilin', name: '士林館' }];
   const ftGymName = (id) => t(FT_GYMS.find(g => g.id === id)?.name || id);
@@ -56,13 +29,9 @@ export default function MemberFallTestPage() {
   const [ftBusy, setFtBusy] = useState(false);
   const [ftMsg, setFtMsg] = useState('');
   const [ftMsgOk, setFtMsgOk] = useState(false); // 訊息顏色改用旗標判斷，避免翻譯後字串比對失準
-  // ⚠️ 由 mount effect 與安排排測成功後兩處觸發，序號防過期回應覆蓋剛安排完成的最新狀態。
-  const bookingSeqRef = useRef(0);
   const loadBooking = async () => {
-    const seq = ++bookingSeqRef.current;
     try {
       const r = await getMyFallTestBookings();
-      if (seq !== bookingSeqRef.current) return;
       setBooking((r.data.bookings || []).find(b => b.memberId === targetId && b.status === 'pending') || null);
     } catch (e) { /* 排測載入失敗不影響其餘 */ }
   };
@@ -83,9 +52,6 @@ export default function MemberFallTestPage() {
     finally { setFtBusy(false); }
   };
 
-  // 未滿 18 歲（未成年）需家長/監護人一同簽署（與聲明書/課程/比賽/註冊一致）
-  const needGuardian = isMinor(member?.birthday);
-
   useEffect(() => {
     if (!member) return;
     const load = async () => {
@@ -98,96 +64,7 @@ export default function MemberFallTestPage() {
     load();
   }, [member]);
 
-  const videoId = extractYoutubeId(settings?.youtubeUrl);
-  const requiredPercent = settings?.watchPercentRequired || 90;
-  // 若未設定影片，自動視為已觀看（影片為選配）
-  const canSign = !videoId || watchPercent >= requiredPercent;
-  const content = settings?.[lang === 'zh' ? 'contentZh' : 'contentEn'] || '';
-  const paragraphs = content.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-  const allAgreed = paragraphs.length > 0 && paragraphs.every((_, i) => agreedParagraphs.has(i));
-
-  const toggleParagraph = (idx) => {
-    setAgreedParagraphs(prev => {
-      const next = new Set(prev);
-      next.has(idx) ? next.delete(idx) : next.add(idx);
-      return next;
-    });
-  };
-
-  // YouTube Player
-  useEffect(() => {
-    if (!videoId || view !== 'sign') return;
-    if (window.YT && window.YT.Player) { initPlayer(); return; }
-    const tag = document.createElement('script');
-    tag.src = 'https://www.youtube.com/iframe_api';
-    document.body.appendChild(tag);
-    window.onYouTubeIframeAPIReady = initPlayer;
-    return () => { window.onYouTubeIframeAPIReady = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoId, view]);
-
-  const initPlayer = () => {
-    if (!document.getElementById('falltest-player')) return;
-    playerRef.current = new window.YT.Player('falltest-player', {
-      videoId,
-      playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
-      events: {
-        onReady: (e) => { setPlayerReady(true); },
-        onStateChange: (e) => {
-          if (e.data === window.YT.PlayerState.PLAYING) startProgressTracking();
-          else stopProgressTracking();
-        },
-      },
-    });
-  };
-
-  const startProgressTracking = () => {
-    stopProgressTracking();
-    progressIntervalRef.current = setInterval(() => {
-      if (!playerRef.current?.getCurrentTime) return;
-      const current = Math.floor(playerRef.current.getCurrentTime());
-      const total = playerRef.current.getDuration();
-      if (total > 0) {
-        watchedSecondsRef.current.add(current);
-        setWatchPercent(Math.min(100, Math.round((watchedSecondsRef.current.size / total) * 100)));
-      }
-    }, 1000);
-  };
-
-  const stopProgressTracking = () => {
-    if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-  };
-
-  useEffect(() => () => stopProgressTracking(), []);
-
-  const handleSubmit = async () => {
-    setError('');
-    if (!canSign) { setError(tt(`請先觀看至少 ${requiredPercent}% 的影片內容`, `Please watch at least ${requiredPercent}% of the video first`, `まず動画を${requiredPercent}%以上ご視聴ください`)); return; }
-    if (!allAgreed) { setError(t('請閱讀並勾選所有條款後再簽署')); return; }
-    if (!sigRef.current || sigRef.current.isEmpty()) { setError(forChildId ? t('請先完成法定代理人簽名') : t('請先完成本人簽名')); return; }
-    // 未滿 18 歲：家長簽名改為遠端——本人簽完後系統寄 email 給家長，於同一連結一次簽署兩份文件
-
-    setLoading(true);
-    try {
-      await signFallTestAgreement({
-        memberId: member.id,
-        targetMemberId: forChildId || undefined, // 代簽子帳號時帶子帳號 id，後端據此寫到子帳號
-        signatureData: sigRef.current.toDataURL(),
-        watchPercent,
-        agreedParagraphs: Array.from(agreedParagraphs),
-      });
-      if (onboarding) { navigate('/member/home'); return; }  // 回 gate → 自動走到下一步（安排墜落測驗）
-      const [st, sig] = await Promise.all([
-        getMyFallTestStatus(targetId),
-        getFallTestSignature(targetId),
-      ]);
-      setStatus(st.data);
-      setSignature(sig.data.signature);
-      setView('main');
-    } catch (err) {
-      setError(err.response?.data?.message || t('簽署失敗，請再試一次'));
-    } finally { setLoading(false); }
-  };
+  const signUrl = `/member/waiver${forChildId ? `?forChild=${forChildId}` : ''}`;
 
   const s = {
     page: { width: '100%', minHeight: '100vh', background: '#F7F3F3', paddingBottom: 40 },
@@ -196,7 +73,6 @@ export default function MemberFallTestPage() {
     card: { background: '#fff', borderRadius: 14, margin: '16px 16px 0', padding: 20, border: '0.5px solid #E8D5D5' },
     btnPrimary: { width: '100%', height: 48, borderRadius: 12, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 15, fontWeight: 600, cursor: 'pointer', marginTop: 12 },
     btnSecondary: { width: '100%', height: 44, borderRadius: 12, background: '#fff', color: '#8B1A1A', border: '1px solid #8B1A1A', fontSize: 14, fontWeight: 500, cursor: 'pointer', marginTop: 8 },
-    label: { fontSize: 11, color: '#6b6b6b', marginBottom: 4 },
     sectionTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a', marginBottom: 8, textAlign: 'left' },
   };
 
@@ -211,7 +87,6 @@ export default function MemberFallTestPage() {
   // ── 副本檢視 ───────────────────────────────────────────────────────
   if (view === 'copy' && signature) {
     const signedAt = signature.signedAt?.toDate ? signature.signedAt.toDate() : new Date(signature.signedAt?._seconds * 1000 || 0);
-    // 優先使用簽署當下的文字快照，若無（舊簽署紀錄）退而使用現行設定內容並標註
     const copyContent = signature.contentSnapshot?.zh || settings.contentZh || '';
     const isFallback = !signature.contentSnapshot?.zh;
     const copyParagraphs = copyContent.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
@@ -248,97 +123,6 @@ export default function MemberFallTestPage() {
               <img src={signature.guardianSignatureData} alt={t('法定代理人簽名')} style={{ width: '100%', maxWidth: 340, border: '0.5px solid #E8D5D5', borderRadius: 8 }} />
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  // ── 簽署流程 ───────────────────────────────────────────────────────
-  if (view === 'sign') {
-    return (
-      <div style={s.page}>
-        <div style={s.header}>
-          <button style={s.backBtn} onClick={() => setView('main')}>‹</button>
-          <span style={{ fontWeight: 700, fontSize: 17 }}>{t('墜落測驗同意書')}</span>
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-            <button onClick={() => setLang('zh')} style={{ background: lang === 'zh' ? 'rgba(255,255,255,0.3)' : 'none', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: 6, padding: '4px 8px', fontSize: 12 }}>中文</button>
-            <button onClick={() => setLang('en')} style={{ background: lang === 'en' ? 'rgba(255,255,255,0.3)' : 'none', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: 6, padding: '4px 8px', fontSize: 12 }}>English</button>
-          </div>
-        </div>
-
-        {/* 影片區 */}
-        {videoId && (
-          <div style={s.card}>
-            <div style={{ ...s.sectionTitle, marginBottom: 12 }}>{t('📹 請先觀看說明影片')}</div>
-            {inAppBrowser.inApp && (
-              <div style={{ background: '#FEF3E2', border: '1px solid #F0C889', borderRadius: 10, padding: '12px 14px', marginBottom: 12, fontSize: 13, color: '#8A5A00', lineHeight: 1.6, textAlign: 'left' }}>
-                <div style={{ fontWeight: 700, marginBottom: 4 }}>{t('⚠ 請改用 Safari／Chrome 開啟')}</div>
-                <div>
-                  {t('您目前是從 ')}<b>{inAppBrowser.name}</b>{t(' 內建瀏覽器開啟，影片的觀看進度可能')}<b>{t('無法正常記錄')}</b>{t('（進度條不會前進，導致無法簽署）。請複製網址、改用手機的 ')}<b>{t('Safari 或 Chrome')}</b>{t(' 開啟本頁。')}
-                </div>
-                <button type="button"
-                  onClick={async () => { try { await navigator.clipboard.writeText(window.location.href); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 2500); } catch { setLinkCopied(false); } }}
-                  style={{ marginTop: 10, height: 34, padding: '0 16px', borderRadius: 8, background: '#8A5A00', color: '#fff', border: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                  {linkCopied ? t('✓ 已複製，請貼到瀏覽器') : t('📋 複製本頁網址')}
-                </button>
-              </div>
-            )}
-            <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 8 }}>
-              <div id="falltest-player" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
-            </div>
-            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ flex: 1, height: 6, background: '#F0E4E4', borderRadius: 3, overflow: 'hidden' }}>
-                <div style={{ width: `${watchPercent}%`, height: '100%', background: canSign ? '#2D7D46' : '#8B1A1A', borderRadius: 3, transition: 'width 0.5s' }} />
-              </div>
-              <span style={{ fontSize: 12, color: canSign ? '#2D7D46' : '#8B1A1A', fontWeight: 600 }}>
-                {watchPercent}% {canSign ? '✓' : tt(`（需 ${requiredPercent}%）`, `(needs ${requiredPercent}%)`, `（${requiredPercent}%必要）`)}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* 條款區 */}
-        <div style={s.card}>
-          <div style={{ ...s.sectionTitle, marginBottom: 4 }}>{t('📋 閱讀並逐項確認')}</div>
-          <div style={{ fontSize: 11, color: '#999', marginBottom: 12 }}>{tt(`已確認 ${agreedParagraphs.size} / ${paragraphs.length} 段`, `Checked ${agreedParagraphs.size} / ${paragraphs.length}`, `確認済み ${agreedParagraphs.size} / ${paragraphs.length}`)}</div>
-          {paragraphs.map((para, idx) => (
-            <div key={idx} onClick={() => toggleParagraph(idx)}
-              style={{ background: agreedParagraphs.has(idx) ? '#F0F8F2' : '#FBF5F5', borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', border: `0.5px solid ${agreedParagraphs.has(idx) ? '#B3DEC0' : '#F0E4E4'}`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              <div style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0, border: `2px solid ${agreedParagraphs.has(idx) ? '#8B1A1A' : '#CCC'}`, borderRadius: 3, background: agreedParagraphs.has(idx) ? '#8B1A1A' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                {agreedParagraphs.has(idx) && <CheckTick color="#fff" size={9} />}
-              </div>
-              <span style={{ fontSize: 13, color: '#1a1a1a', lineHeight: 1.7, textAlign: 'left', display: 'block' }}>{para}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* 本人簽名 */}
-        <div style={s.card}>
-          <div style={s.sectionTitle}>{forChildId ? t('✍️ 法定代理人簽名') : t('✍️ 本人簽名')}</div>
-          <SignaturePad ref={sigRef} />
-          <button onClick={() => sigRef.current?.clear()} style={{ fontSize: 12, color: '#999', background: 'none', border: 'none', cursor: 'pointer', marginTop: 6 }}>{t('清除重簽')}</button>
-        </div>
-
-        {/* 家長簽名（未滿18歲）：改為遠端 email 簽署，不在現場簽 */}
-        {needGuardian && (
-          <div style={{ ...s.card, border: '1px solid #F0D9A8', background: '#FFFBF0' }}>
-            <div style={{ ...s.sectionTitle, color: '#854F0B' }}>{t('👨‍👩‍👧 法定代理人簽名（未滿18歲）')}</div>
-            <div style={{ fontSize: 12, color: '#854F0B', lineHeight: 1.7 }}>
-              {t('本會員未滿 18 歲，需家長／法定代理人同意。')}<strong>{t('完成本人簽署後')}</strong>{t('，系統會寄一封 email 給法定代理人（家長／監護人），點連結即可於')}<strong>{t('同一頁面一次簽署')}</strong>{t('「風險安全聲明書」與「墜落測驗同意書」兩份文件。')}<br/>
-              {t('（若風險安全聲明書尚未簽署，法定代理人 email 會等兩份本人簽署都完成後才寄出。）')}
-            </div>
-          </div>
-        )}
-
-        {error && (
-          <div style={{ margin: '12px 16px 0', background: '#FCEBEB', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#A32D2D' }}>{error}</div>
-        )}
-
-        <div style={{ padding: '0 16px' }}>
-          <button onClick={handleSubmit} disabled={loading || !canSign || !allAgreed}
-            style={{ ...s.btnPrimary, opacity: (loading || !canSign || !allAgreed) ? 0.5 : 1, cursor: (loading || !canSign || !allAgreed) ? 'not-allowed' : 'pointer' }}>
-            {loading ? t('簽署中...') : t('確認簽署')}
-          </button>
         </div>
       </div>
     );
@@ -403,7 +187,7 @@ export default function MemberFallTestPage() {
         ) : (
           <>
             <div style={{ fontSize: 13, color: '#A32D2D', marginBottom: 12 }}>{t('尚未簽署同意書，無法進行墜落測驗')}</div>
-            <button onClick={() => setView('sign')} style={s.btnPrimary}>{t('前往簽署')}</button>
+            <button onClick={() => navigate(signUrl)} style={s.btnPrimary}>{t('前往簽署')}</button>
           </>
         )}
       </div>
