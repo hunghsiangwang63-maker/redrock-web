@@ -72,18 +72,37 @@ export default function StaffLayout() {
   // ⚠ 2026-08-21 由 30 秒拉長為 3 分鐘：查 Firestore 查詢洞察資料發現這支 timer（每個員工端頁面
   // 都掛著、分頁開著不動也照跑）打的是完整版 GET /pending-tasks（內含 courseRegistrations/
   // experienceBookings/fallTestBookings 等多個近7天報名查詢），單日光這兩個集合就吃掉近20萬次
-  // 讀取——但畫面其實只用到 r.data.total 這個數字。徽章本就非即時必要（員工不會盯著數字跳動），
-  // 拉長間隔對體感幾乎無影響、讀取量可降到約 1/6。
+  // 讀取——但畫面其實只用到 r.data.total 這個數字。拉長間隔只是治標。
+  // ⚠ 2026-09-26 補：改帶 `countOnly=1`——後端這個參數會直接跳過「近7天報名」四條查詢（連 fire
+  // 都不 fire，不是拿到結果不處理），這幾條原本就是徽章完全不需要、給待辦頁本身才用得到的
+  // 資料。待辦頁（PendingTasksPage.jsx）自己的呼叫不受影響，維持吃完整版。
+  // ⚠ 2026-09-26 再補：兩館櫃檯電腦是「常駐開著不關」——這個 timer 因此是**全天 24 小時**都在跑，
+  // 不是只有營業時數，等於原本的估計（只算營業時數）低估了實際次數。兩個方向一起降：
+  // ①間隔 3 分鐘拉長到 15 分鐘（badge 本就非即時必要）②分頁切到背景/視窗失焦時整個暫停輪詢
+  // （對「常駐開著」的櫃檯電腦screen本身不會被切背景，這條幫不上忙；但對員工自己開很多分頁、
+  // 這頁被晾在背景的情況有幫助）——切回可見時立刻補抓一次，避免看到過期數字。
   useEffect(() => {
     if (!isOperational) { setPendingCount(0); return; }
+    let timer = null;
     const fetchCount = () => {
-      client.get('/pending-tasks').then(r => {
+      if (document.visibilityState === 'hidden') return; // 背景分頁不打
+      client.get('/pending-tasks', { params: { countOnly: 1 } }).then(r => {
         setPendingCount(r.data?.total || 0);
       }).catch(() => {});
     };
+    const startTimer = () => { if (!timer) timer = setInterval(fetchCount, 900000); };
+    const stopTimer = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') { fetchCount(); startTimer(); }
+      else { stopTimer(); }
+    };
     fetchCount(); // 立即執行一次
-    const timer = setInterval(fetchCount, 180000);
-    return () => clearInterval(timer);
+    startTimer();
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      stopTimer();
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [isOperational]);
 
   const [showClockIn, setShowClockIn] = useState(false);
