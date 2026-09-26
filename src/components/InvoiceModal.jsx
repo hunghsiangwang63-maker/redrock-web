@@ -53,7 +53,9 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
     <>
       {/* 收現欄拿掉瀏覽器原生上下鍵（2026-08-15 使用者要求）——inline style 碰不到
           ::-webkit-inner/outer-spin-button 這類偽元素，只能用一個獨立 <style> 標籤，
-          用 class 名稱限定範圍只影響這個輸入框，不影響全站其他 number 輸入。 */}
+          用 class 名稱限定範圍只影響這個輸入框，不影響全站其他 number 輸入。
+          2026-09-26 再補：滾輪誤觸改值 CSS 管不到，改用 onWheel={e=>e.target.blur()}
+          （見下方 input），滾動時直接失焦，讓頁面正常捲動、不會被輸入框吃掉滾輪事件改值。 */}
       <style>{`
         .cash-received-input::-webkit-outer-spin-button,
         .cash-received-input::-webkit-inner-spin-button {
@@ -88,7 +90,9 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
         <div style={{ display:'flex', alignItems:'flex-end', gap:12, marginBottom: changed ? 10 : 0 }}>
           <div style={{ flex:1 }}>
             <label style={{ ...labS, marginBottom:3 }}>收現</label>
-            <input type="number" className="cash-received-input" style={inpS} value={cashReceived} onChange={e => setCashReceived(e.target.value)} placeholder="輸入實收現金金額" />
+            <input type="number" className="cash-received-input" style={inpS} value={cashReceived}
+              onChange={e => setCashReceived(e.target.value)} onWheel={e => e.target.blur()}
+              placeholder="輸入實收現金金額" />
           </div>
           <div style={{ flex:1, textAlign:'right' }}>
             <div style={{ fontSize:11, color:'#999' }}>找零（應收 NT${Number(amount) || 0}）</div>
@@ -258,7 +262,9 @@ export default function InvoiceModal({ title, subtitle, feeInfo, defaultAmount, 
           </div>
           <div style={{ marginBottom:12 }}>
             <label style={labS}>金額（預填實收金額，可調整）</label>
-            <input type="number" style={inpS} value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+            <input type="number" className="no-number-spinner" style={inpS} value={form.amount}
+              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+              onWheel={e => e.target.blur()} />
           </div>
           <div style={{ marginBottom:12 }}>
             <label style={labS}>統一編號（選填）</label>

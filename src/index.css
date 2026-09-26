@@ -72,6 +72,18 @@ input, textarea, select {
   background: #fff;
 }
 
+/* 金額類 number input 共用：隱藏原生上下微調箭頭（滑鼠誤點的來源之一）。滾輪誤觸改值的部分
+   CSS 管不到，改由各輸入框加 onWheel={e=>e.target.blur()}（見 InvoiceModal.jsx／
+   InvoiceIssuer.jsx 發票金額欄位，2026-09-26 使用者要求開立發票金額只能用鍵盤輸入/貼上）。 */
+.no-number-spinner::-webkit-outer-spin-button,
+.no-number-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-number-spinner {
+  -moz-appearance: textfield;
+}
+
 /* iOS Safari 有一個原生行為：點進 font-size < 16px 的輸入框，會自動把整頁放大讓字看得清楚，
    且這個放大狀態是瀏覽器層級的視覺縮放（非版面溢出），SPA 換頁也不會自動恢復，需手動縮小
    才能回到正常大小——這正是「開啟後畫面對齊正常、一點進輸入框（登入表單等）就整頁變寬、

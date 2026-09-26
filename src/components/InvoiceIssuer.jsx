@@ -252,7 +252,10 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       </div>
       <div style={{ marginBottom:12 }}>
         <label style={lab}>金額</label>
-        <input type="number" style={inp} value={amount} onChange={e => setAmount(e.target.value)} />
+        {/* 只支援鍵盤輸入/貼上：拿掉原生上下微調箭頭（no-number-spinner，見 index.css）與滾輪
+            改值（onWheel 直接失焦，2026-09-26 使用者要求）——避免滑鼠滾動誤觸改動發票金額。 */}
+        <input type="number" className="no-number-spinner" style={inp} value={amount}
+          onChange={e => setAmount(e.target.value)} onWheel={e => e.target.blur()} />
         {amountModified && (
           <div style={{ fontSize:11, color:'#A66A00', marginTop:4 }}>⚠️ 金額已由預設 NT${Number(defaultAmount ?? 0).toLocaleString()} 修改，請在下方備註說明原因</div>
         )}
