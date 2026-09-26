@@ -141,7 +141,9 @@ export default function MemberWaiverPage() {
     if (!document.getElementById('waiver-falltest-player')) return;
     playerRef.current = new window.YT.Player('waiver-falltest-player', {
       videoId,
-      playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+      // 瀏覽器政策不允許「有聲音」的影片自動播放，autoplay 一定要搭配 mute 才會真的自動開始
+      // 播放（否則會被靜默擋下、卡在暫停畫面）——代價是預設沒有聲音，靠下方 UI 提示手動取消靜音。
+      playerVars: { rel: 0, modestbranding: 1, playsinline: 1, autoplay: 1, mute: 1 },
       events: {
         onStateChange: (e) => {
           if (e.data === window.YT.PlayerState.PLAYING) startProgressTracking();
@@ -363,6 +365,9 @@ export default function MemberWaiverPage() {
                 )}
                 <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden', borderRadius: 8 }}>
                   <div id="waiver-falltest-player" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} />
+                </div>
+                <div style={{ marginTop: 10, background: '#FEF3E2', border: '0.5px solid #F0C889', borderRadius: 8, padding: '8px 12px', fontSize: 12, color: '#8A5A00', textAlign: 'left' }}>
+                  {t('🔇 影片已自動靜音播放，請點擊影片右下角的喇叭圖示開啟聲音，才能聽到完整的安全說明。')}
                 </div>
                 <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ flex: 1, height: 6, background: '#F0E4E4', borderRadius: 3, overflow: 'hidden' }}>

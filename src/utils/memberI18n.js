@@ -847,6 +847,7 @@ const DICT_EN = {
   '入場前請詳閱以下「風險安全聲明書」與「墜落測驗同意書」，全部確認後於下方簽名一次即完成兩份文件。': 'Please review the "Liability Waiver" and "Fall Test Consent Form" below. Once everything is checked, sign once below to complete both.',
   '請詳閱以下「風險安全聲明書」，確認後於下方簽名。': 'Please review the "Liability Waiver" below, then sign below.',
   '請觀看安全影片並詳閱以下「墜落測驗同意書」，確認後於下方簽名。': 'Please watch the safety video and review the "Fall Test Consent Form" below, then sign below.',
+  '🔇 影片已自動靜音播放，請點擊影片右下角的喇叭圖示開啟聲音，才能聽到完整的安全說明。': '🔇 The video is playing muted automatically. Tap the speaker icon in the bottom-right corner of the video to turn on sound and hear the full safety instructions.',
 
   // ── 家長遠端代簽風險安全聲明書頁 ──
   '紅石攀岩館 RedRock Climbing': 'RedRock Climbing',
@@ -2455,6 +2456,7 @@ const DICT_JA = {
   '入場前請詳閱以下「風險安全聲明書」與「墜落測驗同意書」，全部確認後於下方簽名一次即完成兩份文件。': '入場前に以下の「免責同意書」と「墜落テスト同意書」をご確認の上、下記で一度署名すると両方完了します。',
   '請詳閱以下「風險安全聲明書」，確認後於下方簽名。': '以下の「免責同意書」をご確認の上、下記で署名してください。',
   '請觀看安全影片並詳閱以下「墜落測驗同意書」，確認後於下方簽名。': '安全動画をご視聴の上、以下の「墜落テスト同意書」をご確認いただき、下記で署名してください。',
+  '🔇 影片已自動靜音播放，請點擊影片右下角的喇叭圖示開啟聲音，才能聽到完整的安全說明。': '🔇 動画はミュート状態で自動再生されています。動画右下のスピーカーアイコンをタップして音声をオンにし、安全説明を最後までお聞きください。',
 
   // ── 家長遠端代簽風險安全聲明書頁 ──
   '紅石攀岩館 RedRock Climbing': 'RedRock クライミングジム',
