@@ -82,9 +82,11 @@ export default function PublicCourseCategoryPage() {
         )}
 
         {filteredCohorts.map(c => {
-          // 非工作坊梯次（週課）的額滿判斷：statusLabel 由 getCourses() 依 enrolledCount>=maxStudents 算好，
-          // 與會員端/工作坊場次判斷同一套口徑，這裡不用再另外拉 enrolledCount/maxStudents 兩個欄位。
-          const cohortFull = c.type !== 'workshop' && c.statusLabel === 'full';
+          // 非工作坊梯次（週課）的額滿判斷：⚠️ statusLabel 對「已開課」(startDate<=今天) 的梯次一律
+          // 先回傳 'ongoing'，額滿判斷永遠執行不到——比照會員端 MemberCoursesPage.jsx 既有的補救
+          // 寫法，額外檢查 enrolledCount>=maxStudents（2026-09-27 真實案例：小蜘蛛人初級班多個已
+          // 額滿梯次因已開課，statusLabel 仍是 'ongoing'，只看 statusLabel 會漏判）。
+          const cohortFull = c.type !== 'workshop' && (c.statusLabel === 'full' || (c.maxStudents != null && (c.enrolledCount || 0) >= c.maxStudents));
           return (
           <div key={c.id} style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
