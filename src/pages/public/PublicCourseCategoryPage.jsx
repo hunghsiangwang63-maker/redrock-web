@@ -24,6 +24,7 @@ export default function PublicCourseCategoryPage() {
   const [data, setData] = useState(null);
   const [loadErr, setLoadErr] = useState('');
   const [expandedWorkshop, setExpandedWorkshop] = useState(null);
+  const [expandedTrialFor, setExpandedTrialFor] = useState(null); // 常態報名已額滿的週課→展開「單堂試上」場次清單
   // 場館分類：一個班別常橫跨兩館各自開梯次，讓訪客只看自己方便去的那一館。
   // 可由分類總覽頁帶入 ?gym= 深連結（GYMS 之外的值一律視為「全部場館」）。
   const [gymFilter, setGymFilter] = useState(GYMS.some(g => g.id === gymFromLink) ? gymFromLink : 'all');
@@ -102,7 +103,15 @@ export default function PublicCourseCategoryPage() {
               </div>
               {c.type !== 'workshop' && (
                 cohortFull ? (
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#A32D2D', padding: '4px 10px', flexShrink: 0 }}>{t('已額滿')}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#A32D2D', padding: '4px 10px' }}>{t('已額滿')}</span>
+                    {c.trialSessions && c.trialSessions.length > 0 && (
+                      <button onClick={() => setExpandedTrialFor(expandedTrialFor === c.id ? null : c.id)}
+                        style={{ height: 32, padding: '0 12px', borderRadius: 8, background: '#fff', color: RED, border: `1px solid ${RED}`, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                        {expandedTrialFor === c.id ? t('收合') : t('單堂試上 ▾')}
+                      </button>
+                    )}
+                  </div>
                 ) : (
                   <button onClick={() => navigate(`/book/course?course=${c.id}`)}
                     style={{ height: 38, padding: '0 16px', borderRadius: 10, background: RED, color: '#fff', border: 'none', fontSize: 13, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
@@ -117,6 +126,26 @@ export default function PublicCourseCategoryPage() {
                 </button>
               )}
             </div>
+
+            {c.type !== 'workshop' && cohortFull && expandedTrialFor === c.id && (
+              <div style={{ marginTop: 12, borderTop: '1px dashed #EEE', paddingTop: 12 }}>
+                <div style={{ fontSize: 12, color: '#999', marginBottom: 8, textAlign: 'left' }}>
+                  {tt('常態報名已額滿，可申請以下場次的單堂試上（依當日實際名額為準）', 'Regular enrollment is full, but you can apply for a single trial session below (subject to actual availability on the day).', '定員登録は満員ですが、以下の回で単発体験を申し込めます（当日の実際の空き状況によります）。')}
+                </div>
+                {c.trialSessions.map(s => (
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #F5EFEF' }}>
+                    <div style={{ fontSize: 13 }}>
+                      🗓 {s.date}　⏰ {s.startTime}–{s.endTime}
+                      <div style={{ fontSize: 11, color: '#999', marginTop: 2 }}>{t('試上費')} NT${s.trialPrice}</div>
+                    </div>
+                    <button onClick={() => navigate(`/book/trial?session=${s.id}`)}
+                      style={{ height: 32, padding: '0 12px', borderRadius: 8, background: RED, color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                      {tt('試上 →', 'Trial →', '体験 →')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {c.type === 'workshop' && expandedWorkshop === c.id && (
               <div style={{ marginTop: 12, borderTop: '1px dashed #EEE', paddingTop: 12 }}>
