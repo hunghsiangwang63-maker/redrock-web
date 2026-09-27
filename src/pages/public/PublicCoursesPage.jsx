@@ -5,6 +5,7 @@ import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const RED = '#8B1A1A';
 const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
+const GYMS = [{ id: 'gym-hsinchu', label: '新竹館' }, { id: 'gym-shilin', label: '士林館' }];
 
 // 公開課程總覽（免登入，第一層：全部班別）：訪客先在這裡挑班別（如「入門班」），
 // 點進去到既有的公開班別頁（/book/category?id=）挑梯次，最後到 /book/course 或 /book/workshop 報名。
@@ -13,6 +14,7 @@ export default function PublicCoursesPage() {
   const navigate = useNavigate();
   const [categories, setCategories] = useState(null);
   const [loadErr, setLoadErr] = useState('');
+  const [gymFilter, setGymFilter] = useState('all'); // 場館分類：只看某館有開的班別
 
   useEffect(() => {
     publicClient.get('/courses/public/categories')
@@ -35,11 +37,21 @@ export default function PublicCoursesPage() {
         <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免登入即可瀏覽，選擇梯次後登入或註冊會員即可報名')}</div>
       </div>
       <div style={wrap}>
-        {categories.length === 0 && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+          {[{ id: 'all', label: '全部場館' }, ...GYMS].map(g => (
+            <button key={g.id} onClick={() => setGymFilter(g.id)}
+              style={{ flex: 1, padding: '8px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                border: gymFilter === g.id ? `1.5px solid ${RED}` : '1px solid #E8D5D5',
+                background: gymFilter === g.id ? RED : '#fff', color: gymFilter === g.id ? '#fff' : '#666' }}>
+              {t(g.label)}
+            </button>
+          ))}
+        </div>
+        {categories.filter(cat => gymFilter === 'all' || cat.gymIds.includes(gymFilter)).length === 0 && (
           <div style={{ ...card, cursor: 'default', textAlign: 'center', color: '#999', justifyContent: 'center' }}>{t('目前沒有開放中的課程')}</div>
         )}
-        {categories.map(cat => (
-          <div key={cat.id} style={card} onClick={() => navigate(`/book/category?id=${cat.id}`)}>
+        {categories.filter(cat => gymFilter === 'all' || cat.gymIds.includes(gymFilter)).map(cat => (
+          <div key={cat.id} style={card} onClick={() => navigate(`/book/category?id=${cat.id}${gymFilter !== 'all' ? `&gym=${gymFilter}` : ''}`)}>
             {cat.imageUrl && (
               <img src={cat.imageUrl} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }} />
             )}

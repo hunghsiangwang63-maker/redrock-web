@@ -61,6 +61,7 @@ const DICT_EN = {
   '選擇入場場館': 'Select gym',
   '新竹館': 'Hsinchu',
   '士林館': 'Shilin',
+  '全部場館': 'All Gyms',
   '選擇入場人員': 'Who is entering?',
   '驗票中...': 'Verifying...',
   '確認付款中，請稍候...': 'Confirming your payment...',
