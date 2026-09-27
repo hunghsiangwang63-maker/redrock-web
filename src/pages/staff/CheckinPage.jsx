@@ -499,6 +499,29 @@ export default function CheckinPage() {
     }
   };
 
+  // 選定入場人員（親子共用電話時可能是家長本人或某位子會員）並帶出入場資格。
+  // 抽出成獨立函式：讓「選擇入場人員」按鈕點擊、與 handlePhoneSearch 找到唯一人選時的自動選取共用同一份邏輯。
+  const selectPhoneMember = async (m) => {
+    setPhoneSelectedMember(m);
+    setMemberEligibility(null);
+    setPhoneInstrument(null);
+    try {
+      const res = await client.get(`/checkin/eligibility/${m.id}`, { params: { gymId: targetGymId } });
+      // 若後端 isVip 未設定，用本地 memberType 補強
+      const data = res.data;
+      if (!data.isVip && m.memberType === 'vip') data.isVip = true;
+      setMemberEligibility(data);
+    } catch (e) {
+      setMemberEligibility({
+        memberType: m.memberType || 'general',
+        hasCourseAccess: false,
+        waiverSigned: true,
+        hasValidPass: false,
+        isVip: m.memberType === 'vip',
+      });
+    }
+  };
+
   const handlePhoneSearch = async () => {
     if (!phoneInput.trim()) return;
     setPhoneLoading(true);
@@ -518,10 +541,15 @@ export default function CheckinPage() {
       const found = matches.find(m => !m.isChildAccount && !m.parentMemberId) || matches[0];
       if (found) {
         setPhoneMember(found);
+        let children = [];
         try {
           const detailRes = await client.get(`/members/${found.id}`);
-          setPhoneSubMembers(detailRes.data.children || []);
+          children = detailRes.data.children || [];
+          setPhoneSubMembers(children);
         } catch (e) { /* 子會員載入失敗不影響家長入場 */ }
+        // 這支電話只對到一位可選人員（無家庭成員可選）→ 直接預設選定，不需再多點一次。
+        const candidates = [found, ...children.filter(m => m.isChildAccount !== false)];
+        if (candidates.length === 1) await selectPhoneMember(found);
       } else {
         setPhoneError('找不到此手機號碼的會員');
       }
@@ -1095,26 +1123,7 @@ export default function CheckinPage() {
                   <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>選擇入場人員</div>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:12 }}>
                     {[phoneMember, ...phoneSubMembers.filter(m => m.isChildAccount !== false)].map(m => (
-                      <button key={m.id || m.name} type="button" onClick={async () => {
-                        setPhoneSelectedMember(m);
-                        setMemberEligibility(null);
-                        setPhoneInstrument(null);
-                        try {
-                          const res = await client.get(`/checkin/eligibility/${m.id}`, { params: { gymId: targetGymId } });
-                          // 若後端 isVip 未設定，用本地 memberType 補強
-                          const data = res.data;
-                          if (!data.isVip && m.memberType === 'vip') data.isVip = true;
-                          setMemberEligibility(data);
-                        } catch (e) {
-                          setMemberEligibility({
-                            memberType: m.memberType || 'general',
-                            hasCourseAccess: false,
-                            waiverSigned: true,
-                            hasValidPass: false,
-                            isVip: m.memberType === 'vip',
-                          });
-                        }
-                      }}
+                      <button key={m.id || m.name} type="button" onClick={() => selectPhoneMember(m)}
                         style={{ height:34, padding:'0 12px', borderRadius:8, border:`0.5px solid ${phoneSelectedMember?.id === m.id || phoneSelectedMember?.name === m.name ? '#185FA5':'#E8D5D5'}`, background: phoneSelectedMember?.id === m.id || phoneSelectedMember?.name === m.name ? '#185FA5':'#fff', color: phoneSelectedMember?.id === m.id || phoneSelectedMember?.name === m.name ? '#fff':'#333', fontSize:13, cursor:'pointer' }}>
                         {m.name}{m.birthday ? ` (${m.birthday})` : ''}
                       </button>
