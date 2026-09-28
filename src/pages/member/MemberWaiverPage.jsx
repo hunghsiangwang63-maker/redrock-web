@@ -7,7 +7,6 @@ import { getFallTestSettings, getFallTestSignature } from '../../api/fallTests';
 import SignaturePad from '../../components/SignaturePad';
 import CheckTick from '../../components/CheckTick';
 import { detectInAppBrowser } from '../../utils/inAppBrowser';
-import { isMinor as isMinorAge } from '../../utils/age';
 import { t, tt } from '../../utils/memberI18n';
 
 // ── 2026-09-26 合併簽署 ─────────────────────────────────────────────
@@ -76,8 +75,13 @@ export default function MemberWaiverPage() {
   const showNothingToSign = waiverComplete && !needsFallTestSection;
 
   // 家長聯絡資訊只在「即將簽署 waiver 本人部分」且對象未滿 18 歲時需要（沿用既有：以登入者本人
-  // 年齡判斷，因代簽子帳號時 isChildAccount 會直接完成、不會走到需要家長 Email 這條路）
-  const needGuardianInfo = needsWaiverSection && isMinorAge(member?.birthday);
+  // 年齡判斷，因代簽子帳號時 isChildAccount 會直接完成、不會走到需要家長 Email 這條路）。
+  // ⚠ 2026-09-28 修：原本用 isMinorAge(member?.birthday) 自行從生日算——但 /auth/member/login
+  // 的回應完全不含 birthday（要等 memberStore.jsx 背景呼叫 /auth/member/me 才會補上），剛登入
+  // 就走到這頁時 member.birthday 還是 undefined，未成年會員因此被誤判成不用填法代資訊、送出後
+  // 撞到後端「未成年會員需提供法定代理人 email」才失敗（「跳出去再用」能過是因為背景刷新已完成）。
+  // 改用 member.isMinor——login／/me 兩個端點都直接回傳這個持久化欄位，從登入當下就可靠存在。
+  const needGuardianInfo = needsWaiverSection && !!member?.isMinor;
 
   useEffect(() => {
     if (!targetId) return;
