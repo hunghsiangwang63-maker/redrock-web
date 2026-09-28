@@ -31,36 +31,37 @@ export default function FinancePage() {
 
   const handleTab = (key) => { setTab(key); setSearchParams({ tab: key }); };
 
+  // ⚠ 2026-09-28：原本這兩個下載函式各自手刻 fetch()+手讀 localStorage token key，
+  // 繞過共用 client 的 401 自動偵測/清除失效 token 機制，token 剛好卡到過期邊界時
+  // 容易整個失敗且不會自動恢復（見 CLAUDE.md 2026-07-07 同型教訓）。改走共用 client。
   const downloadInvoice = async () => {
     setBusy2(true); setErr2('');
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
-      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
-      const r = await fetch(`${API}/daily-settlements/invoice-export?year=${ivYear}&bimonth=${bimonth}&gymId=${gym}&track=${encodeURIComponent(track)}`, { headers: { Authorization: `Bearer ${tok}` } });
-      if (!r.ok) { const t = await r.text().catch(() => ''); throw new Error(`${r.status} ${t.slice(0, 220)}`); }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
+      const r = await client.get('/daily-settlements/invoice-export', {
+        params: { year: ivYear, bimonth, gymId: gym, track },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(r.data);
       const m1 = String((bimonth - 1) * 2 + 1).padStart(2, '0');
       const a = document.createElement('a'); a.href = url;
       a.download = `發票明細_${gym === 'gym-hsinchu' ? '新竹' : '士林'}_${ivYear}${m1}.xlsx`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 3000);
-    } catch (e) { setErr2('下載失敗：' + e.message); }
+    } catch (e) { setErr2('下載失敗：' + (e.response?.status ? `伺服器錯誤 ${e.response.status}` : e.message)); }
     finally { setBusy2(false); }
   };
 
   const downloadMonthly = async () => {
     setBusy(true); setErr('');
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
-      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
-      const r = await fetch(`${API}/daily-settlements/monthly-export?month=${month}&gymId=${gym}`, { headers: { Authorization: `Bearer ${tok}` } });
-      if (!r.ok) { throw new Error(r.status === 403 ? '僅管理員可下載' : `伺服器錯誤 ${r.status}`); }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
+      const r = await client.get('/daily-settlements/monthly-export', {
+        params: { month, gymId: gym },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(r.data);
       const a = document.createElement('a'); a.href = url;
       a.download = `月銷售紀錄_${gym === 'gym-hsinchu' ? '新竹' : '士林'}_${month}.xlsx`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 3000);
-    } catch (e) { setErr('下載失敗：' + e.message); }
+    } catch (e) { setErr('下載失敗：' + (e.response?.status === 403 ? '僅管理員可下載' : e.response?.status ? `伺服器錯誤 ${e.response.status}` : e.message)); }
     finally { setBusy(false); }
   };
 

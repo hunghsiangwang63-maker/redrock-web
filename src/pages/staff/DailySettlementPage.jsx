@@ -326,17 +326,18 @@ export default function DailySettlementPage() {
     setAlreadySettled(false);
   };
 
+  // ⚠ 2026-09-28：原本手刻 fetch()+手讀 localStorage token key，繞過共用 client 的
+  // 401 自動偵測/清除失效 token 機制，改走共用 client（見 CLAUDE.md 2026-07-07 同型教訓）。
   const downloadMonthly = async () => {
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
-      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
-      const r = await fetch(`${API}/daily-settlements/monthly-export?month=${exportMonth}&gymId=${gymId}`, { headers: { Authorization: `Bearer ${tok}` } });
-      if (!r.ok) throw new Error(`${r.status}`);
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
+      const r = await client.get('/daily-settlements/monthly-export', {
+        params: { month: exportMonth, gymId },
+        responseType: 'blob',
+      });
+      const url = URL.createObjectURL(r.data);
       const a = document.createElement('a'); a.href = url;
       a.download = `月銷售紀錄_${exportMonth}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000);
-    } catch (e) { showMsg('下載失敗 ' + e.message, 'err'); }
+    } catch (e) { showMsg('下載失敗 ' + (e.response?.status ? `伺服器錯誤 ${e.response.status}` : e.message), 'err'); }
   };
 
   const s = {
