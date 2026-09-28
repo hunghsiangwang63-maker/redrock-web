@@ -31,6 +31,18 @@ const extractYoutubeId = (url) => {
   return null;
 };
 
+// 2026-09-28：影片觀看進度存 localStorage，避免中途離開頁面（切出去接電話/瀏覽器被系統關掉）
+// 回來要整支重看。以 targetId+videoId 為 key——代簽子帳號與換影片(館方改設定)都不會互相污染；
+// 純本機裝置層級（僅存在這台瀏覽器），換裝置/清快取不會保留，這是 localStorage 方案的既有限制。
+//
+// ⚠ 存的是「已看過的整數秒」原始集合＋影片總長，不是單純一個百分比數字——快轉/跳著看本就
+// 只會累積實際播放經過的那些秒數（既有的防快轉設計，不是這次新增的限制，恢復進度不影響它）；
+// 但改存整個集合而非數字，代表「這次沒看到的段落」下次回來繼續播放時**還是同一份集合繼續累積**，
+// 不會因為離開又重進就打掉重練——即使每次都跳著看，只要累積次數夠多、逐漸涵蓋到不同段落，
+// 百分比就會持續往上疊加，不會卡在某個數字永遠上不去（只存百分比數字的話反而會有這個問題：
+// 新的一輪從空集合重新累積，要再次獨立達到門檻才會讓顯示數字往上動）。
+const watchProgressKey = (targetId, videoId) => `waiver_watch_${targetId}_${videoId}`;
+
 export default function MemberWaiverPage() {
   const [searchParams] = useSearchParams();
   const forChildId = searchParams.get('forChild');
@@ -100,6 +112,20 @@ export default function MemberWaiverPage() {
       setFtSettings(ftSettingsRes);
       setFtSigned(ftSigRes);
       setWaiverText(waiverContent);
+      // 恢復影片觀看進度（此時 ftSettings 尚未進 state，用剛拿到的 ftSettingsRes 直接算 videoId）——
+      // 把整份「已看過的秒數集合」恢復進 watchedSecondsRef，之後繼續播放是在同一份集合上累加，
+      // 不是恢復一個獨立的百分比數字（見上方 watchProgressKey 註解說明原因）。
+      const savedVideoId = extractYoutubeId(ftSettingsRes?.youtubeUrl);
+      if (savedVideoId) {
+        try {
+          const raw = localStorage.getItem(watchProgressKey(targetId, savedVideoId));
+          const parsed = raw ? JSON.parse(raw) : null;
+          if (parsed && Array.isArray(parsed.seconds) && parsed.total > 0) {
+            watchedSecondsRef.current = new Set(parsed.seconds);
+            setWatchPercent(Math.min(100, Math.round((watchedSecondsRef.current.size / parsed.total) * 100)));
+          }
+        } catch (e) { /* 壞資料忽略，視同沒有恢復進度 */ }
+      }
       setLoading(false);
     })();
     return () => { cancelled = true; };
@@ -165,6 +191,11 @@ export default function MemberWaiverPage() {
       if (total > 0) {
         watchedSecondsRef.current.add(current);
         setWatchPercent(Math.min(100, Math.round((watchedSecondsRef.current.size / total) * 100)));
+        if (videoId) {
+          try {
+            localStorage.setItem(watchProgressKey(targetId, videoId), JSON.stringify({ seconds: Array.from(watchedSecondsRef.current), total }));
+          } catch (e) { /* localStorage 滿了/被封鎖時忽略，不影響觀看本身 */ }
+        }
       }
     }, 1000);
   };
@@ -201,6 +232,8 @@ export default function MemberWaiverPage() {
       const res = await signEntryDocs(targetId, payload);
       const blockReasons = res.data.blockReasons || [];
       if (!forChildId) updateMember({ blockReasons, isBlocked: blockReasons.length > 0 });
+      // 簽署成功，已用不到暫存的觀看進度——清掉避免殘留（純本機衛生，不清也不影響下次功能）
+      if (needsFallTestSection && videoId) { try { localStorage.removeItem(watchProgressKey(targetId, videoId)); } catch (e) {} }
       navigate(onboarding ? '/member/home' : '/member/profile');
     } catch (err) {
       setError(err.response?.data?.message || t('簽署失敗，請再試一次'));
