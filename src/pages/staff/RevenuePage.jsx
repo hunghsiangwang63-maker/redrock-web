@@ -47,19 +47,28 @@ export default function RevenuePage({ embedded = false }) {
   const [adjustments, setAdjustments] = useState([]);
   const [adjNet, setAdjNet] = useState(0);
   const [days, setDays] = useState(7);
+  // 自訂期間：與「近N天」快速按鈕互斥，開啟時期間改由 customFrom/customTo 決定
+  const [customMode, setCustomMode] = useState(false);
+  const [customFrom, setCustomFrom] = useState(dayjs().subtract(6, 'day').format('YYYY-MM-DD'));
+  const [customTo, setCustomTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState(null);
 
-  useEffect(() => { loadAll(); }, [days, gymFilter]);
+  const periodLabel = customMode ? `${dayjs(customFrom).format('MM/DD')}~${dayjs(customTo).format('MM/DD')}` : `近 ${days} 天`;
+  const periodShort = customMode ? '期間' : `${days}天`;
+
+  useEffect(() => { loadAll(); }, [days, gymFilter, customMode, customFrom, customTo]);
 
   const loadAll = async () => {
+    if (customMode && (!customFrom || !customTo || dayjs(customTo).isBefore(dayjs(customFrom)))) return; // 期間未選好/不合理時先不查
     setLoading(true);
     try {
+      const periodParams = customMode ? { dateFrom: customFrom, dateTo: customTo, gymId: gymFilter } : { days, gymId: gymFilter };
       const [sumRes, dailyRes, checkinRes, adjRes] = await Promise.all([
         getRevenueSummary(gymFilter),
-        getDailyReport({ days, gymId: gymFilter }),
-        getCheckinStats({ days, gymId: gymFilter }),
-        getAdjustments({ days, gymId: gymFilter }),
+        getDailyReport(periodParams),
+        getCheckinStats(periodParams),
+        getAdjustments(periodParams),
       ]);
       setSummary(sumRes.data);
       setDaily(dailyRes.data.daily || []);
@@ -75,8 +84,8 @@ export default function RevenuePage({ embedded = false }) {
 
   const handleExportCheckin = async () => {
     try {
-      const dateFrom = dayjs().subtract(days - 1, 'day').startOf('day').toISOString();
-      const dateTo = dayjs().endOf('day').toISOString();
+      const dateFrom = (customMode ? dayjs(customFrom) : dayjs().subtract(days - 1, 'day')).startOf('day').toISOString();
+      const dateTo = (customMode ? dayjs(customTo) : dayjs()).endOf('day').toISOString();
       const res = await exportCheckinCsv({ dateFrom, dateTo });
       const url = URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
@@ -91,7 +100,8 @@ export default function RevenuePage({ embedded = false }) {
 
   const handleExportAdjustments = async () => {
     try {
-      const res = await exportAdjustmentsCsv({ days, gymId: gymFilter });
+      const params = customMode ? { dateFrom: customFrom, dateTo: customTo, gymId: gymFilter } : { days, gymId: gymFilter };
+      const res = await exportAdjustmentsCsv(params);
       const url = URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
@@ -115,16 +125,31 @@ export default function RevenuePage({ embedded = false }) {
     <div style={{ padding: embedded?0:20, background:'#F7F3F3' }}>
 
       {/* Tab + 天數選擇（場館已由頂部全域選擇器標示，這裡不重複顯示） */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:10 }}>
         <SegmentedTabs tabs={TABS} value={tab} onChange={setTab} />
-        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-          {tab !== 'payouts' && [7, 14, 30].map(d => (
-            <button key={d} onClick={() => setDays(d)}
-              style={{ height:30, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background: days===d ? '#8B1A1A' : '#fff', color: days===d ? '#fff' : '#666', fontSize:12, cursor:'pointer' }}>
-              {d}天
+        {tab !== 'payouts' && (
+          <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+            {[7, 14, 30].map(d => (
+              <button key={d} onClick={() => { setDays(d); setCustomMode(false); }}
+                style={{ height:30, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background: !customMode && days===d ? '#8B1A1A' : '#fff', color: !customMode && days===d ? '#fff' : '#666', fontSize:12, cursor:'pointer' }}>
+                {d}天
+              </button>
+            ))}
+            <button onClick={() => setCustomMode(true)}
+              style={{ height:30, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background: customMode ? '#8B1A1A' : '#fff', color: customMode ? '#fff' : '#666', fontSize:12, cursor:'pointer' }}>
+              自訂期間
             </button>
-          ))}
-        </div>
+            {customMode && (
+              <>
+                <input type="date" value={customFrom} max={customTo} onChange={e => setCustomFrom(e.target.value)}
+                  style={{ height:30, padding:'0 8px', borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:12, color:'#1a1a1a', background:'#fff' }} />
+                <span style={{ fontSize:12, color:'#999' }}>～</span>
+                <input type="date" value={customTo} min={customFrom} max={dayjs().format('YYYY-MM-DD')} onChange={e => setCustomTo(e.target.value)}
+                  style={{ height:30, padding:'0 8px', borderRadius:6, border:'0.5px solid #E8D5D5', fontSize:12, color:'#1a1a1a', background:'#fff' }} />
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── 人事報酬（不依賴上方營收/入場資料載入狀態，獨立渲染）── */}
@@ -171,7 +196,7 @@ export default function RevenuePage({ embedded = false }) {
               {/* 日報表 */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                 <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>日報表（近 {days} 天）</span>
+                  <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>日報表（{periodLabel}）</span>
                 </div>
                 {daily.length === 0 ? (
                   <div style={{ padding:32, textAlign:'center', color:'#999', fontSize:13 }}>此期間無交易紀錄</div>
@@ -205,7 +230,7 @@ export default function RevenuePage({ embedded = false }) {
                     </tbody>
                     <tfoot>
                       <tr style={{ borderTop:'2px solid #E8D5D5', background:'#FBF5F5' }}>
-                        <td style={{ padding:'10px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{days}天合計</td>
+                        <td style={{ padding:'10px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{periodShort}合計</td>
                         {DAILY_COLS.map(c => (
                           <td key={c.key} style={{ padding:'10px 10px', textAlign:'right', fontFamily:'monospace', fontSize:12, whiteSpace:'nowrap', color:'#666' }}>
                             {NT(daily.reduce((a, b) => a + (b.byType?.[c.key] || 0), 0))}
@@ -228,7 +253,7 @@ export default function RevenuePage({ embedded = false }) {
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden', marginTop:16 }}>
                 <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:10 }}>
-                    <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>加減項（近 {days} 天結帳）</span>
+                    <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>加減項（{periodLabel}結帳）</span>
                     {adjustments.length > 0 && (
                       <button onClick={handleExportAdjustments}
                         style={{ height:28, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'none', fontSize:12, color:'#6b6b6b', cursor:'pointer', flexShrink:0 }}>
@@ -289,8 +314,8 @@ export default function RevenuePage({ embedded = false }) {
                 {[
                   { label:'今日入場', val: checkinDaily[0]?.count || 0, color:'#8B1A1A' },
                   { label:'今日收費', val: NT(checkinDaily[0]?.revenue), color:'#2D7D46' },
-                  { label:`${days}天入場`, val: checkinDaily.reduce((a,b) => a+b.count, 0), color:'#185FA5' },
-                  { label:`${days}天收費`, val: NT(checkinDaily.reduce((a,b) => a+(b.revenue||0), 0)), color:'#854F0B' },
+                  { label:`${periodShort}入場`, val: checkinDaily.reduce((a,b) => a+b.count, 0), color:'#185FA5' },
+                  { label:`${periodShort}收費`, val: NT(checkinDaily.reduce((a,b) => a+(b.revenue||0), 0)), color:'#854F0B' },
                 ].map((s, i) => (
                   <div key={i} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'14px 16px', borderTop:`3px solid ${s.color}`, minWidth:0, overflow:'hidden' }}>
                     <div style={{ fontSize:10, color:'#999', textTransform:'uppercase', letterSpacing:.8, fontWeight:600 }}>{s.label}</div>
@@ -302,7 +327,7 @@ export default function RevenuePage({ embedded = false }) {
               {/* 入場日報 */}
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', overflow:'hidden' }}>
                 <div style={{ padding:'12px 16px', borderBottom:'0.5px solid #E8D5D5', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>入場日報（近 {days} 天）</span>
+                  <span style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>入場日報（{periodLabel}）</span>
                   <button onClick={handleExportCheckin}
                     style={{ height:28, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'none', fontSize:12, color:'#6b6b6b', cursor:'pointer' }}>
                     ↓ 匯出 CSV
@@ -339,7 +364,7 @@ export default function RevenuePage({ embedded = false }) {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop:'2px solid #E8D5D5', background:'#FBF5F5' }}>
-                      <td style={{ padding:'10px 14px', fontWeight:600, whiteSpace:'nowrap' }}>{days}天合計</td>
+                      <td style={{ padding:'10px 14px', fontWeight:600, whiteSpace:'nowrap' }}>{periodShort}合計</td>
                       <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, color:'#8B1A1A', whiteSpace:'nowrap' }}>
                         {checkinDaily.reduce((a,b) => a+b.count, 0)}
                       </td>
