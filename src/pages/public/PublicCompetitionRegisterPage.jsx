@@ -83,7 +83,9 @@ export default function PublicCompetitionRegisterPage() {
       if (f.required && !customFieldValues[f.key]) return setErr(tt(`請填寫「${f.label}」`, `Please fill in "${f.label}"`, `「${f.label}」を入力してください`));
     }
     if (!sigRef.current || sigRef.current.isEmpty()) return setErr(t('請完成簽名'));
+    if (sigRef.current.isTooSimple()) return setErr(t('簽名過於簡單，請以正楷書寫完整姓名'));
     if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr(t('未滿 18 歲需法定代理人簽名'));
+    if (isMinor && guardianSigRef.current?.isTooSimple()) return setErr(t('法定代理人簽名過於簡單，請以正楷書寫完整姓名'));
     if (!bankLastFive.trim()) return setErr(t('請填寫匯款帳號末五碼'));
     if (!paymentDate) return setErr(t('請填寫轉帳日期'));
     setSubmitting(true);

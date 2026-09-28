@@ -50,7 +50,9 @@ export default function PublicTrialBookingPage() {
     if (!guestBirthday) return setErr(t('請填寫生日'));
     if (under4(guestBirthday)) return setErr(t('未滿 4 歲無法報名試上'));
     if (!sigRef.current || sigRef.current.isEmpty()) return setErr(t('請完成簽名'));
+    if (sigRef.current.isTooSimple()) return setErr(t('簽名過於簡單，請以正楷書寫完整姓名'));
     if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr(t('未滿 18 歲需法定代理人簽名'));
+    if (isMinor && guardianSigRef.current?.isTooSimple()) return setErr(t('法定代理人簽名過於簡單，請以正楷書寫完整姓名'));
     if (!bankName.trim()) return setErr(t('請填寫匯款銀行名稱'));
     if (!paymentDate) return setErr(t('請填寫匯款日期'));
     if (!bankLastFive.trim()) return setErr(t('請填寫匯款帳號末五碼'));

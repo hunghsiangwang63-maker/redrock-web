@@ -36,6 +36,7 @@ export default function ParentCompetitionWaiverPage() {
     setErrorMsg('');
     if (!agreed) { setErrorMsg(t('請先閱讀並勾選同意條款')); return; }
     if (!sigRef.current || sigRef.current.isEmpty()) { setErrorMsg(t('請先簽名')); return; }
+    if (sigRef.current.isTooSimple()) { setErrorMsg(t('簽名過於簡單，請以正楷書寫完整姓名')); return; }
     setSubmitting(true);
     try {
       await memberClient.post(`/competitions/waiver/parent/${token}`, {

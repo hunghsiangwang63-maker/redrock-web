@@ -908,8 +908,10 @@ export default function MemberCompetitionsPage() {
                   <div style={{ display:'flex', gap:8, marginTop:6 }}>
                     <button type="button" onClick={()=>{ memberSigRef.current?.clear(); setMemberSig(null); }}
                       style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>{t('清除重簽')}</button>
-                    <button type="button" onClick={()=>{ const d=memberSigRef.current?.toDataURL(); setMemberSig(d||null); }}
-                      style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('儲存簽名')}</button>
+                    <button type="button" onClick={()=>{
+                      if (memberSigRef.current?.isTooSimple()) { showMsg(t('簽名過於簡單，請以正楷書寫完整姓名'), 'red'); return; }
+                      const d=memberSigRef.current?.toDataURL(); setMemberSig(d||null);
+                    }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('儲存簽名')}</button>
                   </div>
                   {memberSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>{t('✓ 已儲存簽名')}</div>}
                 </div>
@@ -925,8 +927,10 @@ export default function MemberCompetitionsPage() {
                     <div style={{ display:'flex', gap:8, marginTop:6 }}>
                       <button type="button" onClick={()=>{ guardianSigRef.current?.clear(); setGuardianSig(null); }}
                         style={{ height:28, padding:'0 12px', borderRadius:6, background:'#FBF5F5', color:'#666', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>{t('清除重簽')}</button>
-                      <button type="button" onClick={()=>{ const d=guardianSigRef.current?.toDataURL(); setGuardianSig(d||null); }}
-                        style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('儲存簽名')}</button>
+                      <button type="button" onClick={()=>{
+                        if (guardianSigRef.current?.isTooSimple()) { showMsg(t('簽名過於簡單，請以正楷書寫完整姓名'), 'red'); return; }
+                        const d=guardianSigRef.current?.toDataURL(); setGuardianSig(d||null);
+                      }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#2D7D46', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('儲存簽名')}</button>
                     </div>
                     {guardianSig && <div style={{ fontSize:11, color:'#2D7D46', marginTop:4 }}>{t('✓ 法定代理人已儲存簽名')}</div>}
                   </div>
@@ -1077,6 +1081,7 @@ export default function MemberCompetitionsPage() {
               <button onClick={async ()=>{
                 const sig = guardianSigRef.current?.toDataURL();
                 if (!sig || guardianSigRef.current?.isEmpty?.()) { showMsg(t('請先完成法定代理人簽名'),'red'); return; }
+                if (guardianSigRef.current?.isTooSimple?.()) { showMsg(t('簽名過於簡單，請以正楷書寫完整姓名'),'red'); return; }
                 try {
                   await memberClient.post(`/competitions/registrations/${guardianSignTarget.id}/guardian-sign`, { signatureData: sig, parentName: member?.name });
                   setGuardianSignTarget(null);

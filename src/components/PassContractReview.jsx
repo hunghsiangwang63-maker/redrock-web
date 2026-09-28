@@ -73,7 +73,9 @@ const PassContractReview = forwardRef(function PassContractReview(
   }, []);
 
   useImperativeHandle(ref, () => ({
-    isValid: () => confirmed && !portraitRef.current?.isEmpty() && (!isMinor || !guardianRef.current?.isEmpty()),
+    isValid: () => confirmed
+      && !portraitRef.current?.isEmpty() && !portraitRef.current?.isTooSimple()
+      && (!isMinor || (!guardianRef.current?.isEmpty() && !guardianRef.current?.isTooSimple())),
     getData: () => ({
       confirmedContractTerms: confirmed,
       portraitSignature: portraitRef.current?.toDataURL() || null,

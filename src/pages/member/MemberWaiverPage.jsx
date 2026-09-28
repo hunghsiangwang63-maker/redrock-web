@@ -215,6 +215,7 @@ export default function MemberWaiverPage() {
     if (needsFallTestSection && !canWatchOk) { setError(tt(`請先觀看至少 ${requiredPercent}% 的影片內容`, `Please watch at least ${requiredPercent}% of the video first`, `まず動画を${requiredPercent}%以上ご視聴ください`)); return; }
     if (needsFallTestSection && !allFtAgreed) { setError(t('請閱讀並勾選所有條款後再簽署')); return; }
     if (!sigRef.current || sigRef.current.isEmpty()) { setError(forChildId ? t('請先完成法定代理人簽名') : t('請先完成本人簽名')); return; }
+    if (sigRef.current.isTooSimple()) { setError(t('簽名過於簡單，請以正楷書寫完整姓名')); return; }
 
     setSubmitting(true);
     try {
