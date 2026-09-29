@@ -10,7 +10,7 @@ import { getCategories } from '../../api/courseCategories';
 import SaveButton from '../../components/SaveButton';
 import GymsPage from './GymsPage';
 import { RealPrintPanel } from '../../components/InvoiceIssuer';
-import { PM_METHODS } from '../../components/InvoiceModal';
+import { PM_METHODS, PM_LABEL } from '../../components/InvoiceModal';
 
 const TAB_GROUPS = [
   {
@@ -1275,8 +1275,15 @@ export default function SettingsPage() {
                             {inv.itemName}{inv.memberName ? `・${inv.memberName}` : ''}
                           </div>
                         </div>
-                        <div style={{ fontSize:14, fontWeight:600, color: isVoid ? '#A32D2D' : '#1a1a1a', flexShrink:0, textDecoration: isVoid ? 'line-through' : 'none' }}>
-                          NT${(inv.amount || 0).toLocaleString()}
+                        <div style={{ textAlign:'right', flexShrink:0 }}>
+                          <div style={{ fontSize:14, fontWeight:600, color: isVoid ? '#A32D2D' : '#1a1a1a', textDecoration: isVoid ? 'line-through' : 'none' }}>
+                            NT${(inv.amount || 0).toLocaleString()}
+                          </div>
+                          {inv.paymentMethod && (
+                            <div style={{ fontSize:11, color:'#8B1A1A', marginTop:2 }}>
+                              {PM_LABEL[inv.paymentMethod] || inv.paymentMethod}
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
