@@ -30,11 +30,16 @@ export default function PublicCourseEnrollPage() {
       .catch(() => setLoadErr(t('找不到此課程，可能已下架或連結錯誤')));
   }, [courseId]);
 
+  const isWorkshop = course?.type === 'workshop';
   const estimatedFee = course?.pricePerSession ? course.pricePerSession * futureActiveCount : (course?.price || 0);
   const isLateJoinEstimate = course?.pricePerSession && course?.price && estimatedFee < course.price;
   const todayStr = dayjs().format('YYYY-MM-DD');
   const activeCount = sessions.filter(s => s.status !== 'cancelled').length;
   const weekdayLabel = (dow) => t(dow === '日' ? '週日' : `週${dow}`);
+  // 工作坊每場各自獨立收人、各自額滿門檻——跟週課「報名一次涵蓋整梯」不同，這裡只列出還開放的
+  // 未來場次讓訪客挑一場（與 PublicCourseCategoryPage.jsx 展開工作坊梯次時的清單同一套邏輯/文案，
+  // 只是這裡是單一課程的整頁版本，非班別頁裡收合的一小段）。
+  const openSessions = sessions.filter(s => s.status !== 'cancelled' && s.date >= todayStr);
 
   const goEnroll = () => navigate(`/member/courses?course=${courseId}`);
 
@@ -60,51 +65,94 @@ export default function PublicCourseEnrollPage() {
             <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{course.categoryDescription || course.description}</div>
           )}
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
-            {t('費用：')}<b style={{ color: RED, fontSize: 17 }}>NT${estimatedFee.toLocaleString()}</b>
-            <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(`（剩餘 ${futureActiveCount} 堂）`, `(${futureActiveCount} sessions left)`, `（残り${futureActiveCount}回）`)}</span>
-            {isLateJoinEstimate && (
-              <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>{tt(
-                `此課程已開課，插班費用依剩餘場次計算（原整期 NT$${course.price.toLocaleString()}），實際金額以登入後系統核算為準`,
-                `This course has already started — the late-join fee is calculated based on remaining sessions (full course NT$${course.price.toLocaleString()}). The exact amount will be confirmed by the system after you log in`,
-                `このコースは既に開講しています。途中参加費は残り回数に応じて計算されます（全期間 NT$${course.price.toLocaleString()}）。正確な金額はログイン後にシステムで確認されます`
-              )}</div>
+            {isWorkshop ? (
+              <>{t('費用：')}<b style={{ color: RED, fontSize: 17 }}>NT${(course.price || 0).toLocaleString()}</b><span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt('／場', '/ session', '／回')}</span></>
+            ) : (
+              <>
+                {t('費用：')}<b style={{ color: RED, fontSize: 17 }}>NT${estimatedFee.toLocaleString()}</b>
+                <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(`（剩餘 ${futureActiveCount} 堂）`, `(${futureActiveCount} sessions left)`, `（残り${futureActiveCount}回）`)}</span>
+                {isLateJoinEstimate && (
+                  <div style={{ color: '#999', fontSize: 12, marginTop: 4 }}>{tt(
+                    `此課程已開課，插班費用依剩餘場次計算（原整期 NT$${course.price.toLocaleString()}），實際金額以登入後系統核算為準`,
+                    `This course has already started — the late-join fee is calculated based on remaining sessions (full course NT$${course.price.toLocaleString()}). The exact amount will be confirmed by the system after you log in`,
+                    `このコースは既に開講しています。途中参加費は残り回数に応じて計算されます（全期間 NT$${course.price.toLocaleString()}）。正確な金額はログイン後にシステムで確認されます`
+                  )}</div>
+                )}
+              </>
             )}
           </div>
         </div>
 
-        {sessions.length > 0 && (
+        {/* 工作坊：每場各自獨立收人，訪客在此直接挑一場，逐場導去既有單場公開頁（/book/workshop）
+            完成登入/報名——與 PublicCourseCategoryPage.jsx 展開工作坊梯次時同一套邏輯/文案，
+            這裡是「單一課程」整頁版本（供這個課程自己單獨產生一個可分享的連結）。 */}
+        {isWorkshop ? (
           <div style={card}>
             <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 10, textAlign: 'left' }}>
-              📅 {tt(`此梯次上課場次（共 ${activeCount} 堂）`, `Sessions in this batch (${activeCount} total)`, `本期の授業日程（全${activeCount}回）`)}
+              📅 {tt(`請選擇要報名的時段（共 ${openSessions.length} 場）`, `Choose a session to register (${openSessions.length} available)`, `お申し込みの回をお選びください（全${openSessions.length}回）`)}
             </div>
+            {openSessions.length === 0 && (
+              <div style={{ fontSize: 13, color: '#999', textAlign: 'left' }}>{t('目前沒有開放中的場次')}</div>
+            )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {sessions.map(s => {
-                const isCancelled = s.status === 'cancelled';
-                const isPast = s.date < todayStr;
+              {openSessions.map(s => {
+                const full = s.maxStudents != null && s.enrolledCount >= s.maxStudents;
                 return (
-                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: isCancelled ? '#FBFBFB' : (isPast ? '#F5F5F5' : '#FBF5F5'), opacity: (isPast && !isCancelled) ? 0.6 : 1 }}>
-                    <div style={{ fontSize: 13, color: isCancelled ? '#999' : '#1a1a1a', textAlign: 'left' }}>
+                  <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: '#FBF5F5' }}>
+                    <div style={{ fontSize: 13, textAlign: 'left' }}>
                       {dayjs(s.date).format('MM/DD')}（{weekdayLabel(WEEKDAYS[dayjs(s.date).day()])}） {s.startTime}–{s.endTime}
-                      {!isCancelled && s.instructor && <span style={{ color: '#999', marginLeft: 6 }}>· {s.instructor}</span>}
+                      {s.instructor && <span style={{ color: '#999', marginLeft: 6 }}>· {s.instructor}</span>}
                     </div>
-                    {isCancelled
-                      ? <span style={{ fontSize: 10, fontWeight: 600, color: '#A32D2D', background: '#FCEBEB', padding: '2px 7px', borderRadius: 8, flexShrink: 0 }}>{t('停課')}</span>
-                      : (isPast && <span style={{ fontSize: 11, color: '#999', flexShrink: 0 }}>{t('已上課')}</span>)}
+                    {full ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: '#A32D2D', background: '#FCEBEB', padding: '2px 9px', borderRadius: 8, flexShrink: 0 }}>{t('已額滿')}</span>
+                    ) : (
+                      <button onClick={() => navigate(`/book/workshop?course=${courseId}&session=${s.id}`)}
+                        style={{ height: 32, padding: '0 12px', borderRadius: 8, background: RED, color: '#fff', border: 'none', fontSize: 12, cursor: 'pointer', flexShrink: 0 }}>
+                        {t('報名 →')}
+                      </button>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
-        )}
+        ) : (
+          <>
+            {sessions.length > 0 && (
+              <div style={card}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#666', marginBottom: 10, textAlign: 'left' }}>
+                  📅 {tt(`此梯次上課場次（共 ${activeCount} 堂）`, `Sessions in this batch (${activeCount} total)`, `本期の授業日程（全${activeCount}回）`)}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {sessions.map(s => {
+                    const isCancelled = s.status === 'cancelled';
+                    const isPast = s.date < todayStr;
+                    return (
+                      <div key={s.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, background: isCancelled ? '#FBFBFB' : (isPast ? '#F5F5F5' : '#FBF5F5'), opacity: (isPast && !isCancelled) ? 0.6 : 1 }}>
+                        <div style={{ fontSize: 13, color: isCancelled ? '#999' : '#1a1a1a', textAlign: 'left' }}>
+                          {dayjs(s.date).format('MM/DD')}（{weekdayLabel(WEEKDAYS[dayjs(s.date).day()])}） {s.startTime}–{s.endTime}
+                          {!isCancelled && s.instructor && <span style={{ color: '#999', marginLeft: 6 }}>· {s.instructor}</span>}
+                        </div>
+                        {isCancelled
+                          ? <span style={{ fontSize: 10, fontWeight: 600, color: '#A32D2D', background: '#FCEBEB', padding: '2px 7px', borderRadius: 8, flexShrink: 0 }}>{t('停課')}</span>
+                          : (isPast && <span style={{ fontSize: 11, color: '#999', flexShrink: 0 }}>{t('已上課')}</span>)}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-        <div style={{ ...card, textAlign: 'center' }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('登入或註冊會員即可完成報名')}</div>
-          <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>{t('報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）')}</div>
-          <button onClick={goEnroll}
-            style={{ width: '100%', height: 50, borderRadius: 12, background: RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 16 }}>
-            {t('登入 / 註冊並報名 →')}
-          </button>
-        </div>
+            <div style={{ ...card, textAlign: 'center' }}>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{t('登入或註冊會員即可完成報名')}</div>
+              <div style={{ fontSize: 13, color: '#999', marginTop: 6, lineHeight: 1.7 }}>{t('報名需簽署課程同意書並確認繳費方式，請先登入紅石會員帳號（尚未有帳號可直接註冊）')}</div>
+              <button onClick={goEnroll}
+                style={{ width: '100%', height: 50, borderRadius: 12, background: RED, color: '#fff', border: 'none', fontSize: 16, fontWeight: 700, cursor: 'pointer', marginTop: 16 }}>
+                {t('登入 / 註冊並報名 →')}
+              </button>
+            </div>
+          </>
+        )}
 
         <div style={{ textAlign: 'center', color: '#999', fontSize: 12, marginTop: 14, lineHeight: 1.8 }}>紅石攀岩 RedRock<br/>新竹館 03-6686635 · 士林館 02-28837591</div>
       </div>
