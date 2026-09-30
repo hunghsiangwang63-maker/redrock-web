@@ -54,6 +54,10 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
   const [note, setNote] = useState('');
   const [status, setStatus] = useState('idle'); // idle | printing | success | error
   const [error, setError] = useState('');
+  // 紙本①已印出、但②配號/建立紀錄那一步失敗（網路瞬斷/逾時等）——這種情況跟「①根本沒印出來」
+  // 完全不同：不能再顯示「尚未消耗發票號碼，可直接重試」（那句話在這裡是錯的、會誤導店員重印出
+  // 第二張紙），必須明確提醒紙本可能已經在客人手上、勿再列印。2026-09-30 依真實事故補上。
+  const [printedNotRecorded, setPrintedNotRecorded] = useState(false);
   const [issued, setIssued] = useState(null);
   const [rollStatus, setRollStatus] = useState(null); // 印完這張後的紙捲剩餘狀態（後端 print-record 回傳）
   const [agentConnected, setAgentConnected] = useState(null);
@@ -103,22 +107,31 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
     if (!(Number(amount) > 0)) { setError('請輸入大於 0 的金額'); return; }
     if (taxId.trim() && !isValidTaiwanTaxId(taxId)) { setError('統一編號檢查碼錯誤，請確認號碼是否正確'); return; }
     if (amountModified && !note.trim()) { setError('金額已修改，請填寫備註說明原因'); return; }
-    setStatus('printing'); setError('');
+    setStatus('printing'); setError(''); setPrintedNotRecorded(false);
+    // 有提供明細、且加總仍等於目前金額欄位（店員沒手動改過總額）→ 紙本印成多行明細（如「成人入場」
+    // 「租借岩鞋」分開列）；否則印成單一行——只影響紙本排版，發票紀錄仍只存 itemName/amount 這一組。
+    const breakdownSum = Array.isArray(itemBreakdown) ? itemBreakdown.reduce((s, i) => s + Number(i.amount || 0), 0) : null;
+    const printItems = Array.isArray(itemBreakdown) && itemBreakdown.length > 0 && breakdownSum === Number(amount)
+      ? itemBreakdown.map(i => ({ name: i.name, price: Number(i.amount), qty: 1 }))
+      : [{ name: itemName, price: Number(amount), qty: 1 }];
+    setPrintedItems(printItems); // 記下這次實際送印的明細，成功彈窗要逐行顯示
+    // ① 先真的印——這步失敗不消耗號碼、不建立任何紀錄，可安全重試（見 invoice-integration-plan.md §6.1「失敗退路」）。
+    // 與②（配號/建立紀錄）分開包 try/catch，是因為兩者失敗的意義完全不同：①失敗＝紙沒印出來、
+    // 放心重試；②失敗＝紙已經在客人手上了，不能再印一次（2026-09-30 真實事故：①成功但②失敗，
+    // 畫面卻顯示「可直接重試」，造成該筆發票系統從未登記、後續號碼全數錯位，見 CLAUDE.md 記錄）。
     try {
-      // 有提供明細、且加總仍等於目前金額欄位（店員沒手動改過總額）→ 紙本印成多行明細（如「成人入場」
-      // 「租借岩鞋」分開列）；否則印成單一行——只影響紙本排版，發票紀錄仍只存 itemName/amount 這一組。
-      const breakdownSum = Array.isArray(itemBreakdown) ? itemBreakdown.reduce((s, i) => s + Number(i.amount || 0), 0) : null;
-      const printItems = Array.isArray(itemBreakdown) && itemBreakdown.length > 0 && breakdownSum === Number(amount)
-        ? itemBreakdown.map(i => ({ name: i.name, price: Number(i.amount), qty: 1 }))
-        : [{ name: itemName, price: Number(amount), qty: 1 }];
-      setPrintedItems(printItems); // 記下這次實際送印的明細，成功彈窗要逐行顯示
-      // ① 先真的印——失敗不消耗號碼、不建立任何紀錄，可安全重試（見 invoice-integration-plan.md §6.1「失敗退路」）
       await printReceipt({
         gymId,
         items: printItems,
         buyerTaxId: taxId.trim() || undefined,
         openDrawer: payMethod === 'cash',
       });
+    } catch (err) {
+      setError(err.message || err.response?.data?.message || '列印失敗，請確認印表機連線後重試');
+      setStatus('error');
+      return;
+    }
+    try {
       // ② 印成功才配號 + 寫入正式發票紀錄（付款方式若已由值班人員改正，記錄用改正後的值）
       const res = await client.post('/invoices/print-record', {
         gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note, paymentMethod: payMethod,
@@ -142,7 +155,10 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       if (err.response?.data?.error === 'ROLL_DEPLETED') {
         setRollState(prev => ({ ...(prev || {}), rollDepleted: true }));
       }
-      setError(err.message || err.response?.data?.message || '列印失敗，請確認印表機連線後重試');
+      // 上面①已經成功印出紙本，這裡是②失敗——不論後端回什麼錯誤（含網路瞬斷/逾時等未特別分類的
+      // 情況），都要明確標記「紙已經印出來了」，不能再顯示「可直接重試」。
+      setPrintedNotRecorded(true);
+      setError(err.message || err.response?.data?.message || '系統登記失敗');
       setStatus('error');
     }
   };
@@ -275,7 +291,14 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
         <textarea rows={2} value={note} onChange={e => setNote(e.target.value)}
           style={{ ...inp, height:'auto', paddingTop:8, paddingBottom:8, resize:'vertical', fontFamily:'inherit', border: amountModified && !note.trim() ? '1px solid #A32D2D' : inp.border }} />
       </div>
-      {error && (
+      {error && printedNotRecorded && (
+        <div style={{ background:'#A32D2D', color:'#fff', borderRadius:8, padding:12, marginBottom:10, fontSize:13, fontWeight:700, lineHeight:1.7 }}>
+          🚨 紙本可能已經印出，但系統登記失敗（{error}）！<br/>
+          請勿再按「重新列印」，避免印出第二張重複的紙本。<br/>
+          請記下印表機剛印出的發票號碼，關閉此視窗後聯絡系統管理員手動補登這筆發票。
+        </div>
+      )}
+      {error && !printedNotRecorded && (
         <div style={{ fontSize:12, color:'#A32D2D', marginBottom:10, lineHeight:1.6 }}>
           ⚠️ {error}<br/>尚未消耗發票號碼，可直接重試。
         </div>
@@ -283,11 +306,11 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       <div style={{ display:'flex', gap:8 }}>
         <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>關閉</button>
         {(() => {
-          const printDisabled = status === 'printing' || agentConnected === false || positionOk === false || (amountModified && !note.trim());
+          const printDisabled = status === 'printing' || printedNotRecorded || agentConnected === false || positionOk === false || (amountModified && !note.trim());
           return (
             <button onClick={doPrint} disabled={printDisabled}
               style={{ flex:2, height:40, borderRadius:9, background: printDisabled ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: printDisabled ? 'not-allowed' : 'pointer' }}>
-              {status === 'printing' ? '列印中...' : status === 'error' ? '🖨️ 重新列印' : '🖨️ 列印發票'}
+              {status === 'printing' ? '列印中...' : printedNotRecorded ? '請改聯絡管理員' : status === 'error' ? '🖨️ 重新列印' : '🖨️ 列印發票'}
             </button>
           );
         })()}
