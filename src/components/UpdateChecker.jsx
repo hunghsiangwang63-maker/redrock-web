@@ -6,10 +6,16 @@ import { useEffect, useRef, useState } from 'react';
 // 不會真的重新從網路抓一次 index.html，index.html 的 no-cache 標頭派不上用場。
 const CURRENT_BUILD_ID = import.meta.env.VITE_BUILD_ID || '';
 const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 開著的分頁每 5 分鐘也主動查一次
+// 「稍後再說」要記住的是哪一個遠端版本——存進 localStorage（非單純記憶體 state），這樣
+// PWA/分頁重新 mount（常只是恢復背景狀態，並非真的重新連網抓新版，見上方註解②）時，同一個
+// 早就看過並關掉的版本不會又被判定成「新版本」反覆跳出；偵測到比這個紀錄更新的 buildId
+// 時，仍會正常再提醒（不是整個關掉這個功能）。
+const DISMISS_KEY = 'rr_update_dismissed_build';
 
 export default function UpdateChecker() {
   const [hasUpdate, setHasUpdate] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [latestBuildId, setLatestBuildId] = useState('');
   const checkingRef = useRef(false);
 
   useEffect(() => {
@@ -23,8 +29,13 @@ export default function UpdateChecker() {
         if (res.ok) {
           const data = await res.json();
           if (data.buildId && data.buildId !== CURRENT_BUILD_ID) {
-            setHasUpdate(true);
-            setDismissed(false); // 偵測到「新的」不同版本才重新彈出，避免同一版本被關掉又立刻彈
+            setLatestBuildId(data.buildId);
+            let lastDismissed = '';
+            try { lastDismissed = localStorage.getItem(DISMISS_KEY) || ''; } catch { /* 無痕模式等情況，視為從未關過 */ }
+            if (data.buildId !== lastDismissed) {
+              setHasUpdate(true);
+              setDismissed(false); // 偵測到「比上次關掉的那版更新」的版本才重新彈出
+            }
           }
         }
       } catch { /* 離線/網路異常，靜默略過，下次再試 */ }
@@ -68,7 +79,10 @@ export default function UpdateChecker() {
         style={{ height: 30, padding: '0 12px', borderRadius: 8, background: '#8B1A1A', color: '#fff', border: 'none', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
       >重新整理</button>
       <button
-        onClick={() => setDismissed(true)}
+        onClick={() => {
+          try { localStorage.setItem(DISMISS_KEY, latestBuildId); } catch { /* 無痕模式等情況，本次關掉仍有效，只是不會跨次記住 */ }
+          setDismissed(true);
+        }}
         aria-label="稍後再說"
         style={{ width: 24, height: 24, borderRadius: 6, background: 'none', border: 'none', color: '#bbb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       >
