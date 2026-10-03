@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, forwardRef, useImperativeHandle } from 'react';
+import { tt } from '../utils/memberI18n';
 
 // 簡易簽名畫布，無外部套件依賴。
 // 透過 ref 取得：isEmpty() / isTooSimple() / clear() / toDataURL()
@@ -120,7 +121,7 @@ const SignaturePad = forwardRef(function SignaturePad({ height = 160 }, ref) {
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ fontSize: 11, color: '#854F0B', background: '#FFFBF0', border: '0.5px solid #F0D9A8', borderRadius: '6px 6px 0 0', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}>
-        ✎ 請以正楷書寫全名簽名，潦草或無法辨識將請求重新簽署
+        ✎ {tt('請以正楷書寫全名簽名，潦草或無法辨識將請求重新簽署', 'Please sign your full name in clear block letters. Illegible or scribbled signatures will be asked to re-sign.', '氏名を楷書で丁寧にご署名ください。判読できない署名は再署名をお願いする場合があります。')}
       </div>
       <canvas
         ref={canvasRef}
@@ -137,7 +138,7 @@ const SignaturePad = forwardRef(function SignaturePad({ height = 160 }, ref) {
           display: 'flex', alignItems: 'center',
           justifyContent: 'center', color: '#bbb', fontSize: 13, pointerEvents: 'none',
         }}>
-          請在此處簽名 / Sign here
+          {tt('請在此處簽名', 'Sign here', 'ここに署名してください')}
         </div>
       )}
     </div>
