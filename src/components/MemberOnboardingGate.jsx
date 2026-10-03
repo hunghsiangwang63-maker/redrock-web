@@ -137,7 +137,7 @@ export default function MemberOnboardingGate({ children }) {
         {tt(
           <>入場前請先閱讀並簽署 <strong>風險安全聲明書</strong> 與 <strong>墜落測驗同意書</strong>，只需簽名一次即可完成兩份文件，完成後就能安排墜落測驗。</>,
           <>Before entering, please read and sign the <strong>Liability Waiver</strong> and the <strong>Fall Test Consent Form</strong> — one signature completes both. Once done you can schedule your fall test.</>,
-          <>入場前に<strong>免責同意書</strong>と<strong>安全確認テスト同意書</strong>をお読みの上、署名してください——一度の署名で両方完了します。完了後、テストの予約が可能になります。</>
+          <>入場前に<strong>リスク・安全に関する同意書</strong>と<strong>墜落テスト同意書</strong>をお読みの上、署名してください——一度の署名で両方完了します。完了後、テストの予約が可能になります。</>
         )}
       </div>
       {/* 2026-09-26 合併簽署：兩份文件現在只需一個簽名動作即可完成（/member/waiver），合併成一個框；
