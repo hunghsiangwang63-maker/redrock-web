@@ -114,7 +114,7 @@ export default function ParentWaiverPage() {
       <div style={s.card}>
         <div style={{ ...s.cardPad, paddingBottom: 0 }}>
           <div style={{ marginBottom: 12 }}>
-            <DocLangSwitch value={lang} onChange={setLang} fullWidth hideJa={!waiverText.ja} />
+            <DocLangSwitch value={lang} onChange={(l) => { try { localStorage.setItem('memberLang', l); } catch (_) {} setLang(l); }} fullWidth hideJa={!waiverText.ja} />
           </div>
         </div>
         <div style={{ padding: '0 18px 18px' }}>

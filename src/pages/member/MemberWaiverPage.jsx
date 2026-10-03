@@ -135,6 +135,8 @@ export default function MemberWaiverPage() {
   }, [targetId]);
 
   const handleLangSwitch = (newLang) => {
+    // 同步全站語言（t()/tt() 讀 localStorage）——否則只有文件內容換語言，標題、說明、簽名區仍是舊語言
+    try { localStorage.setItem('memberLang', newLang); } catch (_) {}
     setLang(newLang);
     setAgreedWaiverParagraphs(new Set());
     setAgreedFtParagraphs(new Set());
