@@ -8,6 +8,7 @@ import SignaturePad from '../../components/SignaturePad';
 import CheckTick from '../../components/CheckTick';
 import { detectInAppBrowser } from '../../utils/inAppBrowser';
 import DocLangSwitch from '../../components/DocLangSwitch';
+import DocParagraph from '../../components/DocParagraph';
 import { t, tt, getMemberLang } from '../../utils/memberI18n';
 
 // ── 2026-09-26 合併簽署 ─────────────────────────────────────────────
@@ -356,7 +357,7 @@ export default function MemberWaiverPage() {
                     <div style={{ marginTop: 2, width: 18, height: 18, flexShrink: 0, border: `2px solid ${agreedWaiverParagraphs.has(idx) ? '#2D7D46' : '#CCC'}`, borderRadius: 3, background: agreedWaiverParagraphs.has(idx) ? '#2D7D46' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {agreedWaiverParagraphs.has(idx) && <CheckTick color="#fff" size={9} />}
                     </div>
-                    <div style={{ fontSize: 13, lineHeight: 1.7, color: '#333', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{para}</div>
+                    <DocParagraph text={para} />
                   </div>
                 ))}
               </>
@@ -421,11 +422,11 @@ export default function MemberWaiverPage() {
               <div style={{ fontSize: 11, color: '#999', marginBottom: 10, textAlign: 'right' }}>{tt(`已確認 ${agreedFtParagraphs.size} / ${ftParagraphs.length} 段`, `Checked ${agreedFtParagraphs.size} / ${ftParagraphs.length}`, `確認済み ${agreedFtParagraphs.size} / ${ftParagraphs.length}`)}</div>
               {ftParagraphs.map((para, idx) => (
                 <div key={idx} onClick={() => toggleFtParagraph(idx)}
-                  style={{ background: agreedFtParagraphs.has(idx) ? '#F0F8F2' : '#FBF5F5', borderRadius: 10, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', border: `0.5px solid ${agreedFtParagraphs.has(idx) ? '#B3DEC0' : '#F0E4E4'}`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <div style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0, border: `2px solid ${agreedFtParagraphs.has(idx) ? '#8B1A1A' : '#CCC'}`, borderRadius: 3, background: agreedFtParagraphs.has(idx) ? '#8B1A1A' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  style={{ background: agreedFtParagraphs.has(idx) ? '#F0F8F2' : '#FBF5F5', borderRadius: 10, padding: 14, marginBottom: 10, cursor: 'pointer', border: `0.5px solid ${agreedFtParagraphs.has(idx) ? '#B3DEC0' : '#F0E4E4'}`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <div style={{ marginTop: 3, width: 18, height: 18, flexShrink: 0, border: `2px solid ${agreedFtParagraphs.has(idx) ? '#2D7D46' : '#CCC'}`, borderRadius: 3, background: agreedFtParagraphs.has(idx) ? '#2D7D46' : '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {agreedFtParagraphs.has(idx) && <CheckTick color="#fff" size={9} />}
                   </div>
-                  <span style={{ fontSize: 13, color: '#1a1a1a', lineHeight: 1.7, textAlign: 'left', display: 'block' }}>{para}</span>
+                  <DocParagraph text={para} />
                 </div>
               ))}
             </div>
