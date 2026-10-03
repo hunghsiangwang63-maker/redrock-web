@@ -7,7 +7,8 @@ import { getFallTestSettings, getFallTestSignature } from '../../api/fallTests';
 import SignaturePad from '../../components/SignaturePad';
 import CheckTick from '../../components/CheckTick';
 import { detectInAppBrowser } from '../../utils/inAppBrowser';
-import { t, tt } from '../../utils/memberI18n';
+import DocLangSwitch from '../../components/DocLangSwitch';
+import { t, tt, getMemberLang } from '../../utils/memberI18n';
 
 // ── 2026-09-26 合併簽署 ─────────────────────────────────────────────
 // 「風險安全聲明書」與「墜落測驗同意書」原本要分兩頁、簽兩次名；比照家長遠端簽署早就採用
@@ -58,8 +59,8 @@ export default function MemberWaiverPage() {
   const inAppBrowser = detectInAppBrowser();
 
   const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState('zh');
-  const [waiverText, setWaiverText] = useState({ zh: '', en: '' });
+  const [lang, setLang] = useState(getMemberLang());
+  const [waiverText, setWaiverText] = useState({ zh: '', en: '', ja: '' });
   const [ftSettings, setFtSettings] = useState(null);
   const [waiverDoc, setWaiverDoc] = useState(null);       // 目標對象的 waivers 文件（null=尚未簽過）
   const [ftSigned, setFtSigned] = useState(false);        // 目標對象是否已有墜測同意書簽署紀錄
@@ -105,7 +106,7 @@ export default function MemberWaiverPage() {
         getFallTestSettings().then(r => r.data).catch(() => null),
         getFallTestSignature(targetId).then(r => !!r.data?.signature).catch(() => false),
       ]);
-      let waiverContent = { zh: '', en: '' };
+      let waiverContent = { zh: '', en: '', ja: '' };
       try { const wr = await memberClient.get('/settings/waiver'); waiverContent = wr.data || waiverContent; } catch (_) {}
       if (cancelled) return;
       setWaiverDoc(waiverRes);
@@ -139,7 +140,7 @@ export default function MemberWaiverPage() {
   };
 
   // 以空白行分段
-  const waiverParagraphs = (waiverText[lang] || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const waiverParagraphs = (waiverText[lang] || waiverText.zh || '').split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const allWaiverAgreed = waiverParagraphs.length > 0 && waiverParagraphs.every((_, i) => agreedWaiverParagraphs.has(i));
   const toggleWaiverParagraph = (idx) => {
     setAgreedWaiverParagraphs(prev => { const next = new Set(prev); next.has(idx) ? next.delete(idx) : next.add(idx); return next; });
@@ -148,7 +149,7 @@ export default function MemberWaiverPage() {
   const videoId = extractYoutubeId(ftSettings?.youtubeUrl);
   const requiredPercent = ftSettings?.watchPercentRequired || 90;
   const canWatchOk = !videoId || watchPercent >= requiredPercent;
-  const ftContent = ftSettings?.[lang === 'zh' ? 'contentZh' : 'contentEn'] || '';
+  const ftContent = ftSettings?.[lang === 'ja' ? 'contentJa' : lang === 'en' ? 'contentEn' : 'contentZh'] || ftSettings?.contentZh || '';
   const ftParagraphs = ftContent.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const allFtAgreed = ftParagraphs.length > 0 && ftParagraphs.every((_, i) => agreedFtParagraphs.has(i));
   const toggleFtParagraph = (idx) => {
@@ -322,9 +323,8 @@ export default function MemberWaiverPage() {
       <div style={s.header}>
         <div style={s.back} onClick={() => navigate(forChildId ? '/member/profile' : '/member/profile')}>←</div>
         <div style={s.title}>{t('簽署入場文件')}</div>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-          <button onClick={() => handleLangSwitch('zh')} style={{ height: 28, padding: '0 10px', borderRadius: 7, border: '0.5px solid #E8D5D5', background: lang === 'zh' ? '#8B1A1A' : '#fff', color: lang === 'zh' ? '#fff' : '#444', fontSize: 12, cursor: 'pointer' }}>中文</button>
-          <button onClick={() => handleLangSwitch('en')} style={{ height: 28, padding: '0 10px', borderRadius: 7, border: '0.5px solid #E8D5D5', background: lang === 'en' ? '#8B1A1A' : '#fff', color: lang === 'en' ? '#fff' : '#444', fontSize: 12, cursor: 'pointer' }}>English</button>
+        <div style={{ marginLeft: 'auto' }}>
+          <DocLangSwitch value={lang} onChange={handleLangSwitch} hideJa={!waiverText.ja && !ftSettings?.contentJa} />
         </div>
       </div>
 

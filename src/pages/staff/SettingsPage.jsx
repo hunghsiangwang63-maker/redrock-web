@@ -366,7 +366,7 @@ export default function SettingsPage() {
   };
 
   // ─── Waiver 內容 ────────────────────────────────────────────────
-  const [waiver, setWaiver] = useState({ zh: '', en: '' });
+  const [waiver, setWaiver] = useState({ zh: '', en: '', ja: '' });
 
   const loadWaiver = async () => {
     try {
@@ -873,6 +873,7 @@ export default function SettingsPage() {
     watchPercentRequired: 90,
     contentZh: '',
     contentEn: '',
+    contentJa: '',
   });
 
   const loadFallTest = async () => {
@@ -1734,6 +1735,13 @@ export default function SettingsPage() {
                 disabled={!isAdmin}
                 style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:12, fontSize:13, fontFamily:'inherit', background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box' }} />
             </div>
+            <div style={{ marginTop:16 }}>
+              <label style={{ ...s.label, fontSize:13, fontWeight:500, marginBottom:8 }}>日文版</label>
+              <textarea value={waiver.ja || ''} rows={14}
+                onChange={e => setWaiver(p => ({...p, ja: e.target.value}))}
+                disabled={!isAdmin}
+                style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:12, fontSize:13, fontFamily:'inherit', background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box' }} />
+            </div>
           </div>
         </div>
       )}
@@ -1784,6 +1792,13 @@ export default function SettingsPage() {
               <label style={{ ...s.label, display:'block', marginBottom:5 }}>同意書內容（英文）</label>
               <textarea value={fallTest.contentEn} rows={6} placeholder="Fall Test Risk Disclaimer (English)..."
                 onChange={e => setFallTest(p => ({...p, contentEn: e.target.value}))}
+                disabled={!isAdmin}
+                style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box', color:'#1a1a1a' }} />
+            </div>
+            <div style={{ marginTop:14 }}>
+              <label style={{ ...s.label, display:'block', marginBottom:5 }}>同意書內容（日文）</label>
+              <textarea value={fallTest.contentJa || ''} rows={6} placeholder="墜落テスト同意書（日本語）..."
+                onChange={e => setFallTest(p => ({...p, contentJa: e.target.value}))}
                 disabled={!isAdmin}
                 style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box', color:'#1a1a1a' }} />
             </div>

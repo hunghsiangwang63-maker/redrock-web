@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { memberClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
-import { t } from '../../utils/memberI18n';
+import DocLangSwitch from '../../components/DocLangSwitch';
+import { t, getMemberLang } from '../../utils/memberI18n';
 
 export default function ParentWaiverPage() {
   const { token } = useParams();
@@ -11,18 +12,18 @@ export default function ParentWaiverPage() {
   const [status, setStatus] = useState('loading'); // loading | form | success | error
   const [info, setInfo] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
-  const [waiverText, setWaiverText] = useState({ zh: '', en: '' });
-  const [lang, setLang] = useState('zh');
+  const [waiverText, setWaiverText] = useState({ zh: '', en: '', ja: '' });
+  const [lang, setLang] = useState(getMemberLang());
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     Promise.all([
       memberClient.get(`/auth/waiver/parent/${token}`),
-      memberClient.get('/settings/waiver').catch(() => ({ data: { zh: '', en: '' } })),
+      memberClient.get('/settings/waiver').catch(() => ({ data: { zh: '', en: '', ja: '' } })),
     ]).then(([infoRes, textRes]) => {
       setInfo(infoRes.data);
-      setWaiverText(textRes.data || { zh: '', en: '' });
+      setWaiverText(textRes.data || { zh: '', en: '', ja: '' });
       setStatus('form');
     }).catch(err => {
       const code = err.response?.data?.error;
@@ -112,9 +113,8 @@ export default function ParentWaiverPage() {
 
       <div style={s.card}>
         <div style={{ ...s.cardPad, paddingBottom: 0 }}>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-            <button onClick={() => setLang('zh')} style={{ flex: 1, height: 32, borderRadius: 8, border: '0.5px solid #E8D5D5', background: lang === 'zh' ? '#8B1A1A' : '#fff', color: lang === 'zh' ? '#fff' : '#444', fontSize: 12, cursor: 'pointer' }}>中文</button>
-            <button onClick={() => setLang('en')} style={{ flex: 1, height: 32, borderRadius: 8, border: '0.5px solid #E8D5D5', background: lang === 'en' ? '#8B1A1A' : '#fff', color: lang === 'en' ? '#fff' : '#444', fontSize: 12, cursor: 'pointer' }}>English</button>
+          <div style={{ marginBottom: 12 }}>
+            <DocLangSwitch value={lang} onChange={setLang} fullWidth hideJa={!waiverText.ja} />
           </div>
         </div>
         <div style={{ padding: '0 18px 18px' }}>
@@ -124,7 +124,7 @@ export default function ParentWaiverPage() {
             whiteSpace: 'pre-wrap', background: '#FBF5F5', borderRadius: 10, padding: 14,
             border: '0.5px solid #F0E4E4',
           }}>
-            {waiverText[lang] || t('（尚未設定聲明書內容，請聯絡館方）')}
+            {waiverText[lang] || waiverText.zh || t('（尚未設定聲明書內容，請聯絡館方）')}
           </div>
           {info?.fallTest && (
             <>
@@ -134,7 +134,7 @@ export default function ParentWaiverPage() {
                 whiteSpace: 'pre-wrap', background: '#FBF5F5', borderRadius: 10, padding: 14,
                 border: '0.5px solid #F0E4E4',
               }}>
-                {info.fallTest.content?.[lang] || t('（尚未設定墜落測驗同意書內容，請聯絡館方）')}
+                {info.fallTest.content?.[lang] || info.fallTest.content?.zh || t('（尚未設定墜落測驗同意書內容，請聯絡館方）')}
               </div>
             </>
           )}
