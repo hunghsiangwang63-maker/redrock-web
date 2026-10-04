@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
-import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon, getRentalAddonInvoices, createRentalAddonInvoice, correctCheckInPaymentMethod } from '../../api/checkin';
+import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon, getRentalAddonInvoices, createRentalAddonInvoice, correctCheckInPaymentMethod, getCheckinRenewalInvoices, createCheckinRenewalInvoice, getPassRenewalInvoices, createPassRenewalInvoice, voidPassRenewalInvoice } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -165,6 +165,8 @@ export default function CheckinPage() {
   const [pmCorrectResult, setPmCorrectResult] = useState(null); // 更正成功後顯示回補結果（settlementPatched/skippedReason）
   const [renewalInvoiceTarget, setRenewalInvoiceTarget] = useState(null); // 定期票線上續約待開發票 modal 目標
   const [renewalInvRefresh, setRenewalInvRefresh] = useState(0);
+  const [checkinRenewalTarget, setCheckinRenewalTarget] = useState(null); // 現場續約（checkIns.renewalAmount>0）發票 modal 目標
+  const [checkinRenewalRefresh, setCheckinRenewalRefresh] = useState(0);
   const [courseInvoiceTarget, setCourseInvoiceTarget] = useState(null); // 今日課程學員「最後一堂」開立課程發票 modal 目標
   const [courseInvRefresh, setCourseInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   // 合併列印發票（多筆入場合開一張，如同行三人一起付款）——僅真列印館別開放（見下方 printingEnabled 查詢），
@@ -992,7 +994,7 @@ export default function CheckinPage() {
                       🧾 此會員的定期票（{scanResult.pendingRenewalInvoice.passTypeName}）已於線上續約付款 NT${scanResult.pendingRenewalInvoice.amount}，尚未開立發票
                     </div>
                     <InvoiceButtonAuto sourceType="pass_renewal" refId={scanResult.pendingRenewalInvoice.paymentId} refreshToken={renewalInvRefresh}
-                      onClick={() => setRenewalInvoiceTarget(scanResult.pendingRenewalInvoice)} style={{ height:'auto', padding:'4px 10px' }} />
+                      onClick={() => setRenewalInvoiceTarget({ ...scanResult.pendingRenewalInvoice, memberId: scanResult.memberId, memberName: scanResult.memberName, gymId: scanResult.gymId || targetGymId })} style={{ height:'auto', padding:'4px 10px' }} />
                   </div>
                 )}
                 {scanResult.partnerVendor && (
@@ -1068,7 +1070,7 @@ export default function CheckinPage() {
                       🧾 此會員的定期票（{confirmedCheckIn.pendingRenewalInvoice.passTypeName}）已於線上續約付款 NT${confirmedCheckIn.pendingRenewalInvoice.amount}，尚未開立發票
                     </div>
                     <InvoiceButtonAuto sourceType="pass_renewal" refId={confirmedCheckIn.pendingRenewalInvoice.paymentId} refreshToken={renewalInvRefresh}
-                      onClick={() => setRenewalInvoiceTarget(confirmedCheckIn.pendingRenewalInvoice)} style={{ height:'auto', padding:'4px 10px' }} />
+                      onClick={() => setRenewalInvoiceTarget({ ...confirmedCheckIn.pendingRenewalInvoice, memberId: confirmedCheckIn.memberId, memberName: confirmedCheckIn.memberName, gymId: confirmedCheckIn.gymId || targetGymId })} style={{ height:'auto', padding:'4px 10px' }} />
                   </div>
                 )}
                 {confirmedCheckIn.fallTestWarning && (
@@ -1087,6 +1089,11 @@ export default function CheckinPage() {
                     {(confirmedCheckIn.amountPaid > 0 || confirmedCheckIn.onlineTicket?.amount > 0) && (
                       <InvoiceButtonAuto sourceType="checkin" refId={confirmedCheckIn.id} refreshToken={checkinInvRefresh}
                         onClick={() => setCheckinInvoiceTarget(confirmedCheckIn)}
+                        style={{ height:'auto', padding:'4px 10px' }} />
+                    )}
+                    {Number(confirmedCheckIn.renewalAmount) > 0 && !confirmedCheckIn.isCancelled && (
+                      <InvoiceButtonAuto sourceType="checkin_renewal" refId={confirmedCheckIn.id} refreshToken={checkinRenewalRefresh} label="續約發票"
+                        onClick={() => setCheckinRenewalTarget(confirmedCheckIn)}
                         style={{ height:'auto', padding:'4px 10px' }} />
                     )}
                   </div>
@@ -1340,6 +1347,11 @@ export default function CheckinPage() {
                         onClick={() => setCheckinInvoiceTarget(phoneCheckedIn)}
                         style={{ height:'auto', padding:'4px 10px' }} />
                     )}
+                    {Number(phoneCheckedIn.renewalAmount) > 0 && !phoneCheckedIn.isCancelled && (
+                      <InvoiceButtonAuto sourceType="checkin_renewal" refId={phoneCheckedIn.id} refreshToken={checkinRenewalRefresh} label="續約發票"
+                        onClick={() => setCheckinRenewalTarget(phoneCheckedIn)}
+                        style={{ height:'auto', padding:'4px 10px' }} />
+                    )}
                   </div>
                 </div>
               )}
@@ -1499,6 +1511,11 @@ export default function CheckinPage() {
                         <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                           onClick={() => setCheckinInvoiceTarget(c)} />
                       )}
+                      {Number(c.renewalAmount) > 0 && !c.isCancelled && (
+                        <InvoiceButtonAuto sourceType="checkin_renewal" refId={c.id} refreshToken={checkinRenewalRefresh} label="續約發票"
+                          onClick={() => setCheckinRenewalTarget(c)}
+                          style={{ height:'auto', padding:'4px 10px' }} />
+                      )}
                       {/* 課程學員剛好是最後一堂：先入場後也能在這裡開同一張課程發票（非入場費本身，
                           與上面「入場」發票各自獨立），資料來源見 GET /checkin/today 的 courseInvoice */}
                       {c.courseInvoice && canCheckin && (c.courseInvoice.receivedAmount ?? 0) > 0 && (
@@ -1598,6 +1615,11 @@ export default function CheckinPage() {
                     {(c.amountPaid > 0 || c.onlineTicket?.amount > 0) && (
                       <InvoiceButtonAuto sourceType="checkin" refId={c.id} refreshToken={checkinInvRefresh}
                         onClick={() => setCheckinInvoiceTarget(c)} />
+                    )}
+                    {Number(c.renewalAmount) > 0 && !c.isCancelled && (
+                      <InvoiceButtonAuto sourceType="checkin_renewal" refId={c.id} refreshToken={checkinRenewalRefresh} label="續約發票"
+                        onClick={() => setCheckinRenewalTarget(c)}
+                        style={{ height:'auto', padding:'4px 10px' }} />
                     )}
                     {isManagerOnly && c.amountPaid > 0 && (
                       <button onClick={() => openPmCorrect(c)}
@@ -1781,6 +1803,56 @@ export default function CheckinPage() {
             listInvoices={() => getCheckinInvoices(checkinInvoiceTarget.id).then(r => r.data.invoices || [])}
             createInvoice={(payload) => createCheckinInvoice(checkinInvoiceTarget.id, payload).then(r => r.data.invoice)}
             voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+          />
+        );
+      })()}
+
+      {/* 現場續約發票（checkIns.renewalAmount>0；入場實收常為 0 故入場發票鈕被隱藏，續約款另開一張）*/}
+      {checkinRenewalTarget && (() => {
+        const t = checkinRenewalTarget;
+        const amt = Number(t.renewalAmount) || 0;
+        return (
+          <InvoiceIssuer
+            gymId={t.gymId}
+            sourceType="checkin_renewal"
+            refId={t.id}
+            memberId={t.memberId}
+            memberName={t.memberName}
+            paymentMethod={t.paymentMethod}
+            title={t.memberName || ''}
+            subtitle="定期票續約"
+            feeInfo={`續約款 NT$${amt}`}
+            defaultItemName="定期票續約"
+            defaultAmount={amt}
+            onClose={() => { setCheckinRenewalTarget(null); setCheckinRenewalRefresh(v => v + 1); }}
+            listInvoices={() => getCheckinRenewalInvoices(t.id).then(r => r.data.invoices || [])}
+            createInvoice={(payload) => createCheckinRenewalInvoice(t.id, payload).then(r => r.data.invoice)}
+            voidInvoiceFn={(id) => voidCheckinInvoice(id)}
+          />
+        );
+      })()}
+
+      {/* 在家線上續約發票（lastOnlineRenewal.invoicePending；refId=該筆續約付款 paymentId）——
+          2026-10-04 補上：先前按鈕有、彈窗從未接上（點了沒反應）。 */}
+      {renewalInvoiceTarget && (() => {
+        const t = renewalInvoiceTarget;
+        return (
+          <InvoiceIssuer
+            gymId={t.gymId}
+            sourceType="pass_renewal"
+            refId={t.paymentId}
+            memberId={t.memberId}
+            memberName={t.memberName}
+            paymentMethod={t.provider}
+            title={t.memberName || ''}
+            subtitle={`定期票續約（${t.passTypeName || ''}）`}
+            feeInfo={`線上續約付款 NT$${t.amount}`}
+            defaultItemName={`定期票續約（${t.passTypeName || ''}）`}
+            defaultAmount={Number(t.amount) || 0}
+            onClose={() => { setRenewalInvoiceTarget(null); setRenewalInvRefresh(v => v + 1); }}
+            listInvoices={() => getPassRenewalInvoices(t.paymentId).then(r => r.data.invoices || [])}
+            createInvoice={(payload) => createPassRenewalInvoice(t.paymentId, payload).then(r => r.data.invoice)}
+            voidInvoiceFn={(id) => voidPassRenewalInvoice(id)}
           />
         );
       })()}

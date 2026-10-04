@@ -32,6 +32,23 @@ export const createCheckinInvoice = (checkInId, data) =>
 export const voidCheckinInvoice = (id, voidReason) =>
   client.post(`/checkin/invoices/${id}/void`, { voidReason });
 
+// 現場續約開立發票（sourceType:'checkin_renewal'，refId=checkInId；作廢共用上面 voidCheckinInvoice）
+export const getCheckinRenewalInvoices = (checkInId) =>
+  client.get(`/checkin/${checkInId}/renewal-invoices`);
+
+export const createCheckinRenewalInvoice = (checkInId, data) =>
+  client.post(`/checkin/${checkInId}/renewal-invoices`, data);
+
+// 在家線上續約開立發票（sourceType:'pass_renewal'，refId=該筆續約付款 paymentId；作廢走專屬端點以恢復待開票旗標）
+export const getPassRenewalInvoices = (paymentId) =>
+  client.get(`/passes/renewal-invoice/${paymentId}`);
+
+export const createPassRenewalInvoice = (paymentId, data) =>
+  client.post(`/passes/renewal-invoice/${paymentId}`, data);
+
+export const voidPassRenewalInvoice = (id, voidReason) =>
+  client.post(`/passes/renewal-invoice/${id}/void`, { voidReason });
+
 // 更正入場付款方式（僅管理員；一併同步交易記錄/已開立發票，今日已結帳快照也會精確回補）
 export const correctCheckInPaymentMethod = (checkInId, paymentMethod, reason) =>
   client.put(`/checkin/${checkInId}/payment-method`, { paymentMethod, reason });
