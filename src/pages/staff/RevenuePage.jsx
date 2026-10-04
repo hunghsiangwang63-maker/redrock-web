@@ -86,7 +86,7 @@ export default function RevenuePage({ embedded = false }) {
     try {
       const dateFrom = (customMode ? dayjs(customFrom) : dayjs().subtract(days - 1, 'day')).startOf('day').toISOString();
       const dateTo = (customMode ? dayjs(customTo) : dayjs()).endOf('day').toISOString();
-      const res = await exportCheckinCsv({ dateFrom, dateTo });
+      const res = await exportCheckinCsv({ dateFrom, dateTo, gymId: gymFilter });
       const url = URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement('a');
       a.href = url;
