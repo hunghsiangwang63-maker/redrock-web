@@ -6,6 +6,7 @@ import SegmentedTabs from '../../components/SegmentedTabs';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import MonthSelect from '../../components/MonthSelect';
 
 const TABS = [
   { key:'revenue',      icon:'📊', label:'營收報表' },
@@ -97,7 +98,7 @@ export default function FinancePage() {
                   <option value="gym-shilin">士林館</option>
                 </select>
               )}
-              <input type="month" value={month} onChange={e => setMonth(e.target.value)} style={ctl} />
+              <MonthSelect value={month} onChange={setMonth} style={ctl} />
               <button onClick={downloadMonthly} disabled={busy}
                 style={{ height:36, padding:'0 18px', borderRadius:8, background: busy ? '#9CB9A6' : '#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor: busy ? 'not-allowed' : 'pointer' }}>
                 {busy ? '產生中…' : '下載 Excel'}

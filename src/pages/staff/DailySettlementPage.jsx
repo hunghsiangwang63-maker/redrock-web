@@ -6,6 +6,7 @@ import { getGyms } from '../../api/gyms';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import Modal from '../../components/Modal';
+import MonthSelect from '../../components/MonthSelect';
 
 const DENOMINATIONS = [
   { key:'d1000', label:'NT$1,000', value:1000 },
@@ -421,8 +422,8 @@ export default function DailySettlementPage() {
           {/* 月銷售紀錄下載 */}
           <div style={{ ...s.card, padding:'12px 16px', display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
             <span style={{ fontSize:13, fontWeight:600 }}>📥 月銷售紀錄</span>
-            <input type="month" value={exportMonth} onChange={e => setExportMonth(e.target.value)}
-              style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5' }} />
+            <MonthSelect value={exportMonth} onChange={setExportMonth}
+              style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#FBF5F5' }} />
             <button onClick={downloadMonthly}
               style={{ height:34, padding:'0 16px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>下載 Excel</button>
             <span style={{ fontSize:11, color:'#999' }}>整月每日一欄，自動帶入結帳資料</span>
