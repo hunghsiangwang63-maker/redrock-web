@@ -626,11 +626,10 @@ export default function PassesPage() {
                     <div style={{ fontSize:14, fontWeight:700 }}>📋 定期票</div>
                     <DlBtn type="passes" label="下載明細"/>
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
                     <Stat label="總發出" value={passStats.total}/>
                     <Stat label="有效" value={passStats.active} color={COLORS_MAP.active}/>
                     <Stat label="已過期" value={passStats.expired} color={COLORS_MAP.expired}/>
-                    <Stat label="已取消" value={passStats.cancelled} color={COLORS_MAP.cancelled}/>
                   </div>
                   {Object.keys(passStats.byType||{}).length > 0 && (
                     <ResponsiveContainer width="100%" height={150}>
@@ -642,7 +641,6 @@ export default function PassesPage() {
                         <Legend wrapperStyle={{fontSize:11}}/>
                         <Bar dataKey="active" name="有效" fill={COLORS_MAP.active} stackId="a"/>
                         <Bar dataKey="expired" name="過期" fill={COLORS_MAP.expired} stackId="a"/>
-                        <Bar dataKey="cancelled" name="取消" fill={COLORS_MAP.cancelled} stackId="a"/>
                       </BarChart>
                     </ResponsiveContainer>
                   )}
