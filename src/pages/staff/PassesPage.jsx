@@ -627,7 +627,7 @@ export default function PassesPage() {
                     <DlBtn type="passes" label="下載明細"/>
                   </div>
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:14 }}>
-                    <Stat label="總發出" value={passStats.total}/>
+                    <Stat label="總發出" value={(passStats.total||0)-(passStats.cancelled||0)}/>
                     <Stat label="有效" value={passStats.active} color={COLORS_MAP.active}/>
                     <Stat label="已過期" value={passStats.expired} color={COLORS_MAP.expired}/>
                   </div>
