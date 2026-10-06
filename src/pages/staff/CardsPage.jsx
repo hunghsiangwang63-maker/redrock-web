@@ -76,6 +76,7 @@ function DiscountCards({ member, cards, onRefresh }) {
   const [transferForm, setTransferForm] = useState({ toMember:null, credits:1 });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [bindError, setBindError] = useState(''); // 轉入彈窗內的錯誤（卡號不在清單/卡別不符等），不顯示在原頁面
 
   const handleBuy = async () => {
     setLoading(true);
@@ -89,16 +90,17 @@ function DiscountCards({ member, cards, onRefresh }) {
   };
 
   const handleBind = async () => {
-    if (!bindForm.barcode.trim()) { setMsg('請先輸入卡片條碼'); return; }
-    if (!bindForm.remainingCredits || parseInt(bindForm.remainingCredits) < 1) { setMsg('請輸入剩餘次數（至少 1）'); return; }
-    if (parseInt(bindForm.remainingCredits) > 10) { setMsg('優惠卡剩餘次數上限為 10'); return; }
+    if (!bindForm.barcode.trim()) { setBindError('請先輸入卡片條碼'); return; }
+    if (!bindForm.remainingCredits || parseInt(bindForm.remainingCredits) < 1) { setBindError('請輸入剩餘次數（至少 1）'); return; }
+    if (parseInt(bindForm.remainingCredits) > 10) { setBindError('優惠卡剩餘次數上限為 10'); return; }
+    setBindError('');
     setLoading(true);
     try {
       await bindDiscountCard({ memberId: member.id, remainingCredits: parseInt(bindForm.remainingCredits), barcode: bindForm.barcode.trim() });
       setMsg('優惠卡轉入成功！');
       setShowBind(false); setBindForm({ barcode:'', remainingCredits:'' });
       onRefresh();
-    } catch (e) { setMsg(e.response?.data?.message || '轉入失敗'); }
+    } catch (e) { setBindError(e.response?.data?.message || '轉入失敗'); }
     finally { setLoading(false); }
   };
 
@@ -137,7 +139,7 @@ function DiscountCards({ member, cards, onRefresh }) {
         <div style={{ fontSize:12, fontWeight:600, color:'#6b6b6b' }}>優惠卡（{cards.length} 張有效）</div>
         <div style={{ display:'flex', gap:6 }}>
           {canBind && (
-          <button onClick={() => { setShowBind(true); setBindForm({ barcode:'', remainingCredits:'' }); }}
+          <button onClick={() => { setShowBind(true); setBindError(''); setBindForm({ barcode:'', remainingCredits:'' }); }}
             style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:11, cursor:'pointer' }}>
             🎫 轉入優惠卡
           </button>
@@ -185,13 +187,13 @@ function DiscountCards({ member, cards, onRefresh }) {
 
       {/* 轉入 Modal（舊優惠卡轉入、設定剩餘次數）*/}
       {showBind && (
-        <Modal title={`轉入優惠卡 — ${member.name}`} onClose={() => setShowBind(false)} width={400}>
+        <Modal title={`轉入優惠卡 — ${member.name}`} onClose={() => { setShowBind(false); setBindError(''); }} width={400}>
           <div style={{ fontSize:12, color:'#888', marginBottom:14, lineHeight:1.6 }}>
             將既有（舊系統／實體）優惠卡轉入本系統並設定剩餘次數。轉入後即可 8 折入場、可移轉；用完（含移轉子卡累計）觸發紅利，與購買卡相同。有效期自轉入日起 1 年。
           </div>
           <div style={{ marginBottom:12 }}>
             <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>卡片條碼（必填，不用打「－」）</label>
-            <input value={bindForm.barcode} onChange={e => setBindForm(f => ({ ...f, barcode:e.target.value }))}
+            <input value={bindForm.barcode} onChange={e => { setBindError(''); setBindForm(f => ({ ...f, barcode:e.target.value })); }}
               placeholder="例如 AT190001" style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', boxSizing:'border-box' }} />
           </div>
           <div style={{ marginBottom:16 }}>
@@ -201,8 +203,9 @@ function DiscountCards({ member, cards, onRefresh }) {
               placeholder={bindForm.barcode.trim() ? '輸入卡片目前剩餘的八折入場次數（上限 10）' : '請先填寫卡片條碼'}
               style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background: bindForm.barcode.trim() ? '#FBF5F5' : '#F0EDED', outline:'none', boxSizing:'border-box', cursor: bindForm.barcode.trim() ? 'text' : 'not-allowed' }} />
           </div>
+          {bindError && <div style={{ background:'#FDECEC', border:'1px solid #F2B8B8', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#A32D2D', lineHeight:1.5 }}>⚠ {bindError}</div>}
           <div style={{ display:'flex', gap:8 }}>
-            <button onClick={() => setShowBind(false)}
+            <button onClick={() => { setShowBind(false); setBindError(''); }}
               style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
             <button onClick={handleBind} disabled={loading}
               style={{ flex:2, height:40, borderRadius:9, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>{loading ? '處理中...' : '確認轉入'}</button>
@@ -303,10 +306,12 @@ function BlackCards({ member, cards, onRefresh }) {
   const [transferForm, setTransferForm] = useState({ toMember:null, credits:1 });
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [bindError, setBindError] = useState(''); // 綁定彈窗內的錯誤（卡號不在清單/卡別不符等），不顯示在原頁面
 
   const handleBind = async (e) => {
     e.preventDefault();
-    if (!bindForm.barcode.trim()) { setMsg('請先輸入黑卡條碼'); return; }
+    if (!bindForm.barcode.trim()) { setBindError('請先輸入黑卡條碼'); return; }
+    setBindError('');
     setLoading(true);
     try {
       await bindBlackCard({
@@ -317,7 +322,7 @@ function BlackCards({ member, cards, onRefresh }) {
       setMsg('黑卡綁定成功！');
       setShowBind(false);
       onRefresh();
-    } catch (e) { setMsg(e.response?.data?.message || '綁定失敗'); }
+    } catch (e) { setBindError(e.response?.data?.message || '綁定失敗'); }
     finally { setLoading(false); }
   };
 
@@ -355,7 +360,7 @@ function BlackCards({ member, cards, onRefresh }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
         <div style={{ fontSize:12, fontWeight:600, color:'#6b6b6b' }}>黑卡（{cards.length} 張有效）</div>
         {canBind && (
-        <button onClick={() => setShowBind(true)}
+        <button onClick={() => { setShowBind(true); setBindError(''); }}
           style={{ height:28, padding:'0 12px', borderRadius:6, background:'#1a1a1a', color:'#fff', border:'none', fontSize:11, cursor:'pointer' }}>
           🖤 綁定黑卡
         </button>
@@ -384,11 +389,11 @@ function BlackCards({ member, cards, onRefresh }) {
 
       {/* 綁定 Modal */}
       {showBind && (
-        <Modal title={`綁定黑卡 — ${member.name}`} onClose={() => setShowBind(false)} width={400}>
+        <Modal title={`綁定黑卡 — ${member.name}`} onClose={() => { setShowBind(false); setBindError(''); }} width={400}>
           <form onSubmit={handleBind}>
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:11, color:'#6b6b6b', display:'block', marginBottom:5 }}>黑卡條碼（必填，不用打「－」）</label>
-              <input value={bindForm.barcode} onChange={e => setBindForm(f => ({ ...f, barcode:e.target.value }))}
+              <input value={bindForm.barcode} onChange={e => { setBindError(''); setBindForm(f => ({ ...f, barcode:e.target.value })); }}
                 placeholder="例如 AT190001"
                 style={{ width:'100%', height:36, borderRadius:8, border:'1px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
@@ -402,8 +407,9 @@ function BlackCards({ member, cards, onRefresh }) {
             <div style={{ background:'#FAEEDA', border:'1px solid #FAC775', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#633806', marginBottom:14 }}>
               ⚠ 請先確認剩餘格數後再輸入，綁定後即以此數字為準
             </div>
+            {bindError && <div style={{ background:'#FDECEC', border:'1px solid #F2B8B8', borderRadius:8, padding:'8px 12px', marginBottom:12, fontSize:12, color:'#A32D2D', lineHeight:1.5 }}>⚠ {bindError}</div>}
             <div style={{ display:'flex', gap:8 }}>
-              <button type="button" onClick={() => setShowBind(false)}
+              <button type="button" onClick={() => { setShowBind(false); setBindError(''); }}
                 style={{ flex:1, height:40, borderRadius:9, border:'1px solid #E8D5D5', background:'none', fontSize:13, cursor:'pointer', color:'#6b6b6b' }}>取消</button>
               <button type="submit" disabled={loading}
                 style={{ flex:2, height:40, borderRadius:9, background:'#1a1a1a', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
