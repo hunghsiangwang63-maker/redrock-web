@@ -656,11 +656,11 @@ export default function PassesPage() {
                       <div style={{ fontSize:14, fontWeight:700 }}>{s.title}</div>
                       <DlBtn type={s.type} label="下載明細"/>
                     </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:`repeat(${s.type==='discounts'?3:4},1fr)`, gap:8, marginBottom:14 }}>
                       <Stat label="總張數" value={s.total}/>
                       <Stat label="有效" value={s.active} color={COLORS_MAP.active}/>
                       <Stat label="已用完" value={s.fullyUsed} color={COLORS_MAP.fullyUsed}/>
-                      <Stat label="過期" value={s.expired} color={COLORS_MAP.expired}/>
+                      {s.type!=='discounts' && <Stat label="過期" value={s.expired} color={COLORS_MAP.expired}/>}
                     </div>
                     <ResponsiveContainer width="100%" height={160}>
                       <PieChart margin={{ top:24, right:10, left:10, bottom:4 }}>
@@ -670,7 +670,6 @@ export default function PassesPage() {
                           <Cell fill={COLORS_MAP.used}/><Cell fill={COLORS_MAP.active}/>
                         </Pie>
                         <Tooltip content={<Tip/>}/>
-                        <Legend wrapperStyle={{fontSize:11}}/>
                       </PieChart>
                     </ResponsiveContainer>
                     <div style={{ fontSize:11, color:'#666', textAlign:'center', marginTop:4 }}>
