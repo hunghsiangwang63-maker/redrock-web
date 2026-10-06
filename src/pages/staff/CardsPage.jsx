@@ -135,9 +135,9 @@ function DiscountCards({ member, cards, onRefresh }) {
     <div>
       {msg && <div style={{ background:'#E6F4EB', border:'1px solid #B3DEC0', borderRadius:8, padding:'8px 12px', marginBottom:10, fontSize:12, color:'#2D7D46', display:'flex', justifyContent:'space-between' }}>{msg}<span style={{cursor:'pointer'}} onClick={() => setMsg('')}>✕</span></div>}
 
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:12 }}>
         <div style={{ fontSize:12, fontWeight:600, color:'#6b6b6b' }}>優惠卡（{cards.length} 張有效）</div>
-        <div style={{ display:'flex', gap:6 }}>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
           {canBind && (
           <button onClick={() => { setShowBind(true); setBindError(''); setBindForm({ barcode:'', remainingCredits:'' }); }}
             style={{ height:28, padding:'0 12px', borderRadius:6, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:11, cursor:'pointer' }}>
@@ -157,7 +157,7 @@ function DiscountCards({ member, cards, onRefresh }) {
         <div style={{ padding:'16px 0', textAlign:'center', color:'#999', fontSize:12 }}>目前無優惠卡</div>
       ) : cards.map(c => (
         <div key={c.id} style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', borderRadius:10, padding:14, color:'#fff', marginBottom:8, position:'relative', overflow:'hidden' }}>
-          <div style={{ position:'absolute', right:12, top:10, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:13, opacity:.16, fontWeight:700, whiteSpace:'nowrap' }}>RedRock 紅石攀岩館</div>
+          <div style={{ position:'absolute', right:12, bottom:8, fontFamily:'Georgia,serif', fontStyle:'italic', fontSize:13, opacity:.16, fontWeight:700, whiteSpace:'nowrap', pointerEvents:'none' }}>RedRock 紅石攀岩館</div>
           <div style={{ fontSize:10, opacity:.8, letterSpacing:1, textTransform:'uppercase', marginBottom:4 }}>
             {c.source === 'transferred' ? '移轉優惠卡' : c.source === 'migrated' ? '轉入優惠卡' : '優惠卡'}
           </div>
@@ -357,7 +357,7 @@ function BlackCards({ member, cards, onRefresh }) {
     <div>
       {msg && <div style={{ background:'#E6F4EB', border:'1px solid #B3DEC0', borderRadius:8, padding:'8px 12px', marginBottom:10, fontSize:12, color:'#2D7D46', display:'flex', justifyContent:'space-between' }}>{msg}<span style={{cursor:'pointer'}} onClick={() => setMsg('')}>✕</span></div>}
 
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8, marginBottom:12 }}>
         <div style={{ fontSize:12, fontWeight:600, color:'#6b6b6b' }}>黑卡（{cards.length} 張有效）</div>
         {canBind && (
         <button onClick={() => { setShowBind(true); setBindError(''); }}
@@ -534,14 +534,14 @@ export default function CardsPage({ embedded = false }) {
       )}
 
       {member && (
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap:16, alignItems:'start' }}>
           {/* 優惠卡 */}
-          <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16 }}>
+          <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16, minWidth:0 }}>
             <DiscountCards member={member} cards={discountCards} onRefresh={() => loadCards(member)}/>
           </div>
 
           {/* 黑卡 + 紅利 */}
-          <div>
+          <div style={{ minWidth:0 }}>
             <div style={{ background:'#fff', borderRadius:12, border:'1px solid #E8D5D5', padding:16, marginBottom:12 }}>
               <BlackCards member={member} cards={blackCards} onRefresh={() => loadCards(member)}/>
             </div>
