@@ -716,12 +716,21 @@ export default function PassesPage() {
                     <div style={{ fontSize:14, fontWeight:700 }}>🎁 紅利（免費入場）</div>
                     <DlBtn type="bonuses" label="下載明細"/>
                   </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:12 }}>
                     <Stat label="總筆數" value={bonusStats.total}/>
                     <Stat label="仍有效" value={bonusStats.active} color={COLORS_MAP.active}/>
-                    <Stat label="已使用" value={bonusStats.used} color={COLORS_MAP.used}/>
-                    <Stat label="已過期" value={bonusStats.expired}/>
+                    <Stat label="已使用" value={(bonusStats.used||0)+(bonusStats.expired||0)} color={COLORS_MAP.used}/>
                   </div>
+                  <ResponsiveContainer width="100%" height={120}>
+                    <PieChart>
+                      <Pie data={[{name:'有效',value:bonusStats.active},{name:'已用',value:(bonusStats.used||0)+(bonusStats.expired||0)}].filter(d=>d.value>0)}
+                        dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={45}
+                        label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} labelLine={false} fontSize={10}>
+                        <Cell fill={COLORS_MAP.active}/><Cell fill={COLORS_MAP.used}/>
+                      </Pie>
+                      <Tooltip content={<Tip/>}/>
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             );
