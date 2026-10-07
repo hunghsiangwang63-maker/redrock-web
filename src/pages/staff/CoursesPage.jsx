@@ -26,6 +26,7 @@ import { broadcastCourseReminder, uploadReminderImage } from '../../api/memberRe
 import { getScheduleEvents } from '../../api/schedule';
 import ReminderFormFields from '../../components/ReminderFormFields';
 import dayjs from 'dayjs';
+import PauseCreditsModal from '../../components/PauseCreditsModal';
 
 // 估算週課場次數（純預覽用，如分期試算/建立前參考；權威堂數仍以 generateWeeklySessions 實際產生為準）
 const estimateWeeklySessionCount = (startDate, endDate, weekdays) => {
@@ -90,6 +91,7 @@ const PAYMENT_METHODS = [
 ];
 
 export default function CoursesPage({ embedded = false }) {
+  const [showPauseCredits, setShowPauseCredits] = useState(false);
   const enabledPay = useEnabledPayments();
   const { staff, activeGymId, viewGym } = useAuth();
   const isSuperAdmin = staff?.role === 'super_admin';
@@ -1061,6 +1063,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
 
   return (
     <div style={{ padding: embedded?0:20, background:'#F7F3F3' }}>
+      {showPauseCredits && <PauseCreditsModal onClose={() => setShowPauseCredits(false)} />}
       {msg && (
         <div style={{ background: msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F09595'}`, borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, color: msgType==='ok'?'#2D7D46':'#A32D2D', display:'flex', justifyContent:'space-between' }}>
           {msg} <span style={{ cursor:'pointer' }} onClick={() => setMsg('')}>✕</span>
@@ -1073,6 +1076,12 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           <button onClick={() => loadLmAll('all')}
             style={{ height:36, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #185FA5', color:'#185FA5', fontSize:13, cursor:'pointer' }}>
             📋 假補總表
+          </button>
+        )}
+        {tab === 'courses' && (
+          <button onClick={() => setShowPauseCredits(true)}
+            style={{ height:36, padding:'0 14px', borderRadius:8, background:'#fff', border:'0.5px solid #854F0B', color:'#854F0B', fontSize:13, cursor:'pointer' }}>
+            ⏸ 暫停回課
           </button>
         )}
         {tab === 'courses' && selectedCategory && (

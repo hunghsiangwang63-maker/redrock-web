@@ -31,3 +31,9 @@ export const rejectCourseAdjustment = (requestId, data) =>
 // 員工恢復暫停
 export const restoreCourseEnrollment = (enrollmentId) =>
   client.post(`/course-adjustments/enrollments/${enrollmentId}/restore`);
+
+// 暫停回課（下期回來）：暫停餘額清單／安排（apply:false 先預覽，true 實際排入）
+export const getPauseCredits = (params) =>
+  client.get('/course-adjustments/pause-credits', { params });
+export const arrangePauseResume = (creditId, data) =>
+  client.post(`/course-adjustments/pause-credits/${creditId}/arrange`, data);
