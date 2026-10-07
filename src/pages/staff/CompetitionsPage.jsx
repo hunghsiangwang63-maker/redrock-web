@@ -118,6 +118,7 @@ const STATUS_LABEL = {
 
 const emptyForm = () => ({
   name:'', description:'', gymId:'gym-hsinchu',
+  hasInsurance:true, // 是否有保險：false＝不收保險費、隱藏保險費/身分證等保險相關欄位（如兒童抱石賽）
   competitionType:'standard', // standard=一般賽（成人/兒童身份＋早鳥）；kids=兒童賽（當期學員/非當期學員價，無早鳥）
   registrationStart: dayjs().format('YYYY-MM-DD'),
   registrationEnd: dayjs().add(14,'day').format('YYYY-MM-DD'),
@@ -369,6 +370,7 @@ export default function CompetitionsPage() {
     setForm({
       name:c.name, description:c.description||'', gymId:c.gymId||'gym-hsinchu',
       competitionType:c.competitionType||'standard',
+      hasInsurance:c.hasInsurance !== false,
       registrationStart:c.registrationStart, registrationEnd:c.registrationEnd,
       earlyBirdDeadline:c.earlyBirdDeadline||'', eventDate:c.eventDate, eventStartTime:c.eventStartTime||'09:00',
       divisions: c.divisions?.length ? c.divisions.map(d=>({ id:d.id, name:d.name, maxParticipants:d.maxParticipants||40, waitlistMax:d.waitlistMax||5 })) : emptyForm().divisions,
@@ -585,6 +587,7 @@ export default function CompetitionsPage() {
     if (r.isPartnerGymDiscount) a.push(r.partnerGymPending ? '友館待核' : '友館');
     if (r.isEarlyBird) a.push('早鳥');
     if (r.competitionType==='kids') a.push(r.isCurrentStudent ? '當期學員' : '非當期學員');
+    if (r.paidByMakeup) a.push('補課券抵費');
     if (r.isTeamDiscount) a.push('隊員9折');
     if (r.paymentMethod==='cash' && r.status!=='cancelled') a.push('臨櫃');
     if (r.status==='waitlist' && r.waitlistPosition) a.push(`候補#${r.waitlistPosition}`);
@@ -780,6 +783,12 @@ export default function CompetitionsPage() {
                 <option value="kids">兒童賽（當期學員／非當期學員價，無隊員／友館折扣）</option>
               </select>
             </div>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, fontSize:13, cursor:'pointer' }}>
+                <input type="checkbox" checked={form.hasInsurance !== false} onChange={e=>setForm(f=>({...f,hasInsurance:e.target.checked}))}/>
+                此賽事有保險（取消勾選＝不收保險費，報名表與名單不再要求/顯示身分證等保險資料）
+              </label>
+            </div>
             <div><label style={lbl}>比賽日期</label><input type="date" style={inp} value={form.eventDate} onChange={e=>setForm(f=>({...f,eventDate:e.target.value}))}/></div>
             <div><label style={lbl}>開始時間（賽前 10 分鐘自動開啟計分）</label><input type="time" style={inp} value={form.eventStartTime||'09:00'} onChange={e=>setForm(f=>({...f,eventStartTime:e.target.value}))}/></div>
             <div><label style={lbl}>場館</label>
@@ -819,7 +828,7 @@ export default function CompetitionsPage() {
                   {[
                     { k:'kidsStudent', label:'當期學員價（一般）' },
                     { k:'kidsNonStudent', label:'非當期學員價（一般）' },
-                    { k:'insuranceChild', label:'保險費' },
+                    ...(form.hasInsurance !== false ? [{ k:'insuranceChild', label:'保險費' }] : []),
                     { k:'kidsStudentEarlyBird', label:'當期學員價（早鳥，選填）' },
                     { k:'kidsNonStudentEarlyBird', label:'非當期學員價（早鳥，選填）' },
                   ].map(({k,label})=>(
@@ -842,9 +851,10 @@ export default function CompetitionsPage() {
                   { k:'childEarlyBird', label:'兒童早鳥' },
                   { k:'childRegular', label:'兒童一般' },
                   { k:'childAgeLimit', label:'兒童年齡上限（歲）' },
-                  { k:'partnerGymDiscount', label:'友館折扣（如0.95，空=不開放）' },
-                  { k:'insuranceAdult', label:'成人保險費' },
-                  { k:'insuranceChild', label:'兒童保險費' },
+                  ...(form.hasInsurance !== false ? [
+                    { k:'insuranceAdult', label:'成人保險費' },
+                    { k:'insuranceChild', label:'兒童保險費' },
+                  ] : []),
                 ].map(({k,label})=>(
                   <div key={k}>
                     <label style={lbl}>{label}</label>
@@ -1064,12 +1074,12 @@ export default function CompetitionsPage() {
                 {Row('報名日期', sec?dayjs(sec*1000).format('YYYY-MM-DD HH:mm'):'—')}
                 {Row('費用', `NT$${r.registrationFee}${r.isEarlyBird?'（早鳥）':''}${r.isTeamDiscount?'（隊員9折）':''}${r.isPartnerGymDiscount?'（友館折扣）':''}`)}
                 {r.isPartnerGymDiscount && Row('友館', `${r.partnerGym||'友館'}${r.partnerGymPending?'（⏳ 待核對）':'（✓ 已核對）'}`)}
-                {Row('付款方式', r.paymentMethod==='cash'?'臨櫃現金':r.paymentMethod==='transfer'?'銀行轉帳':(r.paymentMethod||'—'))}
+                {Row('付款方式', r.paymentMethod==='cash'?'臨櫃現金':r.paymentMethod==='transfer'?'銀行轉帳':r.paymentMethod==='makeup_credit'?'補課券抵費（免繳費）':(r.paymentMethod||'—'))}
                 {(r.paymentMethod==='transfer' || r.bankLastFive) && Row('匯款末五碼', r.bankLastFive)}
                 {(r.paymentMethod==='transfer' || r.bankName) && Row('匯款銀行', r.bankName)}
                 {r.paymentDate && Row('繳款日期', r.paymentDate)}
                 {r.paymentStatus==='confirmed' && Row('確認收款', `NT$${r.paidAmount||r.registrationFee}｜${r.paidConfirmedByName||'—'}`)}
-                {r.insuranceFee != null && Row('保險費', `NT$${r.insuranceFee}${r.isChild?'（兒童）':'（成人）'}`)}
+                {r.insuranceFee != null && competitions.find(x=>x.id===r.competitionId)?.hasInsurance !== false && Row('保險費', `NT$${r.insuranceFee}${r.isChild?'（兒童）':'（成人）'}`)}
                 {Row('實收金額', isManagerOnly
                   ? <RegReceivedAmountEditor reg={r} onSaved={(id, amt) => {
                       setRegDetail(d => d && d.id === id ? { ...d, receivedAmount: amt, receivedAmountOverride: amt } : d);
@@ -1077,7 +1087,8 @@ export default function CompetitionsPage() {
                     }} />
                   : <span style={{ fontWeight:600, color:'#8B1A1A' }}>NT${r.receivedAmount ?? 0}</span>)}
                 {Row('身高／臂展', `${r.height||'—'} ／ ${r.armSpan||'—'}`)}
-                {Row('身分證', r.idNumber)}
+                {competitions.find(x=>x.id===r.competitionId)?.hasInsurance !== false && Row('身分證', r.idNumber)}
+                {Row('平常練習岩館', r.practiceGym || '—')}
                 {Row('緊急聯絡', `${r.emergencyContact||'—'}${r.emergencyRelation?`（${r.emergencyRelation}）`:''} ${r.emergencyPhone||''}`)}
                 {Row('手機／Email', `${r.phone||'—'} ／ ${r.email||'—'}`)}
                 {Row('簽署狀態', r.isComplete?'已簽署':'待法定代理人簽')}

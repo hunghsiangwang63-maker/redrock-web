@@ -23,7 +23,6 @@ export default function PublicCompetitionRegisterPage() {
   const compId = params.get('id') || '';
 
   const [comp, setComp] = useState(null);
-  const [partnerGyms, setPartnerGyms] = useState([]);
   const [bankAccounts, setBankAccounts] = useState({});
   const [loadErr, setLoadErr] = useState('');
   const [divisionId, setDivisionId] = useState('');
@@ -39,7 +38,7 @@ export default function PublicCompetitionRegisterPage() {
   const [height, setHeight] = useState('');
   const [armSpan, setArmSpan] = useState('');
   const [memberNote, setMemberNote] = useState('');
-  const [partnerGymId, setPartnerGymId] = useState('');
+  const [practiceGym, setPracticeGym] = useState(''); // 平常練習岩館（必填）
   const [customFieldValues, setCustomFieldValues] = useState({});
   const [bankLastFive, setBankLastFive] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
@@ -54,7 +53,6 @@ export default function PublicCompetitionRegisterPage() {
     publicClient.get(`/competitions/public/${compId}`)
       .then(r => {
         setComp(r.data.competition);
-        setPartnerGyms(r.data.partnerGyms || []);
         if (r.data.competition.divisions?.length) setDivisionId(r.data.competition.divisions[0].id);
       })
       .catch(() => setLoadErr(t('找不到此賽事，或此賽事目前未開放報名')));
@@ -82,6 +80,7 @@ export default function PublicCompetitionRegisterPage() {
     if (under5(birthday)) return setErr(t('未滿 5 歲無法報名'));
     if (!phone.trim()) return setErr(t('請填寫手機號碼'));
     if (!email.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) return setErr(t('請填寫有效的 Email'));
+    if (!practiceGym.trim()) return setErr(t('請填寫平常練習岩館'));
     for (const f of (comp.customFields || [])) {
       if (f.required && !customFieldValues[f.key]) return setErr(tt(`請填寫「${f.label}」`, `Please fill in "${f.label}"`, `「${f.label}」を入力してください`));
     }
@@ -100,7 +99,7 @@ export default function PublicCompetitionRegisterPage() {
         guardianSignature: isMinor ? guardianSigRef.current.toDataURL() : null,
         idNumber, emergencyContact, emergencyRelation, emergencyPhone,
         height: height || null, armSpan: armSpan || null, memberNote,
-        partnerGymId: partnerGymId || null,
+        practiceGym: practiceGym.trim(),
         bankLastFive, paymentDate,
       });
       setDone(res.data);
@@ -189,8 +188,12 @@ export default function PublicCompetitionRegisterPage() {
           <input value={phone} onChange={e => setPhone(e.target.value)} style={input} placeholder="0912345678" inputMode="tel" />
           <label style={label}>{t('Email *')}</label>
           <input value={email} onChange={e => setEmail(e.target.value)} style={input} inputMode="email" />
-          <label style={label}>{t('身分證字號／護照號碼（選填）')}</label>
-          <input value={idNumber} onChange={e => setIdNumber(e.target.value.toUpperCase())} style={input} />
+          {comp?.hasInsurance !== false && (<>
+            <label style={label}>{t('身分證字號／護照號碼（選填）')}</label>
+            <input value={idNumber} onChange={e => setIdNumber(e.target.value.toUpperCase())} style={input} />
+          </>)}
+          <label style={label}>{tt('平常練習岩館 *', 'Usual practice gym *', 'いつも練習しているジム *')}</label>
+          <input value={practiceGym} onChange={e => setPracticeGym(e.target.value)} style={input} placeholder={tt('例：平學練習岩館', 'e.g. Pingxue Practice Gym', '例：平学練習ジム')} />
           <label style={label}>{t('身高 cm（選填）')}</label>
           <input value={height} onChange={e => setHeight(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" />
           <label style={label}>{t('臂展 cm（選填）')}</label>
@@ -216,17 +219,6 @@ export default function PublicCompetitionRegisterPage() {
                 <input value={customFieldValues[f.key] || ''} onChange={e => setCF(f.key, e.target.value)} style={input} />
               </div>
             ))}
-          </div>
-        )}
-
-        {partnerGyms.length > 0 && (
-          <div style={card}>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>{t('友館會員優惠（選填）')}</div>
-            <select value={partnerGymId} onChange={e => setPartnerGymId(e.target.value)} style={{ ...input, marginTop: 10 }}>
-              <option value="">{t('無')}</option>
-              {partnerGyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-            </select>
-            <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>{t('將由館方依友館名單核對，不在名單則以原價計算。')}</div>
           </div>
         )}
 

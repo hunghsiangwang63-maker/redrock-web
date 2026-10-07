@@ -103,8 +103,10 @@ export default function MemberCompetitionsPage() {
   const [height, setHeight] = useState('');
   const [armSpan, setArmSpan] = useState('');
   const [memberNote, setMemberNote] = useState('');
-  const [partnerGymId, setPartnerGymId] = useState('');
-  const [partnerGymList, setPartnerGymList] = useState([]);
+  const [practiceGym, setPracticeGym] = useState('');       // 平常練習岩館（必填，了解選手資訊）
+  const [useMakeup, setUseMakeup] = useState(false);        // 兒童賽：用補課券抵費（免繳費）
+  const [makeupRightId, setMakeupRightId] = useState('');
+  const [makeupRights, setMakeupRights] = useState([]);
   const [regGender, setRegGender] = useState('');
   const [regBirthday, setRegBirthday] = useState('');
   const [regPhone, setRegPhone] = useState('');
@@ -140,7 +142,7 @@ export default function MemberCompetitionsPage() {
     setEditTarget(r);
     setEditForm({
       divisionId: r.divisionId || '', gender: r.gender || '', birthday: r.birthday || '',
-      phone: r.phone || '', email: r.email || '', idNumber: r.idNumber || '',
+      phone: r.phone || '', email: r.email || '', idNumber: r.idNumber || '', practiceGym: r.practiceGym || '',
       emergencyContact: r.emergencyContact || '', emergencyRelation: r.emergencyRelation || '', emergencyPhone: r.emergencyPhone || '',
       height: r.height || '', armSpan: r.armSpan || '', isHonorary: !!r.isHonorary, memberNote: r.memberNote || '',
       paymentMethod: r.paymentMethod || 'transfer', paymentDate: r.paymentDate || '', bankLastFive: r.bankLastFive || '', bankName: r.bankName || '',
@@ -155,6 +157,7 @@ export default function MemberCompetitionsPage() {
     if (!f.phone?.trim()) { setEditErr(t('請填寫手機')); return; }
     if (!f.email?.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) { setEditErr(t('請填寫有效 Email')); return; }
     if (!f.emergencyContact?.trim() || !f.emergencyPhone?.trim()) { setEditErr(t('請填寫緊急聯絡人')); return; }
+    if (!f.practiceGym?.trim()) { setEditErr(t('請填寫平常練習岩館')); return; }
     if (!f._paid) {
       if (!f.paymentDate) { setEditErr(f.paymentMethod === 'cash' ? t('請填寫繳款日期') : t('請填寫轉帳日期')); return; }
       if (f.paymentMethod === 'transfer' && !f.bankLastFive?.trim()) { setEditErr(t('轉帳請填寫匯款帳號末五碼')); return; }
@@ -242,8 +245,6 @@ export default function MemberCompetitionsPage() {
       const rate = (fees.teamMemberDiscount != null && fees.teamMemberDiscount !== '' && Number.isFinite(tr) && tr > 0) ? tr : 0.9;
       if (rate < 1 && baseFee >= 100) cands.push({ fee: Math.round(baseFee * rate), kind: 'team' });
     }
-    const pRate = Number(fees.partnerGymDiscount);
-    if (partnerGymId && pRate > 0 && pRate < 1) cands.push({ fee: Math.round(baseFee * pRate), kind: 'partner' });
     const win = cands.reduce((a, b) => (b.fee < a.fee ? b : a));
     return { fee: win.fee, isEarlyBird, isChild, partnerApplied: win.kind === 'partner', teamApplied: win.kind === 'team' };
   };
@@ -257,12 +258,12 @@ export default function MemberCompetitionsPage() {
     if (!showModal || !selectedComp || !targetId) { setQuote(null); return; }
     let cancelled = false;
     setQuoteLoading(true);
-    getCompetitionQuote(selectedComp.id, { memberId: targetId, partnerGymId: partnerGymId || undefined })
-      .then(res => { if (!cancelled) setQuote(res.data.quote); })
-      .catch(() => { if (!cancelled) setQuote(null); })
+    getCompetitionQuote(selectedComp.id, { memberId: targetId })
+      .then(res => { if (!cancelled) { setQuote(res.data.quote); const rs = res.data.makeupRights || []; setMakeupRights(rs); setMakeupRightId(rs[0]?.id || ''); if (!rs.length) setUseMakeup(false); } })
+      .catch(() => { if (!cancelled) { setQuote(null); setMakeupRights([]); setUseMakeup(false); } })
       .finally(() => { if (!cancelled) setQuoteLoading(false); });
     return () => { cancelled = true; };
-  }, [showModal, selectedComp?.id, registerForId, member?.id, partnerGymId]);
+  }, [showModal, selectedComp?.id, registerForId, member?.id]);
   const feeInfo = quote ? { fee: quote.registrationFee, isEarlyBird: quote.isEarlyBird, isChild: quote.isChild, partnerApplied: quote.partnerGymApplied, teamApplied: quote.teamDiscountApplied } : null;
 
   // ⚠️ 由 mount effect 與多個報名/取消/繳費完成後的動作觸發（共 7+ 處），連續快速操作可能讓兩次
@@ -275,8 +276,6 @@ export default function MemberCompetitionsPage() {
       const compRes = await getMemberCompetitions().catch(() => ({ data: { competitions: [] } }));
       if (seq !== loadSeqRef.current) return;
       setCompetitions(compRes.data.competitions || []);
-      memberClient.get('/settings/partner-gyms')
-        .then(r => { if (seq === loadSeqRef.current) setPartnerGymList(r.data.gyms || []); }).catch(() => {});
       if (member?.id) {
         // 本人＋子女的報名一併載入（子女標 👦 名字）
         let kids = [];
@@ -311,6 +310,7 @@ export default function MemberCompetitionsPage() {
     setStep(1);
     setDivisionId(comp.divisions?.[0]?.id || '');
     setIsHonorary(false);
+    setPracticeGym(''); setUseMakeup(false); setMakeupRightId(''); setMakeupRights([]);
     setIdNumber(''); setEmergencyContact(''); setEmergencyRelation(''); setEmergencyPhone('');
     setHeight(''); setArmSpan('');
     setPaymentData({ method: 'transfer' });
@@ -342,7 +342,6 @@ export default function MemberCompetitionsPage() {
     if (hasSep) {
       setEmergencyContact(r?.emergencyContact || '');
       setMemberNote('');
-      setPartnerGymId('');
       setEmergencyRelation(r?.emergencyRelation || '');
       setEmergencyPhone(r?.emergencyPhone || '');
     } else {
@@ -363,7 +362,8 @@ export default function MemberCompetitionsPage() {
       if (!regBirthday) { showMsg(t('請填寫生日'), 'red'); return; }
       if (!regPhone.trim()) { showMsg(t('請填寫手機號碼'), 'red'); return; }
       if (!regEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regEmail.trim())) { showMsg(t('請填寫有效的 Email'), 'red'); return; }
-      if (!idNumber.trim()) { showMsg(t('請填寫身分證/護照號碼（保險用）'), 'red'); return; }
+      if (selectedComp?.hasInsurance !== false && !idNumber.trim()) { showMsg(t('請填寫身分證/護照號碼（保險用）'), 'red'); return; }
+      if (!practiceGym.trim()) { showMsg(t('請填寫平常練習岩館'), 'red'); return; }
       if (!emergencyContact.trim() || !emergencyPhone.trim()) { showMsg(t('請填寫緊急聯絡人資訊'), 'red'); return; }
     }
     if (step === 2) {
@@ -374,13 +374,14 @@ export default function MemberCompetitionsPage() {
     if (step === 3) {
       if (!agreedWaiver || !agreedPhoto) { showMsg(t('請確認同意所有事項'), 'red'); return; }
     }
-    setStep(s => s + 1);
+    // 用補課券抵費＝免繳費，跳過「付款資訊」步驟
+    setStep(s => (step === 1 && useMakeup) ? 3 : s + 1);
   };
 
   const handleSubmit = async () => {
     if (!memberSig) { showMsg(t('請完成本人簽名'), 'red'); return; }
     if (isMinor && !guardianSig) { showMsg(t('未滿18歲需法定代理人簽名'), 'red'); return; }
-    if (!isTransferInfoComplete(paymentData)) { showMsg(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
+    if (!useMakeup && !isTransferInfoComplete(paymentData)) { showMsg(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
     const { method: paymentMethod, paymentDate, bankLastFive, bankName, paidAmount: regPaidAmount } = paymentData;
     setSubmitting(true);
     try {
@@ -403,8 +404,10 @@ export default function MemberCompetitionsPage() {
         height: height ? Number(height) : null,
         armSpan: armSpan ? Number(armSpan) : null,
         memberNote: memberNote.trim() || null,
-        partnerGymId: partnerGymId || null,
-        paymentMethod,
+        practiceGym: practiceGym.trim(),
+        useMakeup: !!useMakeup,
+        makeupRightId: useMakeup ? (makeupRightId || null) : null,
+        paymentMethod: useMakeup ? undefined : paymentMethod,
         paymentDate: (paymentMethod === 'transfer' || paymentMethod === 'cash') ? paymentDate : null,
         bankLastFive: paymentMethod === 'transfer' ? bankLastFive : null,
         bankName: paymentMethod === 'transfer' ? bankName : null,
@@ -417,7 +420,7 @@ export default function MemberCompetitionsPage() {
       // 轉帳：若報名當下已填末五碼 → 建 transferRecords（走轉帳確認）；未填 → 略過，
       // 之後在「待確認付款」用「填寫轉帳資訊」補上（方案 B：可先報名、之後補上傳轉帳）。
       // （/transfers/upload 要求末五碼或截圖擇一，空白會 NO_PROOF 失敗，故此處先擋。）
-      if (paymentMethod === 'transfer' && reg?.id && bankLastFive && bankLastFive.trim()) {
+      if (!useMakeup && paymentMethod === 'transfer' && reg?.id && bankLastFive && bankLastFive.trim()) {
         try {
           const { submitTransferRecord } = await import('../../api/transfers');
           await submitTransferRecord({
@@ -730,7 +733,7 @@ export default function MemberCompetitionsPage() {
                   <div style={{ fontSize:12, color:'#666' }}>{t('姓名：')}{member?.name}　{t('生日：')}{member?.birthday}</div>
                   {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginTop:4 }}>{t('費用計算中…')}</div> : feeInfo && (
                   <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:600, marginTop:4 }}>
-                    {feeInfo.isEarlyBird ? t('🐦 早鳥優惠　') : ''}{feeInfo.teamApplied ? t('🧗 隊員優惠　') : ''}{feeInfo.partnerApplied ? t('🧗 友館折扣　') : ''}{t('報名費：NT$')}{feeInfo.fee}
+                    {feeInfo.isEarlyBird ? t('🐦 早鳥優惠　') : ''}{feeInfo.teamApplied ? t('🧗 隊員優惠　') : ''}{feeInfo.partnerApplied ? t('🧗 友館折扣　') : ''}{useMakeup ? tt('報名費：NT$0（補課券抵費）', 'Fee: NT$0 (make-up credit)', '参加費：NT$0（補講チケット充当）') : <>{t('報名費：NT$')}{feeInfo.fee}</>}
                     {quote?.competitionType === 'kids' ? tt(quote.isStudent ? '（進行中課程學員價）' : '（非學員價）', quote.isStudent ? ' (current course student rate)' : ' (non-student rate)', quote.isStudent ? '（開講中コース受講生料金）' : '（一般料金）') : ''}
                   </div>)}
                 </div>
@@ -808,15 +811,35 @@ export default function MemberCompetitionsPage() {
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 </div>
-                {[
+                {(selectedComp?.hasInsurance === false ? [] : [
                   { label:t('身分證 / 護照號碼 *（保險用）'), val:idNumber, set:setIdNumber, ph:tt('R123456789 / 外籍：國籍+護照號', 'R123456789 / Foreign nationals: nationality + passport no.', 'R123456789／外国籍：国籍＋パスポート番号') },
-                ].map(({label,val,set,ph})=>(
+                ]).map(({label,val,set,ph})=>(
                   <div key={label} style={{ marginBottom:12 }}>
                     <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{label}</label>
                     <input value={val} onChange={e=>set(e.target.value)} placeholder={ph}
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 ))}
+                <div style={{ marginBottom:12 }}>
+                  <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{tt('平常練習岩館 *', 'Usual practice gym *', 'いつも練習しているジム *')}</label>
+                  <input value={practiceGym} onChange={e=>setPracticeGym(e.target.value)} placeholder={tt('例：平學練習岩館', 'e.g. Pingxue Practice Gym', '例：平学練習ジム')}
+                    style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                </div>
+                {selectedComp?.competitionType === 'kids' && makeupRights.length > 0 && (
+                  <div style={{ marginBottom:12, background:'#FFF8E6', border:'1px solid #F0D9A8', borderRadius:10, padding:'10px 12px' }}>
+                    <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:13, color:'#854F0B', cursor:'pointer', lineHeight:1.5 }}>
+                      <input type="checkbox" checked={useMakeup} onChange={e=>setUseMakeup(e.target.checked)} style={{ marginTop:3 }}/>
+                      <span>{tt(`使用 1 張補課券抵本次報名（免繳費）——目前有 ${makeupRights.length} 張可用`, `Use 1 make-up credit for this entry (no payment needed) — ${makeupRights.length} available`, `補講チケット1枚を参加費に充当（お支払い不要）— 利用可能 ${makeupRights.length} 枚`)}</span>
+                    </label>
+                    {useMakeup && makeupRights.length > 1 && (
+                      <select value={makeupRightId} onChange={e=>setMakeupRightId(e.target.value)}
+                        style={{ width:'100%', height:38, marginTop:8, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:12, background:'#fff', color:'#1a1a1a' }}>
+                        {makeupRights.map(r => <option key={r.id} value={r.id}>{r.courseName || tt('補課券','Make-up credit','補講チケット')}{r.expiresAt ? ` ｜ ${tt('效期','Expires','期限')} ${String(r.expiresAt).slice(0,10)}` : ''}</option>)}
+                      </select>
+                    )}
+                    {useMakeup && <div style={{ fontSize:11, color:'#A32D2D', marginTop:6, lineHeight:1.6 }}>{tt('提醒：若之後取消比賽報名，補課券會歸還；補課券用於比賽後，原課程的請假就無法再取消。', 'Note: cancelling this entry returns the credit; once a credit is used for the contest, the original leave cannot be cancelled.', '※ 参加を取り消すとチケットは戻ります。大会に使用したチケットの元の欠席は取り消せません。')}</div>}
+                  </div>
+                )}
                 {/* 緊急聯絡人：姓名 / 關係 / 電話 三格（關係選填） */}
                 <div style={{ marginBottom:12 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('緊急聯絡人 *')}</label>
@@ -841,17 +864,6 @@ export default function MemberCompetitionsPage() {
                       style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                   </div>
                 </div>
-                {Number(selectedComp?.fees?.partnerGymDiscount) > 0 && Number(selectedComp?.fees?.partnerGymDiscount) < 1 && partnerGymList.length > 0 && (
-                  <div style={{ marginTop:12 }}>
-                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{tt(`友館會員優惠（${Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10} 折，選填）`, `Partner Gym Discount (${Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10}0% off, optional)`, `提携ジム会員優待（${Math.round(Number(selectedComp.fees.partnerGymDiscount)*100)/10}割引、任意）`)}</label>
-                    <select value={partnerGymId} onChange={e=>setPartnerGymId(e.target.value)}
-                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}>
-                      <option value=''>{t('不使用（非友館會員）')}</option>
-                      {partnerGymList.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
-                    </select>
-                    <div style={{ fontSize:11, color:'#999', marginTop:5, lineHeight:1.6 }}>{t('選擇後享折扣，報名時將由館方依友館提供名單核對；如未在名單內，館方會將費用改回原價。與隊員折扣擇優、不疊加。')}</div>
-                  </div>
-                )}
                 <div style={{ marginTop:12 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{t('備註（選填）')}</label>
                   <textarea value={memberNote} onChange={e=>setMemberNote(e.target.value)} rows={2} placeholder={t('有需要告知館方的事項可填寫於此')}
@@ -956,7 +968,7 @@ export default function MemberCompetitionsPage() {
             {/* Footer */}
             <div style={{ padding:'12px 20px', borderTop:'0.5px solid #F0E8E8', flexShrink:0, display:'flex', gap:8 }}>
               {step > 1 && (
-                <button onClick={()=>setStep(s=>s-1)}
+                <button onClick={()=>setStep(s => (s === 3 && useMakeup) ? 1 : s - 1)}
                   style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('← 上一步')}</button>
               )}
               {step < STEPS.length ? (
@@ -1172,7 +1184,8 @@ export default function MemberCompetitionsPage() {
                 <div><label style={lbl}>{t('手機 *')}</label><input value={editForm.phone} onChange={e=>set('phone', e.target.value)} style={inp}/></div>
                 <div><label style={lbl}>{t('Email *')}</label><input value={editForm.email} onChange={e=>set('email', e.target.value)} style={inp}/></div>
               </div>
-              <div><label style={lbl}>{t('身分證/護照號碼')}</label><input value={editForm.idNumber} onChange={e=>set('idNumber', e.target.value)} style={inp}/></div>
+              {competitions.find(c => c.id === editTarget?.competitionId)?.hasInsurance !== false && <div><label style={lbl}>{t('身分證/護照號碼')}</label><input value={editForm.idNumber} onChange={e=>set('idNumber', e.target.value)} style={inp}/></div>}
+              <div><label style={lbl}>{tt('平常練習岩館 *', 'Usual practice gym *', 'いつも練習しているジム *')}</label><input value={editForm.practiceGym || ''} onChange={e=>set('practiceGym', e.target.value)} style={inp}/></div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                 <div><label style={lbl}>{t('緊急聯絡人 *')}</label><input value={editForm.emergencyContact} onChange={e=>set('emergencyContact', e.target.value)} style={inp}/></div>
                 <div><label style={lbl}>{t('關係')}</label><input value={editForm.emergencyRelation} onChange={e=>set('emergencyRelation', e.target.value)} style={inp}/></div>
