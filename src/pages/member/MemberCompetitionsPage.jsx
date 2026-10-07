@@ -822,7 +822,7 @@ export default function MemberCompetitionsPage() {
                 ))}
                 <div style={{ marginBottom:12 }}>
                   <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{tt('平常練習岩館 *', 'Usual practice gym *', 'いつも練習しているジム *')}</label>
-                  <input value={practiceGym} onChange={e=>setPracticeGym(e.target.value)} placeholder={tt('例：平學練習岩館', 'e.g. Pingxue Practice Gym', '例：平学練習ジム')}
+                  <input value={practiceGym} onChange={e=>setPracticeGym(e.target.value)} placeholder={tt('例：新竹紅石／士林紅石', 'e.g. Redrock Hsinchu / Redrock Shilin', '例：紅石新竹／紅石士林')}
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                 </div>
                 {selectedComp?.competitionType === 'kids' && makeupRights.length > 0 && (

@@ -193,7 +193,7 @@ export default function PublicCompetitionRegisterPage() {
             <input value={idNumber} onChange={e => setIdNumber(e.target.value.toUpperCase())} style={input} />
           </>)}
           <label style={label}>{tt('平常練習岩館 *', 'Usual practice gym *', 'いつも練習しているジム *')}</label>
-          <input value={practiceGym} onChange={e => setPracticeGym(e.target.value)} style={input} placeholder={tt('例：平學練習岩館', 'e.g. Pingxue Practice Gym', '例：平学練習ジム')} />
+          <input value={practiceGym} onChange={e => setPracticeGym(e.target.value)} style={input} placeholder={tt('例：新竹紅石／士林紅石', 'e.g. Redrock Hsinchu / Redrock Shilin', '例：紅石新竹／紅石士林')} />
           <label style={label}>{t('身高 cm（選填）')}</label>
           <input value={height} onChange={e => setHeight(e.target.value.replace(/\D/g, ''))} style={dinput} inputMode="numeric" />
           <label style={label}>{t('臂展 cm（選填）')}</label>
