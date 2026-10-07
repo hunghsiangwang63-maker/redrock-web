@@ -236,7 +236,12 @@ export default function MemberCompetitionsPage() {
       ? (isEarlyBird ? fees.childEarlyBird : fees.childRegular) ?? 950
       : (isEarlyBird ? fees.adultEarlyBird : fees.adultRegular) ?? 1100;
     const cands = [{ fee: baseFee, kind: 'none' }];
-    if (member?.isTeamMember) cands.push({ fee: Math.round(baseFee * 0.9), kind: 'team' });
+    if (member?.isTeamMember) {
+      // 與後端一致：賽事自訂隊員折扣費率（fees.teamMemberDiscount）優先、無效退回 9 折；費率 >= 1 不給折扣
+      const tr = Number(fees.teamMemberDiscount);
+      const rate = (fees.teamMemberDiscount != null && fees.teamMemberDiscount !== '' && Number.isFinite(tr) && tr > 0) ? tr : 0.9;
+      if (rate < 1 && baseFee >= 100) cands.push({ fee: Math.round(baseFee * rate), kind: 'team' });
+    }
     const pRate = Number(fees.partnerGymDiscount);
     if (partnerGymId && pRate > 0 && pRate < 1) cands.push({ fee: Math.round(baseFee * pRate), kind: 'partner' });
     const win = cands.reduce((a, b) => (b.fee < a.fee ? b : a));
