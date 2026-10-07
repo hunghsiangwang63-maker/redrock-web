@@ -223,6 +223,11 @@ export default function MemberCompetitionsPage() {
     const fees = comp.fees || {};
     const today = dayjs().format('YYYY-MM-DD');
     const isEarlyBird = comp.earlyBirdDeadline && today <= comp.earlyBirdDeadline;
+    if (comp.competitionType === 'kids') {
+      // 兒童賽：分「當期學員／非當期學員」價（身份由後端依進行中課程判定，這裡兩個價格都列出）
+      const pick = (early, reg) => (isEarlyBird && early != null && early !== '') ? early : reg;
+      return { kids: true, isEarlyBird, student: pick(fees.kidsStudentEarlyBird, fees.kidsStudent), nonStudent: pick(fees.kidsNonStudentEarlyBird, fees.kidsNonStudent) };
+    }
     const childLimit = fees.childAgeLimit || 15;
     const refDate = comp?.eventDate ? dayjs(comp.eventDate) : dayjs();
     const age = registrant?.birthday ? refDate.diff(dayjs(registrant.birthday), 'year') : 99;
@@ -492,7 +497,10 @@ export default function MemberCompetitionsPage() {
                       </div>
                       {fee && (
                         <div style={{ fontSize:12, color:'#8B1A1A', marginBottom:8 }}>
-                          {fee.isEarlyBird ? t('🐦 早鳥優惠！') : ''}{t('報名費：NT$')}{fee.fee}
+                          {fee.isEarlyBird ? t('🐦 早鳥優惠！') : ''}
+                          {fee.kids
+                            ? tt(`報名費：進行中課程學員 NT$${fee.student}／非學員 NT$${fee.nonStudent}`, `Fee: current course students NT$${fee.student} / others NT$${fee.nonStudent}`, `参加費：開講中コース受講生 NT$${fee.student}／その他 NT$${fee.nonStudent}`)
+                            : <>{t('報名費：NT$')}{fee.fee}</>}
                         </div>
                       )}
                       <div style={{ fontSize:12, color:'#666', marginBottom:10, lineHeight:1.8, textAlign:'left' }}>
@@ -718,6 +726,7 @@ export default function MemberCompetitionsPage() {
                   {quoteLoading ? <div style={{ fontSize:12, color:'#999', marginTop:4 }}>{t('費用計算中…')}</div> : feeInfo && (
                   <div style={{ fontSize:13, color:'#8B1A1A', fontWeight:600, marginTop:4 }}>
                     {feeInfo.isEarlyBird ? t('🐦 早鳥優惠　') : ''}{feeInfo.teamApplied ? t('🧗 隊員優惠　') : ''}{feeInfo.partnerApplied ? t('🧗 友館折扣　') : ''}{t('報名費：NT$')}{feeInfo.fee}
+                    {quote?.competitionType === 'kids' ? tt(quote.isStudent ? '（進行中課程學員價）' : '（非學員價）', quote.isStudent ? ' (current course student rate)' : ' (non-student rate)', quote.isStudent ? '（開講中コース受講生料金）' : '（一般料金）') : ''}
                   </div>)}
                 </div>
                 {/* 為誰報名 */}

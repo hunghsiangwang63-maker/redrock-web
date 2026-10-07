@@ -65,7 +65,10 @@ export default function PublicCompetitionRegisterPage() {
   const isMinor = age !== null && age < 18;
   const isChild = age !== null && comp && age < ((comp.fees?.childAgeLimit) || 15);
   const isEarlyBird = !!(comp?.earlyBirdDeadline && new Date() <= new Date(comp.earlyBirdDeadline + 'T23:59:59'));
-  const baseFee = comp ? (isChild ? (isEarlyBird ? comp.fees?.childEarlyBird : comp.fees?.childRegular) : (isEarlyBird ? comp.fees?.adultEarlyBird : comp.fees?.adultRegular)) || 0 : 0;
+  const isKidsComp = comp?.competitionType === 'kids';
+  // 兒童賽：訪客報名一律以「非當期學員價」計（當期學員需用會員帳號報名才享學員價）；有早鳥價且在早鳥期間用早鳥價
+  const kidsFee = isKidsComp ? ((isEarlyBird && comp.fees?.kidsNonStudentEarlyBird != null && comp.fees?.kidsNonStudentEarlyBird !== '') ? comp.fees.kidsNonStudentEarlyBird : comp.fees?.kidsNonStudent) : null;
+  const baseFee = comp ? (isKidsComp ? Number(kidsFee) : (isChild ? (isEarlyBird ? comp.fees?.childEarlyBird : comp.fees?.childRegular) : (isEarlyBird ? comp.fees?.adultEarlyBird : comp.fees?.adultRegular))) || 0 : 0;
   const bank = comp ? bankAccounts[comp.gymId] : null;
 
   const setCF = (key, v) => setCustomFieldValues(p => ({ ...p, [key]: v }));
@@ -149,7 +152,12 @@ export default function PublicCompetitionRegisterPage() {
           {comp.earlyBirdDeadline && <div style={{ fontSize: 13, color: '#854F0B' }}>🐦 {t('早鳥截止：')}{comp.earlyBirdDeadline}</div>}
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
             {t('報名費：')}<b style={{ color: RED, fontSize: 17 }}>NT${baseFee || '—'}</b>
-            {age !== null && <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(
+            {isKidsComp && <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(
+              `（非當期學員價${isEarlyBird ? '·早鳥' : ''}；進行中課程學員請用會員帳號登入報名以享學員價）`,
+              ` (Non-student rate${isEarlyBird ? ' · Early Bird' : ''}; current course students please register with your member account for the student rate)`,
+              `（一般料金${isEarlyBird ? '・早割' : ''}；開講中コースの受講生は会員アカウントでの登録で受講生料金になります）`
+            )}</span>}
+            {!isKidsComp && age !== null && <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(
               `（${isChild ? '兒童' : '成人'}${isEarlyBird ? '·早鳥' : ''}價，實際金額以送出後為準）`,
               ` (${isChild ? 'Child' : 'Adult'}${isEarlyBird ? ' · Early Bird' : ''} rate — final amount confirmed after submission)`,
               `（${isChild ? '子供' : '大人'}${isEarlyBird ? '・早割' : ''}料金、正確な金額は送信後に確定します）`

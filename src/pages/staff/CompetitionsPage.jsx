@@ -118,6 +118,7 @@ const STATUS_LABEL = {
 
 const emptyForm = () => ({
   name:'', description:'', gymId:'gym-hsinchu',
+  competitionType:'standard', // standard=一般賽（成人/兒童身份＋早鳥）；kids=兒童賽（當期學員/非當期學員價，無早鳥）
   registrationStart: dayjs().format('YYYY-MM-DD'),
   registrationEnd: dayjs().add(14,'day').format('YYYY-MM-DD'),
   earlyBirdDeadline: dayjs().add(7,'day').format('YYYY-MM-DD'),
@@ -127,7 +128,7 @@ const emptyForm = () => ({
     { id:`d${Date.now()}1`, name:'V2-V3組', maxParticipants:40, waitlistMax:5 },
     { id:`d${Date.now()}2`, name:'V4-V5組', maxParticipants:40, waitlistMax:5 },
   ],
-  fees: { adultEarlyBird:990, adultRegular:1100, childEarlyBird:840, childRegular:950, teamMemberDiscount:0.9, childAgeLimit:15, insuranceAdult:261, insuranceChild:118 },
+  fees: { adultEarlyBird:990, adultRegular:1100, childEarlyBird:840, childRegular:950, teamMemberDiscount:0.9, childAgeLimit:15, insuranceAdult:261, insuranceChild:118, kidsStudent:'', kidsNonStudent:'', kidsStudentEarlyBird:'', kidsNonStudentEarlyBird:'' },
   refundPolicies: [
     { deadline: dayjs().add(5,'day').format('YYYY-MM-DD'), rule:'full_minus_admin', adminFee:100 },
     { deadline: dayjs().add(12,'day').format('YYYY-MM-DD'), rule:'half_minus_admin', adminFee:100 },
@@ -367,6 +368,7 @@ export default function CompetitionsPage() {
     setEditingId(c.id);
     setForm({
       name:c.name, description:c.description||'', gymId:c.gymId||'gym-hsinchu',
+      competitionType:c.competitionType||'standard',
       registrationStart:c.registrationStart, registrationEnd:c.registrationEnd,
       earlyBirdDeadline:c.earlyBirdDeadline||'', eventDate:c.eventDate, eventStartTime:c.eventStartTime||'09:00',
       divisions: c.divisions?.length ? c.divisions.map(d=>({ id:d.id, name:d.name, maxParticipants:d.maxParticipants||40, waitlistMax:d.waitlistMax||5 })) : emptyForm().divisions,
@@ -382,6 +384,8 @@ export default function CompetitionsPage() {
   const handleSave = async () => {
     if (!form.name.trim()) { showMsg('請輸入賽事名稱','red'); return; }
     if (form.divisions.some(d=>!d.name.trim())) { showMsg('請填寫所有組別名稱','red'); return; }
+    const isKids = form.competitionType === 'kids';
+    if (isKids && [form.fees.kidsStudent, form.fees.kidsNonStudent].some(v => v === '' || v == null || Number(v) < 0)) { showMsg('兒童賽請填寫「當期學員價」與「非當期學員價」','red'); return; }
     setSaving(true);
     try {
       const payload = { ...form, scoringSystem:'competition_management_v2', webhookUrl:null };
@@ -580,6 +584,7 @@ export default function CompetitionsPage() {
     if (r.memberNote || r.customFieldValues?.notes) a.push('備註');
     if (r.isPartnerGymDiscount) a.push(r.partnerGymPending ? '友館待核' : '友館');
     if (r.isEarlyBird) a.push('早鳥');
+    if (r.competitionType==='kids') a.push(r.isCurrentStudent ? '當期學員' : '非當期學員');
     if (r.isTeamDiscount) a.push('隊員9折');
     if (r.paymentMethod==='cash' && r.status!=='cancelled') a.push('臨櫃');
     if (r.status==='waitlist' && r.waitlistPosition) a.push(`候補#${r.waitlistPosition}`);
@@ -705,7 +710,7 @@ export default function CompetitionsPage() {
               <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                   <div>
-                    <div style={{ fontWeight:600, fontSize:15 }}>{c.name}</div>
+                    <div style={{ fontWeight:600, fontSize:15 }}>{c.name}{c.competitionType==='kids' && <span style={{ marginLeft:8, fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>兒童賽</span>}</div>
                     <div style={{ fontSize:12, color:'#999', marginTop:3, lineHeight:1.8 }}>
                       <div>🗓 比賽日：{c.eventDate}</div>
                       <div style={regEnded ? { color:'#A32D2D', fontWeight:700 } : undefined}>⏰ 報名截止：{c.registrationEnd}{regEnded ? '（已過期，會員端已自動擋新報名，仍開放中如需下架請手動改狀態）' : ''}</div>
@@ -769,6 +774,12 @@ export default function CompetitionsPage() {
         <Modal title={editingId?'編輯賽事':'新增賽事'} onClose={()=>setShowForm(false)} width={680}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
             <div style={{ gridColumn:'1/-1' }}><label style={lbl}>賽事名稱</label><input style={inp} value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
+            <div style={{ gridColumn:'1/-1' }}><label style={lbl}>賽事類型</label>
+              <select style={inp} value={form.competitionType||'standard'} onChange={e=>setForm(f=>({...f,competitionType:e.target.value}))}>
+                <option value="standard">一般賽（成人／兒童身份，早鳥價，隊員／友館折扣）</option>
+                <option value="kids">兒童賽（當期學員／非當期學員價，無隊員／友館折扣）</option>
+              </select>
+            </div>
             <div><label style={lbl}>比賽日期</label><input type="date" style={inp} value={form.eventDate} onChange={e=>setForm(f=>({...f,eventDate:e.target.value}))}/></div>
             <div><label style={lbl}>開始時間（賽前 10 分鐘自動開啟計分）</label><input type="time" style={inp} value={form.eventStartTime||'09:00'} onChange={e=>setForm(f=>({...f,eventStartTime:e.target.value}))}/></div>
             <div><label style={lbl}>場館</label>
@@ -779,7 +790,7 @@ export default function CompetitionsPage() {
             </div>
             <div><label style={lbl}>報名開始</label><input type="date" style={inp} value={form.registrationStart} onChange={e=>setForm(f=>({...f,registrationStart:e.target.value}))}/></div>
             <div><label style={lbl}>報名截止</label><input type="date" style={inp} value={form.registrationEnd} onChange={e=>setForm(f=>({...f,registrationEnd:e.target.value}))}/></div>
-            <div><label style={lbl}>早鳥截止日</label><input type="date" style={inp} value={form.earlyBirdDeadline} onChange={e=>setForm(f=>({...f,earlyBirdDeadline:e.target.value}))}/></div>
+            <div><label style={lbl}>早鳥截止日{form.competitionType === 'kids' ? '（不設定＝無早鳥優惠）' : ''}</label><input type="date" style={inp} value={form.earlyBirdDeadline} onChange={e=>setForm(f=>({...f,earlyBirdDeadline:e.target.value}))}/>{form.competitionType === 'kids' && form.earlyBirdDeadline && <button type="button" onClick={()=>setForm(f=>({...f,earlyBirdDeadline:''}))} style={{ marginTop:4, fontSize:11, color:'#8B1A1A', background:'none', border:'none', cursor:'pointer', padding:0 }}>清除截止日（取消早鳥）</button>}</div>
           </div>
 
           {/* 組別設定 */}
@@ -802,24 +813,46 @@ export default function CompetitionsPage() {
           {/* 費用設定 */}
           <div style={{ marginBottom:16 }}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>費用設定</div>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
-              {[
-                { k:'adultEarlyBird', label:'成人早鳥' },
-                { k:'adultRegular', label:'成人一般' },
-                { k:'teamMemberDiscount', label:'隊員折扣（如0.9）' },
-                { k:'childEarlyBird', label:'兒童早鳥' },
-                { k:'childRegular', label:'兒童一般' },
-                { k:'childAgeLimit', label:'兒童年齡上限（歲）' },
-                { k:'partnerGymDiscount', label:'友館折扣（如0.95，空=不開放）' },
-                { k:'insuranceAdult', label:'成人保險費' },
-                { k:'insuranceChild', label:'兒童保險費' },
-              ].map(({k,label})=>(
-                <div key={k}>
-                  <label style={lbl}>{label}</label>
-                  <input type="number" style={inp} value={form.fees[k]} onChange={e=>setForm(f=>({...f,fees:{...f.fees,[k]:Number(e.target.value)}}))}/>
+            {form.competitionType === 'kids' ? (
+              <>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                  {[
+                    { k:'kidsStudent', label:'當期學員價（一般）' },
+                    { k:'kidsNonStudent', label:'非當期學員價（一般）' },
+                    { k:'insuranceChild', label:'保險費' },
+                    { k:'kidsStudentEarlyBird', label:'當期學員價（早鳥，選填）' },
+                    { k:'kidsNonStudentEarlyBird', label:'非當期學員價（早鳥，選填）' },
+                  ].map(({k,label})=>(
+                    <div key={k}>
+                      <label style={lbl}>{label}</label>
+                      <input type="number" min="0" style={inp} value={form.fees[k] ?? ''} onChange={e=>setForm(f=>({...f,fees:{...f.fees,[k]:e.target.value===''?'':Number(e.target.value)}}))}/>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+                <div style={{ fontSize:11, color:'#999', marginTop:6, lineHeight:1.6 }}>
+                  「當期學員」＝報名當下有「進行中」週課正式報名的學員（已開課且未結束；不含補課／試上／工作坊）；訪客報名一律算非當期學員。早鳥價只在「早鳥截止日」前生效，沒設截止日（或早鳥價留空）就沒有早鳥優惠。兒童賽不適用攀岩隊員／友館折扣。
+                </div>
+              </>
+            ) : (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                {[
+                  { k:'adultEarlyBird', label:'成人早鳥' },
+                  { k:'adultRegular', label:'成人一般' },
+                  { k:'teamMemberDiscount', label:'隊員折扣（如0.9）' },
+                  { k:'childEarlyBird', label:'兒童早鳥' },
+                  { k:'childRegular', label:'兒童一般' },
+                  { k:'childAgeLimit', label:'兒童年齡上限（歲）' },
+                  { k:'partnerGymDiscount', label:'友館折扣（如0.95，空=不開放）' },
+                  { k:'insuranceAdult', label:'成人保險費' },
+                  { k:'insuranceChild', label:'兒童保險費' },
+                ].map(({k,label})=>(
+                  <div key={k}>
+                    <label style={lbl}>{label}</label>
+                    <input type="number" style={inp} value={form.fees[k]} onChange={e=>setForm(f=>({...f,fees:{...f.fees,[k]:Number(e.target.value)}}))}/>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 退費政策 */}
