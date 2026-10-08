@@ -129,7 +129,7 @@ const emptyForm = () => ({
     { id:`d${Date.now()}1`, name:'V2-V3組', maxParticipants:40, waitlistMax:5 },
     { id:`d${Date.now()}2`, name:'V4-V5組', maxParticipants:40, waitlistMax:5 },
   ],
-  fees: { adultEarlyBird:990, adultRegular:1100, childEarlyBird:840, childRegular:950, teamMemberDiscount:0.9, childAgeLimit:15, insuranceAdult:261, insuranceChild:118, kidsStudent:'', kidsNonStudent:'', kidsStudentEarlyBird:'', kidsNonStudentEarlyBird:'' },
+  fees: { adultEarlyBird:990, adultRegular:1100, childEarlyBird:840, childRegular:950, teamMemberDiscount:0.9, childAgeLimit:15, insuranceAdult:261, insuranceChild:118, kidsStudent:'', kidsNonStudent:'', kidsStudentEarlyBird:'', kidsNonStudentEarlyBird:'', tierTeam:'', tierVip:'', tierStudentPass:'', tierPartnerTeam:'', tierOther:'' },
   refundPolicies: [
     { deadline: dayjs().add(5,'day').format('YYYY-MM-DD'), rule:'full_minus_admin', adminFee:100 },
     { deadline: dayjs().add(12,'day').format('YYYY-MM-DD'), rule:'half_minus_admin', adminFee:100 },
@@ -388,9 +388,11 @@ export default function CompetitionsPage() {
     if (form.divisions.some(d=>!d.name.trim())) { showMsg('請填寫所有組別名稱','red'); return; }
     const isKids = form.competitionType === 'kids';
     if (isKids && [form.fees.kidsStudent, form.fees.kidsNonStudent].some(v => v === '' || v == null || Number(v) < 0)) { showMsg('兒童賽請填寫「當期學員價」與「非當期學員價」','red'); return; }
+    if (form.competitionType === 'tiered' && ['tierTeam','tierVip','tierStudentPass','tierPartnerTeam','tierOther'].some(k => form.fees[k] === '' || form.fees[k] == null || Number(form.fees[k]) < 0)) { showMsg('身份收費賽請填寫五個身份的費用（免費請填 0）','red'); return; }
     setSaving(true);
     try {
       const payload = { ...form, scoringSystem:'competition_management_v2', webhookUrl:null };
+      if (form.competitionType === 'tiered') payload.earlyBirdDeadline = null; // 身份收費賽無早鳥
       let promotedCount = 0;
       if (editingId) { const r = await updateCompetition(editingId, payload); promotedCount = r.data?.competition?.promotedCount || 0; }
       else await createCompetition(payload);
@@ -588,6 +590,7 @@ export default function CompetitionsPage() {
     if (r.isEarlyBird) a.push('早鳥');
     if (r.competitionType==='kids') a.push(r.isCurrentStudent ? '當期學員' : '非當期學員');
     if (r.paidByMakeup) a.push('補課券抵費');
+    if (r.competitionType==='tiered' && r.tier) a.push({ team:'攀岩隊員', vip:'VIP', student_pass:'學員/長期票', partner_team:'友館隊員', other:'一般' }[r.tier] || r.tier);
     if (r.isTeamDiscount) a.push('隊員9折');
     if (r.paymentMethod==='cash' && r.status!=='cancelled') a.push('臨櫃');
     if (r.status==='waitlist' && r.waitlistPosition) a.push(`候補#${r.waitlistPosition}`);
@@ -713,7 +716,7 @@ export default function CompetitionsPage() {
               <div key={c.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                   <div>
-                    <div style={{ fontWeight:600, fontSize:15 }}>{c.name}{c.competitionType==='kids' && <span style={{ marginLeft:8, fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>兒童賽</span>}</div>
+                    <div style={{ fontWeight:600, fontSize:15 }}>{c.name}{c.competitionType==='kids' && <span style={{ marginLeft:8, fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E6F1FB', color:'#185FA5' }}>兒童賽</span>}{c.competitionType==='tiered' && <span style={{ marginLeft:8, fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E8FB', color:'#6B2FA0' }}>身份收費賽</span>}</div>
                     <div style={{ fontSize:12, color:'#999', marginTop:3, lineHeight:1.8 }}>
                       <div>🗓 比賽日：{c.eventDate}</div>
                       <div style={regEnded ? { color:'#A32D2D', fontWeight:700 } : undefined}>⏰ 報名截止：{c.registrationEnd}{regEnded ? '（已過期，會員端已自動擋新報名，仍開放中如需下架請手動改狀態）' : ''}</div>
@@ -781,6 +784,7 @@ export default function CompetitionsPage() {
               <select style={inp} value={form.competitionType||'standard'} onChange={e=>setForm(f=>({...f,competitionType:e.target.value}))}>
                 <option value="standard">一般賽（成人／兒童身份，早鳥價，隊員／友館折扣）</option>
                 <option value="kids">兒童賽（當期學員／非當期學員價，無隊員／友館折扣）</option>
+                <option value="tiered">身份收費賽（依隊員／VIP／學員或長期票／友館隊員／其他分級收費，如攀岩隊模擬賽）</option>
               </select>
             </div>
             <div style={{ gridColumn:'1/-1' }}>
@@ -799,7 +803,7 @@ export default function CompetitionsPage() {
             </div>
             <div><label style={lbl}>報名開始</label><input type="date" style={inp} value={form.registrationStart} onChange={e=>setForm(f=>({...f,registrationStart:e.target.value}))}/></div>
             <div><label style={lbl}>報名截止</label><input type="date" style={inp} value={form.registrationEnd} onChange={e=>setForm(f=>({...f,registrationEnd:e.target.value}))}/></div>
-            <div><label style={lbl}>早鳥截止日{form.competitionType === 'kids' ? '（不設定＝無早鳥優惠）' : ''}</label><input type="date" style={inp} value={form.earlyBirdDeadline} onChange={e=>setForm(f=>({...f,earlyBirdDeadline:e.target.value}))}/>{form.competitionType === 'kids' && form.earlyBirdDeadline && <button type="button" onClick={()=>setForm(f=>({...f,earlyBirdDeadline:''}))} style={{ marginTop:4, fontSize:11, color:'#8B1A1A', background:'none', border:'none', cursor:'pointer', padding:0 }}>清除截止日（取消早鳥）</button>}</div>
+            {form.competitionType !== 'tiered' && <div><label style={lbl}>早鳥截止日{form.competitionType === 'kids' ? '（不設定＝無早鳥優惠）' : ''}</label><input type="date" style={inp} value={form.earlyBirdDeadline} onChange={e=>setForm(f=>({...f,earlyBirdDeadline:e.target.value}))}/>{form.competitionType === 'kids' && form.earlyBirdDeadline && <button type="button" onClick={()=>setForm(f=>({...f,earlyBirdDeadline:''}))} style={{ marginTop:4, fontSize:11, color:'#8B1A1A', background:'none', border:'none', cursor:'pointer', padding:0 }}>清除截止日（取消早鳥）</button>}</div>}
           </div>
 
           {/* 組別設定 */}
@@ -822,7 +826,28 @@ export default function CompetitionsPage() {
           {/* 費用設定 */}
           <div style={{ marginBottom:16 }}>
             <div style={{ fontSize:13, fontWeight:600, marginBottom:8 }}>費用設定</div>
-            {form.competitionType === 'kids' ? (
+            {form.competitionType === 'tiered' ? (
+              <>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
+                  {[
+                    { k:'tierTeam', label:'當期紅石攀岩隊隊員（免費填 0）' },
+                    { k:'tierVip', label:'紅石 VIP（免費填 0）' },
+                    { k:'tierStudentPass', label:'當期課程學員／90日票以上會員' },
+                    { k:'tierPartnerTeam', label:'友館攀岩隊員（心流、爬森）' },
+                    { k:'tierOther', label:'以上皆非（一般）' },
+                    ...(form.hasInsurance !== false ? [{ k:'insuranceAdult', label:'成人保險費' }, { k:'insuranceChild', label:'兒童保險費' }] : []),
+                  ].map(({k,label})=>(
+                    <div key={k}>
+                      <label style={lbl}>{label}</label>
+                      <input type="number" min="0" style={inp} value={form.fees[k] ?? ''} onChange={e=>setForm(f=>({...f,fees:{...f.fees,[k]:e.target.value===''?'':Number(e.target.value)}}))}/>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize:11, color:'#999', marginTop:6, lineHeight:1.6 }}>
+                  報名時系統自動判斷身份並取最優惠一級（不疊加）：攀岩隊員、VIP（有帳號才判斷）→ 進行中課程學員或有效 90 日票／半年票 → 其他。友館攀岩隊員由報名者自選友館、先套該級價格並標「待核對」，櫃檯比對名單後不符再改回原價。費用 0 的身份報名後直接視為已收款。訪客無會員身份，只能算「一般」或自選友館。
+                </div>
+              </>
+            ) : form.competitionType === 'kids' ? (
               <>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                   {[
@@ -1074,7 +1099,7 @@ export default function CompetitionsPage() {
                 {Row('報名日期', sec?dayjs(sec*1000).format('YYYY-MM-DD HH:mm'):'—')}
                 {Row('費用', `NT$${r.registrationFee}${r.isEarlyBird?'（早鳥）':''}${r.isTeamDiscount?'（隊員9折）':''}${r.isPartnerGymDiscount?'（友館折扣）':''}`)}
                 {r.isPartnerGymDiscount && Row('友館', `${r.partnerGym||'友館'}${r.partnerGymPending?'（⏳ 待核對）':'（✓ 已核對）'}`)}
-                {Row('付款方式', r.paymentMethod==='cash'?'臨櫃現金':r.paymentMethod==='transfer'?'銀行轉帳':r.paymentMethod==='makeup_credit'?'補課券抵費（免繳費）':(r.paymentMethod||'—'))}
+                {Row('付款方式', r.paymentMethod==='cash'?'臨櫃現金':r.paymentMethod==='transfer'?'銀行轉帳':r.paymentMethod==='makeup_credit'?'補課券抵費（免繳費）':r.paymentMethod==='free_tier'?'免費身份（免繳費）':(r.paymentMethod||'—'))}
                 {(r.paymentMethod==='transfer' || r.bankLastFive) && Row('匯款末五碼', r.bankLastFive)}
                 {(r.paymentMethod==='transfer' || r.bankName) && Row('匯款銀行', r.bankName)}
                 {r.paymentDate && Row('繳款日期', r.paymentDate)}

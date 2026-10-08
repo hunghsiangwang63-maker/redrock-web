@@ -39,6 +39,8 @@ export default function PublicCompetitionRegisterPage() {
   const [armSpan, setArmSpan] = useState('');
   const [memberNote, setMemberNote] = useState('');
   const [practiceGym, setPracticeGym] = useState(''); // 平常練習岩館（必填）
+  const [partnerGyms, setPartnerGyms] = useState([]);   // 身份收費賽：友館清單（友館攀岩隊員一級）
+  const [partnerGymId, setPartnerGymId] = useState('');
   const [customFieldValues, setCustomFieldValues] = useState({});
   const [bankLastFive, setBankLastFive] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
@@ -53,6 +55,7 @@ export default function PublicCompetitionRegisterPage() {
     publicClient.get(`/competitions/public/${compId}`)
       .then(r => {
         setComp(r.data.competition);
+        setPartnerGyms(r.data.partnerGyms || []);
         if (r.data.competition.divisions?.length) setDivisionId(r.data.competition.divisions[0].id);
       })
       .catch(() => setLoadErr(t('找不到此賽事，或此賽事目前未開放報名')));
@@ -66,7 +69,8 @@ export default function PublicCompetitionRegisterPage() {
   const isKidsComp = comp?.competitionType === 'kids';
   // 兒童賽：訪客報名一律以「非當期學員價」計（當期學員需用會員帳號報名才享學員價）；有早鳥價且在早鳥期間用早鳥價
   const kidsFee = isKidsComp ? ((isEarlyBird && comp.fees?.kidsNonStudentEarlyBird != null && comp.fees?.kidsNonStudentEarlyBird !== '') ? comp.fees.kidsNonStudentEarlyBird : comp.fees?.kidsNonStudent) : null;
-  const baseFee = comp ? (isKidsComp ? Number(kidsFee) : (isChild ? (isEarlyBird ? comp.fees?.childEarlyBird : comp.fees?.childRegular) : (isEarlyBird ? comp.fees?.adultEarlyBird : comp.fees?.adultRegular))) || 0 : 0;
+  const isTieredComp = comp?.competitionType === 'tiered';
+  const baseFee = comp ? (isTieredComp ? Number((partnerGymId && comp.fees?.tierPartnerTeam != null && comp.fees?.tierPartnerTeam !== '') ? comp.fees.tierPartnerTeam : comp.fees?.tierOther) : isKidsComp ? Number(kidsFee) : (isChild ? (isEarlyBird ? comp.fees?.childEarlyBird : comp.fees?.childRegular) : (isEarlyBird ? comp.fees?.adultEarlyBird : comp.fees?.adultRegular))) || 0 : 0;
   const bank = comp ? bankAccounts[comp.gymId] : null;
 
   const setCF = (key, v) => setCustomFieldValues(p => ({ ...p, [key]: v }));
@@ -100,6 +104,7 @@ export default function PublicCompetitionRegisterPage() {
         idNumber, emergencyContact, emergencyRelation, emergencyPhone,
         height: height || null, armSpan: armSpan || null, memberNote,
         practiceGym: practiceGym.trim(),
+        partnerGymId: (comp?.competitionType === 'tiered' && partnerGymId) ? partnerGymId : null,
         bankLastFive, paymentDate,
       });
       setDone(res.data);
@@ -151,6 +156,11 @@ export default function PublicCompetitionRegisterPage() {
           {comp.earlyBirdDeadline && <div style={{ fontSize: 13, color: '#854F0B' }}>🐦 {t('早鳥截止：')}{comp.earlyBirdDeadline}</div>}
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
             {t('報名費：')}<b style={{ color: RED, fontSize: 17 }}>NT${baseFee || '—'}</b>
+            {isTieredComp && <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(
+              partnerGymId ? '（友館攀岩隊員價，待館方核對）' : '（一般價；課程學員、90日票以上會員、攀岩隊員、VIP 請用會員帳號登入報名以享優惠）',
+              partnerGymId ? ' (partner-gym team rate, pending verification)' : ' (regular rate; course students, 90-day+ pass holders, climbing team and VIP members please register with your member account)',
+              partnerGymId ? '（提携ジムチーム料金・確認待ち）' : '（通常料金。受講生・90日券以上・チーム・VIP は会員アカウントで登録してください）'
+            )}</span>}
             {isKidsComp && <span style={{ color: '#999', fontSize: 12, marginLeft: 6 }}>{tt(
               `（非當期學員價${isEarlyBird ? '·早鳥' : ''}；進行中課程學員請用會員帳號登入報名以享學員價）`,
               ` (Non-student rate${isEarlyBird ? ' · Early Bird' : ''}; current course students please register with your member account for the student rate)`,
@@ -219,6 +229,17 @@ export default function PublicCompetitionRegisterPage() {
                 <input value={customFieldValues[f.key] || ''} onChange={e => setCF(f.key, e.target.value)} style={input} />
               </div>
             ))}
+          </div>
+        )}
+
+        {isTieredComp && partnerGyms.length > 0 && (
+          <div style={card}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{tt('友館攀岩隊員（選填）', 'Partner-gym climbing team member (optional)', '提携ジムのクライミングチーム所属（任意）')}</div>
+            <select value={partnerGymId} onChange={e => setPartnerGymId(e.target.value)} style={{ ...input, marginTop: 10 }}>
+              <option value="">{t('無')}</option>
+              {partnerGyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </select>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 6 }}>{t('將由館方依友館名單核對，不在名單則以原價計算。')}</div>
           </div>
         )}
 
