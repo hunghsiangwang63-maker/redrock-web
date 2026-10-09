@@ -942,8 +942,9 @@ export default function MemberCompetitionsPage() {
                   <div style={{ marginTop:14, background:'#FFF8E6', borderRadius:8, padding:'10px 12px', fontSize:12, color:'#8B6914' }}>
                     <div style={{ fontWeight:600, marginBottom:6 }}>{t('退費政策')}</div>
                     {selectedComp.refundPolicies.map((p,i)=>(
-                      <div key={i}>• {tt(`${p.deadline} 前取消：`, `Cancel before ${p.deadline}: `, `${p.deadline}までのキャンセル：`)}{p.rule==='full_minus_admin'?tt(`全額退（扣行政費NT$${p.adminFee}）`,`Full refund (minus NT$${p.adminFee} admin fee)`,`全額返金（事務手数料NT$${p.adminFee}を差し引き）`):p.rule==='half_minus_admin'?tt(`50%退（扣行政費NT$${p.adminFee}）`,`50% refund (minus NT$${p.adminFee} admin fee)`,`50%返金（事務手数料NT$${p.adminFee}を差し引き）`):t('不退費')}</div>
+                      <div key={i}>• {tt(`${p.deadline}（含）以前取消：`, `Cancel on or before ${p.deadline}: `, `${p.deadline}（当日を含む）までのキャンセル：`)}{p.rule==='full_minus_admin'?tt(`全額退（扣行政費NT$${p.adminFee}）`,`Full refund (minus NT$${p.adminFee} admin fee)`,`全額返金（事務手数料NT$${p.adminFee}を差し引き）`):p.rule==='half_minus_admin'?tt(`50%退（扣行政費NT$${p.adminFee}）`,`50% refund (minus NT$${p.adminFee} admin fee)`,`50%返金（事務手数料NT$${p.adminFee}を差し引き）`):t('不退費')}</div>
                     ))}
+                    <div style={{ marginTop:4, color:'#A07A1A' }}>• {tt('超過上述最後日期取消：不予退費','Cancel after the last date above: no refund','上記の最終日を過ぎてからのキャンセル：返金なし')}</div>
                   </div>
                 )}
               </>)}
@@ -1046,7 +1047,7 @@ export default function MemberCompetitionsPage() {
                   <div>
                     {sorted.map((p,i) => (
                       <div key={i} style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>
-                        • {tt(`${p.deadline} 前取消：`, `Cancel before ${p.deadline}: `, `${p.deadline}までのキャンセル：`)}{p.rule==='full_minus_admin'?tt(`全額退費（扣行政費 NT$${p.adminFee}）`,`Full refund (minus NT$${p.adminFee} admin fee)`,`全額返金（事務手数料NT$${p.adminFee}を差し引き）`):p.rule==='half_minus_admin'?tt(`50% 退費（扣行政費 NT$${p.adminFee}）`,`50% refund (minus NT$${p.adminFee} admin fee)`,`50%返金（事務手数料NT$${p.adminFee}を差し引き）`):t('不予退費')}
+                        • {tt(`${p.deadline}（含）以前取消：`, `Cancel on or before ${p.deadline}: `, `${p.deadline}（当日を含む）までのキャンセル：`)}{p.rule==='full_minus_admin'?tt(`全額退費（扣行政費 NT$${p.adminFee}）`,`Full refund (minus NT$${p.adminFee} admin fee)`,`全額返金（事務手数料NT$${p.adminFee}を差し引き）`):p.rule==='half_minus_admin'?tt(`50% 退費（扣行政費 NT$${p.adminFee}）`,`50% refund (minus NT$${p.adminFee} admin fee)`,`50%返金（事務手数料NT$${p.adminFee}を差し引き）`):t('不予退費')}
                       </div>
                     ))}
                     <div style={{ fontSize:12, color:'#8B6914', marginBottom:4 }}>• {tt(`${sorted[sorted.length-1]?.deadline} 之後取消：不予退費`, `Cancel after ${sorted[sorted.length-1]?.deadline}: no refund`, `${sorted[sorted.length-1]?.deadline}以降のキャンセル：返金なし`)}</div>

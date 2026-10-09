@@ -896,9 +896,15 @@ export default function CompetitionsPage() {
               <div style={{ fontSize:13, fontWeight:600 }}>退費政策</div>
               <button onClick={addPolicy} style={{ height:26, padding:'0 10px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>+ 新增</button>
             </div>
+            <div style={{ fontSize:11, color:'#7A5A1A', background:'#FFF8E6', borderRadius:6, padding:'8px 10px', marginBottom:8, lineHeight:1.7 }}>
+              每一列的日期＝「<strong>這天（含）以前</strong>取消，適用該列的退費方式」。系統依<strong>取消當天</strong>由最早的日期往後比對，套用第一個符合的列；
+              取消日<strong>晚於所有日期</strong>則<strong>不予退費</strong>。<br/>
+              例：5/10「全額退」、5/20「半額退」→ 5/10（含）以前取消全額退；5/11～5/20 取消退 50%；5/21 起不退。<br/>
+              行政費：退費金額 ＝ 退費比例後的金額 － 行政費（全額退 ＝ 報名費 － 行政費；半額退 ＝ 報名費×50% － 行政費）。
+            </div>
             {form.refundPolicies.map((p,i)=>(
               <div key={i} style={{ display:'grid', gridTemplateColumns:'120px 1fr 80px 28px', gap:8, marginBottom:8, alignItems:'center' }}>
-                <input type="date" style={inp} value={p.deadline} onChange={e=>updatePolicy(i,{deadline:e.target.value})}/>
+                <input type="date" style={inp} title="此日（含）以前取消適用此列" value={p.deadline} onChange={e=>updatePolicy(i,{deadline:e.target.value})}/>
                 <select style={inp} value={p.rule} onChange={e=>updatePolicy(i,{rule:e.target.value})}>
                   <option value="full_minus_admin">全額退（扣行政費）</option>
                   <option value="half_minus_admin">半額退（扣行政費）</option>
