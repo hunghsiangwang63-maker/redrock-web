@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory, getStocktakeDraft, saveStocktakeDraft, clearStocktakeDraft } from '../../api/products';
-import InvoiceIssuer from '../../components/InvoiceIssuer';
+import InvoiceIssuer, { RealPrintPanel } from '../../components/InvoiceIssuer';
 import CheckTick from '../../components/CheckTick';
-import { InvoiceButtonAuto } from '../../components/InvoiceButton';
+import { InvoiceButtonAuto, InvoiceButtonView } from '../../components/InvoiceButton';
 import { searchMembers } from '../../api/members';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
@@ -112,6 +112,11 @@ export default function SalesPage({ embedded = false }) {
   const [salesFrom, setSalesFrom] = useState(dayjs().subtract(29, 'day').format('YYYY-MM-DD'));
   const [salesTo, setSalesTo] = useState(dayjs().format('YYYY-MM-DD'));
   const [confirmReturn, setConfirmReturn] = useState(null); // 待退貨的銷售
+  // 合併列印發票（多筆商品銷售合開一張，如同一位客人分次結帳）——僅真列印館別提供，比照入場頁
+  const [printingEnabled, setPrintingEnabled] = useState(false);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSelected, setMergeSelected] = useState(() => new Set());
+  const [mergedSaleList, setMergedSaleList] = useState(null); // 開啟合併發票 modal 時鎖定當下選取的銷售快照
   const [returnReason, setReturnReason] = useState('');
   // ⚠️ 由完成銷售、分頁/館別/日期區間變動兩處觸發，序號防過期回應覆蓋。
   const salesSeqRef = useRef(0);
@@ -225,6 +230,16 @@ export default function SalesPage({ embedded = false }) {
   const showMsg = (text, type='ok') => { setMsg(text); setMsgType(type); setTimeout(() => setMsg(''), 3000); };
 
   useEffect(() => { loadProducts(); }, [targetGymId]);
+  // 該館是否已開真列印（決定要不要提供合併列印）；切館別重置選取，避免跨館混選
+  useEffect(() => {
+    setMergeMode(false); setMergeSelected(new Set());
+    if (!targetGymId || targetGymId === 'warehouse') { setPrintingEnabled(false); return; }
+    let alive = true;
+    client.get('/invoices/printing-status', { params: { gymId: targetGymId } })
+      .then(r => { if (alive) setPrintingEnabled(!!r.data.enabled); })
+      .catch(() => { if (alive) setPrintingEnabled(false); });
+    return () => { alive = false; };
+  }, [targetGymId]);
   useEffect(() => { if (tab === 'history') loadSales(); /* eslint-disable-next-line */ }, [tab, targetGymId, salesFrom, salesTo]);
 
   // ⚠️ 由館別切換與 8+ 個商品 CRUD/銷售動作觸發，序號防過期回應覆蓋（連續處理多筆商品異動時常見）。
@@ -806,7 +821,7 @@ export default function SalesPage({ embedded = false }) {
           feeInfo={`銷售總額 NT$${saleInvoiceTarget.totalAmount ?? 0}`}
           defaultItemName={(saleInvoiceTarget.items || []).map(i => i.productName).join('、') || '商品銷售'}
           defaultAmount={saleInvoiceTarget.totalAmount ?? 0}
-          onClose={() => { setSaleInvoiceTarget(null); setSaleInvRefresh(v => v + 1); }}
+          onClose={() => { setSaleInvoiceTarget(null); setSaleInvRefresh(v => v + 1); if (tab === 'history') loadSales(); }}
           listInvoices={() => getSaleInvoices(saleInvoiceTarget.id).then(r => r.data.invoices || [])}
           createInvoice={(payload) => createSaleInvoice(saleInvoiceTarget.id, payload).then(r => r.data.invoice)}
           voidInvoiceFn={(id) => voidSaleInvoice(id)}
@@ -826,20 +841,40 @@ export default function SalesPage({ embedded = false }) {
               style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, color:'#1a1a1a' }} />
             <span style={{ fontSize:12, color:'#999' }}>共 {salesList.length} 筆</span>
             <div style={{ flex:1 }} />
+            {printingEnabled && (
+              <button onClick={() => { setMergeMode(m => !m); setMergeSelected(new Set()); }}
+                style={{ height:34, padding:'0 12px', borderRadius:8, background: mergeMode ? '#FCEBEB' : '#F7F3F3', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer', color: mergeMode ? '#A32D2D' : '#8B1A1A' }}>
+                {mergeMode ? '✕ 取消合併列印' : '🧾 合併列印發票'}
+              </button>
+            )}
             {isAdmin && (
               <button onClick={exportSalesCsv} disabled={!salesList.length}
                 style={{ height:34, padding:'0 12px', borderRadius:8, background:'#fff', border:'0.5px solid #E8D5D5', fontSize:12, cursor: salesList.length?'pointer':'default', color:'#6b6b6b', opacity: salesList.length?1:.5 }}>↓ 匯出 CSV</button>
             )}
           </div>
           <div style={{ fontSize:12, color:'#999', marginBottom:10 }}>{isWarehouse ? '全部館別' : '本館'}銷售。退貨會還原庫存並沖銷當日營收。</div>
+          {mergeMode && <div style={{ fontSize:12, color:'#854F0B', background:'#FCEBD6', borderRadius:8, padding:'8px 10px', marginBottom:10 }}>勾選要合併成同一張發票的多筆銷售（須同一天、尚未開票、未退貨），下方會出現「合併列印發票」按鈕。已開票的銷售不能再勾選。</div>}
           {salesLoading ? (
             <div style={{ padding:30, textAlign:'center', color:'#999', fontSize:13 }}>載入中...</div>
           ) : salesList.length === 0 ? (
             <div style={{ padding:30, textAlign:'center', color:'#999', fontSize:13 }}>此區間無銷售紀錄</div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {salesList.map(sale => (
-                <div key={sale.id} style={{ background:'#fff', border:`0.5px solid ${sale.isReturn ? '#E8C5C5' : '#E8D5D5'}`, borderRadius:10, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10 }}>
+              {salesList.map(sale => {
+                const saleDay = dayjs(sale.soldAt?.seconds ? sale.soldAt.seconds*1000 : sale.soldAt?._seconds ? sale.soldAt._seconds*1000 : sale.soldAt).format('YYYY-MM-DD');
+                const invoiceable = !sale.isReturn && !sale.returned && (sale.totalAmount || 0) > 0;
+                const firstSel = salesList.find(x => mergeSelected.has(x.id));
+                const firstSelDay = firstSel ? dayjs(firstSel.soldAt?.seconds ? firstSel.soldAt.seconds*1000 : firstSel.soldAt?._seconds ? firstSel.soldAt._seconds*1000 : firstSel.soldAt).format('YYYY-MM-DD') : null;
+                const sameGroup = !firstSel || (firstSel.gymId === sale.gymId && firstSelDay === saleDay);
+                const selectable = mergeMode && invoiceable && !sale.invoice && sameGroup;
+                const checked = mergeSelected.has(sale.id);
+                return (
+                <div key={sale.id} style={{ background:'#fff', border:`0.5px solid ${checked ? '#8B1A1A' : sale.isReturn ? '#E8C5C5' : '#E8D5D5'}`, borderRadius:10, padding:'12px 14px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:10, opacity: mergeMode && !selectable && !checked ? .55 : 1 }}>
+                  {mergeMode && (
+                    <input type="checkbox" checked={checked} disabled={!selectable && !checked}
+                      onChange={e => setMergeSelected(prev => { const n = new Set(prev); e.target.checked ? n.add(sale.id) : n.delete(sale.id); return n; })}
+                      style={{ width:20, height:20, marginTop:2, flexShrink:0, accentColor:'#8B1A1A' }} />
+                  )}
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:12, color:'#999', marginBottom:3 }}>
                       {dayjs(sale.soldAt?.seconds ? sale.soldAt.seconds*1000 : sale.soldAt?._seconds ? sale.soldAt._seconds*1000 : sale.soldAt).format('MM/DD HH:mm')}
@@ -877,7 +912,13 @@ export default function SalesPage({ embedded = false }) {
                   </div>
                   <div style={{ textAlign:'right', whiteSpace:'nowrap' }}>
                     <div style={{ fontSize:15, fontWeight:700, fontFamily:'monospace', color: sale.isReturn ? '#A32D2D' : '#8B1A1A' }}>{sale.isReturn ? '−' : ''}NT${Math.abs(sale.totalAmount||0).toLocaleString()}</div>
-                    {!sale.isReturn && !sale.returned && (() => {
+                    {invoiceable && !mergeMode && (
+                      <div style={{ marginTop:6 }}>
+                        <InvoiceButtonView invoiceNo={sale.invoice?.invoiceNo} merged={sale.invoice?.merged}
+                          onClick={() => setSaleInvoiceTarget(sale)} style={{ height:'auto', padding:'4px 10px' }} />
+                      </div>
+                    )}
+                    {!sale.isReturn && !sale.returned && !mergeMode && (() => {
                       // 退貨限銷售後 7 天內（與後端 RETURN_WINDOW_EXPIRED 一致）；超過期限隱藏按鈕
                       const soldAtMs = sale.soldAt?.seconds ? sale.soldAt.seconds*1000 : sale.soldAt?._seconds ? sale.soldAt._seconds*1000 : sale.soldAt;
                       const expired = soldAtMs && dayjs().diff(dayjs(soldAtMs), 'day') > 7;
@@ -889,11 +930,52 @@ export default function SalesPage({ embedded = false }) {
                     })()}
                   </div>
                 </div>
-              ))}
+                );
+              })}
+            </div>
+          )}
+          {mergeMode && mergeSelected.size > 0 && (
+            <div style={{ position:'sticky', bottom:0, marginTop:12, background:'#fff', borderTop:'0.5px solid #E8D5D5', padding:'10px 0', display:'flex', alignItems:'center', justifyContent:'space-between', gap:10 }}>
+              <div style={{ fontSize:13, color:'#444' }}>
+                已選 {mergeSelected.size} 筆　合計 NT${salesList.filter(x => mergeSelected.has(x.id)).reduce((t, x) => t + (Number(x.totalAmount) || 0), 0).toLocaleString()}
+              </div>
+              <button onClick={() => setMergedSaleList(salesList.filter(x => mergeSelected.has(x.id)))}
+                disabled={mergeSelected.size < 2}
+                style={{ height:40, padding:'0 18px', borderRadius:9, background: mergeSelected.size < 2 ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor: mergeSelected.size < 2 ? 'not-allowed' : 'pointer' }}>
+                🧾 合併列印發票{mergeSelected.size < 2 ? '（至少選 2 筆）' : ''}
+              </button>
             </div>
           )}
         </div>
       )}
+
+      {/* 合併列印發票（多筆商品銷售合開一張）——僅真列印館別提供；每筆品項一行明細，紙本不印會員姓名。
+          付款方式沒有單一來源，改用 alwaysShowPaymentSelector 讓值班人員選一個（只影響開不開錢櫃）；
+          結帳統計會依各筆銷售實際付款方式拆開（見後端 computeTodayInvoiceAuthority）。 */}
+      {mergedSaleList && (() => {
+        const list = mergedSaleList;
+        const total = list.reduce((t, x) => t + (Number(x.totalAmount) || 0), 0);
+        const itemName = (i) => `${i.brand ? i.brand + ' ' : ''}${i.productName}${[i.size, i.color].filter(Boolean).length ? ' ' + [i.size, i.color].filter(Boolean).join('/') : ''}${Number(i.quantity) > 1 ? '×' + i.quantity : ''}`;
+        return (
+          <RealPrintPanel
+            gymId={list[0]?.gymId}
+            sourceType="product_merged"
+            refId={null}
+            memberId={null}
+            memberName={list.map(x => x.memberName).filter(n => n && n !== '匿名').join('、')}
+            paymentMethod={list[0]?.paymentMethod || 'cash'}
+            title={`合併列印發票（${list.length} 筆銷售）`}
+            subtitle={list.map(x => (x.items || []).map(i => i.productName).join('、')).join('；')}
+            feeInfo={`銷售合計 NT$${total.toLocaleString()}`}
+            defaultItemName={Array.from(new Set(list.flatMap(x => (x.items || []).map(i => i.productName)))).join('、') || '商品銷售'}
+            defaultAmount={total}
+            itemBreakdown={list.flatMap(x => (x.items || []).map(i => ({ name: itemName(i), amount: Number(i.subtotal) || 0 })))}
+            mergedSaleIds={list.map(x => x.id)}
+            alwaysShowPaymentSelector
+            onClose={() => { setMergedSaleList(null); setMergeMode(false); setMergeSelected(new Set()); loadSales(); }}
+          />
+        );
+      })()}
 
       {/* ── 退貨確認 Modal ── */}
       {confirmReturn && (
@@ -904,6 +986,16 @@ export default function SalesPage({ embedded = false }) {
           <div style={{ fontSize:12, color:'#666', marginBottom:10, lineHeight:1.6 }}>
             {(confirmReturn.items||[]).map(i => `${i.productName}${i.size?` ${i.size}`:''}×${i.quantity}`).join('、')}
           </div>
+          {confirmReturn.invoice?.merged && (
+            <div style={{ fontSize:12, color:'#A32D2D', background:'#FCEBEB', border:'1px solid #A32D2D33', borderRadius:6, padding:'8px 10px', marginBottom:10, lineHeight:1.6 }}>
+              ⚠️ 這筆已與其他 {Math.max((confirmReturn.invoice.mergedCount || 2) - 1, 1)} 筆銷售合併開立發票 <strong>{confirmReturn.invoice.invoiceNo}</strong>。退貨會把<strong>整張合併發票作廢</strong>，請取回紙本；其餘銷售需要重新開立發票。
+            </div>
+          )}
+          {confirmReturn.invoice && !confirmReturn.invoice.merged && (
+            <div style={{ fontSize:12, color:'#A32D2D', background:'#FCEBEB', border:'1px solid #A32D2D33', borderRadius:6, padding:'8px 10px', marginBottom:10, lineHeight:1.6 }}>
+              ⚠️ 這筆已開立發票 <strong>{confirmReturn.invoice.invoiceNo}</strong>，退貨後系統會自動作廢，請務必取回紙本。
+            </div>
+          )}
           <div style={{ fontSize:12, color:'#854F0B', background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:6, padding:'8px 10px', marginBottom:12 }}>
             退貨後：庫存自動還原、當日商品營收沖銷（記一筆負額退貨），原銷售標記為已退貨。
           </div>

@@ -47,7 +47,7 @@ const lab = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
 
 // 匯出供「發票號碼管理」設定頁的「手動開立發票（無來源）」直接重用——不透過 InvoiceIssuer 的
 // 開關判斷（那個是給五流程各自的既有入口用的），無來源發票本就只在真列印啟用時才有意義。
-export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, itemBreakdown, onClose, alwaysShowPaymentSelector, mergedCheckinIds, hidePaymentMethodFix }) {
+export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName, paymentMethod, title, subtitle, feeInfo, defaultItemName, defaultAmount, itemBreakdown, onClose, alwaysShowPaymentSelector, mergedCheckinIds, mergedSaleIds, hidePaymentMethodFix }) {
   const [itemName, setItemName] = useState(defaultItemName || '費用');
   const [amount, setAmount] = useState(defaultAmount ?? 0);
   const [taxId, setTaxId] = useState('');
@@ -136,6 +136,7 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
       const res = await client.post('/invoices/print-record', {
         gymId, sourceType, refId, memberId, memberName, itemName, amount: Number(amount), taxId: taxId.trim(), note, paymentMethod: payMethod,
         ...(mergedCheckinIds && mergedCheckinIds.length ? { mergedCheckinIds } : {}),
+        ...(mergedSaleIds && mergedSaleIds.length ? { mergedSaleIds } : {}),
         ...(amountModified ? { amountModified: true, originalAmount: Number(defaultAmount ?? 0) } : {}),
       });
       setIssued(res.data.invoice);
@@ -177,6 +178,9 @@ export function RealPrintPanel({ gymId, sourceType, refId, memberId, memberName,
           <div style={{ fontSize:18, fontWeight:700, color:'#8B1A1A', fontFamily:'monospace', marginBottom:4 }}>{issued.invoiceNo}</div>
           {issued.sourceType === 'checkin_merged' && (
             <div style={{ fontSize:11, color:'#A66A00', fontWeight:600, marginBottom:4 }}>🧾 合併列印發票（涵蓋多筆入場，金額為合併總額）</div>
+          )}
+          {issued.sourceType === 'product_merged' && (
+            <div style={{ fontSize:11, color:'#A66A00', fontWeight:600, marginBottom:4 }}>🧾 合併列印發票（涵蓋 {issued.mergedSaleIds?.length || '多'} 筆商品銷售，金額為合併總額）</div>
           )}
           {Array.isArray(printedItems) && printedItems.length > 1 ? (
             <div style={{ fontSize:13 }}>
