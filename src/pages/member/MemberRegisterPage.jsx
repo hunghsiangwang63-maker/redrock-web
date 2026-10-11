@@ -108,6 +108,11 @@ export default function MemberRegisterPage() {
                 <div style={{ fontSize:11, color:'#8B1A1A', marginTop:6, lineHeight:1.6, textAlign:'left' }}>
                   {t('※ 未滿 18 歲需法定代理人（家長／監護人）簽署風險安全聲明書，並填寫下方法定代理人資料。')}
                 </div>
+                {minor && (
+                  <div style={{ background:'#FFF6E5', border:'0.5px solid #F0C97A', borderRadius:8, padding:'8px 10px', marginTop:8, fontSize:12, color:'#8A5A00', lineHeight:1.6, textAlign:'left' }}>
+                    {t('⚠️ 若您是家長／監護人，請用「您自己的資料」註冊帳號，登入後再於「家庭成員」新增孩子；直接用孩子的資料註冊，孩子的簽署只能透過家長 Email 連結完成。')}
+                  </div>
+                )}
               </div>
 
               {minor && (

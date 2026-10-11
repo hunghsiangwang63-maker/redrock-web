@@ -206,6 +206,11 @@ export default function MemberOnboardingGate({ children }) {
         <div style={{ fontSize:11, color:'#bbb', textAlign:'center', marginTop:8, lineHeight:1.6 }}>
           {t('將略過本人入場文件簽署；日後想自己入場，可於「個人」頁重新啟用簽署。')}
         </div>
+        {member?.isMinor && (
+          <div style={{ background:'#FFF6E5', border:'0.5px solid #F0C97A', borderRadius:8, padding:'8px 10px', marginTop:8, fontSize:12, color:'#8A5A00', lineHeight:1.6, textAlign:'left' }}>
+            {t('⚠️ 此帳號登記的是未成年人（可能是用孩子的資料註冊）。若這位孩子要入場，請「不要」選本人不入場，否則不會出現簽署頁。')}
+          </div>
+        )}
       </div>
       {showSkipConfirm && (
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:400, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }} onClick={() => setShowSkipConfirm(false)}>
@@ -218,6 +223,11 @@ export default function MemberOnboardingGate({ children }) {
                 <><strong>ご本人の入場書類の署名は省略されます</strong>——家族（お子様・ティーンエイジャー）の作成・管理専用となります。<br/>ご本人はクライミングできません。後で入場したい場合は「マイページ」で署名を再度有効にできます。</>
               )}
             </div>
+            {member?.isMinor && (
+              <div style={{ background:'#FFF6E5', border:'0.5px solid #F0C97A', borderRadius:8, padding:'8px 10px', marginBottom:14, fontSize:12, color:'#8A5A00', lineHeight:1.6, textAlign:'left' }}>
+                {t('⚠️ 此帳號登記的是未成年人（可能是用孩子的資料註冊）。若這位孩子要入場，請「不要」選本人不入場，否則不會出現簽署頁。')}
+              </div>
+            )}
             <div style={{ display:'flex', gap:8 }}>
               <button onClick={() => setShowSkipConfirm(false)} style={{ flex:1, height:44, borderRadius:10, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={handleSkipSelfEntry} disabled={busy} style={{ flex:1, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor: busy?'not-allowed':'pointer' }}>{t('確定不入場')}</button>
