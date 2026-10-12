@@ -3,7 +3,7 @@ import { DEFAULT_COMP_WAIVER } from '../../utils/competitionWaiverDefaults';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t, tt } from '../../utils/memberI18n';
+import { t, tt, getMemberLang } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
@@ -425,6 +425,9 @@ export default function MemberCompetitionsPage() {
         paidAmount: paymentMethod === 'transfer' && regPaidAmount ? Number(regPaidAmount) : null,
         signatureData: memberSig,
         guardianSignature: guardianSig || null,
+        // 簽名當下的同意書快照（賽事有自訂內容時後端以自己的為準）
+        waiverShownText: selectedComp?.waiverContent?.zh || tt(DEFAULT_COMP_WAIVER.zh, DEFAULT_COMP_WAIVER.en, DEFAULT_COMP_WAIVER.ja),
+        waiverLang: getMemberLang(), photoConsent: agreedPhoto,
       });
       if (res?.data?.isSimulation) { showMsg(res.data.message || t('🧪 模擬報名完成！已寄確認信，此為模擬、未實際報名'), 'ok'); setShowModal(false); return; }
       const reg = res?.data?.registration;
