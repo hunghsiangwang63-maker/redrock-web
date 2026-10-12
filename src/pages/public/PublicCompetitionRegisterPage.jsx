@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { publicClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { DEFAULT_COMP_WAIVER } from '../../utils/competitionWaiverDefaults';
 
 const RED = '#8B1A1A';
 
@@ -44,6 +45,9 @@ export default function PublicCompetitionRegisterPage() {
   const [customFieldValues, setCustomFieldValues] = useState({});
   const [bankLastFive, setBankLastFive] = useState('');
   const [paymentDate, setPaymentDate] = useState('');
+  const [parentName, setParentName] = useState('');   // 未成年：法定代理人姓名（必填）
+  const [agreedWaiver, setAgreedWaiver] = useState(false);
+  const [agreedPhoto, setAgreedPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState('');
   const [done, setDone] = useState(null);
@@ -88,6 +92,8 @@ export default function PublicCompetitionRegisterPage() {
     for (const f of (comp.customFields || [])) {
       if (f.required && !customFieldValues[f.key]) return setErr(tt(`請填寫「${f.label}」`, `Please fill in "${f.label}"`, `「${f.label}」を入力してください`));
     }
+    if (!agreedWaiver || !agreedPhoto) return setErr(t('請確認同意所有事項'));
+    if (isMinor && !parentName.trim()) return setErr(t('請填寫法定代理人姓名'));
     if (!sigRef.current || sigRef.current.isEmpty()) return setErr(t('請完成簽名'));
     if (sigRef.current.isTooSimple()) return setErr(t('簽名過於簡單，請以正楷書寫完整姓名'));
     if (isMinor && (!guardianSigRef.current || guardianSigRef.current.isEmpty())) return setErr(t('未滿 18 歲需法定代理人簽名'));
@@ -101,6 +107,7 @@ export default function PublicCompetitionRegisterPage() {
         customFieldValues,
         signatureData: sigRef.current.toDataURL(),
         guardianSignature: isMinor ? guardianSigRef.current.toDataURL() : null,
+        parentName: isMinor ? parentName.trim() : null,
         idNumber, emergencyContact, emergencyRelation, emergencyPhone,
         height: height || null, armSpan: armSpan || null, memberNote,
         practiceGym: practiceGym.trim(),
@@ -244,6 +251,21 @@ export default function PublicCompetitionRegisterPage() {
         )}
 
         <div style={card}>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{t('參賽同意書')}</div>
+          <div style={{ background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.9, whiteSpace:'pre-wrap', textAlign:'left', maxHeight:320, overflowY:'auto' }}>
+            {comp.waiverContent?.zh || tt(DEFAULT_COMP_WAIVER.zh, DEFAULT_COMP_WAIVER.en, DEFAULT_COMP_WAIVER.ja)}
+          </div>
+          <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${agreedWaiver?'#2D7D46':'#E8D5D5'}`, background:agreedWaiver?'#E6F4EB':'#fff', cursor:'pointer', marginTop:12 }}>
+            <input type="checkbox" checked={agreedWaiver} onChange={e=>setAgreedWaiver(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
+            <span style={{ fontSize:13, fontWeight:500, color:agreedWaiver?'#2D7D46':'#444' }}>{t('本人已詳細閱讀並同意上述參賽規定與風險安全聲明')}</span>
+          </label>
+          <label style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderRadius:8, border:`1.5px solid ${agreedPhoto?'#2D7D46':'#E8D5D5'}`, background:agreedPhoto?'#E6F4EB':'#fff', cursor:'pointer', marginTop:12 }}>
+            <input type="checkbox" checked={agreedPhoto} onChange={e=>setAgreedPhoto(e.target.checked)} style={{ width:18, height:18, accentColor:'#2D7D46' }}/>
+            <span style={{ fontSize:13, fontWeight:500, color:agreedPhoto?'#2D7D46':'#444' }}>{t('本人同意比賽中的照片或影像可作為紅石攀岩館紀錄或宣傳使用')}</span>
+          </label>
+        </div>
+
+        <div style={card}>
           <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{t('本人簽名（風險聲明書）*')}</div>
           <SignaturePad ref={sigRef} height={180} />
         </div>
@@ -252,6 +274,8 @@ export default function PublicCompetitionRegisterPage() {
           <div style={card}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{t('法定代理人簽名 *')}</div>
             <div style={{ fontSize: 12, color: '#854F0B', marginBottom: 10 }}>{t('選手未滿 18 歲，需法定代理人一併簽名')}</div>
+            <label style={{ ...label, marginTop: 0 }}>{t('法定代理人姓名')} *</label>
+            <input value={parentName} onChange={e => setParentName(e.target.value)} style={{ ...input, marginBottom: 12 }} />
             <SignaturePad ref={guardianSigRef} height={180} />
           </div>
         )}
