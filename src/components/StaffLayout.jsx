@@ -17,6 +17,7 @@ const NAV = [
   { path:'/staff/settlement', icon:'ti-calculator',    label:'結帳' },
   { path:'/staff/schedule',  icon:'ti-calendar-time',  label:'排班表' },
   { path:'/staff/activities', icon:'ti-calendar-event', label:'課程活動' },
+  { path:'/staff/levels',     icon:'ti-stairs-up',     label:'等級考核' },
   ...(ROUTES_FEATURE_LIVE ? [{ path:'/staff/routes', icon:'ti-route', label:'路線管理' }] : []),
   { path:'/staff/staff-entry', icon:'ti-qrcode',        label:'員工入館' },
   { path:'/staff/settings',   icon:'ti-settings',      label:'設定' },
@@ -53,8 +54,8 @@ export default function StaffLayout() {
   const onDuty = !!operator;
   const PERSONAL_NAV = {
     // 個人登入(非值班)：待辦/排班/員工入館；正職另加 課程活動 + 商品(庫存)
-    part_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/staff-entry'],
-    full_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/activities', '/staff/routes', '/staff/shop', '/staff/staff-entry', '/staff/settings'],
+    part_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/levels', '/staff/staff-entry'],
+    full_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/activities', '/staff/levels', '/staff/routes', '/staff/shop', '/staff/staff-entry', '/staff/settings'],
   };
   const canSeeNav = (path) => (isAdmin || onDuty) ? true : (PERSONAL_NAV[navRole] ? PERSONAL_NAV[navRole].includes(path) : true);
   // 全域場館切換僅 super_admin：載入場館清單

@@ -8,6 +8,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { requestCourseRefund, requestCoursePause, requestCourseTransfer, getCourseAdjustmentReasons } from '../../api/courseAdjustments';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
+import MemberLevelsCard from '../../components/MemberLevelsCard';
 
 // ── 課程規則共用元件（報名步驟3「規則確認」與 我的課程「📋 課程規則」modal 共用；改這裡兩邊連動）──
 const RULE_BOX_STYLE = { background:'#FBF5F5', borderRadius:8, padding:'12px 14px', fontSize:12, color:'#444', lineHeight:1.8, marginBottom:10, textAlign:'left' };
@@ -1027,6 +1028,7 @@ export default function MemberCoursesPage() {
           {msg}
         </div>
       )}
+      {tab === 'my' && <MemberLevelsCard memberId={member?.id} />}
 
       {/* 取消候補確認彈窗 */}
       {cancelWaitlistTarget && (
