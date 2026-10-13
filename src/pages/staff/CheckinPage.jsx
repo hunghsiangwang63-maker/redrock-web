@@ -1149,6 +1149,27 @@ export default function CheckinPage() {
                       ⚠ {memberEligibility.fallTestReason === 'expired' ? '墜落測驗已到期，需重新測驗才能入場' : '尚未通過安全墜落測驗，無法完成入場'}
                     </div>
                   )}
+                  {(() => {
+                    // 已付款的線上入場券（會員自己用街口等線上付款預購）：提醒櫃檯直接使用，別再收一次款
+                    // （2026-10-13 林珮瑜：線上付了 300，櫃檯又以電話入場收一次，造成重複記帳、票券閒置）
+                    const paid = (memberEligibility?.instruments?.singleEntryTicket?.tickets || []).filter(tk => tk.source === 'online-entry');
+                    if (!paid.length) return null;
+                    const tk = paid[0];
+                    const using = phoneInstrument?.kind === 'singleEntryTicket';
+                    const payLabel = { jkopay:'街口', linepay:'LINE Pay', taiwanpay:'台灣Pay' }[tk.paymentMethod] || tk.paymentMethod || '線上';
+                    return (
+                      <div style={{ background:'#FFF6E5', border:'1px solid #F0C36D', borderRadius:10, padding:'10px 12px', marginBottom:12 }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:'#8A5A00' }}>
+                          🎟 此會員已用{payLabel}線上付款 NT${tk.amount ?? ''}，有未使用的入場券{paid.length > 1 ? `（共 ${paid.length} 張）` : ''}
+                        </div>
+                        <div style={{ fontSize:12, color:'#8A5A00', margin:'4px 0 8px' }}>請直接使用這張入場券入場，不要再收一次費用。</div>
+                        <button type="button" onClick={() => setPhoneInstrument(using ? null : { kind:'singleEntryTicket', type:'single_entry_ticket', cardId: tk.id })}
+                          style={{ height:34, padding:'0 14px', borderRadius:8, border:'none', background: using ? '#2D7D46' : '#C0392B', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                          {using ? '✓ 已選用入場券（再點取消）' : '使用此入場券入場'}
+                        </button>
+                      </div>
+                    );
+                  })()}
                   {memberEligibility?.isVip ? (
                     <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:10, padding:'10px 12px', marginBottom:12, fontSize:13, color:'#8B6914', fontWeight:500 }}>
                       👑 VIP 會員，免費入場{memberEligibility.vipNote ? `（${memberEligibility.vipNote}）` : ''}
