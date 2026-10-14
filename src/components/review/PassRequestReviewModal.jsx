@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import dayjs from 'dayjs';
 import Modal from '../Modal';
 import { approvePassRequest, rejectPassRequest, getPassRefundPreview } from '../../api/passAdjustments';
+import { fmtTs } from '../../utils/formatTs';
 
-const fmtTs = (ts) => ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD HH:mm') : '—';
 
 // 定期票展延／退費／轉讓／課程練習期遞延 審核（共用：票券管理頁 + 待辦頁）
 // props: request {id,type,memberName,passTypeName,reasonLabel,reasonDetail,evidenceUrl,createdAt,

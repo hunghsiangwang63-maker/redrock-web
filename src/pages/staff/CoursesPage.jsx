@@ -27,6 +27,7 @@ import { getScheduleEvents } from '../../api/schedule';
 import ReminderFormFields from '../../components/ReminderFormFields';
 import dayjs from 'dayjs';
 import PauseCreditsModal from '../../components/PauseCreditsModal';
+import { WEEKDAYS } from '../../utils/weekdays';
 
 // 估算週課場次數（純預覽用，如分期試算/建立前參考；權威堂數仍以 generateWeeklySessions 實際產生為準）
 const estimateWeeklySessionCount = (startDate, endDate, weekdays) => {
@@ -82,7 +83,6 @@ const Modal = ({ title, onClose, children, width=480 }) => (
   </div>
 );
 
-const WEEKDAYS = ['日','一','二','三','四','五','六'];
 const PAYMENT_METHODS = [
   { key:'cash', label:'現金' },
   { key:'linepay', label:'Line Pay' },

@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import Modal from '../Modal';
 import client from '../../api/client';
 import { approveCourseAdjustment, rejectCourseAdjustment } from '../../api/courseAdjustments';
+import { fmtTs } from '../../utils/formatTs';
 
-const fmtTs = (ts) => ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD HH:mm') : '—';
 
 // 課程退費／暫停申請審核（共用：票券管理頁 + 待辦頁）
 // props: request {id,type:'refund'|'pause',memberName,courseName,reason,suggestedRefund,suggestedPercentage,enrollmentId,

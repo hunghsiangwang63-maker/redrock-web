@@ -1055,8 +1055,8 @@ export default function CompetitionsPage() {
           }
           btns.push(B('駁回報名','#A32D2D',()=>{ setRegDetail(null); setFormAction({type:'reject',reg:r}); setFormReason(''); },'rej'));
           if (r.isPartnerGymDiscount && r.partnerGymPending) {
-            btns.push(B('核准友館折扣','#2D7D46',async()=>{ try { await verifyCompetitionPartnerGym(r.id, true); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'vpg'));
-            btns.push(B('取消友館折扣','#854F0B',async()=>{ if(!window.confirm('確定取消此友館折扣、費用改回原價？')) return; try { await verifyCompetitionPartnerGym(r.id, false); setRegDetail(null); await load(); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'rpg'));
+            btns.push(B('核准友館折扣','#2D7D46',async()=>{ try { await verifyCompetitionPartnerGym(r.id, true); setRegDetail(null); await openRegistrations(showRegistrations); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'vpg'));
+            btns.push(B('取消友館折扣','#854F0B',async()=>{ if(!window.confirm('確定取消此友館折扣、費用改回原價？')) return; try { await verifyCompetitionPartnerGym(r.id, false); setRegDetail(null); await openRegistrations(showRegistrations); } catch(e){ alert(e.response?.data?.message||'操作失敗'); } },'rpg'));
           }
           return <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:14 }}>{btns}</div>;
         };

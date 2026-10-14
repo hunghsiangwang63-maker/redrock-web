@@ -101,6 +101,8 @@ import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import { GymContractInfoBox, ContractTermsSections } from '../../components/ContractTermsSections.jsx';
+import { WEEKDAYS } from '../../utils/weekdays';
+import { wdShort, wdList } from '../../utils/weekdaysI18n';
 
 // 課程服務同意書完整條款（報名步驟「合約條款」專用，僅週課出現）——條款文字改由設定頁提供
 // （GET /settings/contract-terms/member，見 loadContractTerms），與後端產生 PDF 時讀的是同一份
@@ -111,15 +113,8 @@ function FullContractTermsBox({ course, text }) {
   return <ContractTermsSections text={text} vars={{ postStartFeeRate: postRate, preStartFeeRate: preRate, transferFee: 600 }} />;
 }
 
-const WEEKDAYS = ['日','一','二','三','四','五','六'];
-const WD_EN = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const WD_JA = ['日','月','火','水','木','金','土'];
-// 單一星期幾（例：週四 / Thu / 木）——傳入 0-6 的 index
-const wdShort = (idx) => tt(WEEKDAYS[idx], WD_EN[idx], WD_JA[idx]);
 // 從日期算單一星期幾，供「（週四）」這類括號附註使用
 const wdOf = (dateLike) => wdShort(dayjs(dateLike).day());
-// 多個星期幾的清單，供「每週一、三、五」這類重複班表使用
-const wdList = (days) => (days || []).map(wdShort).join(isEn() ? ', ' : '、');
 
 export default function MemberCoursesPage() {
   const { member } = useMember();

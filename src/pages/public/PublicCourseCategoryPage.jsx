@@ -3,14 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
 import { t, tt, isEn, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 import { GYM_LABEL } from '../../utils/gymLabel';
+import { wdList } from '../../utils/weekdaysI18n';
 
 const RED = '#8B1A1A';
 const GYMS = [{ id: 'gym-hsinchu', label: '新竹館' }, { id: 'gym-shilin', label: '士林館' }];
-const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
-const WD_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const WD_JA = ['日', '月', '火', '水', '木', '金', '土'];
-const wdShort = (idx) => tt(WEEKDAYS[idx], WD_EN[idx], WD_JA[idx]);
-const wdList = (days) => (days || []).map(wdShort).join(isEn() ? ', ' : '、');
 
 // 公開班別瀏覽頁（免登入）：一個班別（如「入門班」）底下可能有多個梯次（不同星期/館別），
 // 訪客在這裡先看班別介紹，再挑要報名的梯次（週課→進報名頁；工作坊→再挑一個場次）。

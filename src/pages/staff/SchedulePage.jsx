@@ -3,6 +3,7 @@ import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, c
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
+import { WEEKDAYS } from '../../utils/weekdays';
 
 const Modal = ({ title, onClose, children, width=420 }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
@@ -16,7 +17,6 @@ const Modal = ({ title, onClose, children, width=420 }) => (
   </div>
 );
 
-const WEEKDAYS = ['日','一','二','三','四','五','六'];
 const STAFF_COLORS = ['#8B1A1A','#185FA5','#2D7D46','#854F0B','#533AB7','#0F6E56','#A32D2D','#B5762B'];
 
 // 重要事項標籤（休館/比賽/維修等，獨立於員工排班）

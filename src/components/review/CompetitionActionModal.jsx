@@ -3,10 +3,10 @@ import dayjs from 'dayjs';
 import Modal from '../Modal';
 import client from '../../api/client';
 import { confirmCompetitionPayment, rejectCompetitionPayment, refundCompetitionRegistration, getCompetitionRefundPreview } from '../../api/competitions';
+import { fmtTs } from '../../utils/formatTs';
 
 const inp = { width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const lbl = { fontSize:12, color:'#666', display:'block', marginBottom:5 };
-const fmtTs = (ts) => ts?._seconds ? dayjs(ts._seconds * 1000).format('YYYY-MM-DD HH:mm') : '—';
 
 // 比賽報名收款／退費（共用：賽事頁 + 待辦頁）
 // props: action 'pay'|'refund', reg {id,memberName,divisionName,paymentMethod,bankLastFive,paymentDate,registrationFee,

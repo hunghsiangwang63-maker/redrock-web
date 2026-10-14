@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { publicClient } from '../../api/client';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { WEEKDAYS } from '../../utils/weekdays';
 
 const RED = '#8B1A1A';
-const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
 // 公開週課整期報名資訊頁（免登入可瀏覽課程資訊；實際報名需先登入或註冊會員）。
 // 連結格式：/book/course?course=<courseId>
