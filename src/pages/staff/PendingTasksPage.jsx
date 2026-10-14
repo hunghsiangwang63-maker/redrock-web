@@ -193,6 +193,11 @@ export default function PendingTasksPage() {
   // 連續快速處理多筆待辦（核准A→立刻核准B）很容易讓兩個請求同時在飛；較舊的請求若較晚回來，會用過期
   // 資料蓋掉剛核准完成後的最新清單，讓已處理項目「看起來又跑回來」。用序號只採用最新一次請求的回應
   // （比照 loadNotifs() 同一套修法）。
+  // 載入失敗（逾時/斷線/5xx）要看得到：原本失敗時把清單清成空，畫面會顯示綠色「✅ 目前沒有待處理事項」，
+  // 櫃檯會誤以為真的沒有待辦（2026-10-14 後端慢實例時段）。現在失敗時保留原有資料、顯示警示與重試。
+  const [loadError, setLoadError] = useState(null);         // 主待辦清單：{ detail }
+  const [returnedError, setReturnedError] = useState(false); // 退回追蹤清單
+  const describeErr = (e) => e?.code === 'ECONNABORTED' ? '連線逾時' : (e?.response?.status ? `伺服器回應 ${e.response.status}` : (e?.message || '網路連線失敗'));
   const loadReqSeq = useRef(0);
   const load = useCallback(async () => {
     const seq = ++loadReqSeq.current;
@@ -203,10 +208,11 @@ export default function PendingTasksPage() {
       if (seq !== loadReqSeq.current) return;
       setTasks(res.data.tasks || []);
       setRegistrations(res.data.registrations || []);
+      setLoadError(null);
       client.get('/pending-tasks/returned', { params })
-        .then(r => { if (seq === loadReqSeq.current) setReturnedItems(r.data.items || []); })
-        .catch(() => { if (seq === loadReqSeq.current) setReturnedItems([]); });
-    } catch(e) { if (seq === loadReqSeq.current) { setTasks([]); setRegistrations([]); } }
+        .then(r => { if (seq === loadReqSeq.current) { setReturnedItems(r.data.items || []); setReturnedError(false); } })
+        .catch(() => { if (seq === loadReqSeq.current) setReturnedError(true); }); // 保留原資料，不清空
+    } catch(e) { if (seq === loadReqSeq.current) setLoadError({ detail: describeErr(e) }); } // 保留原資料，不清空
     finally { if (seq === loadReqSeq.current) setLoading(false); }
   }, [gymFilter, isAdmin]);
 
@@ -819,7 +825,8 @@ export default function PendingTasksPage() {
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:16, marginBottom:16 }}>
           <div style={{ fontSize:14, fontWeight:700, marginBottom:4 }}>↩️ 退回追蹤 · 退回的申請／繳費（追蹤至結案）</div>
           <div style={{ fontSize:11, color:'#999', marginBottom:12, lineHeight:1.6 }}>管理者／值班退回後在此追蹤：待會員補正 → 已補正待確認 → 確認收款或取消即結案（自動移除）。點「詳情」看會員填寫資料與退回原因。</div>
-          {returnedItems.length === 0 && <div style={{ fontSize:13, color:'#999', padding:'12px 0', textAlign:'center' }}>目前沒有待追蹤的退回件</div>}
+          {returnedItems.length === 0 && !returnedError && <div style={{ fontSize:13, color:'#999', padding:'12px 0', textAlign:'center' }}>目前沒有待追蹤的退回件</div>}
+          {returnedError && <div style={{ fontSize:13, color:'#A32D2D', padding:'12px 0', textAlign:'center' }}>⚠️ 退回追蹤載入失敗，無法確認是否有退回件，請按上方「重新整理」重試</div>}
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
             {returnedItems.map(it => (
               <div key={`${it.orderType}_${it.orderId}`} style={{ background:'#FBF5F5', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'12px 14px' }}>
@@ -913,8 +920,14 @@ export default function PendingTasksPage() {
         );
       })()}
 
+      {!loading && loadError && (
+        <div role="alert" style={{ background:'#FCEBEB', border:'0.5px solid #F09595', borderRadius:10, padding:'12px 14px', marginBottom:14, fontSize:13, color:'#A32D2D', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+          <span>⚠️ 待辦載入失敗（{loadError.detail}）。{total === 0 ? '目前無法確認是否有待處理事項，請重新載入。' : '下方顯示的可能不是最新資料。'}</span>
+          <button onClick={() => load()} style={{ border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', borderRadius:6, padding:'4px 12px', fontSize:12, cursor:'pointer' }}>重新載入</button>
+        </div>
+      )}
       {loading && <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div>}
-      {!loading && total === 0 && (
+      {!loading && total === 0 && !loadError && (
         <div style={{ background:'#fff', borderRadius:14, border:'0.5px solid #E8D5D5', padding:40, textAlign:'center' }}>
           <div style={{ fontSize:36, marginBottom:8 }}>✅</div>
           <div style={{ fontSize:15, fontWeight:600, color:'#2D7D46' }}>目前沒有待處理事項</div>
