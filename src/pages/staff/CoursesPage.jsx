@@ -473,6 +473,14 @@ export default function CoursesPage({ embedded = false }) {
     const seq = ++sessionsSeqRef.current;
     try {
       const c = course || selectedCourse;
+      // 有選定梯次：只查該梯次場次（後端 withStats 仍回完整人數統計）。原本查整館 180 天，單次 20+ 秒、
+      // 超過 client 10 秒逾時，錯誤被吞掉顯示「尚無場次」（2026-10-14）。
+      if (c?.id) {
+        const r = await getSessions({ courseId: c.id, withStats: 1 });
+        if (seq !== sessionsSeqRef.current) return;
+        setSessions(r.data.sessions || []);
+        return;
+      }
       const fromDate = c?.startDate || dayjs().subtract(7, 'day').format('YYYY-MM-DD');
       // toDate 不截在課程結束日：加開/改期到結束日之後的場次才看得到（取 課程結束日 vs 今日+180 較晚者）
       const horizon = dayjs().add(180, 'day').format('YYYY-MM-DD');
