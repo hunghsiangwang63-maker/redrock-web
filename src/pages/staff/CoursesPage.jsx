@@ -148,6 +148,13 @@ export default function CoursesPage({ embedded = false }) {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState('');
   const [msgType, setMsgType] = useState('ok');
+  // 載入失敗（逾時/伺服器錯誤）要看得到：原本 catch (e) {} 靜默吞掉，畫面只會顯示空清單「尚無場次」（2026-10-14）
+  const [loadError, setLoadError] = useState(null); // { label, detail, retry }
+  const reportLoadError = (label, e, retry) => {
+    const detail = e?.code === 'ECONNABORTED' ? '連線逾時' : (e?.response?.status ? `伺服器回應 ${e.response.status}` : (e?.message || '網路錯誤'));
+    setLoadError({ label, detail, retry });
+  };
+  const clearLoadError = (label) => setLoadError(cur => (cur && cur.label === label ? null : cur));
   // 改課表重產：孤兒場次確認 Modal { courseId, orphans, willCreate, willDelete }
   const [orphanConfirm, setOrphanConfirm] = useState(null);
   const [orphanBusy, setOrphanBusy] = useState(false);
@@ -362,7 +369,8 @@ export default function CoursesPage({ embedded = false }) {
     try {
       const res = await getCategories();
       setCategories(res.data.categories || []);
-    } catch (e) {}
+      clearLoadError('班別');
+    } catch (e) { reportLoadError('班別', e, loadCategories); }
   };
 
   // 班別表單 → API payload（規則空值＝null 用系統預設；手續費率 % → 小數）
@@ -463,7 +471,8 @@ export default function CoursesPage({ embedded = false }) {
       const res = await getCourses(effectiveGymId);
       if (seq !== coursesSeqRef.current) return;
       setCourses(res.data.courses || []);
-    } catch (e) {}
+      clearLoadError('課程列表');
+    } catch (e) { if (seq === coursesSeqRef.current) reportLoadError('課程列表', e, loadCourses); }
   };
 
   // ⚠️ 由分頁切換與多個場次/名單相關動作觸發，序號防過期回應覆蓋（尤其快速切換課程時避免用
@@ -479,6 +488,7 @@ export default function CoursesPage({ embedded = false }) {
         const r = await getSessions({ courseId: c.id, withStats: 1 });
         if (seq !== sessionsSeqRef.current) return;
         setSessions(r.data.sessions || []);
+        clearLoadError('場次');
         return;
       }
       const fromDate = c?.startDate || dayjs().subtract(7, 'day').format('YYYY-MM-DD');
@@ -488,7 +498,8 @@ export default function CoursesPage({ embedded = false }) {
       const res = await getSessions({ gymId: effectiveGymId, fromDate, toDate });
       if (seq !== sessionsSeqRef.current) return;
       setSessions(res.data.sessions || []);
-    } catch (e) {}
+      clearLoadError('場次');
+    } catch (e) { if (seq === sessionsSeqRef.current) reportLoadError('場次', e, () => loadSessions(course)); }
   };
 
   const loadCalendarSessions = async () => {
@@ -498,7 +509,8 @@ export default function CoursesPage({ embedded = false }) {
       const toDate = dayjs(`${calendarMonth}-01`).endOf('month').format('YYYY-MM-DD');
       const res = await getSessions({ gymId: effectiveGymId, fromDate, toDate });
       setCalendarSessions(res.data.sessions || []);
-    } catch (e) { setCalendarSessions([]); }
+      clearLoadError('月曆');
+    } catch (e) { setCalendarSessions([]); reportLoadError('月曆', e, loadCalendarSessions); }
     finally { setCalendarLoading(false); }
     // 國定假日純視覺提醒（來自排班行事曆「重要事項」休館類別，全館共用、不影響上方場次資料）——
     // 後端要求帶 gymId 才能查（無關資料本身，假日事項一律 gymId:null 全館皆回），super_admin
@@ -1072,6 +1084,16 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
   return (
     <div style={{ padding: embedded?0:20, background:'#F7F3F3' }}>
       {showPauseCredits && <PauseCreditsModal onClose={() => setShowPauseCredits(false)} />}
+      {loadError && (
+        <div style={{ background:'#FCEBEB', border:'0.5px solid #F09595', borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, color:'#A32D2D', display:'flex', justifyContent:'space-between', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+          <span>⚠️ {loadError.label}載入失敗（{loadError.detail}），畫面上的資料可能不完整，不是真的沒有資料。</span>
+          <span style={{ display:'flex', gap:12 }}>
+            <button onClick={() => { const r = loadError.retry; setLoadError(null); r && r(); }}
+              style={{ border:'0.5px solid #A32D2D', background:'#fff', color:'#A32D2D', borderRadius:6, padding:'4px 12px', fontSize:12, cursor:'pointer' }}>重新載入</button>
+            <span style={{ cursor:'pointer' }} onClick={() => setLoadError(null)}>✕</span>
+          </span>
+        </div>
+      )}
       {msg && (
         <div style={{ background: msgType==='ok'?'#E6F4EB':'#FCEBEB', border:`0.5px solid ${msgType==='ok'?'#B3DEC0':'#F09595'}`, borderRadius:8, padding:'10px 14px', marginBottom:14, fontSize:13, color: msgType==='ok'?'#2D7D46':'#A32D2D', display:'flex', justifyContent:'space-between' }}>
           {msg} <span style={{ cursor:'pointer' }} onClick={() => setMsg('')}>✕</span>
