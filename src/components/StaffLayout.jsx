@@ -3,6 +3,7 @@ import PasswordInput from './PasswordInput';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../store/authStore.jsx';
 import client from '../api/client';
+import LoadErrorBanner from './LoadErrorBanner';
 
 // 抱石路線攻略：入口暫時隱藏（測試期間直接輸入 /staff/routes 進入）；全部測試完成後改 true 正式上線
 const ROUTES_FEATURE_LIVE = true;
@@ -266,6 +267,7 @@ export default function StaffLayout() {
               </button>
             </div>
           )}
+          <LoadErrorBanner />
           <Outlet />
         </div>
       </div>

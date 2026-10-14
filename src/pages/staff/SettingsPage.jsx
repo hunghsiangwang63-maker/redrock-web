@@ -239,7 +239,8 @@ export default function SettingsPage() {
     } finally { setStationSaving(false); }
   };
   const handleToggleStation = async (st) => {
-    try { await updateStation(st.id, { isActive: !st.isActive }); await loadStationList(); } catch (e) {}
+    try { await updateStation(st.id, { isActive: !st.isActive }); await loadStationList(); }
+    catch (e) { showMsg(e?.response?.data?.message || (e?.code === 'ECONNABORTED' ? '連線逾時，館別電腦狀態未變更' : '館別電腦狀態變更失敗'), 'err'); }
   };
 
   // 正職辦公權限預設全開（對齊角色預設值），既有帳號則以已存的 permissionOverrides 覆蓋（缺的 key 視為預設 true）

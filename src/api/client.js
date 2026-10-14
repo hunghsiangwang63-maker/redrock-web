@@ -13,7 +13,25 @@ client.interceptors.request.use(config => {
   config.headers['X-Client-App'] = 'staff'; // 供後端統計會員端/員工端流量拆分（2026-08-20）
   return config;
 });
+// 讀取資料失敗（逾時／斷線／伺服器 5xx）→ 通知版面顯示紅色提示（見 components/LoadErrorBanner.jsx）。
+// 各頁的 `catch (e) {}` 會把錯誤吞掉、畫面變成空清單，看起來像「沒有資料」（2026-10-14 場次出不來事件）；
+// 在共用 client 集中偵測，不必逐頁改。只管 GET；4xx（權限/找不到/參數錯）屬預期回應不提示；背景輪詢類端點排除。
+const SILENT_LOAD_URLS = ['/pending-tasks', '/version.json', '/client-errors', '/_diag'];
+const notifyLoadError = (err) => {
+  try {
+    const cfg = err?.config;
+    if (!cfg || String(cfg.method || '').toLowerCase() !== 'get') return;
+    if (axios.isCancel?.(err)) return;
+    const status = err.response?.status;
+    if (status && status < 500) return;
+    const url = String(cfg.url || '');
+    if (SILENT_LOAD_URLS.some(u => url.includes(u))) return;
+    const detail = err.code === 'ECONNABORTED' ? '連線逾時' : (status ? `伺服器回應 ${status}` : '網路連線失敗');
+    window.dispatchEvent(new CustomEvent('staff-load-error', { detail: { url, detail } }));
+  } catch (_) { /* 提示本身絕不能再拋錯 */ }
+};
 client.interceptors.response.use(res => res, err => {
+  notifyLoadError(err);
   // 登入端點本身的401是正常的「帳密錯誤/裝置驗證」回應，不是「已登入後token失效」，
   // 不該觸發清空登入狀態+整頁重導，否則登入表單永遠來不及顯示真正的錯誤訊息給使用者看
   const isLoginEndpoint = err.config?.url?.includes('/auth/staff/login')
