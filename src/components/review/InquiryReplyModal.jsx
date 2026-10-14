@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Modal from '../Modal';
 import client from '../../api/client';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 // 會員問題諮詢——回覆彈窗（2026-09-02 新增）。顯示會員的完整提問內容供閱讀後回覆；
 // 已回覆過的提問（record.status==='replied'）改唯讀顯示既有回覆，不能重複回覆。
@@ -9,7 +10,6 @@ export default function InquiryReplyModal({ record, onClose, onDone }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const already = record.status === 'replied';
-  const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
   const submit = async () => {
     if (!reply.trim()) { setError('請填寫回覆內容'); return; }

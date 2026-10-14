@@ -8,6 +8,7 @@ import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore.jsx';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import client from '../../api/client';
+import { downloadFile } from '../../utils/downloadFile';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import dayjs from 'dayjs';
 
@@ -358,17 +359,9 @@ export default function SalesPage({ embedded = false }) {
 
   const handleExport = async () => {
     try {
-      const params = staff?.gymId ? `?gymId=${staff.gymId}` : '';
-      const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:3001/products/export${params}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = '庫存清單.xlsx'; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
-    } catch (e) { showMsg('匯出失敗', 'red'); }
+      // 原本寫死 http://localhost:3001（正式站一定失敗）且手讀 token；改走共用下載工具（2026-10-14）
+      await downloadFile('/products/export', { params: staff?.gymId ? { gymId: staff.gymId } : undefined, filename: '庫存清單.xlsx' });
+    } catch (e) { showMsg('匯出失敗：' + e.message, 'red'); }
   };
 
   const openStocktake = async () => {

@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 const RED = '#8B1A1A';
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 const GRADE_COLORS = {
   V0: '#5CA85C', V1: '#4E9E7E', V2: '#3E8FA8', V3: '#3D6FB5', V4: '#5B54B8',
   V5: '#8B48B0', V6: '#B03E96', V7: '#C13A5E', V8: '#C1462A', V9: '#8A3A1E', V10: '#3A3A3A',

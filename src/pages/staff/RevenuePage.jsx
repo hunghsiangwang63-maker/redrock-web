@@ -4,6 +4,7 @@ import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import PayoutsPanel from './PayoutsPanel';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 // 日報表分類欄位（入場/租借/定期票 拆開）
 const DAILY_COLS = [
@@ -26,7 +27,6 @@ const PAYMENT_LABEL = {
   taiwanpay: '台灣Pay', ecpay_atm: 'ATM轉帳',
 };
 
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
 export default function RevenuePage({ embedded = false }) {
   const { staff, viewGym } = useAuth();

@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { getStaffFallTestSignature } from '../../api/fallTests';
 import { completeFallTestBooking, returnFallTestBooking } from '../../api/fallTestBookings';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 // 站台待辦：墜落測驗待安排 → 檢視 waiver / 同意書副本（可展開看條款＋簽名），登記通過/未通過/退回
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
 const Row = ({ label, children }) => (
   <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '0.5px solid #F5EFEF', fontSize: 13 }}>

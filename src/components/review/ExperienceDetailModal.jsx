@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import client from '../../api/client';
 import CoachSelect from '../CoachSelect';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 // 體驗預約「確認」彈窗：顯示完整預約資訊 + 指定教練，按「確認預約」正式確認並排課/排班
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
 const fieldStyle = { width: '100%', height: 38, borderRadius: 8, border: '0.5px solid #E8D5D5', padding: '0 10px', fontSize: 13, background: '#FBF5F5', color: '#1a1a1a', outline: 'none', boxSizing: 'border-box' };
 

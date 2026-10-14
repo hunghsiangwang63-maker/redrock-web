@@ -82,7 +82,6 @@ export default function PassesPage() {
   // 票券統計
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
-  const API_BASE = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
 
   const loadAnalytics = async () => {
     setAnalyticsLoading(true);

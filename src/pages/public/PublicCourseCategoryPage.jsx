@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
 import { t, tt, isEn, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 const RED = '#8B1A1A';
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 const GYMS = [{ id: 'gym-hsinchu', label: '新竹館' }, { id: 'gym-shilin', label: '士林館' }];
 const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const WD_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

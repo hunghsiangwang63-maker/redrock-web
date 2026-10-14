@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 const RED = '#8B1A1A';
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 const GYMS = [{ id: 'gym-hsinchu', label: '新竹館' }, { id: 'gym-shilin', label: '士林館' }];
 
 // 公開課程總覽（免登入，第一層：全部班別）：訪客先在這裡挑班別（如「入門班」），

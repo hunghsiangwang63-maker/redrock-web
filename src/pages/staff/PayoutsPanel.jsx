@@ -3,8 +3,8 @@ import dayjs from 'dayjs';
 import { getPayouts, createPayout, updatePayout, deletePayout, exportPayouts } from '../../api/payouts';
 import { useAuth } from '../../store/authStore';
 import Modal from '../../components/Modal';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 const CATEGORY_SUGGESTIONS = ['教練費', '定線費', '拆點費', '講師費', '肢體評估費用', '其他'];
 const NT = (n) => `NT$${(n || 0).toLocaleString()}`;
 

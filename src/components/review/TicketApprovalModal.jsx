@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { approveTicket, approveTicketBatch } from '../../api/passes';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 // 單次入場券「核准」彈窗：顯示票券詳情，按「核准」才正式審核通過
 // 單次入場券為館方招待/贈券性質，無金額與付款方式
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 
 const Row = ({ label, children }) => (
   <div style={{ display: 'flex', gap: 12, padding: '8px 0', borderBottom: '0.5px solid #F5EFEF', fontSize: 13 }}>

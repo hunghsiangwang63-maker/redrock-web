@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
 import { reportClientError } from '../../utils/reportClientError';
 import client from '../../api/client';
+import { downloadFile } from '../../utils/downloadFile';
 import SaveButton from '../../components/SaveButton';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -11,7 +12,6 @@ import { InvoiceButtonView } from '../../components/InvoiceButton';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 
-const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
 // 日期補星期幾（格式對齊全站既有慣例，如 SchedulePage/RevenuePage 的 週X）
 const WD = ['日','一','二','三','四','五','六'];
 const dateWD = (dateStr) => dateStr ? `${dateStr}（週${WD[dayjs(dateStr).day()]}）` : dateStr;
@@ -34,7 +34,7 @@ const inp = { height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'
 const tinp = { width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#fff', color:'#1a1a1a', outline:'none', boxSizing:'border-box' };
 
 export default function ExperienceBookingsPage() {
-  const { staff, token, operator } = useAuth();
+  const { staff, operator } = useAuth();
   const isAdmin = ['super_admin','gym_manager'].includes(staff?.role);
   const canInvoice = isAdmin || !!operator; // 開立發票比照後端 requireManagerOrStation（管理員或值班）
   const [tab, setTab] = useState('bookings');
@@ -339,23 +339,22 @@ export default function ExperienceBookingsPage() {
   };
 
 
-  const getToken = () => token || localStorage.getItem('token') || localStorage.getItem('operatorToken') || '';
-
-  const downloadXLS = () => {
-    const params = new URLSearchParams();
-    if (gymFilter) params.set('gymId',gymFilter);
-    if (fromDate) params.set('from',fromDate);
-    if (toDate) params.set('to',toDate);
-    fetch(`${API}/experience-bookings/download?${params}`, { headers:{ Authorization:`Bearer ${getToken()}` } })
-      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`experience_${dayjs().format('YYYYMMDD')}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); });
+  // 下載改走共用下載工具（共用 client 帶 token、失敗會顯示訊息；原手刻 fetch 失敗時會把錯誤內容存成檔案）
+  const downloadXLS = async () => {
+    const params = {};
+    if (gymFilter) params.gymId = gymFilter;
+    if (fromDate) params.from = fromDate;
+    if (toDate) params.to = toDate;
+    try { await downloadFile('/experience-bookings/download', { params, filename: `experience_${dayjs().format('YYYYMMDD')}.xlsx` }); }
+    catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
 
-  const downloadInsurance = (bookingId) => {
-    const params = new URLSearchParams();
-    if (bookingId) { params.set('bookingId',bookingId); }
-    else { if (gymFilter) params.set('gymId',gymFilter); if (fromDate) params.set('from',fromDate); if (toDate) params.set('to',toDate); }
-    fetch(`${API}/experience-bookings/insurance-download?${params}`, { headers:{ Authorization:`Bearer ${getToken()}` } })
-      .then(r=>r.blob()).then(blob=>{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`旅平險名冊_${dayjs().format('YYYYMMDD')}.xls`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 3000); });
+  const downloadInsurance = async (bookingId) => {
+    const params = {};
+    if (bookingId) { params.bookingId = bookingId; }
+    else { if (gymFilter) params.gymId = gymFilter; if (fromDate) params.from = fromDate; if (toDate) params.to = toDate; }
+    try { await downloadFile('/experience-bookings/insurance-download', { params, filename: `旅平險名冊_${dayjs().format('YYYYMMDD')}.xls` }); }
+    catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
 
   const saveSettings = async () => {

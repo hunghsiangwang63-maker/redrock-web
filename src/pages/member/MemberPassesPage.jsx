@@ -12,8 +12,8 @@ import PassContractReview from '../../components/PassContractReview';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import { isMinor } from '../../utils/age';
 import dayjs from 'dayjs';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 // Firestore Timestamp（{_seconds}/{seconds}）或 ISO 字串 → dayjs；無效回 null
 const tsToDay = (ts) => {
   if (!ts) return null;

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getCompetitions, createCompetition, updateCompetition, getCompetitionRegistrations, returnCompetitionForm, rejectCompetitionForm, rejectCompetitionPayment } from '../../api/competitions';
 import client from '../../api/client';
+import { downloadFile } from '../../utils/downloadFile';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -497,29 +498,13 @@ export default function CompetitionsPage() {
 
   const handleDownloadCSV = async (c) => {
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
-      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
-      const r = await fetch(`${API}/competitions/${c.id}/registrations/download`, { headers: { Authorization: `Bearer ${tok}` } });
-      if (!r.ok) { const t = await r.text().catch(()=>''); throw new Error(r.status === 403 ? '權限不足' : `${r.status} ${t.slice(0,120)}`); }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `${c.name}_報名名單_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      await downloadFile(`/competitions/${c.id}/registrations/download`, { filename: `${c.name}_報名名單_${new Date().toISOString().slice(0,10)}.xlsx` });
     } catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
 
   const handleDownloadInsuranceRoster = async (c, format) => {
     try {
-      const API = import.meta.env.VITE_API_BASE || 'https://api.redrocktaiwan.com';
-      const tok = localStorage.getItem('operatorToken') || localStorage.getItem('token') || localStorage.getItem('stationToken') || '';
-      const r = await fetch(`${API}/competitions/${c.id}/insurance-roster/download?format=${format}`, { headers: { Authorization: `Bearer ${tok}` } });
-      if (!r.ok) { const t = await r.text().catch(()=>''); throw new Error(r.status === 403 ? '權限不足' : `${r.status} ${t.slice(0,120)}`); }
-      const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
-      a.download = `${c.name}_簽到表暨保險名冊_${new Date().toISOString().slice(0,10)}.${format}`; a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      await downloadFile(`/competitions/${c.id}/insurance-roster/download`, { params: { format }, filename: `${c.name}_簽到表暨保險名冊_${new Date().toISOString().slice(0,10)}.${format}` });
     } catch (e) { showMsg('下載失敗：' + e.message, 'red'); }
   };
 

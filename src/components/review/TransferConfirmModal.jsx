@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
+import { GYM_LABEL } from '../../utils/gymLabel';
 
 // 轉帳「確認收款」彈窗：顯示完整匯款資訊，按「確認收款」才正式確認
 const ORDER_TYPE_LABEL = {
   course: '課程', experience: '體驗', competition: '競賽',
   rental: '器材租借', team_member: '攀岩隊員',
 };
-const GYM_LABEL = { 'gym-hsinchu': '新竹館', 'gym-shilin': '士林館' };
 const PAY_LABEL = { cash: '現金', transfer: '轉帳', linepay: 'LinePay', jkopay: '街口', taiwanpay: '台灣Pay' };
 
 const Row = ({ label, children }) => (

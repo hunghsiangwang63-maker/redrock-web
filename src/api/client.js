@@ -22,6 +22,7 @@ const notifyLoadError = (err) => {
     const cfg = err?.config;
     if (!cfg || String(cfg.method || '').toLowerCase() !== 'get') return;
     if (axios.isCancel?.(err)) return;
+    if (cfg.responseType === 'blob') return; // 檔案下載失敗由呼叫端自己顯示訊息
     const status = err.response?.status;
     if (status && status < 500) return;
     const url = String(cfg.url || '');
