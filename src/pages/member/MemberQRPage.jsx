@@ -67,6 +67,7 @@ export default function MemberQRPage() {
   const [qrExpiry, setQrExpiry] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [verifyFailed, setVerifyFailed] = useState(false); // 驗票請求本身失敗（逾時/斷線），不是「資格不符」——畫面要區分，避免客人誤以為被拒絕入場
   const [qrClosedReason, setQrClosedReason] = useState(null); // 'cancelled' | 'expired' → 停止輪詢並提示
   const [onlinePayFor, setOnlinePayFor] = useState(null); // 線上支付（pay-first）Modal：{ entryType, amount, gymId } | null
   const [onlinePaySuccess, setOnlinePaySuccess] = useState(false); // 付款完成提示（導回選身分，改選「使用單次入場券」領取）
@@ -183,6 +184,7 @@ export default function MemberQRPage() {
     const seq = ++verifySeqRef.current;
     setStep('loading');
     setError(null);
+    setVerifyFailed(false);
     // 切換對象時清空上一位的流程狀態
     setSelectedType(null); setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null); setBuyPassPlan('full');
     setRenewOptIn(false); setRenewPlan('full');
@@ -190,7 +192,8 @@ export default function MemberQRPage() {
     setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
     const clearJustPaid = () => { justPaidAutoSelectRef.current = false; justPaidRetryRef.current = 0; setConfirmingPayment(false); };
     try {
-      const res = await memberClient.post('/checkin/verify', { identifier: member.phone, gymId, targetMemberId: entrant.id });
+      // timeout 放寬到 25 秒（共用 client 預設 10 秒；後端偶爾落在慢實例時，驗票要查多筆資料會超過 10 秒而誤顯示失敗，2026-10-14）
+      const res = await memberClient.post('/checkin/verify', { identifier: member.phone, gymId, targetMemberId: entrant.id }, { timeout: 25000 });
       if (seq !== verifySeqRef.current) return;
       const data = res.data;
       setVerifyResult(data);
@@ -249,6 +252,8 @@ export default function MemberQRPage() {
       if (seq !== verifySeqRef.current) return;
       clearJustPaid();
       setError(err.response?.data?.message || t('驗票失敗'));
+      // 沒有伺服器回應（逾時/斷線）或 5xx＝驗票本身失敗，不是資格不符：清掉舊結果、畫面改顯示「連線問題，請重試」
+      if (!err.response || err.response.status >= 500) { setVerifyResult(null); setVerifyFailed(true); }
       setStep('blocked');
     }
   };
@@ -485,15 +490,17 @@ export default function MemberQRPage() {
     const isAlreadyIn = verifyResult?.reason === 'already_checked_in';
     const needsWaiver = verifyResult?.reason === 'waiver_required';
     const pendingParent = verifyResult?.reason === 'parent_waiver_pending';
+    const netFail = verifyFailed && !verifyResult; // 驗票請求失敗（非資格不符）
     return wrap(
       <>
         <Header title={t('入場 QR Code')} onBack={() => navigate('/member/home')} />
         <GymSelector /><MemberSelector />
         <div style={{ padding:20 }}>
           <div style={{ background: isAlreadyIn ? '#E6F4EB' : '#FCEBEB', borderRadius:12, border: `0.5px solid ${isAlreadyIn ? '#B3DEC0' : '#F09595'}`, padding:24, textAlign:'center' }}>
-            <div style={{ fontSize:40, marginBottom:12 }}>{isAlreadyIn ? '✅' : pendingParent ? '📧' : '🚫'}</div>
+            <div style={{ fontSize:40, marginBottom:12 }}>{isAlreadyIn ? '✅' : netFail ? '⚠️' : pendingParent ? '📧' : '🚫'}</div>
             <div style={{ fontWeight:600, fontSize:16, color: isAlreadyIn ? '#2D7D46' : '#A32D2D', marginBottom:8 }}>
               {isAlreadyIn ? t('今日已完成入場') :
+               netFail ? t('驗票失敗') :
                needsWaiver ? t('Waiver 尚未完成') :
                pendingParent ? t('等待法定代理人簽署') :
                verifyResult?.reason === 'fall_test_required' ? t('尚未通過墜落測驗') :
@@ -501,6 +508,7 @@ export default function MemberQRPage() {
             </div>
             <div style={{ fontSize:13, color: isAlreadyIn ? '#2D7D46' : '#A32D2D', opacity:.8, textAlign:'left' }}>
               {isAlreadyIn ? verifyResult?.message :
+               netFail ? t('連線逾時或網路不穩，並非無法入場。請按「重新驗票」再試一次；若一直失敗請洽服務台。') :
                needsWaiver ? t('請先完成 Waiver 風險安全聲明書簽署，才能入場') :
                verifyResult?.reason === 'parent_waiver_pending' ? t('已送出，等待法定代理人完成線上簽署') :
                verifyResult?.reason === 'fall_test_required' ? t('請先至服務台完成安全墜落測驗同意書簽署及墜落測驗') :

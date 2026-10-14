@@ -66,6 +66,7 @@ const DICT_EN = {
   '驗票中...': 'Verifying...',
   '確認付款中，請稍候...': 'Confirming your payment...',
   '驗票失敗': 'Verification failed',
+  '連線逾時或網路不穩，並非無法入場。請按「重新驗票」再試一次；若一直失敗請洽服務台。': 'The connection timed out or is unstable — this does not mean you cannot enter. Please tap "Re-verify" to try again; if it keeps failing, please ask the front desk.',
   '產生 QR Code 失敗': 'Failed to generate QR code',
 
   // ── 入場 QR：擋下畫面 ──
@@ -1687,6 +1688,7 @@ const DICT_JA = {
   '驗票中...': '確認中...',
   '確認付款中，請稍候...': 'お支払いを確認しています...',
   '驗票失敗': '確認に失敗しました',
+  '連線逾時或網路不穩，並非無法入場。請按「重新驗票」再試一次；若一直失敗請洽服務台。': '通信がタイムアウトしたか不安定です。入場できないわけではありません。「再確認する」をもう一度押してください。繰り返し失敗する場合はフロントへお声がけください。',
   '產生 QR Code 失敗': 'QRコードの生成に失敗しました',
 
   // ── 入場 QR：擋下畫面 ──
