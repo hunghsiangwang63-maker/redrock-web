@@ -641,13 +641,13 @@ export default function MemberProfilePage() {
                 style={{ flex:1, height:48, borderRadius:12, border:'0.5px solid #E8D5D5', background:'none', color:'#333', fontSize:14, cursor:'pointer' }}>{t('取消')}</button>
               <button onClick={async () => {
                 if (pwForm.newPw !== pwForm.confirm) { setMsg(t('新密碼不一致')); setMsgOk(false); return; }
-                if (pwForm.newPw.length < 6) { setMsg(t('密碼至少6碼')); setMsgOk(false); return; }
+                if (pwForm.newPw.length < 8) { setMsg(t('密碼至少 8 碼')); setMsgOk(false); return; }
                 try {
                   const { memberClient } = await import('../../api/client');
                   await memberClient.put('/auth/member/password', { currentPassword: pwForm.current, newPassword: pwForm.newPw });
                   setMsg(t('密碼已更新')); setMsgOk(true);
                   setTimeout(() => { setMsg(''); setShowChangePassword(false); setPwForm({ current:'', newPw:'', confirm:'' }); }, 1500);
-                } catch { setMsg(t('修改失敗，請確認目前密碼')); setMsgOk(false); }
+                } catch (e) { setMsg(e.response?.data?.message || t('修改失敗，請確認目前密碼')); setMsgOk(false); }
               }}
                 style={{ flex:2, height:48, borderRadius:12, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:500, cursor:'pointer' }}>{t('確認修改')}</button>
             </div>
