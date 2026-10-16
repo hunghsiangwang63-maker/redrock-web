@@ -813,6 +813,10 @@ const DICT_EN = {
   '送出': 'Submit',
   '送出失敗，請稍後再試': 'Failed to submit, please try again later',
   '館方回覆': 'Staff Reply',
+  '再次提問': 'Ask Again',
+  '請輸入想再補充或追問的內容': 'Enter what you would like to add or ask',
+  '請填寫內容': 'Please enter your message',
+  '您': 'You',
   '＋ 提出新問題': '＋ Ask New Question',
   '🔴 有新回覆': '🔴 New Reply',
 
@@ -2435,6 +2439,10 @@ const DICT_JA = {
   '送出': '送信',
   '送出失敗，請稍後再試': '送信に失敗しました。しばらくしてから再度お試しください',
   '館方回覆': 'スタッフからの返信',
+  '再次提問': '再度質問する',
+  '請輸入想再補充或追問的內容': '補足・追加で質問したい内容を入力してください',
+  '請填寫內容': '内容を入力してください',
+  '您': 'あなた',
   '＋ 提出新問題': '＋ 新しい質問をする',
   '🔴 有新回覆': '🔴 新しい返信',
 

@@ -24,6 +24,9 @@ export default function MemberInquiriesPage() {
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formMsg, setFormMsg] = useState(null);
+  const [followText, setFollowText] = useState('');
+  const [followSending, setFollowSending] = useState(false);
+  const [followMsg, setFollowMsg] = useState('');
   const GYM_OPTIONS = [{ id: 'gym-hsinchu', label: t('新竹館') }, { id: 'gym-shilin', label: t('士林館') }];
   const gymLabel = (id) => GYM_OPTIONS.find(g => g.id === id)?.label || '';
 
@@ -39,6 +42,7 @@ export default function MemberInquiriesPage() {
 
   const openMine = (item) => {
     setOpenMineId(id => id === item.id ? null : item.id);
+    setFollowText(''); setFollowMsg('');
     // 有回覆且尚未讀取 → 標記已讀，底部導航角標下次載入時消失
     if (item.status === 'replied' && item.unread) {
       memberClient.post(`/member-inquiries/${item.id}/read`).then(() => {
@@ -59,6 +63,19 @@ export default function MemberInquiriesPage() {
     } catch (e) { setFormMsg({ ok:false, text: e.response?.data?.message || t('送出失敗，請稍後再試') }); }
     finally { setSubmitting(false); }
   };
+
+  const sendFollowup = async (item) => {
+    if (!followText.trim()) { setFollowMsg(t('請填寫內容')); return; }
+    setFollowSending(true); setFollowMsg('');
+    try {
+      await memberClient.post(`/member-inquiries/${item.id}/followup`, { content: followText.trim() });
+      setFollowText('');
+      loadMine();
+    } catch (e) { setFollowMsg(e.response?.data?.message || t('送出失敗，請稍後再試')); }
+    finally { setFollowSending(false); }
+  };
+
+  const fmtAt = (at) => at?._seconds ? new Date(at._seconds * 1000).toLocaleString('zh-TW', { hour12:false }) : '';
 
   const statusBadge = (item) => item.status === 'replied'
     ? <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:10, background: item.unread ? '#FCEBEB' : '#E6F4EB', color: item.unread ? '#A32D2D' : '#2D7D46' }}>{item.unread ? t('🔴 有新回覆') : t('✓ 已回覆')}</span>
@@ -187,11 +204,27 @@ export default function MemberInquiriesPage() {
                     </div>
                     {open && (
                       <div style={{ padding:'0 14px 14px', borderTop:'0.5px solid #F0EDED', paddingTop:10 }}>
-                        <div style={{ fontSize:12, color:'#666', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>{item.content}</div>
-                        {item.reply && (
-                          <div style={{ marginTop:10, background:'#F7F3F3', borderRadius:8, padding:'10px 12px' }}>
-                            <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', marginBottom:4, textAlign:'left' }}>{t('館方回覆')}</div>
-                            <div style={{ fontSize:12, color:'#444', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>{item.reply}</div>
+                        {(item.messages || []).map((m, i) => m.from === 'staff' ? (
+                          <div key={i} style={{ marginTop:10, background:'#F7F3F3', borderRadius:8, padding:'10px 12px' }}>
+                            <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', marginBottom:4, textAlign:'left' }}>{t('館方回覆')}<span style={{ fontWeight:400, color:'#bbb', marginLeft:6 }}>{fmtAt(m.at)}</span></div>
+                            <div style={{ fontSize:12, color:'#444', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>{m.text}</div>
+                          </div>
+                        ) : (
+                          <div key={i} style={{ marginTop: i === 0 ? 0 : 10 }}>
+                            {i > 0 && <div style={{ fontSize:11, fontWeight:700, color:'#666', marginBottom:4, textAlign:'left' }}>{t('您')}<span style={{ fontWeight:400, color:'#bbb', marginLeft:6 }}>{fmtAt(m.at)}</span></div>}
+                            <div style={{ fontSize:12, color:'#666', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>{m.text}</div>
+                          </div>
+                        ))}
+                        {item.status === 'replied' && (
+                          <div style={{ marginTop:12 }}>
+                            <textarea value={followText} maxLength={1000} onChange={e => setFollowText(e.target.value)} rows={3}
+                              placeholder={t('請輸入想再補充或追問的內容')}
+                              style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'1px solid #ddd', fontSize:13, background:'#fff', resize:'vertical', fontFamily:'inherit', color:'#1a1a1a' }} />
+                            {followMsg && <div style={{ fontSize:12, color:'#A32D2D', margin:'6px 0', textAlign:'left' }}>{followMsg}</div>}
+                            <button onClick={() => sendFollowup(item)} disabled={followSending}
+                              style={{ width:'100%', height:40, marginTop:8, borderRadius:9, background: followSending ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor: followSending ? 'default' : 'pointer' }}>
+                              {followSending ? t('送出中...') : t('再次提問')}
+                            </button>
                           </div>
                         )}
                       </div>

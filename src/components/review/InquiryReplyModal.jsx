@@ -9,7 +9,9 @@ export default function InquiryReplyModal({ record, onClose, onDone }) {
   const [reply, setReply] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const messages = record.messages && record.messages.length ? record.messages : [{ from:'member', text: record.content }, ...(record.reply ? [{ from:'staff', text: record.reply, byName: record.repliedByName }] : [])];
   const already = record.status === 'replied';
+  const fmtAt = (at) => at?._seconds ? new Date(at._seconds * 1000).toLocaleString('zh-TW', { hour12:false }) : '';
 
   const submit = async () => {
     if (!reply.trim()) { setError('請填寫回覆內容'); return; }
@@ -30,27 +32,29 @@ export default function InquiryReplyModal({ record, onClose, onDone }) {
         <div style={{ fontSize:13, fontWeight:700, color:'#333', marginBottom:6 }}>{record.subject}</div>
         <div style={{ fontSize:12, color:'#555', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{record.content}</div>
       </div>
-      {already ? (
-        <div style={{ background:'#E6F4EB', borderRadius:10, padding:'12px 14px' }}>
-          <div style={{ fontSize:11, fontWeight:700, color:'#2D7D46', marginBottom:4 }}>已回覆{record.repliedByName ? `（${record.repliedByName}）` : ''}</div>
-          <div style={{ fontSize:12, color:'#333', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{record.reply}</div>
+      {messages.slice(1).map((m, i) => m.from === 'staff' ? (
+        <div key={i} style={{ background:'#E6F4EB', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:'#2D7D46', marginBottom:4 }}>館方回覆{m.byName ? `（${m.byName}）` : ''}<span style={{ fontWeight:400, color:'#999', marginLeft:6 }}>{fmtAt(m.at)}</span></div>
+          <div style={{ fontSize:12, color:'#333', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{m.text}</div>
         </div>
       ) : (
-        <>
-          <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>回覆內容</label>
-          <textarea value={reply} onChange={e => setReply(e.target.value)} rows={5}
-            placeholder="請輸入回覆內容，會員會在「問題諮詢」看到"
-            style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'0.5px solid #E8D5D5', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', resize:'vertical', fontFamily:'inherit', marginBottom:14 }}/>
-          {error && <div style={{ color:'#A32D2D', fontSize:12, marginBottom:10 }}>{error}</div>}
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
-            <button onClick={submit} disabled={saving}
-              style={{ flex:2, height:40, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
-              {saving ? '送出中...' : '送出回覆'}
-            </button>
-          </div>
-        </>
-      )}
+        <div key={i} style={{ background:'#F7F3F3', borderRadius:10, padding:'12px 14px', marginBottom:10 }}>
+          <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', marginBottom:4 }}>會員再次提問<span style={{ fontWeight:400, color:'#999', marginLeft:6 }}>{fmtAt(m.at)}</span></div>
+          <div style={{ fontSize:12, color:'#555', lineHeight:1.8, whiteSpace:'pre-wrap' }}>{m.text}</div>
+        </div>
+      ))}
+      <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{already ? '新增回覆' : '回覆內容'}</label>
+      <textarea value={reply} onChange={e => setReply(e.target.value)} rows={5}
+        placeholder="請輸入回覆內容，會員會在「問題諮詢」看到"
+        style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'0.5px solid #E8D5D5', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', resize:'vertical', fontFamily:'inherit', marginBottom:14 }}/>
+      {error && <div style={{ color:'#A32D2D', fontSize:12, marginBottom:10 }}>{error}</div>}
+      <div style={{ display:'flex', gap:8 }}>
+        <button onClick={onClose} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>取消</button>
+        <button onClick={submit} disabled={saving}
+          style={{ flex:2, height:40, borderRadius:9, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, fontWeight:500, cursor:'pointer' }}>
+          {saving ? '送出中...' : (already ? '送出新增回覆' : '送出回覆')}
+        </button>
+      </div>
     </Modal>
   );
 }
