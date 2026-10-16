@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { publicClient } from '../../api/client';
+import ParticipantsImport, { mergeImported, MAX_PARTICIPANTS } from '../../components/ParticipantsImport';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 
 const RED = '#8B1A1A';
@@ -49,7 +50,7 @@ export default function PublicExperienceBookingPage() {
   const under4 = (b) => { if (!b) return false; const d = new Date(b); const age = (Date.now() - d.getTime()) / (365.25 * 864e5); return age >= 0 && age < 4; };
   const anyUnder4 = participants.some(p => under4(p.birthday));
 
-  const addP = () => participants.length < 8 && setParticipants(p => [...p, { name: '', birthday: '', idNumber: '', nationality: t('台灣') }]);
+  const addP = () => participants.length < MAX_PARTICIPANTS && setParticipants(p => [...p, { name: '', birthday: '', idNumber: '', nationality: t('台灣') }]);
   const rmP = (i) => participants.length > 1 && setParticipants(p => p.filter((_, j) => j !== i));
   const setP = (i, k, v) => setParticipants(p => p.map((x, j) => j === i ? { ...x, [k]: v } : x));
 
@@ -136,7 +137,8 @@ export default function PublicExperienceBookingPage() {
         </div>
 
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{t('參加人員')}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>{t('參加人員')}</div>
+          <ParticipantsImport http={publicClient} onImport={(list) => { const r = mergeImported(participants, list); setParticipants(r.list); return r.cut; }} />
           {participants.map((p, i) => (
             <div key={i} style={{ marginTop: 12, paddingTop: i ? 12 : 0, borderTop: i ? '1px dashed #EEE' : 'none' }}>
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end' }}>
@@ -155,7 +157,7 @@ export default function PublicExperienceBookingPage() {
               {under4(p.birthday) && <div style={{ color: '#A32D2D', fontSize: 12, marginTop: 6 }}>{t('未滿 4 歲無法報名體驗')}</div>}
             </div>
           ))}
-          <button onClick={addP} style={{ marginTop: 14, width: '100%', height: 40, borderRadius: 10, border: `1px dashed ${RED}`, background: '#fff', color: RED, fontSize: 14, cursor: 'pointer' }}>{t('＋ 新增參加者')}</button>
+          {participants.length < MAX_PARTICIPANTS && <button onClick={addP} style={{ marginTop: 14, width: '100%', height: 40, borderRadius: 10, border: `1px dashed ${RED}`, background: '#fff', color: RED, fontSize: 14, cursor: 'pointer' }}>{t('＋ 新增參加者')}</button>}
         </div>
 
         <div style={card}>

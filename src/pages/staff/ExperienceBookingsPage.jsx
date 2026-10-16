@@ -3,6 +3,7 @@ import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
 import { reportClientError } from '../../utils/reportClientError';
 import client from '../../api/client';
 import { downloadFile } from '../../utils/downloadFile';
+import ParticipantsImport, { mergeImported, MAX_PARTICIPANTS } from '../../components/ParticipantsImport';
 import SaveButton from '../../components/SaveButton';
 import SimulateRegistrationButton from '../../components/SimulateRegistrationButton';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -198,7 +199,7 @@ export default function ExperienceBookingsPage() {
     setEditStart(_t[0] || ''); setEditEnd(_t[1] || '');
   };
   const updPart = (i, f, v) => setEditParts(ps => ps.map((p, idx) => idx === i ? { ...p, [f]: v } : p));
-  const addPart = () => setEditParts(ps => [...ps, { name: '', idNumber: '', birthday: '', nationality: '台灣' }]);
+  const addPart = () => setEditParts(ps => ps.length >= MAX_PARTICIPANTS ? ps : [...ps, { name: '', idNumber: '', birthday: '', nationality: '台灣' }]);
   const rmPart = (i) => setEditParts(ps => ps.filter((_, idx) => idx !== i));
   const saveParticipants = async () => {
     if (editParts.some(p => !p.name?.trim())) { showMsg('每位參加者都需填姓名', 'red'); return; }
@@ -838,6 +839,7 @@ export default function ExperienceBookingsPage() {
               <div style={{ fontSize:10, color:'#999', marginTop:6 }}>改日期/時段會連動更新課程場次、教練排班與已發入場券效期。</div>
             </div>
             <div style={{ fontSize:12, fontWeight:600, color:'#666', marginBottom:8 }}>參加者</div>
+            <ParticipantsImport http={client} plain onImport={(list) => { const r = mergeImported(editParts, list); setEditParts(r.list); return r.cut; }} />
             {editParts.map((p,i)=>(
               <div key={i} style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:10, border:'0.5px solid #E8D5D5' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>

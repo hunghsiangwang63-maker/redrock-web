@@ -6,6 +6,7 @@ import { t } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
+import ParticipantsImport, { mergeImported, MAX_PARTICIPANTS } from '../../components/ParticipantsImport';
 import dayjs from 'dayjs';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import PaymentFlow from '../../components/PaymentFlow';
@@ -123,7 +124,7 @@ export default function MemberExperiencePage() {
     if (member?.id) refreshBookings();
   }, [member?.id]);
 
-  const addParticipant = () => setParticipants(p=>[...p,{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
+  const addParticipant = () => setParticipants(p=>p.length >= MAX_PARTICIPANTS ? p : [...p,{ name:'', idNumber:'', birthday:'', nationality:'台灣' }]);
   const removeParticipant = (i) => { if (participants.length>1) setParticipants(p=>p.filter((_,idx)=>idx!==i)); };
   const updateParticipant = (i, field, val) => setParticipants(p=>p.map((item,idx)=>idx===i?{...item,[field]:val}:item));
 
@@ -329,6 +330,7 @@ export default function MemberExperiencePage() {
                 <button onClick={addParticipant}
                   style={{ height:30, padding:'0 12px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer' }}>{t('+ 新增人員')}</button>
               </div>
+              <ParticipantsImport http={memberClient} onImport={(list) => { const r = mergeImported(participants, list); setParticipants(r.list); return r.cut; }} />
               {participants.map((p,i)=>(
                 <div key={i} style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:10, border:'0.5px solid #E8D5D5' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
