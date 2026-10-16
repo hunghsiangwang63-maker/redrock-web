@@ -27,6 +27,8 @@ export default function MemberInquiriesPage() {
   const [followText, setFollowText] = useState('');
   const [followSending, setFollowSending] = useState(false);
   const [followMsg, setFollowMsg] = useState('');
+  const [editing, setEditing] = useState(null); // {id, idx, text}
+  const [editSaving, setEditSaving] = useState(false);
   const GYM_OPTIONS = [{ id: 'gym-hsinchu', label: t('新竹館') }, { id: 'gym-shilin', label: t('士林館') }];
   const gymLabel = (id) => GYM_OPTIONS.find(g => g.id === id)?.label || '';
 
@@ -73,6 +75,17 @@ export default function MemberInquiriesPage() {
       loadMine();
     } catch (e) { setFollowMsg(e.response?.data?.message || t('送出失敗，請稍後再試')); }
     finally { setFollowSending(false); }
+  };
+
+  const saveEdit = async () => {
+    if (!editing.text.trim()) { setFollowMsg(t('請填寫內容')); return; }
+    setEditSaving(true); setFollowMsg('');
+    try {
+      await memberClient.put(`/member-inquiries/${editing.id}/messages/${editing.idx}`, { text: editing.text.trim() });
+      setEditing(null);
+      loadMine();
+    } catch (e) { setFollowMsg(e.response?.data?.message || t('送出失敗，請稍後再試')); }
+    finally { setEditSaving(false); }
   };
 
   const fmtAt = (at) => at?._seconds ? new Date(at._seconds * 1000).toLocaleString('zh-TW', { hour12:false }) : '';
@@ -206,13 +219,32 @@ export default function MemberInquiriesPage() {
                       <div style={{ padding:'0 14px 14px', borderTop:'0.5px solid #F0EDED', paddingTop:10 }}>
                         {(item.messages || []).map((m, i) => m.from === 'staff' ? (
                           <div key={i} style={{ marginTop:10, background:'#F7F3F3', borderRadius:8, padding:'10px 12px' }}>
-                            <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', marginBottom:4, textAlign:'left' }}>{t('館方回覆')}<span style={{ fontWeight:400, color:'#bbb', marginLeft:6 }}>{fmtAt(m.at)}</span></div>
+                            <div style={{ fontSize:11, fontWeight:700, color:'#8B1A1A', marginBottom:4, textAlign:'left' }}>{t('館方回覆')}<span style={{ fontWeight:400, color:'#bbb', marginLeft:6 }}>{fmtAt(m.at)}{m.edited ? ` ${t('（已編輯）')}` : ''}</span></div>
                             <div style={{ fontSize:12, color:'#444', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>{m.text}</div>
                           </div>
                         ) : (
                           <div key={i} style={{ marginTop: i === 0 ? 0 : 10 }}>
-                            {i > 0 && <div style={{ fontSize:11, fontWeight:700, color:'#666', marginBottom:4, textAlign:'left' }}>{t('您')}<span style={{ fontWeight:400, color:'#bbb', marginLeft:6 }}>{fmtAt(m.at)}</span></div>}
-                            <div style={{ fontSize:12, color:'#666', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>{m.text}</div>
+                            <div style={{ fontSize:11, fontWeight:700, color:'#666', marginBottom:4, textAlign:'left', display:'flex', alignItems:'center', gap:6 }}>
+                              {i > 0 && <span>{t('您')}</span>}
+                              <span style={{ fontWeight:400, color:'#bbb' }}>{i > 0 ? fmtAt(m.at) : ''}{m.edited ? ` ${t('（已編輯）')}` : ''}</span>
+                              {!(editing && editing.id === item.id && editing.idx === i) && (
+                                <span onClick={() => { setEditing({ id:item.id, idx:i, text:m.text }); setFollowMsg(''); }}
+                                  style={{ marginLeft:'auto', fontWeight:600, color:'#8B1A1A', cursor:'pointer' }}>{t('編輯')}</span>
+                              )}
+                            </div>
+                            {editing && editing.id === item.id && editing.idx === i ? (
+                              <div>
+                                <textarea value={editing.text} maxLength={1000} onChange={e => setEditing(x => ({ ...x, text: e.target.value }))} rows={4}
+                                  style={{ width:'100%', boxSizing:'border-box', padding:'9px 12px', borderRadius:8, border:'1px solid #ddd', fontSize:13, background:'#fff', resize:'vertical', fontFamily:'inherit', color:'#1a1a1a' }} />
+                                {followMsg && <div style={{ fontSize:12, color:'#A32D2D', margin:'6px 0', textAlign:'left' }}>{followMsg}</div>}
+                                <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                                  <button onClick={() => { setEditing(null); setFollowMsg(''); }} style={{ flex:1, height:38, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>{t('取消')}</button>
+                                  <button onClick={saveEdit} disabled={editSaving} style={{ flex:2, height:38, borderRadius:9, background: editSaving ? '#ccc' : '#8B1A1A', color:'#fff', border:'none', fontSize:13, fontWeight:600, cursor:'pointer' }}>{editSaving ? t('送出中...') : t('儲存')}</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize:12, color:'#666', lineHeight:1.8, textAlign:'left', whiteSpace:'pre-wrap' }}>{m.text}</div>
+                            )}
                           </div>
                         ))}
                         {item.status === 'replied' && (
