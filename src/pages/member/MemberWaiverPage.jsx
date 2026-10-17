@@ -211,6 +211,21 @@ export default function MemberWaiverPage() {
     (!needsWaiverSection || (allWaiverAgreed && (!needGuardianInfo || parentEmail.trim()))) &&
     (!needsFallTestSection || (canWatchOk && allFtAgreed));
 
+  // 按鈕不能按時，告訴使用者還缺什麼（原本只會變半透明、沒有任何說明）
+  const missingItems = [];
+  if (needsWaiverSection && !allWaiverAgreed) {
+    missingItems.push(tt(`風險安全聲明書：還有 ${waiverParagraphs.length - agreedWaiverParagraphs.size} 段未勾選`, `Waiver: ${waiverParagraphs.length - agreedWaiverParagraphs.size} paragraph(s) not checked`, `同意書：未チェックの段落が${waiverParagraphs.length - agreedWaiverParagraphs.size}つあります`));
+  }
+  if (needsWaiverSection && needGuardianInfo && !parentEmail.trim()) {
+    missingItems.push(tt('請填寫法定代理人 Email', 'Please enter the guardian email', '保護者のメールアドレスを入力してください'));
+  }
+  if (needsFallTestSection && !canWatchOk) {
+    missingItems.push(tt(`安全影片：目前觀看進度 ${watchPercent}%，需達 ${requiredPercent}%（請完整播放，跳著看不計入）`, `Safety video: watched ${watchPercent}%, needs ${requiredPercent}% (play it through; skipping ahead does not count)`, `安全動画：視聴 ${watchPercent}%、${requiredPercent}%必要（最後まで再生してください。スキップは計上されません）`));
+  }
+  if (needsFallTestSection && !allFtAgreed) {
+    missingItems.push(tt(`墜落測驗同意書：還有 ${ftParagraphs.length - agreedFtParagraphs.size} 段未勾選`, `Fall test consent: ${ftParagraphs.length - agreedFtParagraphs.size} paragraph(s) not checked`, `墜落テスト同意書：未チェックの段落が${ftParagraphs.length - agreedFtParagraphs.size}つあります`));
+  }
+
   const handleSubmit = async () => {
     setError('');
     if (!needsWaiverSection && !needsFallTestSection) return;
@@ -461,6 +476,12 @@ export default function MemberWaiverPage() {
 
       <div style={{ margin: '0 20px' }}>
         {error && <div style={{ color: '#A32D2D', fontSize: 12, marginBottom: 10, textAlign: 'left' }}>{error}</div>}
+        {!canSubmit && missingItems.length > 0 && (
+          <div style={{ background: '#FFFBF0', border: '0.5px solid #F0D9A8', color: '#854F0B', fontSize: 12, borderRadius: 8, padding: '8px 12px', marginBottom: 10, textAlign: 'left', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 600 }}>{tt('還不能送出，尚缺：', 'Cannot submit yet. Still missing:', 'まだ送信できません。不足：')}</div>
+            {missingItems.map((m, i) => <div key={i}>・{m}</div>)}
+          </div>
+        )}
         <button onClick={handleSubmit} disabled={submitting || !canSubmit} style={{ ...s.btnPrimary, opacity: canSubmit ? 1 : 0.5, cursor: canSubmit ? 'pointer' : 'not-allowed' }}>
           {submitting ? t('送出中...') : t('確認簽署')}
         </button>
