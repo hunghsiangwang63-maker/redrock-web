@@ -11,12 +11,31 @@ const CHECK_INTERVAL_MS = 5 * 60 * 1000; // 開著的分頁每 5 分鐘也主動
 // 早就看過並關掉的版本不會又被判定成「新版本」反覆跳出；偵測到比這個紀錄更新的 buildId
 // 時，仍會正常再提醒（不是整個關掉這個功能）。
 const DISMISS_KEY = 'rr_update_dismissed_build';
+// 自動重新載入（2026-10-17）：手機重開瀏覽器／從背景切回 App 時常是「還原舊頁」，舊頁一開始就落後伺服器，
+// 偵測到新版才跳提示，使用者幾乎每次重開都看到。→ 這兩種情況在「使用者還沒開始操作」時直接換新版，不打擾：
+//   ①頁面載入後 10 秒內 ②從背景切回且隱藏超過 60 秒、且目前沒有聚焦在輸入框（避免丟掉填到一半的資料）。
+// 每個版本只自動重載一次（sessionStorage 記住），重載後仍不一致就退回原本的提示，避免無限重載。
+const AUTO_RELOAD_KEY = 'rr_auto_reloaded_build';
+const FRESH_LOAD_MS = 10 * 1000;
+const RESUME_HIDDEN_MS = 60 * 1000;
+const isTyping = () => {
+  const el = document.activeElement;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable);
+};
+const hardReload = () => {
+  // 帶變動查詢參數導去同一頁，保證真的重新連網（理由見下方「重新整理」按鈕的註解）
+  const url = new URL(window.location.href);
+  url.searchParams.set('_v', Date.now());
+  window.location.href = url.toString();
+};
 
 export default function UpdateChecker() {
   const [hasUpdate, setHasUpdate] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [latestBuildId, setLatestBuildId] = useState('');
   const checkingRef = useRef(false);
+  const hiddenAtRef = useRef(0);
+  const resumedAtRef = useRef(0);   // 最近一次「隱藏超過門檻後切回」的時間
 
   useEffect(() => {
     if (!CURRENT_BUILD_ID) return; // 本機 dev（無 build 流程）不檢查
@@ -30,6 +49,19 @@ export default function UpdateChecker() {
           const data = await res.json();
           if (data.buildId && data.buildId !== CURRENT_BUILD_ID) {
             setLatestBuildId(data.buildId);
+            const now = Date.now();
+            const freshLoad = performance.now() < FRESH_LOAD_MS;
+            const justResumed = resumedAtRef.current && now - resumedAtRef.current < FRESH_LOAD_MS && !isTyping();
+            if (freshLoad || justResumed) {
+              let canReload = false;
+              try {
+                if (sessionStorage.getItem(AUTO_RELOAD_KEY) !== data.buildId) {
+                  sessionStorage.setItem(AUTO_RELOAD_KEY, data.buildId);
+                  canReload = true;
+                }
+              } catch { /* 無法記住「已重載過」就不自動重載，退回提示，避免無限重載 */ }
+              if (canReload) { hardReload(); return; }
+            }
             let lastDismissed = '';
             try { lastDismissed = localStorage.getItem(DISMISS_KEY) || ''; } catch { /* 無痕模式等情況，視為從未關過 */ }
             if (data.buildId !== lastDismissed) {
@@ -43,7 +75,13 @@ export default function UpdateChecker() {
     };
 
     check();
-    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    const onVisible = () => {
+      if (document.visibilityState === 'hidden') { hiddenAtRef.current = Date.now(); return; }
+      if (document.visibilityState !== 'visible') return;
+      if (hiddenAtRef.current && Date.now() - hiddenAtRef.current >= RESUME_HIDDEN_MS) resumedAtRef.current = Date.now();
+      hiddenAtRef.current = 0;
+      check();
+    };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('focus', onVisible);
     const timer = setInterval(check, CHECK_INTERVAL_MS);
