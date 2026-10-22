@@ -915,8 +915,8 @@ export default function CompetitionsPage() {
                 onChange={e=>setForm(f=>({...f,paymentDeadlineDays:e.target.value}))}/>
               <div style={{ fontSize:10, color:'#999', marginTop:3 }}>逾期未完成繳費（含臨櫃繳款）自動剔除名單</div>
             </div>
-            <div style={{ gridColumn:'1/-1' }}><label style={lbl}>賽事說明</label><textarea rows={3} style={{...inp, height:'auto', padding:'8px 12px', resize:'none'}} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/></div>
-            <div style={{ gridColumn:'1/-1' }}><label style={lbl}>同意書內容（繁中）</label><textarea rows={4} style={{...inp, height:'auto', padding:'8px 12px', resize:'none'}} value={form.waiverContent.zh} onChange={e=>setForm(f=>({...f,waiverContent:{...f.waiverContent,zh:e.target.value}}))}/></div>
+            <div style={{ gridColumn:'1/-1' }}><label style={lbl}>賽事說明</label><textarea rows={4} style={{...inp, height:'auto', padding:'8px 12px', fontFamily:'inherit', lineHeight:1.7, resize:'vertical'}} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/></div>
+            <div style={{ gridColumn:'1/-1' }}><label style={lbl}>同意書內容（繁中）</label><textarea rows={8} style={{...inp, height:'auto', padding:'8px 12px', fontFamily:'inherit', lineHeight:1.7, resize:'vertical'}} value={form.waiverContent.zh} onChange={e=>setForm(f=>({...f,waiverContent:{...f.waiverContent,zh:e.target.value}}))}/></div>
           </div>
 
           <div style={{ display:'flex', gap:8 }}>
