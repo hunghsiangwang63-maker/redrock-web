@@ -110,8 +110,9 @@ export default function MemberQRPage() {
   // ── 快速入場（見 utils/quickEntry.js）：首頁「快速入場」進來帶 ?quick=1，依記住的選擇一鍵產 QR ──
   const quickPrefRef = useRef(undefined);
   if (quickPrefRef.current === undefined) {
-    const want = new URLSearchParams(location.search).get('quick') === '1';
-    quickPrefRef.current = want ? loadQuickEntry(member?.id) : null;
+    const qs = new URLSearchParams(location.search);
+    const want = qs.get('quick') === '1';
+    quickPrefRef.current = want ? loadQuickEntry(member?.id, qs.get('who') || member?.id) : null; // who＝入場人員（家庭成員各自一份記憶）
   }
   const quickRef = useRef(quickPrefRef.current);        // 待套用的記憶（驗票成功後用掉一次）
   const quickAppliedRef = useRef(false);
@@ -162,7 +163,13 @@ export default function MemberQRPage() {
     // 快速入場：子會員清單回來後，才套用記住的入場人員／場館並開始驗票（否則會先驗到家長本人）
     const applyQuick = (ch) => {
       const q = quickPrefRef.current;
-      if (!q || quickAppliedRef.current) return;
+      if (!q) {
+        // 沒有記憶（首頁選了某位家庭成員、尚未設定）：只預選入場人員，走一般入場流程
+        const who = new URLSearchParams(location.search).get('who');
+        if (who && who !== member.id && ch.some(c => c.id === who)) setTargetId(who);
+        return;
+      }
+      if (quickAppliedRef.current) return;
       quickAppliedRef.current = true;
       if (q.targetId) {
         if (ch.some(c => c.id === q.targetId)) setTargetId(q.targetId);
@@ -432,7 +439,7 @@ export default function MemberQRPage() {
           && !(partnerVendor || partnerGymMember || renewOptIn) && !selectedEntry.buyPassTypeId;
         if (rememberable) {
           const usesPay = (selectedEntry.requiresPayment && !selectedEntry.freeEntry) || (selectedEntry.freeEntry && (shoes || chalk));
-          saveQuickEntry(member.id, {
+          saveQuickEntry(member.id, isChildTarget ? entrant.id : member.id, {
             targetId: isChildTarget ? entrant.id : null, gymId,
             entryTypeId: selectedType?.type || null, entryLabel: selectedType ? entryIdLabel(selectedType) : null,
             kind, type: selectedEntry.type,
@@ -607,7 +614,7 @@ export default function MemberQRPage() {
             style={{ width:'100%', marginTop:16, height:46, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
             {t('重新選擇入場方式')}
           </button>
-          <button onClick={() => { clearQuickEntry(member.id); navigate('/member/home'); }}
+          <button onClick={() => { clearQuickEntry(member.id, isChildTarget ? entrant.id : member.id); navigate('/member/home'); }}
             style={{ width:'100%', marginTop:10, height:40, borderRadius:10, background:'#fff', color:'#999', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
             {t('清除快速入場設定')}
           </button>

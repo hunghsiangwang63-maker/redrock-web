@@ -21,7 +21,13 @@ import { loadQuickEntry } from '../../utils/quickEntry';
 export default function MemberHomePage() {
   const { member, logout } = useMember();
   const navigate = useNavigate();
-  const quickPref = loadQuickEntry(member?.id); // 快速入場記憶（localStorage，每次 render 讀取，量很小）
+  const [familyKids, setFamilyKids] = useState([]);
+  const [showQuickPicker, setShowQuickPicker] = useState(false); // 有家庭成員時，快速入場先選入場人員
+  useEffect(() => {
+    if (!member?.id) return;
+    memberClient.get('/members/my/children').then(r => setFamilyKids(r.data.children || [])).catch(() => {});
+  }, [member?.id]);
+  const quickPref = loadQuickEntry(member?.id); // 本人的快速入場記憶（localStorage，每次 render 讀取，量很小）
   const [gyms, setGyms] = useState([]);
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myExperiences, setMyExperiences] = useState([]);
@@ -415,7 +421,8 @@ export default function MemberHomePage() {
         {[
           { iconClass:'ti ti-qrcode', label:'入場QR碼',   path:'/member/qr', highlight:true },
           // 快速入場：記住常用的入場選擇、一鍵產 QR（沒有記憶時進一般入場流程，完成後自動記住）
-          { iconClass:'ti ti-bolt', label:'快速入場', path: quickPref ? '/member/qr?quick=1' : '/member/qr', highlight:true },
+          { iconClass:'ti ti-bolt', label:'快速入場', highlight:true,
+            action: () => familyKids.length > 0 ? setShowQuickPicker(true) : navigate(quickPref ? '/member/qr?quick=1' : '/member/qr') },
           { icon:'📋', label:'我的紀錄', path:'/member/records' },
           // 抱石路線攻略：2026-09-02 正式放上首頁；標籤 2026-09-13 由「施工中」改「新上線」。
           { img:'/climbing-routes.jpg', label:'路線攻略', path:'/member/routes', badge:'新上線' },
@@ -448,6 +455,34 @@ export default function MemberHomePage() {
           </div>
         ))}
       </div>
+
+      {/* 快速入場：有家庭成員時先選入場人員（各自記住自己的入場選擇） */}
+      {showQuickPicker && (
+        <div onClick={() => setShowQuickPicker(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px 16px 0 0', padding:'20px 20px calc(24px + env(safe-area-inset-bottom))', width:'100%', maxWidth:520, boxSizing:'border-box' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontWeight:600, fontSize:16 }}>{t('快速入場：選擇入場人員')}</div>
+              <button onClick={() => setShowQuickPicker(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
+            </div>
+            {[member, ...familyKids].filter(m => m && !(m.id === member.id && member.selfEntrySkipped)).map(m => {
+              const isSelf = m.id === member.id;
+              const pref = loadQuickEntry(member.id, m.id);
+              const summary = pref ? [pref.entryLabel && t(pref.entryLabel), pref.methodLabel && t(pref.methodLabel).replace(/（.*?）/g, '')].filter(Boolean).join('・') : t('尚未設定，點入後選擇一次');
+              return (
+                <div key={m.id} onClick={() => navigate(`/member/qr?${pref ? 'quick=1&' : ''}who=${m.id}`)}
+                  style={{ display:'flex', alignItems:'center', gap:12, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, cursor:'pointer' }}>
+                  <div style={{ width:36, height:36, borderRadius:18, background:'#8B1A1A', color:'#fff', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:600, fontSize:15, flexShrink:0 }}>{(m.name || '?').slice(0, 1)}</div>
+                  <div style={{ flex:1, minWidth:0, textAlign:'left' }}>
+                    <div style={{ fontWeight:600, fontSize:15, color:'#1a1a1a' }}>{m.name}{isSelf ? '' : t('（子）')}</div>
+                    <div style={{ fontSize:12, color: pref ? '#666' : '#bbb', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{summary}</div>
+                  </div>
+                  <div style={{ fontSize:18, color: pref ? '#8B1A1A' : '#ccc' }}>{pref ? '⚡' : '›'}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 報名（課程／體驗／比賽） */}
       {showSignupSheet && (
