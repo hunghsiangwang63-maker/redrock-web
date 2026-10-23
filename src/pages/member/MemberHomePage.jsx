@@ -16,10 +16,12 @@ import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
 import PaymentSection from '../../components/PaymentSection';
 import { getMyReminders } from '../../api/memberReminders';
 import useScreenWakeLock from '../../hooks/useScreenWakeLock';
+import { loadQuickEntry } from '../../utils/quickEntry';
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
   const navigate = useNavigate();
+  const quickPref = loadQuickEntry(member?.id); // 快速入場記憶（localStorage，每次 render 讀取，量很小）
   const [gyms, setGyms] = useState([]);
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myExperiences, setMyExperiences] = useState([]);
@@ -29,6 +31,7 @@ export default function MemberHomePage() {
   const [announcements, setAnnouncements] = useState([]);
   const [bannerIdx, setBannerIdx] = useState(0);
   const [tab, setTab] = useState('home');
+  const [showSignupSheet, setShowSignupSheet] = useState(false); // 「報名」一格展開：課程／體驗／比賽
   const [todayCheckin, setTodayCheckin] = useState(null); // { checkedIn, gymId, checkedInAt }
   const [identity, setIdentity] = useState(null);        // { teamMember, courseAccess }（隊員/課程學員身份與效期）
   const [rejectAlerts, setRejectAlerts] = useState([]);   // 轉帳被退回的訂單（首頁通知；補正後自動消失）
@@ -411,16 +414,19 @@ export default function MemberHomePage() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, padding:'14px 16px 0' }}>
         {[
           { iconClass:'ti ti-qrcode', label:'入場QR碼',   path:'/member/qr', highlight:true },
+          // 快速入場：記住常用的入場選擇、一鍵產 QR（沒有記憶時進一般入場流程，完成後自動記住）
+          { iconClass:'ti ti-bolt', label:'快速入場', path: quickPref ? '/member/qr?quick=1' : '/member/qr', highlight:true,
+            sub: quickPref ? [quickPref.who, quickPref.methodLabel && t(quickPref.methodLabel).replace(/（.*?）/g, '')].filter(Boolean).join('・') : t('設定一次後一鍵入場') },
           { icon:'📋', label:'我的紀錄', path:'/member/records' },
           // 抱石路線攻略：2026-09-02 正式放上首頁；標籤 2026-09-13 由「施工中」改「新上線」。
           { img:'/climbing-routes.jpg', label:'路線攻略', path:'/member/routes', badge:'新上線' },
-          { icon:'🏆', label:'比賽報名', path:'/member/competitions' },
-        { img:'/experience-course.jpg', label:'體驗課程', path:'/member/experience' },
+          // 課程報名／體驗課程／比賽報名合併成一格（原路徑與分享連結都不變，只是首頁入口收在一起）
+          { icon:'📝', label:'報名', action: () => setShowSignupSheet(true) },
           { img:'/climbing-team.webp', label:'加入攀岩隊', path:'/member/team' },
           { img:'/harness.webp', label:'器材租借', path:'/member/rental' },
           { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
         ].map(f => (
-          <div key={f.label} onClick={() => f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
+          <div key={f.label} onClick={() => f.action ? f.action() : f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
             style={f.highlight
               ? { position:'relative', background:'linear-gradient(135deg,#9C3C3C,#BE5858)', borderRadius:12, border:'none', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s', boxShadow:'0 3px 10px rgba(156,60,60,.35)' }
               : { position:'relative', background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' }}
@@ -440,9 +446,37 @@ export default function MemberHomePage() {
                 : <span style={{ fontSize:26.4, lineHeight:1 }}>{f.icon}</span>}
             </div>
             <div style={{ fontSize:11, color: f.highlight ? '#fff' : '#6b6b6b', fontWeight: f.highlight ? 700 : 500 }}>{t(f.label)}</div>
+            {f.sub && <div style={{ fontSize:9, color:'rgba(255,255,255,.85)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.sub}</div>}
           </div>
         ))}
       </div>
+
+      {/* 報名（課程／體驗／比賽） */}
+      {showSignupSheet && (
+        <div onClick={() => setShowSignupSheet(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'flex-end', justifyContent:'center' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:'16px 16px 0 0', padding:'20px 20px calc(24px + env(safe-area-inset-bottom))', width:'100%', maxWidth:520, boxSizing:'border-box' }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontWeight:600, fontSize:16 }}>{t('我要報名')}</div>
+              <button onClick={() => setShowSignupSheet(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
+            </div>
+            {[
+              { icon:'📚', label:'課程報名', desc:'週課、工作坊、課程試上', path:'/member/courses' },
+              { icon:'🧗', label:'體驗課程', desc:'第一次攀岩、團體體驗', path:'/member/experience' },
+              { icon:'🏆', label:'比賽報名', desc:'賽事報名與報到', path:'/member/competitions' },
+            ].map(o => (
+              <div key={o.path} onClick={() => navigate(o.path)}
+                style={{ display:'flex', alignItems:'center', gap:14, background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, cursor:'pointer' }}>
+                <div style={{ fontSize:28 }}>{o.icon}</div>
+                <div style={{ flex:1, textAlign:'left' }}>
+                  <div style={{ fontWeight:600, fontSize:15, color:'#1a1a1a' }}>{t(o.label)}</div>
+                  <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{t(o.desc)}</div>
+                </div>
+                <div style={{ fontSize:18, color:'#ccc' }}>›</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* 場館狀態 */}
       <div style={{ padding:'14px 16px 0' }}>

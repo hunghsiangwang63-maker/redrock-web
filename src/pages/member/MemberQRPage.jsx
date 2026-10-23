@@ -17,6 +17,7 @@ import PaymentFlow from '../../components/PaymentFlow';
 import PassContractReview from '../../components/PassContractReview';
 import { isMinor } from '../../utils/age';
 import { useOnlineFlowEnabled, useEnabledPayments } from '../../utils/paymentMethods';
+import { loadQuickEntry, saveQuickEntry, clearQuickEntry } from '../../utils/quickEntry';
 
 // 支援線上付款（pay-first）的入館身份——純付費身份（黑卡/紅利/單次券皆有自己的免費入場路徑，
 // 不適用），2026-08-27 起「使用已持有的優惠折扣券」(discount_card) 另外獨立判斷（見 onlinePayable）；
@@ -41,6 +42,35 @@ const ENTRY_TYPE_LABEL = {
 // 入場身分顯示名稱（不帶金額）：成人入場 / 學生入場 / 兒童入場；其餘去除「單次」字樣
 const ENTRY_ID_LABEL = { single_ticket: '成人入場', student_free: '學生入場', child_free: '兒童入場' };
 const entryIdLabel = (opt) => ENTRY_ID_LABEL[opt?.type] || (opt?.label || '').replace(/單次/g, '').trim() || '入場';
+
+// 入場方案清單（單次付費／優惠券／黑卡／紅利／入場券）。選方案畫面與快速入場共用，避免兩處各自維護。
+function buildMethods(st, inst, t) {
+  const basePrice = st.discountedPrice ?? st.price ?? 0;       // 一般付款（含隊員折扣）
+  const methods = [
+    { kind:'pay', type:st.type, baseEntryType:st.type, label:t('單次入場'), price:st.price, discountedPrice:basePrice,
+      teamDiscount:st.teamDiscount, partnerVendorEligible:st.partnerVendorEligible === true, partnerGymMemberEligible:st.partnerGymMemberEligible === true, freeEntry:false, requiresPayment:true },
+  ];
+  if (inst.discountCard?.available) {
+    const dp = Math.round((st.price || 0) * (inst.discountCard.rate || 0.8));
+    methods.push({ kind:'discountCard', type:'discount_card', baseEntryType:st.type, label:t('使用優惠折扣券（原價 8 折）'),
+      price:st.price, discountedPrice:dp, freeEntry:false, requiresPayment:true,
+      instrumentKind:'discountCard', cards:inst.discountCard.cards });
+  }
+  if (inst.blackCard?.available) methods.push({ kind:'blackCard', type:'black_card', label:t('使用黑卡（免費）'), freeEntry:true, instrumentKind:'blackCard', cards:inst.blackCard.cards });
+  if (inst.bonus?.available) methods.push({ kind:'bonus', type:'bonus', label:t('使用紅利（免費）'), freeEntry:true, instrumentKind:'bonus', cards:inst.bonus.bonuses });
+  if (inst.singleEntryTicket?.available) methods.push({ kind:'ticket', type:'single_entry_ticket', label:t('使用單次入場券（免費）'), freeEntry:true, instrumentKind:'singleEntryTicket', cards:inst.singleEntryTicket.tickets });
+  return methods;
+}
+
+// 快速入場可記住的方案種類（購買類、友館/特約優惠、續約不記）
+const QUICK_KINDS = ['pay', 'discountCard', 'blackCard', 'bonus', 'ticket', 'free'];
+const QUICK_EXHAUST_MSG = {
+  discountCard: '優惠折扣券已用完或失效',
+  blackCard: '黑卡已用完或失效',
+  bonus: '紅利已用完或已過期',
+  ticket: '單次入場券已用完或已過期',
+  pay: '這個入場方案目前不可選',
+};
 
 export default function MemberQRPage() {
   const { member } = useMember();
@@ -76,6 +106,21 @@ export default function MemberQRPage() {
   const passContractRef = useRef(null); // 定期票服務同意書（合約）條款檢閱＋簽名步驟（僅 buy_pass 適用）
   const [passContractData, setPassContractData] = useState(null); // 離開 pass_contract 步驟時存下（元件會 unmount，需先取出資料）
   const [passContractErr, setPassContractErr] = useState(false);
+
+  // ── 快速入場（見 utils/quickEntry.js）：首頁「快速入場」進來帶 ?quick=1，依記住的選擇一鍵產 QR ──
+  const quickPrefRef = useRef(undefined);
+  if (quickPrefRef.current === undefined) {
+    const want = new URLSearchParams(location.search).get('quick') === '1';
+    quickPrefRef.current = want ? loadQuickEntry(member?.id) : null;
+  }
+  const quickRef = useRef(quickPrefRef.current);        // 待套用的記憶（驗票成功後用掉一次）
+  const quickAppliedRef = useRef(false);
+  const quickGenRef = useRef(false);                    // 目前的 QR 產生是快速入場觸發的（失敗時要顯示警示頁）
+  const noRememberRef = useRef(false);                  // 自動產生（快速入場／線上付款票券）不覆寫記憶
+  const [quickReady, setQuickReady] = useState(() => !quickPrefRef.current); // 等子會員清單載入、套用記住的人員/場館後才驗票
+  const [quickWarn, setQuickWarn] = useState(null);     // 快速入場無法使用的原因（顯示警示頁）
+  const [quickNotice, setQuickNotice] = useState(null); // 頁首提示（如記住的入場人員已不存在）
+  const [rememberQuick, setRememberQuick] = useState(true); // 本次選擇是否記為快速入場
 
   // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
   const [children, setChildren] = useState([]);
@@ -113,10 +158,25 @@ export default function MemberQRPage() {
   // 載入子會員清單
   useEffect(() => {
     if (!member) return;
+    // 快速入場：子會員清單回來後，才套用記住的入場人員／場館並開始驗票（否則會先驗到家長本人）
+    const applyQuick = (ch) => {
+      const q = quickPrefRef.current;
+      if (!q || quickAppliedRef.current) return;
+      quickAppliedRef.current = true;
+      if (q.targetId) {
+        if (ch.some(c => c.id === q.targetId)) setTargetId(q.targetId);
+        else { quickRef.current = null; setQuickNotice(t('原本記住的入場人員已不在家庭成員中，請重新選擇入場方式。')); }
+      }
+      if (q.gymId && q.gymId !== gymId) {
+        try { localStorage.setItem('memberEntryGymId', q.gymId); } catch (e) {}
+        setGymId(q.gymId);
+      }
+      setQuickReady(true);
+    };
     memberClient.get('/members/my/children')
-      .then(r => setChildren(r.data.children || []))
-      .catch(() => {});
-  }, [member]);
+      .then(r => { const ch = r.data.children || []; setChildren(ch); applyQuick(ch); })
+      .catch(() => applyQuick([]));
+  }, [member]); // eslint-disable-line
 
   // 線上付款（真實 gateway）整頁導轉回來：全新的頁面載入，PaymentFlow 內原本的輪詢/onPaid
   // 早已隨舊頁面銷毀不會被呼叫（見 returnUrls 傳入處註解）——改用 URL 帶的 ?paid=1 標記判斷
@@ -134,7 +194,7 @@ export default function MemberQRPage() {
   // 本人不入場：入場對象預設落在第一個家庭成員（不驗本人）
   useEffect(() => { if (member?.selfEntrySkipped && !targetId && children.length) setTargetId(children[0].id); }, [member, children]); // eslint-disable-line
   // 切換入場人員 / 場館（或初次進入）時重新驗票
-  useEffect(() => { if (member) doVerify(); /* eslint-disable-next-line */ }, [member, targetId, gymId]);
+  useEffect(() => { if (member && quickReady) doVerify(); /* eslint-disable-next-line */ }, [member, targetId, gymId, quickReady]);
 
   // 產生 QR 後輪詢入場狀態：confirmed→自動跳首頁（首頁橫幅顯示已入場）；
   // cancelled/expired→停止並提示；元件卸載/QR 變更時清除 timer（不無限輪詢）。
@@ -180,6 +240,38 @@ export default function MemberQRPage() {
   // （後端 createPendingCheckIn 對這張票會權威覆寫租借金額為 0，此處純粹是讓畫面/QR 正確反映「有租借」）。
   const justPaidRentalRef = useRef({ shoes: false, chalk: false });
   const JUST_PAID_MAX_RETRY = 4;
+  // 依記住的選擇比對「這次驗票回來的即時資格」：身分／票卡仍可用才一鍵產 QR，否則顯示警示讓會員改選。
+  const resolveQuick = (q, data) => {
+    const warn = (msg) => { setQuickWarn(msg); setStep('quick_warn'); };
+    let entry;
+    if (q.kind === 'free') {
+      if (!data.freeEntry || data.entryType !== q.type) {
+        return warn(t('您目前的入場資格和上次不同（例如定期票、課程學員資格已到期或變更）。'));
+      }
+      entry = { type: data.entryType, freeEntry: true, passId: data.pass?.id };
+    } else {
+      if (data.freeEntry) return warn(t('您目前已有免費入場資格，入場方式和上次不同。'));
+      const st = (data.entryTypeOptions || []).find(o => o.type === q.entryTypeId);
+      if (!st) return warn(tt(`入場身分「${t(q.entryLabel || '')}」目前無法選擇，請重新選擇。`, `The entry type "${t(q.entryLabel || '')}" is no longer available. Please choose again.`, `入場区分「${t(q.entryLabel || '')}」は現在選択できません。選び直してください。`));
+      const m = buildMethods(st, data.instruments || {}, t).find(x => x.kind === q.kind);
+      if (!m || (m.instrumentKind && !(m.cards && m.cards.length))) {
+        return warn(t(QUICK_EXHAUST_MSG[q.kind] || '這個入場方案目前不可選'));
+      }
+      entry = { ...m, baseEntryType: m.baseEntryType || m.type, cardId: m.cards?.[0]?.id || null };
+      setSelectedType(st);
+    }
+    const needPay = (entry.requiresPayment && !entry.freeEntry) || (entry.freeEntry && (q.shoes || q.chalk));
+    if (needPay) {
+      if (!q.payMethod) return warn(t('這個入場方式需要先選擇付款方式。'));
+      if (enabledPay[q.payMethod] === false) return warn(t('上次使用的付款方式目前未開放，請重新選擇。'));
+    }
+    setSelectedEntry(entry);
+    setSelectedPayment(needPay ? q.payMethod : null);
+    justPaidRentalRef.current = { shoes: !!q.shoes, chalk: !!q.chalk };
+    quickGenRef.current = true;
+    setAutoGenQR(true);
+  };
+
   const doVerify = async () => {
     const seq = ++verifySeqRef.current;
     setStep('loading');
@@ -213,8 +305,14 @@ export default function MemberQRPage() {
         return age >= 0 && age < RECENT_PAID_TICKET_WINDOW_MS;
       });
       if (!data.allowed) {
+        quickRef.current = null;
         clearJustPaid();
         setStep('blocked');
+      } else if (quickRef.current) {
+        const q = quickRef.current;
+        quickRef.current = null;
+        clearJustPaid();
+        resolveQuick(q, data);
       } else if (data.freeEntry) {
         clearJustPaid();
         setSelectedEntry({ type: data.entryType, freeEntry: true, passId: data.pass?.id });
@@ -325,12 +423,33 @@ export default function MemberQRPage() {
       setQrExpiry(expiresAt);
       setQrDataUrl(dataUrl);
       setRentShoes(shoes);
+      // 記住這次選擇（快速入場）：只記可重複的方案；購買類／友館特約優惠／續約不記
+      try {
+        const kind = selectedEntry.kind || (selectedEntry.freeEntry ? 'free' : null);
+        const rememberable = rememberQuick && !noRememberRef.current && QUICK_KINDS.includes(kind)
+          && !(partnerVendor || partnerGymMember || renewOptIn) && !selectedEntry.buyPassTypeId;
+        if (rememberable) {
+          const usesPay = (selectedEntry.requiresPayment && !selectedEntry.freeEntry) || (selectedEntry.freeEntry && (shoes || chalk));
+          saveQuickEntry(member.id, {
+            targetId: isChildTarget ? entrant.id : null, gymId,
+            entryTypeId: selectedType?.type || null, entryLabel: selectedType ? entryIdLabel(selectedType) : null,
+            kind, type: selectedEntry.type,
+            methodLabel: selectedEntry.label || ENTRY_TYPE_LABEL[selectedEntry.type] || null,
+            shoes: !!shoes, chalk: !!chalk, payMethod: usesPay ? (payMethod || null) : null,
+            who: entrant.name,
+          });
+        }
+      } catch (e) {}
+      quickGenRef.current = false; noRememberRef.current = false;
       setStep('qr');
     } catch (err) {
       // 後端 pendingCheckIn 可能已成功建立（見下方 qrToken 判斷），只是產生 QR 圖片這步失敗——
       // 回報實際錯誤內容，供之後查（2026-09-26 曾發生此路徑靜默失敗、無法定位根因）。
       reportClientError(err, 'MemberQRPage.handleGenerateQR');
-      setError(err.response?.data?.message || t('產生 QR Code 失敗'));
+      const msg = err.response?.data?.message || t('產生 QR Code 失敗');
+      setError(msg);
+      noRememberRef.current = false;
+      if (quickGenRef.current) { quickGenRef.current = false; setQuickWarn(msg); setStep('quick_warn'); }
     } finally {
       setLoading(false);
     }
@@ -342,6 +461,7 @@ export default function MemberQRPage() {
   useEffect(() => {
     if (autoGenQR && selectedEntry) {
       setAutoGenQR(false);
+      noRememberRef.current = true; // 自動產生不覆寫快速入場記憶
       handleGenerateQR(justPaidRentalRef.current.shoes, justPaidRentalRef.current.chalk);
     }
   }, [autoGenQR, selectedEntry]); // eslint-disable-line
@@ -374,6 +494,12 @@ export default function MemberQRPage() {
       {verifyResult?.member?.fallTestWarning && (
         <div style={{ margin:'12px 20px 0', background:'#FCEBEB', border:'1.5px solid #E8A5A5', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#A32D2D', fontWeight:600, lineHeight:1.6 }}>
           ⚠️ {tt(verifyResult.member.fallTestWarning.message, 'Fall test consent form or test not yet completed', '墜落テスト同意書またはテストが完了していません')}
+        </div>
+      )}
+      {quickNotice && (
+        <div style={{ margin:'12px 20px 0', background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#8B6914', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, textAlign:'left' }}>
+          <span>⚠️ {quickNotice}</span>
+          <span onClick={() => setQuickNotice(null)} style={{ cursor:'pointer', flexShrink:0 }}>✕</span>
         </div>
       )}
       {onlinePaySuccess && (
@@ -454,13 +580,47 @@ export default function MemberQRPage() {
     );
   };
 
+  // 快速入場無法使用（身分／票卡用罄、資格變更、付款方式停用、產生失敗）：提示原因，讓會員重新選擇
+  if (step === 'quick_warn') {
+    const goManual = () => {
+      setQuickWarn(null);
+      if (verifyResult?.freeEntry) {
+        setSelectedEntry({ type: verifyResult.entryType, freeEntry: true, passId: verifyResult.pass?.id });
+        setStep('shoes');
+      } else {
+        setStep('select_entry');
+      }
+    };
+    return wrap(
+      <>
+        <Header title={t('快速入場')} onBack={() => navigate('/member/home')} />
+        <div style={{ padding:20 }}>
+          <div style={{ background:'#FFF8E6', border:'1px solid #F5D87A', borderRadius:12, padding:20, textAlign:'left' }}>
+            <div style={{ fontSize:32, textAlign:'center', marginBottom:8 }}>⚠️</div>
+            <div style={{ fontWeight:600, fontSize:15, color:'#8B6914', marginBottom:8, textAlign:'center' }}>{t('無法使用快速入場')}</div>
+            <div style={{ fontSize:13, color:'#8B6914', lineHeight:1.7 }}>{quickWarn}</div>
+            <div style={{ fontSize:12, color:'#999', marginTop:10 }}>{t('請重新選擇入場方式；完成後會自動記住新的選擇。')}</div>
+          </div>
+          <button onClick={goManual}
+            style={{ width:'100%', marginTop:16, height:46, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+            {t('重新選擇入場方式')}
+          </button>
+          <button onClick={() => { clearQuickEntry(member.id); navigate('/member/home'); }}
+            style={{ width:'100%', marginTop:10, height:40, borderRadius:10, background:'#fff', color:'#999', border:'0.5px solid #E8D5D5', fontSize:12, cursor:'pointer' }}>
+            {t('清除快速入場設定')}
+          </button>
+        </div>
+      </>
+    );
+  }
+
   if (step === 'loading') return wrap(
     <>
       <Header title={t('入場 QR Code')} onBack={() => navigate('/member/home')} />
       <GymSelector /><MemberSelector />
       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:60, gap:16 }}>
         <div style={{ fontSize:32 }}>⏳</div>
-        <div style={{ fontSize:14, color:'#999' }}>{confirmingPayment ? t('確認付款中，請稍候...') : t('驗票中...')}</div>
+        <div style={{ fontSize:14, color:'#999' }}>{confirmingPayment ? t('確認付款中，請稍候...') : (quickGenRef.current ? t('快速入場：產生 QR 中...') : t('驗票中...'))}</div>
       </div>
     </>
   );
@@ -573,20 +733,7 @@ export default function MemberQRPage() {
   if (step === 'select_method') {
     const st = selectedType || {};
     const inst = verifyResult?.instruments || {};
-    const basePrice = st.discountedPrice ?? st.price ?? 0;       // 一般付款（含隊員折扣）
-    const methods = [
-      { kind:'pay', type:st.type, baseEntryType:st.type, label:t('單次入場'), price:st.price, discountedPrice:basePrice,
-        teamDiscount:st.teamDiscount, partnerVendorEligible:st.partnerVendorEligible === true, partnerGymMemberEligible:st.partnerGymMemberEligible === true, freeEntry:false, requiresPayment:true },
-    ];
-    if (inst.discountCard?.available) {
-      const dp = Math.round((st.price || 0) * (inst.discountCard.rate || 0.8));
-      methods.push({ kind:'discountCard', type:'discount_card', baseEntryType:st.type, label:t('使用優惠折扣券（原價 8 折）'),
-        price:st.price, discountedPrice:dp, freeEntry:false, requiresPayment:true,
-        instrumentKind:'discountCard', cards:inst.discountCard.cards });
-    }
-    if (inst.blackCard?.available) methods.push({ kind:'blackCard', type:'black_card', label:t('使用黑卡（免費）'), freeEntry:true, instrumentKind:'blackCard', cards:inst.blackCard.cards });
-    if (inst.bonus?.available) methods.push({ kind:'bonus', type:'bonus', label:t('使用紅利（免費）'), freeEntry:true, instrumentKind:'bonus', cards:inst.bonus.bonuses });
-    if (inst.singleEntryTicket?.available) methods.push({ kind:'ticket', type:'single_entry_ticket', label:t('使用單次入場券（免費）'), freeEntry:true, instrumentKind:'singleEntryTicket', cards:inst.singleEntryTicket.tickets });
+    const methods = buildMethods(st, inst, t);
     // 未滿 13 歲（兒童，以出生日期判定）不可購買優惠券／定期票（友善提示，後端仍為權威）
     const entrantIsChild = isChild(entrant);
     if (!entrantIsChild && inst.buyDiscountCard?.available) methods.push({ kind:'buy', type:'buy_discount_card', label:t('購買優惠折扣券入場'), note:t('含本次入場＋10次八折＋紅利'), price:inst.buyDiscountCard.price, discountedPrice:inst.buyDiscountCard.price, freeEntry:false, requiresPayment:true });
@@ -899,6 +1046,16 @@ export default function MemberQRPage() {
                 t={t}
                 onChange={v => setSelectedPayment(v.method)}
               />
+            </div>
+          )}
+          {/* 快速入場：記住這次的選擇（購買定期票/優惠券、友館特約優惠、續約不記） */}
+          {(!selectedEntry?.buyPassTypeId && !partnerVendor && !partnerGymMember && !renewOptIn) && (
+            <div onClick={() => setRememberQuick(v => !v)}
+              style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16, cursor:'pointer', textAlign:'left' }}>
+              <div style={{ width:20, height:20, borderRadius:5, border:`1.5px solid ${rememberQuick?'#8B1A1A':'#ccc'}`, background:rememberQuick?'#8B1A1A':'#fff', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {rememberQuick && <CheckTick color="#fff" size={10} />}
+              </div>
+              <div style={{ fontSize:13, color:'#555' }}>{t('記住這次的選擇，下次用首頁「快速入場」一鍵產生 QR')}</div>
             </div>
           )}
           {error && <div style={{ marginBottom:12, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
