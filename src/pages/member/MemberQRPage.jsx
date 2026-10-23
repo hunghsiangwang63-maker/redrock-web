@@ -120,6 +120,7 @@ export default function MemberQRPage() {
   const [quickReady, setQuickReady] = useState(() => !quickPrefRef.current); // 等子會員清單載入、套用記住的人員/場館後才驗票
   const [quickWarn, setQuickWarn] = useState(null);     // 快速入場無法使用的原因（顯示警示頁）
   const [quickNotice, setQuickNotice] = useState(null); // 頁首提示（如記住的入場人員已不存在）
+  const [qrFromQuick, setQrFromQuick] = useState(false);  // 目前的 QR 由快速入場產生（顯示「更改付款方式」鈕）
   const [rememberQuick, setRememberQuick] = useState(true); // 本次選擇是否記為快速入場
 
   // 親子帳號：可選擇要產生「誰」的入場 QR（家長本人 / 各子會員）
@@ -281,7 +282,7 @@ export default function MemberQRPage() {
     setSelectedType(null); setSelectedEntry(null); setSelectedCard(null); setSelectedPayment(null); setBuyPassPlan('full');
     setRenewOptIn(false); setRenewPlan('full');
     setRentShoes(false); setRentChalk(false);
-    setQrDataUrl(null); setQrToken(null); setQrExpiry(null);
+    setQrDataUrl(null); setQrToken(null); setQrExpiry(null); setQrFromQuick(false);
     const clearJustPaid = () => { justPaidAutoSelectRef.current = false; justPaidRetryRef.current = 0; setConfirmingPayment(false); };
     try {
       // timeout 放寬到 25 秒（共用 client 預設 10 秒；後端偶爾落在慢實例時，驗票要查多筆資料會超過 10 秒而誤顯示失敗，2026-10-14）
@@ -422,7 +423,8 @@ export default function MemberQRPage() {
       setQrToken(qrToken);
       setQrExpiry(expiresAt);
       setQrDataUrl(dataUrl);
-      setRentShoes(shoes);
+      setRentShoes(shoes); setRentChalk(chalk);
+      if (quickGenRef.current) setQrFromQuick(true);
       // 記住這次選擇（快速入場）：只記可重複的方案；購買類／友館特約優惠／續約不記
       try {
         const kind = selectedEntry.kind || (selectedEntry.freeEntry ? 'free' : null);
@@ -1248,6 +1250,13 @@ export default function MemberQRPage() {
             <div style={{ background:'#E6F1FB', border:'0.5px solid #B5D4F4', borderRadius:10, padding:'10px 14px', marginTop:14, fontSize:12, color:'#185FA5', display:'flex', gap:8 }}>
               <span>💡</span><span>{t('請出示此 QR Code 給工作人員掃描；掃描確認後會')}<b>{t('自動完成入場並跳回首頁')}</b>{t('。')}</span>
             </div>
+          )}
+          {/* 快速入場產生的 QR：保留「改付款方式並重新產生」（其餘選擇不變，只換付款方式） */}
+          {qrFromQuick && ((selectedEntry?.requiresPayment && !selectedEntry?.freeEntry) || selectedPayment) && (
+            <button onClick={() => { setQrToken(null); setQrDataUrl(null); setQrExpiry(null); setError(null); setStep('select_payment'); }}
+              style={{ width:'100%', marginTop:12, height:44, borderRadius:10, background:'#8B1A1A', color:'#fff', border:'none', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+              {t('更改付款方式並重新產生 QR')}
+            </button>
           )}
           <button onClick={doVerify}
             style={{ width:'100%', marginTop:12, height:44, borderRadius:10, background:'#fff', color:'#8B1A1A', border:'0.5px solid #8B1A1A', fontSize:14, fontWeight:500, cursor:'pointer' }}>
