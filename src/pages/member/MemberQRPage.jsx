@@ -13,16 +13,10 @@ import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import dayjs from 'dayjs';
 import { isChild } from '../../utils/age';
 import PaymentSection from '../../components/PaymentSection';
-import PaymentFlow from '../../components/PaymentFlow';
 import PassContractReview from '../../components/PassContractReview';
 import { isMinor } from '../../utils/age';
-import { useOnlineFlowEnabled, useEnabledPayments } from '../../utils/paymentMethods';
+import { useEnabledPayments } from '../../utils/paymentMethods';
 import { loadQuickEntry, saveQuickEntry, clearQuickEntry } from '../../utils/quickEntry';
-
-// 支援線上付款（pay-first）的入館身份——純付費身份（黑卡/紅利/單次券皆有自己的免費入場路徑，
-// 不適用），2026-08-27 起「使用已持有的優惠折扣券」(discount_card) 另外獨立判斷（見 onlinePayable）；
-// 與後端 orderResolvers.entry（paymentService.js）白名單一致，勿單方修改。
-const ONLINE_PAYABLE_ENTRY_TYPES = ['single_ticket', 'student_free', 'child_free'];
 
 const PAYMENT_METHODS = [
   { key: 'cash',      label: '現金' },
@@ -76,7 +70,6 @@ export default function MemberQRPage() {
   const { member } = useMember();
   const navigate = useNavigate();
   const location = useLocation();
-  const onlineEntryPayEnabled = useOnlineFlowEnabled('entry');
   const enabledPay = useEnabledPayments(); // 系統層付款方式開關；街口尚未接金鑰前可能被關閉，此時即使 onlineFlows.entry 開著也不該顯示線上金流文案/入口
 
   const [step, setStep] = useState('loading');
@@ -99,10 +92,7 @@ export default function MemberQRPage() {
   const [error, setError] = useState(null);
   const [verifyFailed, setVerifyFailed] = useState(false); // 驗票請求本身失敗（逾時/斷線），不是「資格不符」——畫面要區分，避免客人誤以為被拒絕入場
   const [qrClosedReason, setQrClosedReason] = useState(null); // 'cancelled' | 'expired' → 停止輪詢並提示
-  const [onlinePayFor, setOnlinePayFor] = useState(null); // 線上支付（pay-first）Modal：{ entryType, amount, gymId } | null
-  const [onlinePaySuccess, setOnlinePaySuccess] = useState(false); // 付款完成提示（導回選身分，改選「使用單次入場券」領取）
-  const [autoGenQR, setAutoGenQR] = useState(false); // 線上付款導回：selectedEntry 就緒後自動產生 QR（跳過租借器材/選付款方式，直接出現可掃碼 QR）
-  const [confirmingPayment, setConfirmingPayment] = useState(false); // loading 畫面文案用：是否正在等待剛付款的票券開通（見 doVerify 的重試邏輯）
+  const [autoGenQR, setAutoGenQR] = useState(false); // 快速入場：selectedEntry 就緒後自動產生 QR（跳過租借器材／選付款方式）
   const passContractRef = useRef(null); // 定期票服務同意書（合約）條款檢閱＋簽名步驟（僅 buy_pass 適用）
   const [passContractData, setPassContractData] = useState(null); // 離開 pass_contract 步驟時存下（元件會 unmount，需先取出資料）
   const [passContractErr, setPassContractErr] = useState(false);
@@ -186,19 +176,6 @@ export default function MemberQRPage() {
       .catch(() => applyQuick([]));
   }, [member]); // eslint-disable-line
 
-  // 線上付款（真實 gateway）整頁導轉回來：全新的頁面載入，PaymentFlow 內原本的輪詢/onPaid
-  // 早已隨舊頁面銷毀不會被呼叫（見 returnUrls 傳入處註解）——改用 URL 帶的 ?paid=1 標記判斷
-  // 「剛從付款頁回來」，顯示成功提示（下方既有 doVerify 本就會在 mount 時重新驗票，帶出新開通的
-  // 票券，不需要額外處理）；顯示後清掉網址參數，避免使用者重新整理又跳出同一則提示。
-  useEffect(() => {
-    if (new URLSearchParams(location.search).get('paid') === '1') {
-      setOnlinePaySuccess(true);
-      setConfirmingPayment(true);
-      justPaidAutoSelectRef.current = true; // doVerify() 下一次跑完後自動選定剛開通的票券、跳過選身分/選方式兩步
-      navigate('/member/qr', { replace: true });
-    }
-  }, []); // eslint-disable-line
-
   // 本人不入場：入場對象預設落在第一個家庭成員（不驗本人）
   useEffect(() => { if (member?.selfEntrySkipped && !targetId && children.length) setTargetId(children[0].id); }, [member, children]); // eslint-disable-line
   // 切換入場人員 / 場館（或初次進入）時重新驗票
@@ -240,14 +217,7 @@ export default function MemberQRPage() {
   // 蓋掉畫面（可能顯示錯誤的入場資格/金額）。序號只採用最新一次回應——上方清空選取狀態是同步、
   // 每次呼叫都該立即生效，只有 await 之後的結果套用需要防過期。
   const verifySeqRef = useRef(0);
-  const justPaidAutoSelectRef = useRef(false); // 剛從線上付款導回：驗票完成後自動選定新開通的單次入場券、直接跳到租借器材步驟（見下方 doVerify）
-  const justPaidRetryRef = useRef(0); // 街口 result_url webhook 與瀏覽器導轉是兩條獨立管道，無法保證先後順序——票券還沒開通時短暫重試幾次
-  // 2026-08-23：線上付款當下若一併勾了租借器材，金額已併入付款總額（見 onSelect 的 onlinePayFor.amount）
-  // 且票券本身記著 rentShoes/rentChalk（見 orderHandlers.entry）——但付款導轉會整頁重載、rentShoes/
-  // rentChalk 的 useState 早已被重置成 false，故用這個 ref 把票券記的租借狀態帶進自動產生 QR 那一步
-  // （後端 createPendingCheckIn 對這張票會權威覆寫租借金額為 0，此處純粹是讓畫面/QR 正確反映「有租借」）。
-  const justPaidRentalRef = useRef({ shoes: false, chalk: false });
-  const JUST_PAID_MAX_RETRY = 4;
+  const autoGenRentalRef = useRef({ shoes: false, chalk: false }); // 快速入場自動產 QR 時帶入的租借選擇
   // 依記住的選擇比對「這次驗票回來的即時資格」：身分／票卡仍可用才一鍵產 QR，否則顯示警示讓會員改選。
   const resolveQuick = (q, data) => {
     const warn = (msg) => { setQuickWarn(msg); setStep('quick_warn'); };
@@ -275,7 +245,7 @@ export default function MemberQRPage() {
     }
     setSelectedEntry(entry);
     setSelectedPayment(needPay ? q.payMethod : null);
-    justPaidRentalRef.current = { shoes: !!q.shoes, chalk: !!q.chalk };
+    autoGenRentalRef.current = { shoes: !!q.shoes, chalk: !!q.chalk };
     quickGenRef.current = true;
     setAutoGenQR(true);
   };
@@ -290,73 +260,27 @@ export default function MemberQRPage() {
     setRenewOptIn(false); setRenewPlan('full');
     setRentShoes(false); setRentChalk(false);
     setQrDataUrl(null); setQrToken(null); setQrExpiry(null); setQrFromQuick(false);
-    const clearJustPaid = () => { justPaidAutoSelectRef.current = false; justPaidRetryRef.current = 0; setConfirmingPayment(false); };
     try {
       // timeout 放寬到 25 秒（共用 client 預設 10 秒；後端偶爾落在慢實例時，驗票要查多筆資料會超過 10 秒而誤顯示失敗，2026-10-14）
       const res = await memberClient.post('/checkin/verify', { identifier: member.phone, gymId, targetMemberId: entrant.id }, { timeout: 25000 });
       if (seq !== verifySeqRef.current) return;
       const data = res.data;
       setVerifyResult(data);
-      const justPaidTickets = data.instruments?.singleEntryTicket?.tickets || [];
-      // 保底機制（2026-09-03）：付款完成後的瀏覽器導轉在行動裝置上不一定可靠（尤其 PWA／
-      // 原生分頁情境常常跑丟，見對話紀錄——JKoPay 走 window.location.href 整頁導轉，若
-      // result_display_url 沒能正確帶使用者回到這頁，?paid=1 標記就永遠不會出現）。票券
-      // 本身已由 payments webhook 權威授予、與導轉是否成功無關，故即使沒有 ?paid=1，只要
-      // 偵測到「20 分鐘內、剛透過線上付款開通、尚未使用」的單次入場券，也直接產生 QR，
-      // 省去使用者手動重新走「選身分→選付款方式→找到票券」三步。
-      const RECENT_PAID_TICKET_WINDOW_MS = 20 * 60 * 1000;
-      const recentPaidTicket = justPaidTickets.find(tk => {
-        if (tk.source !== 'online-entry') return false;
-        const secs = tk.createdAt?._seconds ?? tk.createdAt?.seconds;
-        if (!secs) return false;
-        const age = Date.now() - secs * 1000;
-        return age >= 0 && age < RECENT_PAID_TICKET_WINDOW_MS;
-      });
       if (!data.allowed) {
         quickRef.current = null;
-        clearJustPaid();
         setStep('blocked');
       } else if (quickRef.current) {
         const q = quickRef.current;
         quickRef.current = null;
-        clearJustPaid();
         resolveQuick(q, data);
       } else if (data.freeEntry) {
-        clearJustPaid();
         setSelectedEntry({ type: data.entryType, freeEntry: true, passId: data.pass?.id });
         setStep('shoes');
-      } else if (justPaidAutoSelectRef.current && data.instruments?.singleEntryTicket?.available && justPaidTickets.length) {
-        // 剛從線上付款導回：不用回頭選身分/選方式/租借器材，直接用新開通的票券產生可掃碼 QR
-        // （見下方 autoGenQR 的 effect：等 selectedEntry 這次 setState 真的提交後才呼叫
-        // handleGenerateQR，避免在同一個函式呼叫裡讀到尚未更新的舊 state）。
-        clearJustPaid();
-        justPaidRentalRef.current = { shoes: !!justPaidTickets[0].rentShoes, chalk: !!justPaidTickets[0].rentChalk };
-        setSelectedEntry({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true,
-          instrumentKind:'singleEntryTicket', baseEntryType:'single_entry_ticket', cards:justPaidTickets, cardId:justPaidTickets[0].id });
-        setStep('shoes');
-        setAutoGenQR(true);
-      } else if (justPaidAutoSelectRef.current && justPaidRetryRef.current < JUST_PAID_MAX_RETRY) {
-        // 票券可能還沒開通（webhook 尚未跑完）——短暫重試，畫面停在 loading（見下方 confirmingPayment 顯示專用文案）
-        justPaidRetryRef.current += 1;
-        setTimeout(() => { doVerify(); }, 1500);
-        return;
-      } else if (!justPaidAutoSelectRef.current && recentPaidTicket) {
-        // 上面 ?paid=1 導回路徑沒有被觸發（見上方保底機制註解），但確實查到剛付款開通的票券——
-        // 同樣直接產生 QR，不進 select_entry 讓使用者再手動找一次。
-        clearJustPaid();
-        setOnlinePaySuccess(true);
-        justPaidRentalRef.current = { shoes: !!recentPaidTicket.rentShoes, chalk: !!recentPaidTicket.rentChalk };
-        setSelectedEntry({ kind:'ticket', type:'single_entry_ticket', label:'使用單次入場券（免費）', freeEntry:true,
-          instrumentKind:'singleEntryTicket', baseEntryType:'single_entry_ticket', cards:[recentPaidTicket], cardId:recentPaidTicket.id });
-        setStep('shoes');
-        setAutoGenQR(true);
       } else {
-        clearJustPaid();
         setStep('select_entry');
       }
     } catch (err) {
       if (seq !== verifySeqRef.current) return;
-      clearJustPaid();
       setError(err.response?.data?.message || t('驗票失敗'));
       // 沒有伺服器回應（逾時/斷線）或 5xx＝驗票本身失敗，不是資格不符：清掉舊結果、畫面改顯示「連線問題，請重試」
       if (!err.response || err.response.status >= 500) { setVerifyResult(null); setVerifyFailed(true); }
@@ -464,30 +388,19 @@ export default function MemberQRPage() {
     }
   };
 
-  // autoGenQR 只在 doVerify() 判定「剛付款且票券可用」時被設 true；等 selectedEntry 的
+  // autoGenQR 只在快速入場（resolveQuick）判定可用時被設 true；等 selectedEntry 的
   // setState 真的提交、下一次 render 完成後才呼叫 handleGenerateQR（此時讀到的 selectedEntry
   // 才是剛設好的新值，不是呼叫當下 closure 捕捉到的舊值）——用過即清，不會重複觸發。
   useEffect(() => {
     if (autoGenQR && selectedEntry) {
       setAutoGenQR(false);
-      noRememberRef.current = true; // 自動產生不覆寫快速入場記憶
-      handleGenerateQR(justPaidRentalRef.current.shoes, justPaidRentalRef.current.chalk);
+      noRememberRef.current = true; // 快速入場自動產生，不需要再存記憶
+      handleGenerateQR(autoGenRentalRef.current.shoes, autoGenRentalRef.current.chalk);
     }
   }, [autoGenQR, selectedEntry]); // eslint-disable-line
 
   // 顯示入場 QR 時保持螢幕常亮，見 hooks/useScreenWakeLock.js 檔頭說明
   useScreenWakeLock(step === 'qr');
-
-  // 線上支付（pay-first）完成：僅 mock（本機測試）用得到——真實 gateway 整頁導轉會直接銷毀
-  // 這個元件實例，onPaid 永遠不會被呼叫（見 returnUrls 傳入處註解），改由 ?paid=1 網址標記處理。
-  // mock 測試比照同一套自動流程（standAlone 標記 + 重新驗票 + 自動產生 QR），行為與正式一致。
-  const handleOnlinePaid = () => {
-    setOnlinePayFor(null);
-    setOnlinePaySuccess(true);
-    setConfirmingPayment(true);
-    justPaidAutoSelectRef.current = true;
-    doVerify();
-  };
 
   const NavBar = () => <MemberBottomNav navigate={navigate} />;
 
@@ -511,34 +424,7 @@ export default function MemberQRPage() {
           <span onClick={() => setQuickNotice(null)} style={{ cursor:'pointer', flexShrink:0 }}>✕</span>
         </div>
       )}
-      {onlinePaySuccess && (
-        <div style={{ margin:'12px 20px 0', background:'#E6F4EB', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'10px 14px', fontSize:12, color:'#2D7D46', display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
-          <span>{t('✅ 付款成功，入場券已開通！請選擇「使用單次入場券（免費）」領取，即可產生入場 QR。')}</span>
-          <span onClick={() => setOnlinePaySuccess(false)} style={{ cursor:'pointer', flexShrink:0 }}>✕</span>
-        </div>
-      )}
       {kids}
-      {onlinePayFor && (
-        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:210, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
-          <div style={{ background:'#fff', borderRadius:16, width:'100%', maxWidth:380, padding:20 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-              <div style={{ fontWeight:600, fontSize:15 }}>{t('線上支付入場')}</div>
-              <button onClick={() => setOnlinePayFor(null)} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
-            </div>
-            <PaymentFlow
-              client={memberClient}
-              orderType="entry"
-              orderRef={{ gymId: onlinePayFor.gymId, entryType: onlinePayFor.entryType, rentShoes: onlinePayFor.rentShoes, rentChalk: onlinePayFor.rentChalk, partnerVendor: onlinePayFor.partnerVendor, partnerGymMember: onlinePayFor.partnerGymMember, buyPassTypeId: onlinePayFor.buyPassTypeId, discountCardId: onlinePayFor.discountCardId, baseEntryType: onlinePayFor.baseEntryType }}
-              amount={onlinePayFor.amount}
-              gymId={onlinePayFor.gymId}
-              autoProvider="jkopay"
-              onPaid={handleOnlinePaid}
-              onCancel={() => setOnlinePayFor(null)}
-              returnUrls={{ cancelUrl: `${window.location.origin}/member/qr?paid=1` }}
-            />
-          </div>
-        </div>
-      )}
       <MemberLogoutButton />
       <NavBar />
     </div>
@@ -629,7 +515,7 @@ export default function MemberQRPage() {
       <GymSelector /><MemberSelector />
       <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:60, gap:16 }}>
         <div style={{ fontSize:32 }}>⏳</div>
-        <div style={{ fontSize:14, color:'#999' }}>{confirmingPayment ? t('確認付款中，請稍候...') : (quickGenRef.current ? t('快速入場：產生 QR 中...') : t('驗票中...'))}</div>
+        <div style={{ fontSize:14, color:'#999' }}>{quickGenRef.current ? t('快速入場：產生 QR 中...') : t('驗票中...')}</div>
       </div>
     </>
   );
@@ -830,24 +716,6 @@ export default function MemberQRPage() {
    const _pgmOn = pgmEligible && partnerGymMember;
    const _pvOn = !_pgmOn && pvEligible && partnerVendor;
    const pvShownPrice = _pgmOn ? Math.round(basePayPrice * pgmRate) : (basePayPrice - (_pvOn ? pvDiscount : 0));
-   // 真線上付款（pay-first，街口等）：涵蓋三種——①單純付費身份 ②購買優惠折扣券入場
-   // ③購買定期票入場（2026-08-24 拍板：僅一次付清，選了分期則不提供線上付款、維持走櫃檯既有流程）。
-   // ⚠️ 租借器材（rentShoes/rentChalk）金額已於 2026-08-23、友館隊員/特約廠商優惠已於 2026-08-24
-   // 併入線上付款總額（見下方 onlinePayFor.amount 與 orderRef、後端 orderResolvers.entry）——優惠
-   // 由會員自行申報，核對證件延後到櫃檯掃碼確認才做（與現金/標籤方式的既有信任模型一致），故不再
-   // 需要因為勾了這些優惠就關閉線上即付。流程本就是「選完入場方案/租借/優惠資格 → 最後一步才是
-   // 付款方式」，串接線上金流只是在「產生 QR」前多插入一步「先完成線上付款」，其餘步驟與資訊完全不變。
-   const onlinePayable = onlineEntryPayEnabled && (
-     (selectedEntry?.kind === 'pay' && ONLINE_PAYABLE_ENTRY_TYPES.includes(selectedEntry?.type)) ||
-     (selectedEntry?.kind === 'buy' && selectedEntry?.type === 'buy_discount_card') ||
-     (selectedEntry?.kind === 'buyPass' && selectedEntry?.type === 'buy_pass' && buyPassPlan === 'full') ||
-     // 2026-08-27：使用（已持有的）優惠折扣券入場——後端 orderResolvers.entry 已支援
-     // entryType==='discount_card'（付款前驗證此券歸屬本人且仍有效，扣點延到 redeem 當下）。
-     (selectedEntry?.kind === 'discountCard' && !!selectedEntry?.cardId)
-   );
-   // 目前唯一接了線上金流的方式是街口——若系統層「付款方式開關」把街口關了（如金鑰尚未到位），
-   // 即使 onlinePayable 為 true 也不該顯示線上付款文案/觸發線上金流，否則會指向一個根本不存在的選項。
-   const jkopayOnlineLive = onlinePayable && enabledPay.jkopay !== false;
    return wrap(
     <>
       <Header title={t('選擇付款方式')} onBack={() => setStep('shoes')} />
@@ -899,9 +767,7 @@ export default function MemberQRPage() {
           {selectedEntry?.type === 'buy_pass' && buyPassPlan === 'installment' ? t('請選擇「頭款（第一期）」付款方式') : t('請選擇付款方式')}
         </div>
         <div style={{ fontSize:12, color:'#999', marginBottom:10, textAlign:'left' }}>
-          {jkopayOnlineLive
-            ? t('選擇「街口支付」可直接完成線上付款、付款後立即開通入場券；選擇 LinePay／台灣Pay 需至櫃檯掃描店內立牌條碼付款。')
-            : t('選擇 LinePay／台灣Pay／街口支付皆需至櫃檯掃描店內立牌條碼付款。')}
+          {t('選擇 LinePay／台灣Pay／街口支付皆需至櫃檯掃描店內立牌條碼付款。')}
         </div>
         <PaymentSection
           value={{ method: selectedPayment }}
@@ -911,31 +777,7 @@ export default function MemberQRPage() {
           disabled={loading}
           t={t}
           onChange={v => setSelectedPayment(v.method)}
-          onSelect={key => {
-            if (key === 'jkopay' && jkopayOnlineLive) {
-              // 2026-08-23：線上付款總額併入租借器材（basePayPrice 只有入場費，需另加岩鞋/粉袋）；
-              // rentShoes/rentChalk 一併帶進 orderRef，供後端 orderResolvers.entry authoritative
-              // 重新計算總額 + orderHandlers.entry 記到票券上（redeem 時才知道租借已預繳、不用再收一次）。
-              // 2026-08-24：友館隊員/特約廠商優惠比照辦理——amount 改用 pvShownPrice（已含這兩項折扣
-              // 的顯示金額，與後端 computePaidEntryAmount 用同一組 opts 算出的權威金額一致）。
-              // 購買優惠折扣券/定期票入場（kind: buy/buyPass）此時 _pvOn/_pgmOn 恆 false，pvShownPrice
-              // 即 selectedEntry.discountedPrice（已含隊員折扣，見 verify.js withTeam）；buyPassTypeId
-              // 一併帶入供後端 orderResolvers.entry 權威計價/orderHandlers.entry 記在票上供 redeem 開票。
-              setOnlinePayFor({
-                entryType: selectedEntry.type,
-                amount: pvShownPrice + (rentShoes ? 100 : 0) + (rentChalk ? 50 : 0),
-                gymId, rentShoes, rentChalk,
-                partnerVendor: _pvOn, partnerGymMember: _pgmOn,
-                buyPassTypeId: selectedEntry.buyPassTypeId || null,
-                // 2026-08-27：使用已持有的優惠折扣券——帶哪張卡＋所選身分（成人/學生/兒童，決定
-                // 8折的計價基準），供後端 orderResolvers.entry 驗證歸屬＋權威算價。
-                discountCardId: selectedEntry.kind === 'discountCard' ? (selectedEntry.cardId || null) : null,
-                baseEntryType: selectedEntry.baseEntryType || null,
-              });
-            } else {
-              handleGenerateQR(rentShoes, rentChalk, key);
-            }
-          }}
+          onSelect={key => handleGenerateQR(rentShoes, rentChalk, key)}
         />
         {error && <div style={{ marginTop:10, fontSize:12, color:'#A32D2D', background:'#FCEBEB', borderRadius:8, padding:'8px 12px' }}>{error}</div>}
       </div>
