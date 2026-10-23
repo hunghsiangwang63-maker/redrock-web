@@ -5,6 +5,8 @@ export const getMyFallTestStatus = (memberId) => memberClient.get(`/fall-tests/m
 // 簽署本身已於 2026-09-26 合併進 /member/waiver（見 api/memberAuth.js signEntryDocs）；
 // 後端 POST /fall-tests/sign 仍保留（供修復情境直接呼叫 API），故未移除該端點本身。
 export const getFallTestSignature = (memberId) => memberClient.get(`/fall-tests/signature/${memberId}`);
+// 同一位家長名下已有人看完安全影片 → 這位子會員簽署時可省略影片（2026-10-23）
+export const getFallTestVideoWaived = (memberId) => memberClient.get(`/fall-tests/video-waived/${memberId}`);
 
 // 員工端（使用 staff client）
 import client from './client';

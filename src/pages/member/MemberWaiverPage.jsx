@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { getMyWaiver, signEntryDocs } from '../../api/memberAuth';
-import { getFallTestSettings, getFallTestSignature } from '../../api/fallTests';
+import { getFallTestSettings, getFallTestSignature, getFallTestVideoWaived } from '../../api/fallTests';
 import SignaturePad from '../../components/SignaturePad';
 import CheckTick from '../../components/CheckTick';
 import { detectInAppBrowser } from '../../utils/inAppBrowser';
@@ -70,6 +70,7 @@ export default function MemberWaiverPage() {
   const [agreedWaiverParagraphs, setAgreedWaiverParagraphs] = useState(new Set());
   const [agreedFtParagraphs, setAgreedFtParagraphs] = useState(new Set());
   const [watchPercent, setWatchPercent] = useState(0);
+  const [videoWaived, setVideoWaived] = useState(false); // 同一位家長名下已有人看完影片 → 省略
   const [parentEmail, setParentEmail] = useState('');
   const [parentName, setParentName] = useState('');
   const [parentPhone, setParentPhone] = useState('');
@@ -102,10 +103,11 @@ export default function MemberWaiverPage() {
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const [waiverRes, ftSettingsRes, ftSigRes] = await Promise.all([
+      const [waiverRes, ftSettingsRes, ftSigRes, videoWaivedRes] = await Promise.all([
         getMyWaiver(targetId).then(r => r.data.waiver).catch(() => null),
         getFallTestSettings().then(r => r.data).catch(() => null),
         getFallTestSignature(targetId).then(r => !!r.data?.signature).catch(() => false),
+        getFallTestVideoWaived(targetId).then(r => !!r.data?.waived).catch(() => false),
       ]);
       let waiverContent = { zh: '', en: '', ja: '' };
       try { const wr = await memberClient.get('/settings/waiver'); waiverContent = wr.data || waiverContent; } catch (_) {}
@@ -113,6 +115,7 @@ export default function MemberWaiverPage() {
       setWaiverDoc(waiverRes);
       setFtSettings(ftSettingsRes);
       setFtSigned(ftSigRes);
+      setVideoWaived(videoWaivedRes);
       setWaiverText(waiverContent);
       // 恢復影片觀看進度（此時 ftSettings 尚未進 state，用剛拿到的 ftSettingsRes 直接算 videoId）——
       // 把整份「已看過的秒數集合」恢復進 watchedSecondsRef，之後繼續播放是在同一份集合上累加，
@@ -151,7 +154,7 @@ export default function MemberWaiverPage() {
 
   const videoId = extractYoutubeId(ftSettings?.youtubeUrl);
   const requiredPercent = ftSettings?.watchPercentRequired || 90;
-  const canWatchOk = !videoId || watchPercent >= requiredPercent;
+  const canWatchOk = !videoId || videoWaived || watchPercent >= requiredPercent;
   const ftContent = ftSettings?.[lang === 'ja' ? 'contentJa' : lang === 'en' ? 'contentEn' : 'contentZh'] || ftSettings?.contentZh || '';
   const ftParagraphs = ftContent.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const allFtAgreed = ftParagraphs.length > 0 && ftParagraphs.every((_, i) => agreedFtParagraphs.has(i));
@@ -161,7 +164,7 @@ export default function MemberWaiverPage() {
 
   // ── YouTube Player（僅需要顯示墜測同意書段落時才載入）────────────────
   useEffect(() => {
-    if (!videoId || loading || !needsFallTestSection) return;
+    if (!videoId || videoWaived || loading || !needsFallTestSection) return;
     if (window.YT && window.YT.Player) { initPlayer(); return; }
     const tag = document.createElement('script');
     tag.src = 'https://www.youtube.com/iframe_api';
@@ -169,7 +172,7 @@ export default function MemberWaiverPage() {
     window.onYouTubeIframeAPIReady = initPlayer;
     return () => { window.onYouTubeIframeAPIReady = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [videoId, loading, needsFallTestSection]);
+  }, [videoId, videoWaived, loading, needsFallTestSection]);
 
   const initPlayer = () => {
     if (!document.getElementById('waiver-falltest-player')) return;
@@ -405,7 +408,12 @@ export default function MemberWaiverPage() {
         <div style={s.card}>
           <div style={s.cardPad}>
             <div style={s.sectionTitle}>{t('墜落測驗同意書')}</div>
-            {videoId && (
+            {videoId && videoWaived && (
+              <div style={{ margin: '10px 0', background: '#F0F8F2', border: '0.5px solid #B3DEC0', borderRadius: 8, padding: '10px 12px', fontSize: 13, color: '#2D7D46', textAlign: 'left', lineHeight: 1.6 }}>
+                {tt('✓ 您的家庭成員已完成安全說明影片觀看，這位小朋友可省略影片。仍請閱讀並勾選下方條款後簽名。', '✓ A member of your family has already watched the safety video, so you can skip it for this child. Please still read and check the terms below, then sign.', '✓ ご家族の方が安全説明動画を視聴済みのため、このお子様は動画を省略できます。下記の条項を確認・チェックのうえ、署名してください。')}
+              </div>
+            )}
+            {videoId && !videoWaived && (
               <>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#333', margin: '10px 0' }}>{t('📹 請先觀看說明影片')}</div>
                 {inAppBrowser.inApp && (
