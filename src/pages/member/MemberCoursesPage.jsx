@@ -180,6 +180,7 @@ export default function MemberCoursesPage() {
   const [showMakeupModal, setShowMakeupModal] = useState(false);
   const [selectedMakeup, setSelectedMakeup] = useState(null);
   const [makeupSessions, setMakeupSessions] = useState([]);
+  const [kidsComps, setKidsComps] = useState([]); // 補課選單可選的兒童賽（開放報名中，補課券抵費）
   const [makeupLoading, setMakeupLoading] = useState(false);
   const [makeupError, setMakeupError] = useState(null);
   const [leavingId, setLeavingId] = useState(null);
@@ -774,9 +775,14 @@ export default function MemberCoursesPage() {
   const openMakeupModal = async (makeup) => {
     setSelectedMakeup(makeup);
     setMakeupSessions([]);
+    setKidsComps([]);
     setMakeupError(null);
     setMakeupLoading(true);
     setShowMakeupModal(true);
+    // 兒童賽（可用補課券抵費）：失敗不影響補課場次載入
+    memberClient.get('/competitions').then(r => {
+      setKidsComps((r.data.competitions || []).filter(c => c.competitionType === 'kids' && c.status === 'open'));
+    }).catch(() => {});
     try {
       // 補課候選場次：改走輕量後端端點（伺服器端就依補課類型相容性縮小查詢範圍，
       // 不再抓全部課程/180天全館場次回來前端過濾——舊寫法在資料量成長後常逾時，
@@ -2964,6 +2970,21 @@ export default function MemberCoursesPage() {
                   style={{ height:34, padding:'0 16px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
                   {t('重新載入')}
                 </button>
+              </div>
+            )}
+            {kidsComps.length > 0 && (
+              <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:10, padding:'12px 14px', marginBottom:14 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:'#854F0B', marginBottom:6 }}>🏆 {tt('也可以用補課券抵兒童賽報名費', 'Or use this credit for a kids competition', 'このチケットは子ども大会の参加費にも充当できます')}</div>
+                {kidsComps.map(c => (
+                  <div key={c.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:6 }}>
+                    <div style={{ fontSize:13, fontWeight:500, textAlign:'left' }}>{c.name}</div>
+                    <button onClick={() => { setShowMakeupModal(false); navigate(`/member/competitions?comp=${c.id}`); }}
+                      style={{ height:32, padding:'0 12px', borderRadius:8, background:'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer', flexShrink:0 }}>
+                      {tt('報名比賽', 'Register', '参加申込')}
+                    </button>
+                  </div>
+                ))}
+                <div style={{ fontSize:11, color:'#999', marginTop:8, textAlign:'left' }}>{tt('報名表第一步勾選「使用補課券抵本次報名」即可（免繳費）。', 'Tick "Use 1 make-up credit" in step 1 of the form (no payment).', '申込フォームの最初のステップで「補講チケットを充当」を選択してください。')}</div>
               </div>
             )}
             {!makeupLoading && !makeupError && (() => {
