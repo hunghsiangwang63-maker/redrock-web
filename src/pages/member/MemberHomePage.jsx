@@ -415,8 +415,7 @@ export default function MemberHomePage() {
         {[
           { iconClass:'ti ti-qrcode', label:'入場QR碼',   path:'/member/qr', highlight:true },
           // 快速入場：記住常用的入場選擇、一鍵產 QR（沒有記憶時進一般入場流程，完成後自動記住）
-          { iconClass:'ti ti-bolt', label:'快速入場', path: quickPref ? '/member/qr?quick=1' : '/member/qr', highlight:true,
-            sub: quickPref ? [quickPref.who, quickPref.methodLabel && t(quickPref.methodLabel).replace(/（.*?）/g, '')].filter(Boolean).join('・') : t('設定一次後一鍵入場') },
+          { iconClass:'ti ti-bolt', label:'快速入場', path: quickPref ? '/member/qr?quick=1' : '/member/qr', highlight:true },
           { icon:'📋', label:'我的紀錄', path:'/member/records' },
           // 抱石路線攻略：2026-09-02 正式放上首頁；標籤 2026-09-13 由「施工中」改「新上線」。
           { img:'/climbing-routes.jpg', label:'路線攻略', path:'/member/routes', badge:'新上線' },
@@ -446,7 +445,6 @@ export default function MemberHomePage() {
                 : <span style={{ fontSize:26.4, lineHeight:1 }}>{f.icon}</span>}
             </div>
             <div style={{ fontSize:11, color: f.highlight ? '#fff' : '#6b6b6b', fontWeight: f.highlight ? 700 : 500 }}>{t(f.label)}</div>
-            {f.sub && <div style={{ fontSize:9, color:'rgba(255,255,255,.85)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.sub}</div>}
           </div>
         ))}
       </div>
