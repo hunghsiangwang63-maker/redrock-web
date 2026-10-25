@@ -10,9 +10,14 @@ import { useAuth } from '../../store/authStore';
 import client from '../../api/client';
 import InstallmentRuleEditor from '../../components/InstallmentRuleEditor';
 import PaymentPlanChoice from '../../components/PaymentPlanChoice';
+import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import CardsPage from './CardsPage';
+
+// 新增定期票的收款方式（與 PaymentPlanChoice 同一份對照；實際可選的由系統設定「啟用的付款方式」過濾）
+const ADD_PAY_METHODS = [{ k:'cash', l:'現金' }, { k:'transfer', l:'轉帳' }, { k:'linepay', l:'Line Pay' }, { k:'jkopay', l:'街口支付' }, { k:'taiwanpay', l:'台灣Pay' }];
+const NEW_ADD_FORM = () => ({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'', paymentPlan:'full', paymentMethod:'', gymId:'', isGift:false, giftReason:'' });
 
 // 效期顯示：優先月數（一個月一個月算），否則天數
 const durationLabel = (t) => (t && t.durationMonths) ? `${t.durationMonths} 個月` : `${(t && t.durationDays) || 0} 天`;
@@ -47,6 +52,9 @@ export default function PassesPage() {
   const canManagePass = ['super_admin', 'gym_manager'].includes(staff?.role) || !!operator;
   // 新增定期票給會員 = 僅管理員（gym_manager/super_admin）；operator 值班不可（與後端 requireManager 一致）
   const canAddPass = ['super_admin', 'gym_manager'].includes(staff?.role);
+  // 贈送定期票僅限管理員／館長（後端同樣驗證）；管理員帳號沒有綁定場館，新增時必須自己選場館
+  const canGift = canAddPass;
+  const staffGymId = staff?.gymId || null;
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   useEffect(() => {
     let timer;
@@ -72,7 +80,8 @@ export default function PassesPage() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberPasses, setMemberPasses] = useState([]);
   const [showAdd, setShowAdd] = useState(false);
-  const [addForm, setAddForm] = useState({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'', paymentPlan:'full', paymentMethod:'cash' });
+  const [addForm, setAddForm] = useState(NEW_ADD_FORM());
+  const enabledPay = useEnabledPayments();
   const [editingPass, setEditingPass] = useState(null);
   const [editPassForm, setEditPassForm] = useState({ endDate:'', credits:'', status:'active', notes:'', reason:'' });
   const [editPassSaving, setEditPassSaving] = useState(false);
@@ -269,10 +278,27 @@ export default function PassesPage() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
+    const pt = passTypes.find(t => t.id === addForm.passTypeId);
+    if (!staffGymId && !addForm.gymId) { showMsg('請選擇定期票所屬場館', 'red'); return; }
+    if (addForm.isGift) {
+      if (!addForm.giftReason.trim()) { showMsg('請填寫贈送原因', 'red'); return; }
+    } else if ((pt?.price || 0) > 0 && !addForm.paymentMethod) {
+      showMsg('請選擇收款方式（或改選「贈送」）', 'red'); return;
+    }
     setLoading(true);
     try {
-      await createPass({ ...addForm, memberId: selectedMember.id });
-      showMsg('定期票已建立');
+      const body = { ...addForm, memberId: selectedMember.id };
+      if (staffGymId) delete body.gymId; // 有館別的帳號由後端依帳號館別記，不送
+      if (addForm.isGift) { delete body.paymentMethod; delete body.paymentPlan; }
+      const created = await createPass(body);
+      if (addForm.isGift) {
+        const n = created.data?.giftNotice;
+        showMsg(n === 'sent' ? '定期票已贈送，已寄通知信給會員'
+          : n === 'no_email' ? '定期票已贈送（會員沒有 Email，未寄通知信）'
+          : '定期票已贈送（通知信未能寄出，請改以其他方式通知會員）');
+      } else {
+        showMsg('定期票已建立');
+      }
       setShowAdd(false);
       const res = await getMemberPasses(selectedMember.id);
       setMemberPasses(res.data.passes || []);
@@ -460,7 +486,7 @@ export default function PassesPage() {
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
                 <span style={{ fontSize:12, color:'#999' }}>搜尋會員後查看/管理其定期票</span>
                 {canAddPass && (
-                <button onClick={() => { setAddForm({ passTypeId:'', startDate: dayjs().format('YYYY-MM-DD'), notes:'', paymentPlan:'full', paymentMethod:'cash' }); setShowAdd(true); }}
+                <button onClick={() => { setAddForm(NEW_ADD_FORM()); setShowAdd(true); }}
                   style={{ height:30, padding:'0 12px', borderRadius:7, background:'#8B1A1A', color:'#fff', border:'none', fontSize:12, cursor:'pointer', whiteSpace:'nowrap' }}>
                   ＋ 新增定期票
                 </button>
@@ -508,7 +534,7 @@ export default function PassesPage() {
                   return (
                     <div key={p.id} style={{ padding:'14px 16px', borderBottom:'0.5px solid #F5EFEF', opacity: inactive ? 0.5 : 1 }}>
                       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                        <div style={{ fontWeight:500, fontSize:14 }}>{p.passTypeName}</div>
+                        <div style={{ fontWeight:500, fontSize:14 }}>{p.passTypeName}{p.isGift && <span style={{ marginLeft:6, fontSize:11, color:'#B5762B' }}>🎁 贈送</span>}</div>
                         <Tag type={st.type}>{st.label}</Tag>
                       </div>
                       <div style={{ fontSize:12, color:'#999', marginBottom:8 }}>
@@ -958,11 +984,67 @@ export default function PassesPage() {
               <input value={addForm.notes} onChange={e => setAddForm({...addForm, notes:e.target.value})} placeholder="選填"
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 11px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
             </div>
-            {(() => { const pt = passTypes.find(t => t.id === addForm.passTypeId); return pt ? (
-              <PaymentPlanChoice installment={pt.installment} price={pt.price}
-                plan={addForm.paymentPlan || 'full'} paymentMethod={addForm.paymentMethod}
-                onChange={({ plan, paymentMethod }) => setAddForm({ ...addForm, paymentPlan: plan, paymentMethod })} />
-            ) : null; })()}
+            {/* 場館：管理員帳號沒有綁定場館，必須自己選（營收與票都歸這一館）；有館別的帳號自動用自己的館 */}
+            {!staffGymId && (
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:11, color:'#854F0B', display:'block', marginBottom:5 }}>所屬場館（必選）</label>
+                <select value={addForm.gymId} onChange={e => setAddForm({...addForm, gymId:e.target.value})} required
+                  style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #F0D9A8', padding:'0 11px', fontSize:13, background:'#FFFBF0', outline:'none', color:'#1a1a1a' }}>
+                  <option value="">選擇場館...</option>
+                  {gyms.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </div>
+            )}
+            {(() => {
+              const pt = passTypes.find(t => t.id === addForm.passTypeId);
+              if (!pt) return null;
+              const gymName = gyms.find(g => g.id === (staffGymId || addForm.gymId))?.shortName || '';
+              const payLabel = ADD_PAY_METHODS.find(m => m.k === addForm.paymentMethod)?.l;
+              const lineStyle = { fontSize:12, marginTop:10, padding:'8px 10px', borderRadius:7, lineHeight:1.6 };
+              return (
+                <div style={{ marginBottom:14 }}>
+                  <label style={{ fontSize:11, color:'#854F0B', display:'block', marginBottom:5 }}>收款方式（必選）</label>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {filterPayments(ADD_PAY_METHODS, enabledPay).map(m => {
+                      const on = !addForm.isGift && addForm.paymentMethod === m.k;
+                      return (
+                        <button key={m.k} type="button" onClick={() => setAddForm({ ...addForm, isGift:false, paymentMethod:m.k })}
+                          style={{ height:34, padding:'0 12px', borderRadius:8, fontSize:13, cursor:'pointer', border:`0.5px solid ${on ? '#8B1A1A' : '#E8D5D5'}`, background: on ? '#8B1A1A' : '#fff', color: on ? '#fff' : '#555' }}>{m.l}</button>
+                      );
+                    })}
+                    {canGift && (
+                      <button type="button" onClick={() => setAddForm({ ...addForm, isGift:true, paymentMethod:'', paymentPlan:'full' })}
+                        style={{ height:34, padding:'0 12px', borderRadius:8, fontSize:13, cursor:'pointer', border:`0.5px solid ${addForm.isGift ? '#B5762B' : '#E8D5D5'}`, background: addForm.isGift ? '#B5762B' : '#fff', color: addForm.isGift ? '#fff' : '#B5762B' }}>🎁 贈送（不收款）</button>
+                    )}
+                  </div>
+                  {addForm.isGift ? (
+                    <>
+                      <div style={{ marginTop:10 }}>
+                        <label style={{ fontSize:11, color:'#854F0B', display:'block', marginBottom:5 }}>贈送原因（必填，記在票的異動歷史，不會寄給會員）</label>
+                        <input value={addForm.giftReason} onChange={e => setAddForm({...addForm, giftReason:e.target.value})} maxLength={200} placeholder="例如：活動贈送、服務補償"
+                          style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #F0D9A8', padding:'0 11px', fontSize:13, background:'#FFFBF0', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }} />
+                      </div>
+                      <div style={{ ...lineStyle, background:'#FAEEDA', color:'#854F0B' }}>
+                        🎁 本次為贈送：<strong>不收款、不記營收</strong>。建立後會寄一封通知信給會員（會員沒有 Email 則不寄）。
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <PaymentPlanChoice installment={pt.installment} price={pt.price} hideMethod
+                        plan={addForm.paymentPlan || 'full'} paymentMethod={addForm.paymentMethod}
+                        onChange={({ plan }) => setAddForm({ ...addForm, paymentPlan: plan })} />
+                      <div style={{ ...lineStyle, background: payLabel ? '#EAF3EC' : '#FBF5F5', color: payLabel ? '#2D6B3E' : '#999' }}>
+                        {(pt.price || 0) === 0
+                          ? '此票種售價為 0 元，不記營收。'
+                          : payLabel
+                            ? <>將記錄營收 <strong>NT${(pt.price || 0).toLocaleString()}</strong>（{payLabel}{gymName ? `・${gymName}` : ''}）；若為隊員，系統會自動打 9 折。</>
+                            : '請選擇收款方式，營收才會記到正確的結帳欄位。'}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
             <div style={{ display:'flex', gap:8 }}>
               <button type="button" onClick={() => setShowAdd(false)}
                 style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>取消</button>
@@ -1061,7 +1143,7 @@ export default function PassesPage() {
             ) : (
               <div style={{ display:'flex', flexDirection:'column', gap:8, maxHeight:240, overflowY:'auto' }}>
                 {passHistory.map(h => {
-                  const typeLabel = { edit:'手動編輯', extension:'展延', refund:'退費', transfer:'轉讓', holiday_batch:'年假批次展延' }[h.type] || h.type;
+                  const typeLabel = { edit:'手動編輯', extension:'展延', refund:'退費', transfer:'轉讓', holiday_batch:'年假批次展延', gift:'贈送' }[h.type] || h.type;
                   const ts = h.createdAt?._seconds ? h.createdAt._seconds*1000 : h.createdAt;
                   return (
                     <div key={h.id} style={{ background:'#FBFBFB', borderRadius:8, padding:'9px 11px', fontSize:12 }}>
