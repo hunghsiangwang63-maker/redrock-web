@@ -1,5 +1,6 @@
 // 萬聖節裝飾（純展示，無互動、無資料）。僅在 isHalloween() 為真時由登入頁／首頁引用。
 import { tt } from '../utils/memberI18n';
+import { halloweenMascot } from '../utils/halloween';
 
 const OR = '#F28C28', OR_D = '#C2610C', PU = '#6B3FA0', PU_L = '#B79AE0';
 
@@ -123,7 +124,8 @@ export function HalloweenScene() {
   return (
     <div aria-hidden="true" style={{ position:'relative', height:170, margin:'0 -6px 10px', borderRadius:18, overflow:'hidden',
       background:`url(${hwImg('banner')}) right bottom / auto 100% no-repeat, linear-gradient(135deg,${HW.night},${HW.night2})`, boxShadow:'0 8px 24px rgba(0,0,0,.35)', border:'1.5px solid #C2610C' }}>
-      <div style={{ position:'absolute', left:6, bottom:-6 }}><Sprite name="mascot2" size={118} /></div>
+      <div style={{ position:'absolute', left:6, bottom:-4 }}><Sprite name="mascot2" size={118} /></div>
+      <div style={{ position:'absolute', right:4, bottom:-6 }}><Sprite name="witch" size={96} /></div>
       <div style={{ position:'absolute', right:70, top:10 }}><Sprite name="bat2" size={44} /></div><div style={{ position:'absolute', left:150, top:0 }}><Sprite name="spider" size={26} /></div>
     </div>
   );
@@ -134,13 +136,13 @@ export function HalloweenHero() {
     <div style={{ margin:'12px 16px 0', borderRadius:18, height:150, position:'relative', overflow:'hidden',
       background:`url(${hwImg('banner')}) right bottom / auto 100% no-repeat, linear-gradient(135deg,${HW.night},${HW.night2})`, boxShadow:'0 8px 22px rgba(43,22,70,.4)', border:'1.5px solid #C2610C' }}>
       <div aria-hidden="true" style={{ position:'absolute', inset:0, background:'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%)' }} />
-      <div aria-hidden="true" style={{ position:'absolute', left:4, bottom:-8 }}><Sprite name="mascot2" size={118} /></div>
-      <div style={{ position:'absolute', left:118, top:22, right:10 }}>
+      <div aria-hidden="true" style={{ position:'absolute', left:6, bottom:-6 }}><Sprite name="mascot2" size={112} /></div>
+      <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:-6 }}><Sprite name="witch" size={92} /></div>
+      <div style={{ position:'absolute', left:112, top:20, right:98 }}>
         <div style={{ fontSize:20, fontWeight:900, color:HW.orangeL, textShadow:'0 2px 0 rgba(0,0,0,.45)', lineHeight:1.25 }}>{tt('萬聖節快樂！', 'Happy Halloween!', 'ハッピーハロウィン！')}</div>
         <div style={{ fontSize:12, color:'#F1E6FF', marginTop:6, lineHeight:1.5, textShadow:'0 1px 0 rgba(0,0,0,.5)' }}>{tt('紅石攀岩祝你玩得盡興', 'RedRock wishes you a spook-tacular climb', '紅石クライミングより、楽しい一日を')}</div>
       </div>
       <Web size={86} flip style={{ top:-2, right:-2 }} />
-      <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:2, display:'flex', gap:2, alignItems:'flex-end' }}><Sprite name="pk1" size={34} /><Sprite name="ghost1" size={32} /><Sprite name="pk3" size={38} /></div>
     </div>
   );
 }
@@ -149,4 +151,11 @@ export function HalloweenHero() {
 export function Web({ size = 110, flip = false, style }) {
   return <img src={hwImg('web')} alt="" aria-hidden="true" draggable="false"
     style={{ position:'absolute', top:0, [flip ? 'right' : 'left']:0, width:size, height:'auto', pointerEvents:'none', userSelect:'none', opacity:.95, transform: flip ? 'scaleX(-1)' : undefined, ...style }} />;
+}
+
+// 今日吉祥物（小紅石巫師／小魔女 依日期輪流）
+export function TodayMascot({ style }) {
+  const name = halloweenMascot();
+  const isWitch = name === 'witch';
+  return <Sprite name={name} size={isWitch ? 104 : 118} style={style} />;
 }
