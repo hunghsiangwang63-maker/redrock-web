@@ -4,6 +4,8 @@ import { memberLogin, resendMemberVerification } from '../../api/memberAuth';
 import { useMember } from '../../store/memberStore.jsx';
 import PasswordInput from '../../components/PasswordInput';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { isHalloween } from '../../utils/halloween';
+import { HalloweenTop, HalloweenGreeting } from '../../components/HalloweenDeco';
 
 const inputStyle = { width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:15, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 
@@ -77,9 +79,11 @@ export default function MemberLoginPage() {
     }
   };
 
+  const halloween = isHalloween();
   return (
-    <div style={{ minHeight:'100vh', background:'#F7F3F3', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+    <div style={{ minHeight:'100vh', background: halloween ? '#FBF3EA' : '#F7F3F3', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ width:'100%', maxWidth:360 }}>
+        {halloween && <HalloweenTop />}
         {/* Logo */}
         <div style={{ textAlign:'center', marginBottom:32, position:'relative' }}>
           <div onClick={toggleMemberLang}
@@ -90,7 +94,7 @@ export default function MemberLoginPage() {
           <div style={{ fontSize:12, color:'#999', marginTop:4, letterSpacing:1 }}>{t('紅石攀岩館 會員')}</div>
         </div>
 
-        <div style={{ background:'#fff', borderRadius:16, padding:24, border:'0.5px solid #E8D5D5', boxShadow:'0 4px 24px rgba(0,0,0,.06)' }}>
+        <div style={{ background:'#fff', borderRadius:16, padding:24, border: halloween ? '1.5px solid #F0C48F' : '0.5px solid #E8D5D5', boxShadow:'0 4px 24px rgba(0,0,0,.06)' }}>
           {needsVerify ? (
             /* ── Email 未驗證面板 ── */
             <div>
@@ -178,6 +182,7 @@ export default function MemberLoginPage() {
             </div>
           )}
         </div>
+        {halloween && <HalloweenGreeting />}
       </div>
     </div>
   );

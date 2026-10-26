@@ -1,3 +1,5 @@
+import { isHalloween } from '../../utils/halloween';
+import { HalloweenStrip } from '../../components/HalloweenDeco';
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
@@ -190,7 +192,7 @@ export default function MemberHomePage() {
 
   return (
     <MemberOnboardingGate>
-    <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+    <div style={{ width:'100%', minHeight:'100vh', background: isHalloween() ? '#FBF3EA' : '#F7F3F3', paddingBottom:80 }}>
 
       {/* 頂部 Header */}
       <div style={{ background:'#fff', padding:'16px 20px 12px', borderBottom:'0.5px solid #E8D5D5' }}>
@@ -218,6 +220,9 @@ export default function MemberHomePage() {
           </div>
         </div>
       </div>
+
+      {/* 萬聖節祝福橫幅（2026-10-27～11-08 自動顯示，期間後自動消失） */}
+      {isHalloween() && <HalloweenStrip />}
 
       {/* 今日已入場橫幅（全天顯示；資料源自後端 my-today，隔日消失、取消後消失）*/}
       {todayCheckin?.checkedIn && (
