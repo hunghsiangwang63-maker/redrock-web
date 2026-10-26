@@ -17,6 +17,8 @@ import PassContractReview from '../../components/PassContractReview';
 import { isMinor } from '../../utils/age';
 import { useEnabledPayments } from '../../utils/paymentMethods';
 import { loadQuickEntry, saveQuickEntry, clearQuickEntry } from '../../utils/quickEntry';
+import { isHalloween } from '../../utils/halloween';
+import { HW, Web, PumpkinPatch } from '../../components/HalloweenDeco';
 
 const PAYMENT_METHODS = [
   { key: 'cash',      label: '現金' },
@@ -402,17 +404,18 @@ export default function MemberQRPage() {
   // 顯示入場 QR 時保持螢幕常亮，見 hooks/useScreenWakeLock.js 檔頭說明
   useScreenWakeLock(step === 'qr');
 
-  const NavBar = () => <MemberBottomNav navigate={navigate} />;
+  const NavBar = () => <MemberBottomNav navigate={navigate} dark={isHalloween()} />;
 
   const Header = ({ title, onBack }) => (
-    <div style={{ background:'#fff', padding:'16px 20px', borderBottom:'0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
-      {onBack && <div onClick={onBack} style={{ fontSize:20, cursor:'pointer', color:'#8B1A1A' }}>←</div>}
-      <div style={{ fontWeight:600, fontSize:15 }}>{title}</div>
+    <div style={{ background: isHalloween() ? `linear-gradient(135deg,${HW.night},${HW.night2})` : '#fff', padding:'16px 20px', borderBottom: isHalloween() ? 'none' : '0.5px solid #E8D5D5', display:'flex', alignItems:'center', gap:10 }}>
+      {onBack && <div onClick={onBack} style={{ fontSize:20, cursor:'pointer', color: isHalloween() ? HW.orangeL : '#8B1A1A' }}>←</div>}
+      <div style={{ fontWeight:600, fontSize:15, color: isHalloween() ? '#fff' : undefined }}>{title}</div>
     </div>
   );
 
   const wrap = (kids) => (
-    <div style={{ width:'100%', minHeight:'100vh', background:'#F7F3F3', paddingBottom:80 }}>
+    <div style={{ width:'100%', minHeight:'100vh', background: isHalloween() ? `linear-gradient(180deg,#1E0F38 0%,${HW.night2} 70%,#7B3FA0 100%)` : '#F7F3F3', paddingBottom:80, position:'relative', overflow: isHalloween() ? 'hidden' : undefined }}>
+      {isHalloween() && <><Web size={110} /><Web size={110} flip /></>}
       {verifyResult?.member?.fallTestWarning && (
         <div style={{ margin:'12px 20px 0', background:'#FCEBEB', border:'1.5px solid #E8A5A5', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#A32D2D', fontWeight:600, lineHeight:1.6 }}>
           ⚠️ {tt(verifyResult.member.fallTestWarning.message, 'Fall test consent form or test not yet completed', '墜落テスト同意書またはテストが完了していません')}
@@ -424,8 +427,16 @@ export default function MemberQRPage() {
           <span onClick={() => setQuickNotice(null)} style={{ cursor:'pointer', flexShrink:0 }}>✕</span>
         </div>
       )}
-      {kids}
-      <MemberLogoutButton />
+      {isHalloween() ? (
+        // 萬聖節：內容放進淺色羊皮紙面板，原本各步驟的顏色與 QR 白底完全不變，只有面板外圍換成夜空風格
+        <>
+          <div style={{ margin:'10px 10px 0', background:'#FBF3EA', border:`1.5px solid #F0C48F`, borderRadius:16, overflow:'hidden', position:'relative', paddingBottom:12, boxShadow:'0 8px 24px rgba(0,0,0,.3)' }}>
+            {kids}
+            <MemberLogoutButton />
+          </div>
+          <PumpkinPatch compact style={{ marginTop:14, marginBottom:10 }} />
+        </>
+      ) : (<>{kids}<MemberLogoutButton /></>)}
       <NavBar />
     </div>
   );
