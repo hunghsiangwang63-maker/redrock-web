@@ -139,7 +139,14 @@ export function HalloweenHero() {
         <div style={{ fontSize:20, fontWeight:900, color:HW.orangeL, textShadow:'0 2px 0 rgba(0,0,0,.45)', lineHeight:1.25 }}>{tt('萬聖節快樂！', 'Happy Halloween!', 'ハッピーハロウィン！')}</div>
         <div style={{ fontSize:12, color:'#F1E6FF', marginTop:6, lineHeight:1.5, textShadow:'0 1px 0 rgba(0,0,0,.5)' }}>{tt('紅石攀岩祝你玩得盡興', 'RedRock wishes you a spook-tacular climb', '紅石クライミングより、楽しい一日を')}</div>
       </div>
+      <Web size={86} flip style={{ top:-2, right:-2 }} />
       <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:2, display:'flex', gap:2, alignItems:'flex-end' }}><Sprite name="pk1" size={34} /><Sprite name="ghost1" size={32} /><Sprite name="pk3" size={38} /></div>
     </div>
   );
+}
+
+// 蜘蛛網（角落裝飾）：flip 為右上角（左右翻轉）
+export function Web({ size = 110, flip = false, style }) {
+  return <img src={hwImg('web')} alt="" aria-hidden="true" draggable="false"
+    style={{ position:'absolute', top:0, [flip ? 'right' : 'left']:0, width:size, height:'auto', pointerEvents:'none', userSelect:'none', opacity:.95, transform: flip ? 'scaleX(-1)' : undefined, ...style }} />;
 }
