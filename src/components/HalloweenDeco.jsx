@@ -103,63 +103,42 @@ export function Candy({ size = 30 }) {
     </svg>
   );
 }
-// 小紅石吉祥物（戴巫師帽）
-export function WitchMascot({ size = 90 }) {
-  return (
-    <svg width={size} height={size} viewBox="-70 -110 140 190" aria-hidden="true">
-      <defs><linearGradient id="hwRedG" x2="0" y2="1"><stop stopColor="#FF8A74"/><stop offset=".35" stopColor="#E8503E"/><stop offset="1" stopColor="#C73828"/></linearGradient></defs>
-      <ellipse cx="0" cy="66" rx="55" ry="9" fill="#000" opacity=".15"/>
-      <ellipse cx="-20" cy="58" rx="17" ry="9" fill="#FF8A74" stroke="#8F2B22" strokeWidth="3.5"/><ellipse cx="20" cy="58" rx="17" ry="9" fill="#FF8A74" stroke="#8F2B22" strokeWidth="3.5"/>
-      <path d="M-44 14L-66-6M44 14L66-6" stroke="#8F2B22" strokeWidth="15" strokeLinecap="round"/><path d="M-44 14L-66-6M44 14L66-6" stroke="#E8503E" strokeWidth="9" strokeLinecap="round"/>
-      <path d="M-47 20Q-57-14-35-42Q-17-65 12-58Q47-54 52-22Q61 9 38 37Q19 58-13 54Q-39 51-47 20Z" fill="url(#hwRedG)" stroke="#8F2B22" strokeWidth="5"/>
-      <ellipse cx="-15" cy="-14" rx="9" ry="13" fill="#fff"/><ellipse cx="17" cy="-15" rx="9" ry="13" fill="#fff"/>
-      <circle cx="-13" cy="-11" r="5" fill="#2E2220"/><circle cx="19" cy="-12" r="5" fill="#2E2220"/>
-      <ellipse cx="-33" cy="8" rx="9" ry="5.5" fill="#FF8FB0"/><ellipse cx="35" cy="7" rx="9" ry="5.5" fill="#FF8FB0"/>
-      <path d="M-10 11Q2 26 15 10Z" fill="#7A2A20" stroke="#5E1F18" strokeWidth="3" strokeLinejoin="round"/>
-      <path d="M-58-44h116l-8 12h-100z" fill="#4A2677"/><path d="M-30-44L0-104l30 60z" fill="#5A2A82"/><path d="M-32-52h64v10h-64z" fill="#F28C28"/>
-      <circle cx="0" cy="-47" r="0"/>
-    </svg>
-  );
+// ───────── 圖檔版（2026-10-26 重度版 v2）：素材放在 /public/halloween/*.webp（只在萬聖節期間才會被載入）─────────
+export const hwImg = (name) => `/halloween/${name}.webp`;
+export function Sprite({ name, size = 40, style }) {
+  return <img src={hwImg(name)} alt="" aria-hidden="true" draggable="false" style={{ width:size, height:'auto', display:'block', pointerEvents:'none', userSelect:'none', ...style }} />;
 }
-// 南瓜田（底部一排）
-export function PumpkinPatch({ style }) {
+// 底部一排南瓜田
+export function PumpkinPatch({ style, compact }) {
+  const row = compact ? [['pk1',34],['ghost1',32],['pumpkin-big',44],['candy',28],['pk3',34],['ghost2',30],['pk2',36]]
+                      : [['pk1',44],['ghost1',42],['tomb',34],['pumpkin-big',58],['candy',34],['pk3',44],['ghost2',38],['lantern',30],['pk2',48]];
   return (
-    <div aria-hidden="true" style={{ display:'flex', justifyContent:'space-around', alignItems:'flex-end', padding:'0 8px', pointerEvents:'none', ...style }}>
-      <Pumpkin size={44} /><Ghost size={40} /><Tombstone size={38} /><Pumpkin size={58} /><Candy size={34} /><Pumpkin size={40} /><Ghost size={34} /><Pumpkin size={50} />
+    <div aria-hidden="true" style={{ display:'flex', justifyContent:'space-around', alignItems:'flex-end', padding:'0 6px', pointerEvents:'none', ...style }}>
+      {row.map(([n, w], i) => <Sprite key={i} name={n} size={w} />)}
     </div>
   );
 }
-// 登入頁夜空場景（月亮、蝙蝠、幽靈、蜘蛛、巫師小紅石、南瓜）
+// 登入頁頂部：夜空城堡橫幅＋巫師小紅石
 export function HalloweenScene() {
   return (
-    <div aria-hidden="true" style={{ position:'relative', height:150, marginBottom:6 }}>
-      <div style={{ position:'absolute', right:10, top:0 }}><Moon size={64} /></div>
-      <div style={{ position:'absolute', left:14, top:-6 }}><Spider size={30} line={34} /></div>
-      <div style={{ position:'absolute', left:70, top:8 }}><Bat size={36} color="#C9A8F2" /></div>
-      <div style={{ position:'absolute', left:130, top:34 }}><Bat size={24} color="#E3C9FF" /></div>
-      <div style={{ position:'absolute', right:84, top:48 }}><Ghost size={46} /></div>
-      <div style={{ position:'absolute', left:'50%', top:36, transform:'translateX(-50%)' }}><WitchMascot size={104} /></div>
-      <div style={{ position:'absolute', left:2, bottom:0 }}><Pumpkin size={52} /></div>
-      <div style={{ position:'absolute', right:2, bottom:0 }}><Pumpkin size={44} /></div>
+    <div aria-hidden="true" style={{ position:'relative', height:170, margin:'0 -6px 10px', borderRadius:18, overflow:'hidden',
+      background:`url(${hwImg('banner')}) right bottom / auto 100% no-repeat, linear-gradient(135deg,${HW.night},${HW.night2})`, boxShadow:'0 8px 24px rgba(0,0,0,.35)', border:'1.5px solid #C2610C' }}>
+      <div style={{ position:'absolute', left:6, bottom:-6 }}><Sprite name="mascot2" size={118} /></div>
+      <div style={{ position:'absolute', right:70, top:10 }}><Sprite name="bat2" size={44} /></div><div style={{ position:'absolute', left:150, top:0 }}><Sprite name="spider" size={26} /></div>
     </div>
   );
 }
-// 首頁大橫幅
+// 首頁大橫幅：橫幅底圖＋巫師小紅石＋祝福語（文字用程式寫，三語都能顯示）
 export function HalloweenHero() {
   return (
-    <div style={{ margin:'12px 16px 0', borderRadius:18, padding:'14px 14px 10px', position:'relative', overflow:'hidden',
-      background:`linear-gradient(135deg,${HW.night} 0%,${HW.night2} 60%,#8B3FA8 100%)`, boxShadow:'0 6px 18px rgba(43,22,70,.25)' }}>
-      <div aria-hidden="true" style={{ position:'absolute', right:14, top:6 }}><Moon size={46} /></div>
-      <div aria-hidden="true" style={{ position:'absolute', left:'46%', top:4 }}><Spider size={22} line={22} /></div>
-      <div aria-hidden="true" style={{ position:'absolute', right:70, top:10 }}><Bat size={28} color="#C9A8F2" /></div>
-      <div style={{ display:'flex', alignItems:'center', gap:10, position:'relative' }}>
-        <WitchMascot size={78} />
-        <div>
-          <div style={{ fontSize:19, fontWeight:900, color:HW.orangeL, textShadow:'0 2px 0 rgba(0,0,0,.25)' }}>{tt('萬聖節快樂！🎃', 'Happy Halloween! 🎃', 'ハッピーハロウィン！🎃')}</div>
-          <div style={{ fontSize:12, color:'#E9DDF7', marginTop:4, lineHeight:1.5 }}>{tt('紅石攀岩祝你玩得盡興', 'RedRock wishes you a spook-tacular climb', '紅石クライミングより、楽しい一日を')}</div>
-        </div>
+    <div style={{ margin:'12px 16px 0', borderRadius:18, height:150, position:'relative', overflow:'hidden',
+      background:`url(${hwImg('banner')}) right bottom / auto 100% no-repeat, linear-gradient(135deg,${HW.night},${HW.night2})`, boxShadow:'0 8px 22px rgba(43,22,70,.4)', border:'1.5px solid #C2610C' }}>
+      <div aria-hidden="true" style={{ position:'absolute', left:4, bottom:-8 }}><Sprite name="mascot2" size={118} /></div>
+      <div style={{ position:'absolute', left:118, top:22, right:10 }}>
+        <div style={{ fontSize:20, fontWeight:900, color:HW.orangeL, textShadow:'0 2px 0 rgba(0,0,0,.45)', lineHeight:1.25 }}>{tt('萬聖節快樂！', 'Happy Halloween!', 'ハッピーハロウィン！')}</div>
+        <div style={{ fontSize:12, color:'#F1E6FF', marginTop:6, lineHeight:1.5, textShadow:'0 1px 0 rgba(0,0,0,.5)' }}>{tt('紅石攀岩祝你玩得盡興', 'RedRock wishes you a spook-tacular climb', '紅石クライミングより、楽しい一日を')}</div>
       </div>
-      <PumpkinPatch style={{ marginTop:6 }} />
+      <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:2, display:'flex', gap:2, alignItems:'flex-end' }}><Sprite name="pk1" size={34} /><Sprite name="ghost1" size={32} /><Sprite name="pk3" size={38} /></div>
     </div>
   );
 }

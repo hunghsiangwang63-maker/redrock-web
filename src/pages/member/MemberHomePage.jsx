@@ -1,5 +1,17 @@
 import { isHalloween } from '../../utils/halloween';
-import { HalloweenHero, HW } from '../../components/HalloweenDeco';
+import { HalloweenHero, HW, Sprite, Bat } from '../../components/HalloweenDeco';
+
+// 萬聖節功能格：橘／深紫／羊皮紙三種底，角落點綴小南瓜、幽靈、蝙蝠（只在萬聖節期間使用）
+const HW_TILES = [
+  { bg:'linear-gradient(135deg,#F28C28,#C2610C)', bd:'1px solid #FFB45C', fg:'#fff', deco:['pk1'] },
+  { bg:'linear-gradient(135deg,#3A1B5C,#241042)', bd:'1px solid #7B4BB5', fg:'#fff', deco:['bat'] },
+  { bg:'linear-gradient(135deg,#FFF3DE,#F6DDB0)', bd:'1px solid #E3B877', fg:'#5A3A12', deco:['bat'] },
+  { bg:'linear-gradient(135deg,#F28C28,#C2610C)', bd:'1px solid #FFB45C', fg:'#fff', deco:['pk2'] },
+  { bg:'linear-gradient(135deg,#FFF3DE,#F6DDB0)', bd:'1px solid #E3B877', fg:'#5A3A12', deco:['ghost3'] },
+  { bg:'linear-gradient(135deg,#3A1B5C,#241042)', bd:'1px solid #7B4BB5', fg:'#fff', deco:['pk3'] },
+  { bg:'linear-gradient(135deg,#F28C28,#C2610C)', bd:'1px solid #FFB45C', fg:'#fff', deco:['bat'] },
+  { bg:'linear-gradient(135deg,#3A1B5C,#241042)', bd:'1px solid #7B4BB5', fg:'#fff', deco:['ghost2'] },
+];
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
@@ -192,7 +204,7 @@ export default function MemberHomePage() {
 
   return (
     <MemberOnboardingGate>
-    <div style={{ width:'100%', minHeight:'100vh', background: isHalloween() ? `linear-gradient(180deg,${HW.cream} 0%,${HW.lilac} 100%)` : '#F7F3F3', paddingBottom:80 }}>
+    <div style={{ width:'100%', minHeight:'100vh', background: isHalloween() ? `linear-gradient(180deg,#1E0F38 0%,#33174F 55%,#4A2370 100%)` : '#F7F3F3', paddingBottom:80 }}>
 
       {/* 頂部 Header */}
       <div style={{ background: isHalloween() ? `linear-gradient(135deg,${HW.night},${HW.night2})` : '#fff', padding:'16px 20px 12px', borderBottom: isHalloween() ? 'none' : '0.5px solid #E8D5D5' }}>
@@ -436,9 +448,9 @@ export default function MemberHomePage() {
           { img:'/climbing-team.webp', label:'加入攀岩隊', path:'/member/team' },
           { img:'/harness.webp', label:'器材租借', path:'/member/rental' },
           { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
-        ].map(f => (
+        ].map((f, fi) => { const hwT = isHalloween() ? HW_TILES[fi % HW_TILES.length] : null; return (
           <div key={f.label} onClick={() => f.action ? f.action() : f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
-            style={f.highlight
+            style={hwT ? { position:'relative', background:hwT.bg, borderRadius:12, border:hwT.bd, padding:'12px 8px', textAlign:'center', cursor:'pointer', boxShadow:'0 3px 10px rgba(30,15,56,.35)' } : f.highlight
               ? { position:'relative', background:'linear-gradient(135deg,#9C3C3C,#BE5858)', borderRadius:12, border:'none', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s', boxShadow:'0 3px 10px rgba(156,60,60,.35)' }
               : { position:'relative', background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' }}
             onMouseEnter={e => { if (!f.highlight) e.currentTarget.style.borderColor='#8B1A1A'; }}
@@ -456,9 +468,10 @@ export default function MemberHomePage() {
                 ? <i className={f.iconClass} style={{ fontSize:28.8, color:'#fff' }} aria-hidden="true" />
                 : <span style={{ fontSize:26.4, lineHeight:1 }}>{f.icon}</span>}
             </div>
-            <div style={{ fontSize:11, color: f.highlight ? '#fff' : '#6b6b6b', fontWeight: f.highlight ? 700 : 500 }}>{t(f.label)}</div>
+            <div style={{ fontSize:11, color: hwT ? hwT.fg : (f.highlight ? '#fff' : '#6b6b6b'), fontWeight: (hwT || f.highlight) ? 700 : 500 }}>{t(f.label)}</div>
+            {hwT && <div aria-hidden="true" style={{ position:'absolute', right:3, bottom:3, pointerEvents:'none' }}>{hwT.deco[0] === 'bat' ? <Sprite name="bat2" size={30} /> : <Sprite name={hwT.deco[0]} size={24} />}</div>}
           </div>
-        ))}
+        ); })}
       </div>
 
       {/* 快速入場：有家庭成員時先選入場人員（各自記住自己的入場選擇） */}
@@ -518,11 +531,11 @@ export default function MemberHomePage() {
 
       {/* 場館狀態 */}
       <div style={{ padding:'14px 16px 0' }}>
-        <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>{t('今日場館')}</div>
+        <div style={{ fontSize:11, color: isHalloween() ? '#E9DDF7' : '#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>{isHalloween() ? '🎃 ' : ''}{t('今日場館')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
           {gyms.map(g => (
             <div key={g.id} onClick={() => navigate(`/member/gyms?gym=${g.id}`)}
-              style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:12, cursor:'pointer' }}
+              style={{ background: isHalloween() ? 'linear-gradient(135deg,#FFF3DE,#F6DDB0)' : '#fff', borderRadius:12, border: isHalloween() ? '1px solid #E3B877' : '0.5px solid #E8D5D5', padding:12, cursor:'pointer' }}
               onMouseEnter={e => e.currentTarget.style.borderColor='#8B1A1A'}
               onMouseLeave={e => e.currentTarget.style.borderColor='#E8D5D5'}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
@@ -710,7 +723,7 @@ export default function MemberHomePage() {
       )}
 
       {/* 底部導覽 */}
-      <MemberBottomNav navigate={navigate} />
+      <MemberBottomNav navigate={navigate} dark={isHalloween()} />
     </div>
     </MemberOnboardingGate>
   );

@@ -81,7 +81,7 @@ export default function MemberLoginPage() {
 
   const halloween = isHalloween();
   return (
-    <div style={{ minHeight:'100vh', background: halloween ? `linear-gradient(180deg,${HW.night} 0%,${HW.night2} 55%,#8B3FA8 100%)` : '#F7F3F3', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
+    <div style={{ minHeight:'100vh', background: halloween ? `linear-gradient(180deg,#1E0F38 0%,${HW.night2} 60%,#7B3FA0 100%)` : '#F7F3F3', display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
       <div style={{ width:'100%', maxWidth:360 }}>
         {halloween && <HalloweenScene />}
         {/* Logo */}
@@ -94,7 +94,7 @@ export default function MemberLoginPage() {
           <div style={{ fontSize:12, color: halloween ? '#E9DDF7' : '#999', marginTop:4, letterSpacing:1 }}>{t('紅石攀岩館 會員')}</div>
         </div>
 
-        <div style={{ background:'#fff', borderRadius:16, padding:24, border: halloween ? `2px solid ${HW.orange}` : '0.5px solid #E8D5D5', boxShadow: halloween ? '0 0 0 4px rgba(242,140,40,.25), 0 10px 30px rgba(0,0,0,.3)' : '0 4px 24px rgba(0,0,0,.06)' }}>
+        <div style={{ borderRadius:16, padding:24, background: halloween ? '#FFF6E8' : '#fff', border: halloween ? `2px solid ${HW.orange}` : '0.5px solid #E8D5D5', boxShadow: halloween ? '0 0 0 4px rgba(242,140,40,.25), 0 10px 30px rgba(0,0,0,.3)' : '0 4px 24px rgba(0,0,0,.06)' }}>
           {needsVerify ? (
             /* ── Email 未驗證面板 ── */
             <div>

@@ -7,7 +7,7 @@ import { memberClient } from '../api/client';
 // 原因：新增「問題諮詢」項目＋未讀角標需要一致的資料來源，改 11 處各自維護風險太高）。
 // 每次頁面掛載都會重新檢查未讀狀態（本 app 各頁為獨立元件、切頁即整個重新掛載，故不需
 // 額外依賴切頁事件；提問頁讀取回覆後回上一頁時角標會在下個頁面掛載時自動消失）。
-export default function MemberBottomNav({ navigate }) {
+export default function MemberBottomNav({ navigate, dark = false }) {
   const location = useLocation();
   const [hasUnread, setHasUnread] = useState(false);
 
@@ -27,7 +27,7 @@ export default function MemberBottomNav({ navigate }) {
 
   return (
     <div style={{
-      position:'fixed', bottom:0, left:0, right:0, width:'100%', background:'#fff', borderTop:'0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50,
+      position:'fixed', bottom:0, left:0, right:0, width:'100%', background: dark ? 'linear-gradient(180deg,#2B1646,#1E0F38)' : '#fff', borderTop: dark ? '1px solid #C2610C' : '0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50,
       // 手機瀏覽器（尤其 iOS Safari）在頁面很長、需要捲動很多才能看到底部內容時（如課程報名的場次
       // 列表），position:fixed 元素偶爾會「脫離」視窗底部、卡在畫面中間——這是瀏覽器對長頁面 fixed
       // 元素的已知算繪問題，非本元件邏輯錯誤。強制建立獨立合成層（GPU 硬體加速）是業界標準解法，
@@ -38,7 +38,7 @@ export default function MemberBottomNav({ navigate }) {
         const active = location.pathname === n.path;
         return (
           <div key={n.path} onClick={() => navigate(n.path)}
-            style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? '#8B1A1A' : '#999' }}>
+            style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? (dark ? '#FFB45C' : '#8B1A1A') : (dark ? '#B9A6D6' : '#999') }}>
             <div style={{ position:'relative', fontSize:20 }}>
               {n.icon}
               {n.badge && <div style={{ position:'absolute', top:-2, right:-6, width:8, height:8, borderRadius:'50%', background:'#C0392B', border:'1.5px solid #fff' }} />}

@@ -5,6 +5,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getMemberAnnouncements } from '../api/gyms';
 import { t } from '../utils/memberI18n';
+import { isHalloween } from '../utils/halloween';
 
 export default function AnnouncementCarousel({ style }) {
   const [banners, setBanners] = useState([]);
@@ -45,7 +46,7 @@ export default function AnnouncementCarousel({ style }) {
         touchStartX.current = null;
       }}
     >
-      <div style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', height:'100%', display:'flex', alignItems:'center', padding:'0 20px', position:'relative' }}>
+      <div style={{ background: isHalloween() ? 'url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', height:'100%', display:'flex', alignItems:'center', padding:'0 20px', position:'relative' }}>
         {banners[bannerIdx % bannerLen]?.bannerImage && (
           <>
             <img src={banners[bannerIdx % bannerLen].bannerImage} alt=""
