@@ -370,7 +370,7 @@ export default function MemberHomePage() {
             touchStartX.current = null;
           }}
         >
-          <div style={{ background:'linear-gradient(135deg,#8B1A1A,#C0392B)', height:'100%', display:'flex', alignItems:'center', padding:'0 20px', position:'relative' }}>
+          <div style={{ background: isHalloween() ? 'url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', height:'100%', display:'flex', alignItems:'center', padding:'0 20px', position:'relative' }}>
             {banners[bannerIdx % bannerLen]?.bannerImage && (
               <>
                 <img src={banners[bannerIdx % bannerLen].bannerImage} alt=""
@@ -425,7 +425,7 @@ export default function MemberHomePage() {
           </div>
         </div>
       ) : (
-        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background:'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
+        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background: isHalloween() ? 'url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
           <div style={{ color:'#fff' }}>
             <div style={{ fontSize:10, opacity:.75, letterSpacing:.5 }}>{t('歡迎回來')}</div>
             <div style={{ fontSize:18, fontWeight:600, marginTop:3 }}>{t('開始今天的攀岩！')}</div>
