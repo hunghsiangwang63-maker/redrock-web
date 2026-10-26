@@ -562,8 +562,8 @@ export default function MemberHomePage() {
       {/* 課程活動提醒 - 永遠顯示 */}
       <div style={{ padding:'14px 16px 0' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>{t('課程活動提醒')}</div>
-          <div onClick={() => navigate('/member/courses')} style={{ fontSize:11, color:'#8B1A1A', cursor:'pointer' }}>{t('查看全部 →')}</div>
+          <div style={{ fontSize:11, color: isHalloween() ? '#E9DDF7' : '#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>{t('課程活動提醒')}</div>
+          <div onClick={() => navigate('/member/courses')} style={{ fontSize:11, color: isHalloween() ? '#FFB45C' : '#8B1A1A', cursor:'pointer' }}>{t('查看全部 →')}</div>
         </div>
         {myEnrollments.length === 0 && myExperiences.length === 0 && myReminders.length === 0 ? (
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'16px 14px', textAlign:'center', color:'#999', fontSize:13 }}>
@@ -695,7 +695,7 @@ export default function MemberHomePage() {
       {/* 公告列表 */}
       {announcements.length > 0 && (
         <div style={{ padding:'14px 16px 0' }}>
-          <div style={{ fontSize:11, color:'#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>{t('最新公告')}</div>
+          <div style={{ fontSize:11, color: isHalloween() ? '#E9DDF7' : '#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase', marginBottom:8 }}>{t('最新公告')}</div>
           {announcements.slice(0,3).map(a => (
             <div key={a.id} style={{ background:'#fff', borderRadius:10, border:'0.5px solid #E8D5D5', padding:'11px 13px', marginBottom:8 }}>
               <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:5 }}>
