@@ -370,7 +370,7 @@ export default function MemberHomePage() {
             touchStartX.current = null;
           }}
         >
-          <div style={{ background: isHalloween() ? 'url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', height:'100%', display:'flex', alignItems:'center', padding:'0 20px', position:'relative' }}>
+          <div style={{ background: isHalloween() ? 'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%), url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', height:'100%', display:'flex', alignItems:'center', padding:'0 20px', position:'relative' }}>
             {banners[bannerIdx % bannerLen]?.bannerImage && (
               <>
                 <img src={banners[bannerIdx % bannerLen].bannerImage} alt=""
@@ -425,7 +425,7 @@ export default function MemberHomePage() {
           </div>
         </div>
       ) : (
-        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background: isHalloween() ? 'url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
+        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background: isHalloween() ? 'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%), url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
           <div style={{ color:'#fff' }}>
             <div style={{ fontSize:10, opacity:.75, letterSpacing:.5 }}>{t('歡迎回來')}</div>
             <div style={{ fontSize:18, fontWeight:600, marginTop:3 }}>{t('開始今天的攀岩！')}</div>
@@ -469,7 +469,7 @@ export default function MemberHomePage() {
                 : <span style={{ fontSize:26.4, lineHeight:1 }}>{f.icon}</span>}
             </div>
             <div style={{ fontSize:11, color: hwT ? hwT.fg : (f.highlight ? '#fff' : '#6b6b6b'), fontWeight: (hwT || f.highlight) ? 700 : 500 }}>{t(f.label)}</div>
-            {hwT && <div aria-hidden="true" style={{ position:'absolute', right:3, bottom:3, pointerEvents:'none' }}>{hwT.deco[0] === 'bat' ? <Sprite name="bat2" size={30} /> : <Sprite name={hwT.deco[0]} size={24} />}</div>}
+            {hwT && <div aria-hidden="true" style={{ position:'absolute', left:2, top:2, pointerEvents:'none' }}>{hwT.deco[0] === 'bat' ? <Sprite name="bat2" size={24} /> : <Sprite name={hwT.deco[0]} size={20} />}</div>}
           </div>
         ); })}
       </div>

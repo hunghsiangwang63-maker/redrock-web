@@ -133,6 +133,7 @@ export function HalloweenHero() {
   return (
     <div style={{ margin:'12px 16px 0', borderRadius:18, height:150, position:'relative', overflow:'hidden',
       background:`url(${hwImg('banner')}) right bottom / auto 100% no-repeat, linear-gradient(135deg,${HW.night},${HW.night2})`, boxShadow:'0 8px 22px rgba(43,22,70,.4)', border:'1.5px solid #C2610C' }}>
+      <div aria-hidden="true" style={{ position:'absolute', inset:0, background:'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%)' }} />
       <div aria-hidden="true" style={{ position:'absolute', left:4, bottom:-8 }}><Sprite name="mascot2" size={118} /></div>
       <div style={{ position:'absolute', left:118, top:22, right:10 }}>
         <div style={{ fontSize:20, fontWeight:900, color:HW.orangeL, textShadow:'0 2px 0 rgba(0,0,0,.45)', lineHeight:1.25 }}>{tt('萬聖節快樂！', 'Happy Halloween!', 'ハッピーハロウィン！')}</div>
