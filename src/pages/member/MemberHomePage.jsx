@@ -1,5 +1,5 @@
 import { isHalloween } from '../../utils/halloween';
-import { HalloweenStrip } from '../../components/HalloweenDeco';
+import { HalloweenHero, HW } from '../../components/HalloweenDeco';
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
@@ -192,14 +192,14 @@ export default function MemberHomePage() {
 
   return (
     <MemberOnboardingGate>
-    <div style={{ width:'100%', minHeight:'100vh', background: isHalloween() ? '#FBF3EA' : '#F7F3F3', paddingBottom:80 }}>
+    <div style={{ width:'100%', minHeight:'100vh', background: isHalloween() ? `linear-gradient(180deg,${HW.cream} 0%,${HW.lilac} 100%)` : '#F7F3F3', paddingBottom:80 }}>
 
       {/* 頂部 Header */}
-      <div style={{ background:'#fff', padding:'16px 20px 12px', borderBottom:'0.5px solid #E8D5D5' }}>
+      <div style={{ background: isHalloween() ? `linear-gradient(135deg,${HW.night},${HW.night2})` : '#fff', padding:'16px 20px 12px', borderBottom: isHalloween() ? 'none' : '0.5px solid #E8D5D5' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
-            <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:20, color:'#8B1A1A' }}>RedRock</div>
-            <div style={{ fontSize:15, color:'#666', marginTop:2 }}>{tt('嗨，', 'Hi, ', 'こんにちは、')}<span style={{ fontWeight:700, color:'#1a1a1a' }}>{member?.name}</span> 👋</div>
+            <div style={{ fontFamily:'Georgia,serif', fontStyle:'italic', fontWeight:700, fontSize:20, color: isHalloween() ? HW.orangeL : '#8B1A1A' }}>RedRock</div>
+            <div style={{ fontSize:15, color: isHalloween() ? '#E9DDF7' : '#666', marginTop:2 }}>{tt('嗨，', 'Hi, ', 'こんにちは、')}<span style={{ fontWeight:700, color: isHalloween() ? '#fff' : '#1a1a1a' }}>{member?.name}</span> 👋</div>
             {identity?.fallTest?.status === 'passed' && (
               <div style={{ fontSize:10, color:'#8AA79A', marginTop:2 }}>{tt(`🧗 墜落測驗有效至 ${identity.fallTest.expiresAt}`, `🧗 Fall test valid until ${identity.fallTest.expiresAt}`, `🧗 墜落テスト有効期限：${identity.fallTest.expiresAt}`)}</div>
             )}
@@ -222,7 +222,7 @@ export default function MemberHomePage() {
       </div>
 
       {/* 萬聖節祝福橫幅（2026-10-27～11-08 自動顯示，期間後自動消失） */}
-      {isHalloween() && <HalloweenStrip />}
+      {isHalloween() && <HalloweenHero />}
 
       {/* 今日已入場橫幅（全天顯示；資料源自後端 my-today，隔日消失、取消後消失）*/}
       {todayCheckin?.checkedIn && (
