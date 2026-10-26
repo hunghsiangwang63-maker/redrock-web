@@ -32,7 +32,12 @@ export default function PublicExperienceBookingPage() {
     publicClient.get('/experience-bookings/public-settings')
       .then(r => {
         setSettings(r.data);
-        if (r.data.gyms?.length) setGymId(r.data.gyms[0].id);
+        if (r.data.gyms?.length) {
+          // ?gym=gym-shilin 或 ?gym=shilin 可預選場館；無效值退回第一個
+          const q = new URLSearchParams(window.location.search).get('gym') || '';
+          const want = r.data.gyms.find(g => g.id === q || g.id === `gym-${q}`);
+          setGymId((want || r.data.gyms[0]).id);
+        }
         if (r.data.courseTypes?.length) setCourseType(r.data.courseTypes[0].id);
       })
       .catch(() => setLoadErr(t('無法載入預約資訊，請稍後再試或聯繫櫃檯')));
