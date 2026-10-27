@@ -61,6 +61,7 @@ import MemberResetPasswordPage from './pages/member/MemberResetPasswordPage';
 import ParentCompetitionWaiverPage from './pages/member/ParentCompetitionWaiverPage';
 import MemberWaiverPage from './pages/member/MemberWaiverPage';
 import ParentWaiverPage from './pages/member/ParentWaiverPage';
+import CourseContractResignPage from './pages/member/CourseContractResignPage';
 
 const BUILD_TARGET = import.meta.env.VITE_BUILD_TARGET || 'staff';
 
@@ -145,6 +146,7 @@ function MemberRoutes() {
       <Route path="/member/routes"       element={<MemberRoute><MemberRoutesPage /></MemberRoute>} />
       <Route path="/member/inquiries"    element={<MemberRoute><MemberInquiriesPage /></MemberRoute>} />
       <Route path="/waiver/parent/:token" element={<ParentWaiverPage />} />
+      <Route path="/sign/course-contract/:token" element={<CourseContractResignPage />} />
       <Route path="/competitions/waiver/parent/:token" element={<ParentCompetitionWaiverPage />} />
       <Route path="*" element={<Navigate to="/member/login" replace />} />
     </Routes>
