@@ -77,6 +77,14 @@ const MemberRoute = ({ children }) => {
   return isLoggedIn ? children : <Navigate to={`/member/login?redirect=${encodeURIComponent(loc.pathname + loc.search)}`} replace />;
 };
 
+// 根網址：已登入直接進會員首頁；未登入維持公開的場館資訊頁（2026-10-27）。
+// 只換「根網址 /」；/member/gyms 仍是場館資訊頁，首頁底部選單等入口不受影響。
+const MemberRootRoute = () => {
+  const { isLoggedIn, simResolving } = useMember();
+  if (simResolving) return null;
+  return isLoggedIn ? <Navigate to="/member/home" replace /> : <MemberGymsPage />;
+};
+
 function StaffRoutes() {
   return (
     <Routes>
@@ -133,7 +141,7 @@ function MemberRoutes() {
       <Route path="/member/profile" element={<MemberRoute><MemberProfilePage /></MemberRoute>} />
       {/* 場館資訊頁 2026-09-25 起免登入公開（後端 API 本就不需要登入）——當作公開首頁，
           根路徑 "/" 也指到同一個元件，登入與否只影響頁內顯示的按鈕（登入按鈕 vs 登出按鈕/底部選單）。 */}
-      <Route path="/"               element={<MemberGymsPage />} />
+      <Route path="/"               element={<MemberRootRoute />} />
       <Route path="/member/gyms"    element={<MemberGymsPage />} />
       <Route path="/member/courses" element={<MemberRoute><MemberCoursesPage /></MemberRoute>} />
       <Route path="/member/waiver"  element={<MemberRoute><MemberWaiverPage /></MemberRoute>} />
