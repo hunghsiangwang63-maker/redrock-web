@@ -165,7 +165,7 @@ export function TodayMascot({ style }) {
 // 原圖朝左飛（刷毛＋彩虹尾巴在右），所以圖片先水平翻轉成朝右，再依每趟方向翻面。
 // 固定在畫面上、pointer-events:none（不擋任何點擊）；只用 transform／opacity 動畫（GPU）；
 // 分頁在背景時瀏覽器會自動暫停；系統設定「減少動態效果」時完全不顯示。
-// 路徑：左→右（高處）→ 右→左 → 左→右 → 右→左（逐步降低，大小隨遠近忽大忽小）→ 離場休息，共 40 秒循環。
+// 路徑：左→右（高處）→ 右→左 → 左→右 → 右→左（逐步降低，大小隨遠近忽大忽小、速度忽快忽慢）→ 離場休息，共 40 秒循環。
 export function FlyingWitch() {
   return (
     <div className="rr-fw" aria-hidden="true">
@@ -176,22 +176,28 @@ export function FlyingWitch() {
         .rr-fw-bob{position:absolute;inset:0;animation:rrFwBob 2.6s ease-in-out infinite;transform-origin:50% 70%}
         .rr-fw-witch{position:absolute;inset:0;width:100%;height:100%;display:block;transform:scaleX(-1);filter:drop-shadow(0 4px 7px rgba(0,0,0,.35))}
         @keyframes rrFwBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(3deg)}}
-        @keyframes rrFwFlip{0%{transform:scaleX(1)}22%{transform:scaleX(-1)}46%{transform:scaleX(1)}70%{transform:scaleX(-1)}94%{transform:scaleX(1)}}
-        /* 位置：x 用 vw、y 用 vh；每趟約 8 秒，趟與趟之間在畫面外短暫停留 */
-        /* 位置：x 用 vw、y 用 vh；scale＝遠近感（忽大忽小：由遠飛近再飛遠）。每趟約 8 秒，趟與趟之間在畫面外短暫停留 */
+        @keyframes rrFwFlip{0%{transform:scaleX(1)}23%{transform:scaleX(-1)}41%{transform:scaleX(1)}67%{transform:scaleX(-1)}95%{transform:scaleX(1)}}
+        /* 位置：x 用 vw、y 用 vh；scale＝遠近感（忽大忽小）；各段「時間 vs 距離」刻意不等＝速度變化：
+           第1趟慢慢起飛再加速、第2趟高速俯衝、第3趟中途放慢飄一下再衝出去、第4趟悠哉慢飛。趟與趟之間在畫面外轉向（對應 rrFwFlip 的翻面時點）。 */
         @keyframes rrFwPath{
-          0%{transform:translate(-30vw,9vh) scale(.55)}
-          10%{transform:translate(35vw,15vh) scale(.75)}
-          20%{transform:translate(120vw,10vh) scale(.95)}
-          22%{transform:translate(120vw,28vh) scale(1.05)}
-          32%{transform:translate(65vw,34vh) scale(1.35)}
-          44%{transform:translate(-35vw,30vh) scale(1.6)}
-          46%{transform:translate(-35vw,46vh) scale(1.2)}
-          56%{transform:translate(35vw,52vh) scale(.9)}
-          68%{transform:translate(120vw,48vh) scale(.6)}
-          70%{transform:translate(120vw,64vh) scale(.6)}
-          80%{transform:translate(60vw,70vh) scale(1)}
-          92%{transform:translate(-35vw,66vh) scale(1.4)}
+          0%{transform:translate(-30vw,9vh) scale(.55);animation-timing-function:ease-in}
+          8%{transform:translate(15vw,13vh) scale(.65);animation-timing-function:linear}
+          14%{transform:translate(60vw,15vh) scale(.8);animation-timing-function:ease-in}
+          22%{transform:translate(120vw,10vh) scale(.95)}
+          24%{transform:translate(120vw,28vh) scale(1.05);animation-timing-function:ease-in}
+          30%{transform:translate(60vw,34vh) scale(1.4);animation-timing-function:linear}
+          36%{transform:translate(-5vw,32vh) scale(1.55);animation-timing-function:ease-out}
+          40%{transform:translate(-35vw,30vh) scale(1.6)}
+          42%{transform:translate(-35vw,46vh) scale(1.2);animation-timing-function:ease-out}
+          50%{transform:translate(20vw,52vh) scale(.95);animation-timing-function:ease-in-out}
+          56%{transform:translate(45vw,50vh) scale(.8);animation-timing-function:ease-in}
+          62%{transform:translate(95vw,49vh) scale(.65);animation-timing-function:linear}
+          66%{transform:translate(120vw,48vh) scale(.6)}
+          68%{transform:translate(120vw,64vh) scale(.6);animation-timing-function:ease-in-out}
+          76%{transform:translate(85vw,70vh) scale(.85);animation-timing-function:ease-in-out}
+          84%{transform:translate(45vw,68vh) scale(1.1);animation-timing-function:ease-in-out}
+          90%{transform:translate(-5vw,67vh) scale(1.3);animation-timing-function:ease-out}
+          94%{transform:translate(-35vw,66vh) scale(1.4)}
           100%{transform:translate(-35vw,66vh) scale(1.4)}
         }
         @media (prefers-reduced-motion: reduce){.rr-fw{display:none}}
