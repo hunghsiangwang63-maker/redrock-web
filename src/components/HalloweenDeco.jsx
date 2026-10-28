@@ -159,3 +159,61 @@ export function TodayMascot({ style }) {
   const isWitch = name === 'witch';
   return <Sprite name={name} size={isWitch ? 104 : 118} style={style} />;
 }
+
+// 小女巫騎掃把飛過畫面（首頁萬聖節期間用；像櫻花飄落那種全螢幕飄動效果）。
+// 固定在畫面上、pointer-events:none（不擋任何點擊）；只用 transform／opacity 動畫（GPU，不吃效能）；
+// 分頁在背景時瀏覽器會自動暫停；系統設定「減少動態效果」時完全不顯示。
+// 路徑：左→右（高處）→ 右→左 → 左→右 → 右→左（逐步降低）→ 離場休息，共 40 秒循環。
+export function FlyingWitch() {
+  return (
+    <div className="rr-fw" aria-hidden="true">
+      <style>{`
+        .rr-fw{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:40}
+        .rr-fw-fly{position:absolute;left:0;top:0;width:150px;height:130px;will-change:transform;animation:rrFwPath 40s linear infinite}
+        .rr-fw-flip{position:absolute;inset:0;will-change:transform;animation:rrFwFlip 40s step-end infinite}
+        .rr-fw-bob{position:absolute;inset:0;animation:rrFwBob 2.6s ease-in-out infinite;transform-origin:60% 80%}
+        .rr-fw-witch{position:absolute;left:46px;top:0;width:82px;height:auto;display:block;filter:drop-shadow(0 3px 6px rgba(0,0,0,.35))}
+        .rr-fw-broom{position:absolute;left:0;top:76px;width:150px;height:44px;overflow:visible}
+        .rr-fw-star{position:absolute;color:#FFD879;font-size:12px;line-height:1;opacity:0;animation:rrFwTwinkle 1.4s ease-in-out infinite;text-shadow:0 0 6px rgba(255,200,90,.9)}
+        @keyframes rrFwBob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-7px) rotate(3deg)}}
+        @keyframes rrFwTwinkle{0%,100%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1.1)}}
+        @keyframes rrFwFlip{0%{transform:scaleX(1)}22%{transform:scaleX(-1)}46%{transform:scaleX(1)}70%{transform:scaleX(-1)}94%{transform:scaleX(1)}}
+        /* 位置：x 用 vw、y 用 vh；每趟約 8 秒，趟與趟之間在畫面外短暫停留 */
+        @keyframes rrFwPath{
+          0%{transform:translate(-30vw,9vh)}
+          10%{transform:translate(35vw,15vh)}
+          20%{transform:translate(120vw,10vh)}
+          22%{transform:translate(120vw,28vh)}
+          32%{transform:translate(65vw,34vh)}
+          44%{transform:translate(-35vw,30vh)}
+          46%{transform:translate(-35vw,46vh)}
+          56%{transform:translate(35vw,52vh)}
+          68%{transform:translate(120vw,48vh)}
+          70%{transform:translate(120vw,64vh)}
+          80%{transform:translate(60vw,70vh)}
+          92%{transform:translate(-35vw,66vh)}
+          100%{transform:translate(-35vw,66vh)}
+        }
+        @media (prefers-reduced-motion: reduce){.rr-fw{display:none}}
+      `}</style>
+      <div className="rr-fw-fly">
+        <div className="rr-fw-flip">
+          <div className="rr-fw-bob">
+            {/* 掃把（刷毛在左＝飛行方向的後方） */}
+            <svg className="rr-fw-broom" viewBox="0 0 150 44">
+              <path d="M44 22 L10 6 Q2 22 10 38 Z" fill="#D9A441" stroke="#8A5A1B" strokeWidth="1.5" strokeLinejoin="round"/>
+              <path d="M40 22 L12 11 M40 22 L8 22 M40 22 L12 33" stroke="#8A5A1B" strokeWidth="1.2" opacity=".75"/>
+              <rect x="40" y="16" width="9" height="12" rx="2" fill="#5A2A82" stroke="#2B1646" strokeWidth="1"/>
+              <rect x="48" y="19.5" width="98" height="5" rx="2.5" fill="#7A4A1E" stroke="#3E220C" strokeWidth="1"/>
+              <circle cx="146" cy="22" r="3.2" fill="#7A4A1E" stroke="#3E220C" strokeWidth="1"/>
+            </svg>
+            <img className="rr-fw-witch" src="/halloween/witch.webp" alt="" draggable="false" />
+            <span className="rr-fw-star" style={{ left: -6, top: 70, animationDelay: '0s' }}>✦</span>
+            <span className="rr-fw-star" style={{ left: -22, top: 88, animationDelay: '.45s', fontSize: 9 }}>✦</span>
+            <span className="rr-fw-star" style={{ left: 4, top: 100, animationDelay: '.9s', fontSize: 10 }}>✧</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

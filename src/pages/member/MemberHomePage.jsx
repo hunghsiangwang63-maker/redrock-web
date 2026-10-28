@@ -1,5 +1,5 @@
 import { isHalloween } from '../../utils/halloween';
-import { HalloweenHero, HW, Sprite, Bat } from '../../components/HalloweenDeco';
+import { HalloweenHero, FlyingWitch, HW, Sprite, Bat } from '../../components/HalloweenDeco';
 
 // 萬聖節功能格：橘／深紫／羊皮紙三種底，角落點綴小南瓜、幽靈、蝙蝠（只在萬聖節期間使用）
 const HW_TILES = [
@@ -235,6 +235,7 @@ export default function MemberHomePage() {
 
       {/* 萬聖節祝福橫幅（2026-10-27～11-08 自動顯示，期間後自動消失） */}
       {isHalloween() && <HalloweenHero />}
+      {isHalloween() && <FlyingWitch />}
 
       {/* 今日已入場橫幅（全天顯示；資料源自後端 my-today，隔日消失、取消後消失）*/}
       {todayCheckin?.checkedIn && (
