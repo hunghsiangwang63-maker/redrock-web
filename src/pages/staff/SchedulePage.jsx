@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule, getScheduleEvents, createScheduleEvent, createRecurringScheduleEvent, updateScheduleEvent, deleteScheduleEvent } from '../../api/schedule';
+import { getMonthlyShifts, getHoursSummary, getScheduleStaffList, createShift, createRecurringShifts, updateShift, deleteShift, clearMonthSchedule, copyPreviousMonthSchedule, getScheduleEvents, getMyCourses, getMyCourseRoster, createScheduleEvent, createRecurringScheduleEvent, updateScheduleEvent, deleteScheduleEvent } from '../../api/schedule';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
@@ -57,6 +57,11 @@ export default function SchedulePage() {
   // 檢視模式：月曆點既有排班/重要事項先開唯讀檢視彈窗（人人可看），底部「編輯」鈕才進編輯 Modal
   const [viewingShift, setViewingShift] = useState(null);
   const [viewingEvent, setViewingEvent] = useState(null);
+  // 帶課教練：本人當月授課場次（含代班/停課/補課人數），個人帳號登入才有（值班/館別電腦無個人身分）
+  const [myCourses, setMyCourses] = useState([]);
+  const [viewingCourse, setViewingCourse] = useState(null);
+  const [courseRoster, setCourseRoster] = useState(null); // null=未載入 | []=無學員 | undefined 失敗以 'error'
+  const [rosterError, setRosterError] = useState('');
   const [shiftForm, setShiftForm] = useState({ staffId:'', date:'', type:'full_day', startTime:'10:00', endTime:'18:00', note:'' });
   const [saving, setSaving] = useState(false);
   const [schedBusy, setSchedBusy] = useState(false);
@@ -143,15 +148,17 @@ export default function SchedulePage() {
     const seq = ++loadDataSeqRef.current;
     setLoading(true);
     try {
-      const [shiftsRes, staffRes, eventsRes] = await Promise.all([
+      const [shiftsRes, staffRes, eventsRes, coursesRes] = await Promise.all([
         getMonthlyShifts(targetGymId, month),
         canManage ? getScheduleStaffList(targetGymId) : Promise.resolve({ data: { staffList: [] } }),
         getScheduleEvents(targetGymId, month).catch(() => ({ data: { events: [] } })),
+        (staff && !operator) ? getMyCourses(month).catch(() => ({ data: { sessions: [] } })) : Promise.resolve({ data: { sessions: [] } }),
       ]);
       if (seq !== loadDataSeqRef.current) return;
       setShifts(shiftsRes.data.shifts || []);
       setStaffList(staffRes.data.staffList || []);
       setEvents(eventsRes.data.events || []);
+      setMyCourses(coursesRes.data.sessions || []);
     } catch (e) { if (seq === loadDataSeqRef.current) setShifts([]); }
     finally { if (seq === loadDataSeqRef.current) setLoading(false); }
   };
@@ -188,6 +195,12 @@ export default function SchedulePage() {
 
   const shiftsForDate = (date) => shifts.filter(s => s.date === date);
   const eventsForDate = (date) => events.filter(e => e.date === date);
+  const coursesForDate = (date) => myCourses.filter(c => c.date === date);
+  const openCourse = async (c) => {
+    setViewingCourse(c); setCourseRoster(null); setRosterError('');
+    try { const r = await getMyCourseRoster(c.id); setCourseRoster(r.data.roster || []); }
+    catch (e) { setRosterError(e?.response?.data?.message || '學員名單載入失敗'); setCourseRoster([]); }
+  };
 
   const openAddEvent = (date) => {
     if (!canManageEvents) return;
@@ -549,6 +562,22 @@ export default function SchedulePage() {
                         </div>
                         );
                       })}
+                      {coursesForDate(date).map(c => {
+                        const cancelled = c.status === 'cancelled';
+                        const away = c.role === 'substituted_away';
+                        const bg = cancelled || away ? '#EFEFEF' : c.role === 'substitute' ? '#FFF1D6' : '#E3F0FB';
+                        const fg = cancelled || away ? '#888' : c.role === 'substitute' ? '#8A5A00' : '#0B4F8A';
+                        return (
+                          <div key={c.id} onClick={e => { e.stopPropagation(); openCourse(c); }}
+                            style={{ fontSize:10, fontWeight:600, padding:'2px 5px', borderRadius:4, marginBottom:2, lineHeight:1.2,
+                              background:bg, color:fg, cursor:'pointer', textDecoration: cancelled ? 'line-through' : 'none' }}>
+                            📚 {c.startTime} {c.courseName}
+                            <div style={{ fontSize:9, fontWeight:500, opacity:.9 }}>
+                              {cancelled ? '停課' : away ? `已由 ${c.instructor} 代班` : `${c.role === 'substitute' ? '代班 · ' : ''}${c.expectedCount ?? 0} 人${c.makeupCount ? `（補課 ${c.makeupCount}）` : ''}${c.leaveCount ? ` 請假 ${c.leaveCount}` : ''}`}
+                            </div>
+                          </div>
+                        );
+                      })}
                 
                     </>
                   )}
@@ -586,6 +615,55 @@ export default function SchedulePage() {
               {settingsSaving ? '儲存中...' : '儲存設定'}
             </button>
           </div>
+        </Modal>
+      )}
+
+      {/* 帶課檢視 Modal（教練視角；本人場次，含代班/停課/補課人數與學員名單，不含電話） */}
+      {viewingCourse && (
+        <Modal title="帶課內容" onClose={() => setViewingCourse(null)} width={460}>
+          {(() => {
+            const c = viewingCourse;
+            const Row = ({ label, children }) => (
+              <div style={{ display:'flex', gap:12, padding:'8px 0', borderBottom:'0.5px solid #F3E8E8', fontSize:13 }}>
+                <div style={{ width:76, color:'#999', flexShrink:0 }}>{label}</div>
+                <div style={{ flex:1, minWidth:0, wordBreak:'break-all' }}>{children}</div>
+              </div>
+            );
+            const statusTag = { confirmed:'', leave:'請假', waitlist:'候補' };
+            const attTag = { present:'✓ 已到', absent:'缺席', pending:'' };
+            return (
+              <div>
+                <Row label="課程">{c.courseName}</Row>
+                <Row label="日期">{c.date}（週{['日','一','二','三','四','五','六'][dayjs(c.date).day()]}）{c.startTime}~{c.endTime}</Row>
+                <Row label="館別">{c.gymId === 'gym-shilin' ? '士林館' : c.gymId === 'gym-hsinchu' ? '新竹館' : c.gymId}</Row>
+                <Row label="狀態">{c.status === 'cancelled' ? '⛔ 此堂已停課／取消' : '正常上課'}</Row>
+                <Row label="教練">
+                  {c.instructor || '—'}
+                  {c.role === 'substitute' && <div style={{ color:'#8A5A00', fontSize:12 }}>👟 由您代班{c.originalInstructor ? `（原教練：${c.originalInstructor}）` : ''}{c.substituteReason ? `・${c.substituteReason}` : ''}</div>}
+                  {c.role === 'substituted_away' && <div style={{ color:'#888', fontSize:12 }}>此堂已改由 {c.instructor} 代班（原教練：{c.originalInstructor || '您'}）</div>}
+                </Row>
+                <Row label="人數">報名 {c.registeredCount ?? 0}・請假 {c.leaveCount ?? 0}・補課 {c.makeupCount ?? 0}・試上 {c.trialCount ?? 0}{c.crossMakeupCount ? `・跨期補課 ${c.crossMakeupCount}` : ''}・<strong>預計上課 {c.expectedCount ?? 0} 人</strong>{c.maxStudents ? `（上限 ${c.maxStudents}）` : ''}</Row>
+                {c.notes && <Row label="備註">{c.notes}</Row>}
+                <div style={{ fontSize:12, fontWeight:600, color:'#444', margin:'14px 0 6px' }}>學員名單</div>
+                {courseRoster === null ? <div style={{ color:'#999', fontSize:12 }}>載入中...</div>
+                  : rosterError ? <div style={{ color:'#A32D2D', fontSize:12 }}>{rosterError}</div>
+                  : courseRoster.length === 0 ? <div style={{ color:'#999', fontSize:12 }}>尚無學員</div>
+                  : courseRoster.map(r => (
+                    <div key={r.id} style={{ padding:'7px 0', borderBottom:'0.5px solid #F3E8E8', fontSize:13, opacity: r.status === 'leave' ? .55 : 1 }}>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
+                        <strong style={{ textDecoration: r.status === 'leave' ? 'line-through' : 'none' }}>{r.memberName || '（未具名）'}</strong>
+                        {r.enrollAge != null && <span style={{ color:'#999', fontSize:11 }}>{r.enrollAge} 歲</span>}
+                        {r.isMakeup && <span style={{ fontSize:10, background:'#E8F4E8', color:'#2D7D46', borderRadius:4, padding:'1px 5px' }}>{r.isCrossMakeup ? '跨期補課' : r.isPauseResume ? '暫停回課' : '補課'}</span>}
+                        {r.isTrial && <span style={{ fontSize:10, background:'#F2EAFB', color:'#533AB7', borderRadius:4, padding:'1px 5px' }}>試上</span>}
+                        {statusTag[r.status] && <span style={{ fontSize:10, background:'#EEE', color:'#666', borderRadius:4, padding:'1px 5px' }}>{statusTag[r.status]}</span>}
+                        {attTag[r.attendanceStatus] && <span style={{ fontSize:10, color:'#2D7D46' }}>{attTag[r.attendanceStatus]}</span>}
+                      </div>
+                      {(r.healthNote || r.enrollNote || r.crossNote) && <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>{[r.healthNote && `健康：${r.healthNote}`, r.enrollNote && `備註：${r.enrollNote}`, r.crossNote].filter(Boolean).join('　')}</div>}
+                    </div>
+                  ))}
+              </div>
+            );
+          })()}
         </Modal>
       )}
 

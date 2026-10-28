@@ -19,3 +19,5 @@ export const createRecurringScheduleEvent = (data) => client.post('/schedule/eve
 // 或「整個系列」；非系列的一次性事項後端會自動視同 single。
 export const updateScheduleEvent = (eventId, data, scope = 'single') => client.put(`/schedule/events/${eventId}`, { ...data, scope });
 export const deleteScheduleEvent = (eventId, scope = 'single') => client.delete(`/schedule/events/${eventId}`, { params: { scope } });
+export const getMyCourses = (month) => client.get('/schedule/my-courses', { params: { month } });
+export const getMyCourseRoster = (sessionId) => client.get(`/schedule/my-courses/${sessionId}/roster`);
