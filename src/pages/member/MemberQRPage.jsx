@@ -752,8 +752,8 @@ export default function MemberQRPage() {
               {partnerGymMember && <CheckTick color="#fff" size={11} />}
             </div>
             <div style={{ flex:1, textAlign:'left' }}>
-              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{tt(`友館隊員優惠（${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Partner-gym athlete (${Math.round(pgmRate*100)}% off)`, `提携ジームチーム会員優惠（${Math.round(pgmRate*100)}%）`)}</div>
-              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{tt('需於櫃檯出示友館隊員證明核對，未出示或不符將以原價計。', 'Show partner-gym athlete proof at counter; otherwise full price.', 'フロントで提携ジームの会員証をご提示ください。提示がない場合は通常料金となります。')}</div>
+              <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{tt(`友館隊員優惠（${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Partner-gym athlete (${Math.round((1-pgmRate)*100)}% off)`, `提携ジム会員優待（${Math.round((1-pgmRate)*100)}%OFF）`)}</div>
+              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{tt('需於櫃檯出示友館隊員證明核對，未出示或不符將以原價計。', 'Show partner-gym athlete proof at counter; otherwise full price.', 'フロントで提携ジムの会員証をご提示ください。提示がない場合は通常料金となります。')}</div>
             </div>
           </div>
         )}
@@ -1027,7 +1027,7 @@ export default function MemberQRPage() {
             <div style={{ marginTop:16, padding:'12px 0', borderTop:'0.5px solid #E8D5D5', fontSize:13 }}>
               {entryPrice > 0 && (
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? t('折扣優惠券') : selectedEntry?.type === 'buy_pass' ? (bpInst ? t('定期票（頭款・第1期）') : t('定期票')) : (pgmActive ? tt(`入場費（友館隊員 ${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Entry Fee (partner-gym ${Math.round(pgmRate*100)}%)`, `入場料（提携ジーム ${Math.round(pgmRate*100)}%）`) : (pvActive ? tt(`入場費（特約 −${pvCut}）`, `Entry Fee (partner −${pvCut})`, `入場料（提携 −${pvCut}）`) : t('入場費')))}</span>
+                  <span style={{ color:'#666' }}>{selectedEntry?.type === 'buy_discount_card' ? t('折扣優惠券') : selectedEntry?.type === 'buy_pass' ? (bpInst ? t('定期票（頭款・第1期）') : t('定期票')) : (pgmActive ? tt(`入場費（友館隊員 ${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Entry Fee (partner-gym ${Math.round((1-pgmRate)*100)}% off)`, `入場料（提携ジム ${Math.round((1-pgmRate)*100)}%OFF）`) : (pvActive ? tt(`入場費（特約 −${pvCut}）`, `Entry Fee (partner −${pvCut})`, `入場料（提携 −${pvCut}）`) : t('入場費')))}</span>
                   <span>NT${entryPrice}</span>
                 </div>
               )}
@@ -1080,7 +1080,7 @@ export default function MemberQRPage() {
               <span>{tt(
                 `入場時請於櫃檯出示${[selectedEntry?.type === 'student_free' && '學生證', pvActive && '特約廠商證件', pgmActive && '友館隊員證明'].filter(Boolean).join('、')}供核對，未出示或不符將以原價計。`,
                 `Please show your ${[selectedEntry?.type === 'student_free' && 'student ID', pvActive && 'partner-company ID', pgmActive && 'partner-gym athlete proof'].filter(Boolean).join(' and ')} at the front desk; full price applies if not presented.`,
-                `入場時にフロントで${[selectedEntry?.type === 'student_free' && '学生証', pvActive && '提携業者証明', pgmActive && '提携ジーム会員証明'].filter(Boolean).join('・')}をご提示ください。提示がない場合は通常料金となります。`
+                `入場時にフロントで${[selectedEntry?.type === 'student_free' && '学生証', pvActive && '提携業者証明', pgmActive && '提携ジム会員証明'].filter(Boolean).join('・')}をご提示ください。提示がない場合は通常料金となります。`
               )}</span>
             </div>
           )}
