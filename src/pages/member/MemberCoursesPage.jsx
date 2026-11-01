@@ -3015,7 +3015,8 @@ export default function MemberCoursesPage() {
               appliedList.length === 0 ? <div style={{ textAlign:'center', padding:32, color:'#999', fontSize:13 }}>{t('目前沒有可補課的場次')}</div> : null
             ) : availList.map(s => {
               // 目標梯次尚未開課（首堂日晚於今天）——後端權威擋，這裡提前顯示原因、鈕直接鎖住
-              const notStarted = s.courseFirstDate && s.courseFirstDate > dayjs().format('YYYY-MM-DD');
+              // 新竹館（後端 openBeforeStart）有開課就開放補課，不鎖；其他館維持首堂開始後才開放
+              const notStarted = !s.openBeforeStart && s.courseFirstDate && s.courseFirstDate > dayjs().format('YYYY-MM-DD');
               const full = s.enrolledCount >= s.maxStudents;
               return (
               <div key={s.id} style={{ background:'#FBF5F5', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', opacity: notStarted ? 0.6 : 1 }}>
