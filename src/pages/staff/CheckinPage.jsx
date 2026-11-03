@@ -106,7 +106,8 @@ export default function CheckinPage() {
   }, [targetGymId]);
 
   const handleQuickCourseCheckin = async (student) => {
-    if (student.alreadyCheckedIn || quickCheckinLoading) return;
+    if (student.alreadyCheckedIn) { showQuickMsg(`${student.memberName} 今天已入場`, 'red'); return; }
+    if (quickCheckinLoading) { showQuickMsg('上一位還在處理中，請稍候再點；若一直卡住請重新整理頁面', 'red'); return; }
     setQuickCheckinLoading(student.memberId);
     try {
       await client.post('/checkin/phone', {
@@ -119,7 +120,13 @@ export default function CheckinPage() {
       await loadCourseStudents();
       await loadStats();
     } catch (err) {
-      showQuickMsg(err.response?.data?.message || '入場失敗', 'red');
+      const status = err.response?.status;
+      const msg = err.response?.data?.message
+        || (status === 401 ? '登入已失效，請重新整理頁面並重新打卡值班'
+          : err.code === 'ECONNABORTED' ? '連線逾時，請再點一次（先確認該學員是否已入場）'
+          : status ? `入場失敗（錯誤 ${status}）` : '網路連線失敗，請確認網路後再試');
+      showQuickMsg(`${student.memberName}：${msg}`, 'red');
+      loadCourseStudents(); // 重新抓名單，避免畫面顯示過期的「點擊入場」
     } finally {
       setQuickCheckinLoading(null);
     }
@@ -127,7 +134,7 @@ export default function CheckinPage() {
 
   const [quickMsg, setQuickMsg] = useState('');
   const [quickMsgType, setQuickMsgType] = useState('ok');
-  const showQuickMsg = (text, type='ok') => { setQuickMsg(text); setQuickMsgType(type); setTimeout(() => setQuickMsg(''), 3000); };
+  const showQuickMsg = (text, type='ok') => { setQuickMsg(text); setQuickMsgType(type); setTimeout(() => setQuickMsg(''), 8000); };
 
   const [tab, setTab] = useState('scan');
   const [todayCheckIns, setTodayCheckIns] = useState([]);
@@ -1392,10 +1399,11 @@ export default function CheckinPage() {
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
               <div style={{ fontSize:13, fontWeight:600, color:'#2D7D46' }}>🧗 今日課程學員</div>
-              {quickMsg && (
-                <span style={{ fontSize:12, color: quickMsgType==='ok' ? '#2D7D46' : '#A32D2D' }}>{quickMsg}</span>
-              )}
             </div>
+            {quickMsg && (
+              <div style={{ fontSize:13, fontWeight:600, marginBottom:10, padding:'8px 12px', borderRadius:8,
+                color: quickMsgType==='ok' ? '#2D7D46' : '#A32D2D', background: quickMsgType==='ok' ? '#E6F4EB' : '#FCEBEB' }}>{quickMsg}</div>
+            )}
             {courseStudentsLoading ? (
               <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>載入中...</div>
             ) : courseStudents.length === 0 ? (
@@ -1406,7 +1414,7 @@ export default function CheckinPage() {
                   const clickDisabled = s.isCrossMakeup || s.alreadyCheckedIn || quickCheckinLoading === s.memberId;
                   return (
                   <div key={`${s.memberId || s.memberName}-${s.courseId}`}
-                    onClick={() => { if (!clickDisabled) handleQuickCourseCheckin(s); }}
+                    onClick={() => { if (s.isCrossMakeup) { showQuickMsg('跨期補課為非會員名單，請由櫃檯另行放行', 'red'); return; } handleQuickCourseCheckin(s); }}
                     style={{
                       textAlign:'left', padding:'10px 12px', borderRadius:8,
                       border: s.alreadyCheckedIn ? '0.5px solid #E8D5D5' : '0.5px solid #B3DEC0',
