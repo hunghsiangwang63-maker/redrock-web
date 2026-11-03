@@ -136,6 +136,7 @@ const emptyForm = () => ({
     { deadline: dayjs().add(12,'day').format('YYYY-MM-DD'), rule:'half_minus_admin', adminFee:100 },
   ],
   waiverContent: { zh:'', en:'' },
+  customFields: [], // 該賽事專屬報名欄位（如「隊友全名」）
   scoringSystem:'competition_management_v2',  // 固定紅石賽事管理 V2（直寫計分系統 Firestore）
   status:'draft',
   paymentDeadlineDays: 3,  // 繳款期限：報名日 + N 天內須完成繳費（含臨櫃繳款），逾期自動剔除
@@ -378,6 +379,7 @@ export default function CompetitionsPage() {
       fees: { ...emptyForm().fees, ...(c.fees || {}) }, // 舊賽事若缺新欄位（如保險費）→ 補上預設值，避免輸入框空白
       refundPolicies: c.refundPolicies || emptyForm().refundPolicies,
       waiverContent: c.waiverContent||{zh:'',en:''},
+      customFields: (c.customFields||[]).map(f=>({ key:f.key, label:f.label||'', placeholder:f.placeholder||'', required:!!f.required, type:'text' })),
       scoringSystem:c.scoringSystem, webhookUrl:c.webhookUrl||'', status:c.status,
       paymentDeadlineDays: c.paymentDeadlineDays ?? 3,
     });
@@ -390,9 +392,10 @@ export default function CompetitionsPage() {
     const isKids = form.competitionType === 'kids';
     if (isKids && [form.fees.kidsStudent, form.fees.kidsNonStudent].some(v => v === '' || v == null || Number(v) < 0)) { showMsg('兒童賽請填寫「當期學員價」與「非當期學員價」','red'); return; }
     if (form.competitionType === 'tiered' && ['tierTeam','tierVip','tierStudentPass','tierPartnerTeam','tierOther'].some(k => form.fees[k] === '' || form.fees[k] == null || Number(form.fees[k]) < 0)) { showMsg('身份收費賽請填寫五個身份的費用（免費請填 0）','red'); return; }
+    if ((form.customFields||[]).some(f=>!String(f.label||'').trim())) { showMsg('自訂報名欄位請填寫欄位名稱（或刪除空白欄位）','red'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, scoringSystem:'competition_management_v2', webhookUrl:null };
+      const payload = { ...form, customFields:(form.customFields||[]).map(f=>({ key:f.key, label:String(f.label).trim(), placeholder:String(f.placeholder||'').trim()||null, required:!!f.required, type:'text' })), scoringSystem:'competition_management_v2', webhookUrl:null };
       if (form.competitionType === 'tiered') payload.earlyBirdDeadline = null; // 身份收費賽無早鳥
       let promotedCount = 0;
       if (editingId) { const r = await updateCompetition(editingId, payload); promotedCount = r.data?.competition?.promotedCount || 0; }
@@ -917,6 +920,18 @@ export default function CompetitionsPage() {
             </div>
             <div style={{ gridColumn:'1/-1' }}><label style={lbl}>賽事說明</label><textarea rows={4} style={{...inp, height:'auto', padding:'8px 12px', fontFamily:'inherit', lineHeight:1.7, resize:'vertical'}} value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))}/></div>
             <div style={{ gridColumn:'1/-1' }}><label style={lbl}>同意書內容（繁中）</label><textarea rows={8} style={{...inp, height:'auto', padding:'8px 12px', fontFamily:'inherit', lineHeight:1.7, resize:'vertical'}} value={form.waiverContent.zh} onChange={e=>setForm(f=>({...f,waiverContent:{...f.waiverContent,zh:e.target.value}}))}/></div>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={lbl}>報名自訂欄位（只套用在這場賽事，如「隊友全名」；內容會顯示在報名名單與下載檔）</label>
+              {(form.customFields||[]).map((cf,i)=>(
+                <div key={cf.key} style={{ display:'grid', gridTemplateColumns:'1fr 1.4fr auto auto', gap:6, marginBottom:6, alignItems:'center' }}>
+                  <input style={inp} placeholder="欄位名稱（如：隊友全名）" value={cf.label} onChange={e=>setForm(f=>({...f,customFields:f.customFields.map((x,j)=>j===i?{...x,label:e.target.value}:x)}))}/>
+                  <input style={inp} placeholder="提示文字（選填，輸入框內的灰字）" value={cf.placeholder||''} onChange={e=>setForm(f=>({...f,customFields:f.customFields.map((x,j)=>j===i?{...x,placeholder:e.target.value}:x)}))}/>
+                  <label style={{ fontSize:12, color:'#555', display:'flex', alignItems:'center', gap:4, whiteSpace:'nowrap' }}><input type="checkbox" checked={!!cf.required} onChange={e=>setForm(f=>({...f,customFields:f.customFields.map((x,j)=>j===i?{...x,required:e.target.checked}:x)}))}/>必填</label>
+                  <button type="button" onClick={()=>setForm(f=>({...f,customFields:f.customFields.filter((_,j)=>j!==i)}))} style={{ height:30, padding:'0 10px', borderRadius:6, border:'0.5px solid #E8B4B4', background:'#fff', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>刪除</button>
+                </div>
+              ))}
+              <button type="button" onClick={()=>setForm(f=>({...f,customFields:[...(f.customFields||[]),{ key:`cf_${Date.now().toString(36)}`, label:'', placeholder:'', required:true, type:'text' }]}))} style={{ height:30, padding:'0 12px', borderRadius:6, border:'0.5px solid #E8D5D5', background:'#FBF5F5', color:'#8B1A1A', fontSize:12, cursor:'pointer' }}>＋ 新增欄位</button>
+            </div>
           </div>
 
           <div style={{ display:'flex', gap:8 }}>
@@ -1105,6 +1120,7 @@ export default function CompetitionsPage() {
                 {Row('身高／臂展', `${r.height||'—'} ／ ${r.armSpan||'—'}`)}
                 {competitions.find(x=>x.id===r.competitionId)?.hasInsurance !== false && Row('身分證', r.idNumber)}
                 {Row('平常練習岩館', r.practiceGym || '—')}
+                {(competitions.find(x=>x.id===r.competitionId)?.customFields||[]).map(cf=>Row(cf.label, (r.customFieldValues||{})[cf.key] || '—'))}
                 {Row('緊急聯絡', `${r.emergencyContact||'—'}${r.emergencyRelation?`（${r.emergencyRelation}）`:''} ${r.emergencyPhone||''}`)}
                 {Row('手機／Email', `${r.phone||'—'} ／ ${r.email||'—'}`)}
                 {Row('簽署狀態', r.isComplete?'已簽署':'待法定代理人簽')}

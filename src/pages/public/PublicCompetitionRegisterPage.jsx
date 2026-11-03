@@ -243,7 +243,7 @@ export default function PublicCompetitionRegisterPage() {
             {comp.customFields.map(f => (
               <div key={f.key}>
                 <label style={label}>{f.label}{f.required ? ' *' : ''}</label>
-                <input value={customFieldValues[f.key] || ''} onChange={e => setCF(f.key, e.target.value)} style={input} />
+                <input value={customFieldValues[f.key] || ''} onChange={e => setCF(f.key, e.target.value)} placeholder={f.placeholder || ''} style={input} />
               </div>
             ))}
           </div>

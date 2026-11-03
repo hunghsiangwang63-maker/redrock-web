@@ -104,6 +104,7 @@ export default function MemberCompetitionsPage() {
   const [height, setHeight] = useState('');
   const [armSpan, setArmSpan] = useState('');
   const [memberNote, setMemberNote] = useState('');
+  const [customValues, setCustomValues] = useState({});   // 該賽事自訂報名欄位（如隊友全名）
   const [partnerGymId, setPartnerGymId] = useState('');       // 身份收費賽：自選友館（友館攀岩隊員一級）
   const [partnerGymList, setPartnerGymList] = useState([]);
   const [practiceGym, setPracticeGym] = useState('');       // 平常練習岩館（必填，了解選手資訊）
@@ -148,6 +149,7 @@ export default function MemberCompetitionsPage() {
       phone: r.phone || '', email: r.email || '', idNumber: r.idNumber || '', practiceGym: r.practiceGym || '',
       emergencyContact: r.emergencyContact || '', emergencyRelation: r.emergencyRelation || '', emergencyPhone: r.emergencyPhone || '',
       height: r.height || '', armSpan: r.armSpan || '', isHonorary: !!r.isHonorary, memberNote: r.memberNote || '',
+      customFieldValues: { ...(r.customFieldValues || {}) },
       paymentMethod: r.paymentMethod || 'transfer', paymentDate: r.paymentDate || '', bankLastFive: r.bankLastFive || '', bankName: r.bankName || '',
       _paid: r.paymentStatus === 'confirmed',
     });
@@ -161,6 +163,7 @@ export default function MemberCompetitionsPage() {
     if (!f.email?.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) { setEditErr(t('請填寫有效 Email')); return; }
     if (!f.emergencyContact?.trim() || !f.emergencyPhone?.trim()) { setEditErr(t('請填寫緊急聯絡人')); return; }
     if (!f.practiceGym?.trim()) { setEditErr(t('請填寫平常練習岩館')); return; }
+    for (const cf of (competitions.find(x => x.id === editTarget?.competitionId)?.customFields || [])) { if (cf.required && !String(f.customFieldValues?.[cf.key] || '').trim()) { setEditErr(tt(`請填寫「${cf.label}」`, `Please fill in "${cf.label}"`, `「${cf.label}」を入力してください`)); return; } }
     if (!f._paid) {
       if (!f.paymentDate) { setEditErr(f.paymentMethod === 'cash' ? t('請填寫繳款日期') : t('請填寫轉帳日期')); return; }
       if (f.paymentMethod === 'transfer' && !f.bankLastFive?.trim()) { setEditErr(t('轉帳請填寫匯款帳號末五碼')); return; }
@@ -351,7 +354,7 @@ export default function MemberCompetitionsPage() {
     const hasSep = !!(r?.emergencyRelation || r?.emergencyPhone);
     if (hasSep) {
       setEmergencyContact(r?.emergencyContact || '');
-      setMemberNote('');
+      setMemberNote(''); setCustomValues({});
       setEmergencyRelation(r?.emergencyRelation || '');
       setEmergencyPhone(r?.emergencyPhone || '');
     } else {
@@ -374,6 +377,7 @@ export default function MemberCompetitionsPage() {
       if (!regEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(regEmail.trim())) { showMsg(t('請填寫有效的 Email'), 'red'); return; }
       if (selectedComp?.hasInsurance !== false && !idNumber.trim()) { showMsg(t('請填寫身分證/護照號碼（保險用）'), 'red'); return; }
       if (!practiceGym.trim()) { showMsg(t('請填寫平常練習岩館'), 'red'); return; }
+      for (const cf of (selectedComp?.customFields || [])) { if (cf.required && !String(customValues[cf.key] || '').trim()) { showMsg(tt(`請填寫「${cf.label}」`, `Please fill in "${cf.label}"`, `「${cf.label}」を入力してください`), 'red'); return; } }
       if (!emergencyContact.trim() || !emergencyPhone.trim()) { showMsg(t('請填寫緊急聯絡人資訊'), 'red'); return; }
     }
     if (step === 2) {
@@ -415,6 +419,7 @@ export default function MemberCompetitionsPage() {
         armSpan: armSpan ? Number(armSpan) : null,
         memberNote: memberNote.trim() || null,
         practiceGym: practiceGym.trim(),
+        customFieldValues: Object.fromEntries((selectedComp?.customFields || []).map(cf => [cf.key, String(customValues[cf.key] || '').trim()])),
         partnerGymId: (selectedComp?.competitionType === 'tiered' && partnerGymId) ? partnerGymId : null,
         useMakeup: !!useMakeup,
         makeupRightId: useMakeup ? (makeupRightId || null) : null,
@@ -842,6 +847,13 @@ export default function MemberCompetitionsPage() {
                   <input value={practiceGym} onChange={e=>setPracticeGym(e.target.value)} placeholder={tt('例：新竹紅石／士林紅石', 'e.g. Redrock Hsinchu / Redrock Shilin', '例：紅石新竹／紅石士林')}
                     style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
                 </div>
+                {(selectedComp?.customFields || []).map(cf => (
+                  <div key={cf.key} style={{ marginBottom:12 }}>
+                    <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{cf.label}{cf.required ? ' *' : ''}</label>
+                    <input value={customValues[cf.key] || ''} onChange={e=>setCustomValues(v=>({ ...v, [cf.key]: e.target.value }))} placeholder={cf.placeholder || ''}
+                      style={{ width:'100%', height:40, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, outline:'none', boxSizing:'border-box', background:'#FBF5F5', color:'#1a1a1a' }}/>
+                  </div>
+                ))}
                 {selectedComp?.competitionType === 'kids' && makeupRights.length > 0 && (
                   <div style={{ marginBottom:12, background:'#FFF8E6', border:'1px solid #F0D9A8', borderRadius:10, padding:'10px 12px' }}>
                     <label style={{ display:'flex', alignItems:'flex-start', gap:8, fontSize:13, color:'#854F0B', cursor:'pointer', lineHeight:1.5 }}>
@@ -1211,6 +1223,9 @@ export default function MemberCompetitionsPage() {
               </div>
               {competitions.find(c => c.id === editTarget?.competitionId)?.hasInsurance !== false && <div><label style={lbl}>{t('身分證/護照號碼')}</label><input value={editForm.idNumber} onChange={e=>set('idNumber', e.target.value)} style={inp}/></div>}
               <div><label style={lbl}>{tt('平常練習岩館 *', 'Usual practice gym *', 'いつも練習しているジム *')}</label><input value={editForm.practiceGym || ''} onChange={e=>set('practiceGym', e.target.value)} style={inp}/></div>
+              {(competitions.find(x => x.id === editTarget?.competitionId)?.customFields || []).map(cf => (
+                <div key={cf.key}><label style={lbl}>{cf.label}{cf.required ? ' *' : ''}</label><input value={editForm.customFieldValues?.[cf.key] || ''} onChange={e=>set('customFieldValues', { ...(editForm.customFieldValues || {}), [cf.key]: e.target.value })} placeholder={cf.placeholder || ''} style={inp}/></div>
+              ))}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                 <div><label style={lbl}>{t('緊急聯絡人 *')}</label><input value={editForm.emergencyContact} onChange={e=>set('emergencyContact', e.target.value)} style={inp}/></div>
                 <div><label style={lbl}>{t('關係')}</label><input value={editForm.emergencyRelation} onChange={e=>set('emergencyRelation', e.target.value)} style={inp}/></div>
