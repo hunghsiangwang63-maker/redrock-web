@@ -29,21 +29,25 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
   const [cashReceived, setCashReceived] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [savedMethod, setSavedMethod] = useState(null); // 已成功回寫的付款方式（成功後按鈕收起，避免看不出有沒有成功）
 
   const changeAmount = (payMethod === 'cash' && cashReceived !== '' && !isNaN(Number(cashReceived)))
     ? Number(cashReceived) - (Number(amount) || 0) : null;
 
   const canFix = sourceType && refId; // 沒有來源訂單（如手動開立無來源發票）就不能回寫，只留計算機
   const showSelector = canFix || alwaysShowSelector;
-  const changed = canFix && payMethod !== paymentMethod;
+  const changed = canFix && payMethod !== (savedMethod || paymentMethod);
 
   const submitFix = async () => {
     setSaving(true); setMsg('');
     try {
       await client.put('/invoices/source-payment-method', { sourceType, refId, paymentMethod: payMethod });
-      setMsg(`✅ 已更新為「${PM_LABEL[payMethod] || payMethod}」並回寫系統`);
+      setSavedMethod(payMethod);
+      setMsg(`✅ 已更新為「${PM_LABEL[payMethod] || payMethod}」並回寫系統（入場紀錄、交易、發票都已同步）`);
     } catch (err) {
-      setMsg(err.response?.data?.message || '更新付款方式失敗');
+      setMsg(err.response?.data?.message
+        ? `❌ 回寫失敗：${err.response.data.message}`
+        : '❌ 回寫失敗：連線不穩或逾時，付款方式「尚未」更新，請再按一次；若一直失敗請通知管理員');
     } finally { setSaving(false); }
   };
 
@@ -108,7 +112,7 @@ export function PaymentMethodFixBox({ sourceType, refId, paymentMethod, amount, 
           {saving ? '更新中...' : `更新為「${PM_LABEL[payMethod] || payMethod}」並回寫系統`}
         </button>
       )}
-      {msg && <div style={{ fontSize:11, marginTop:6, color: msg.startsWith('✅') ? '#2D7D46' : '#A32D2D' }}>{msg}</div>}
+      {msg && <div style={{ fontSize:13, fontWeight:600, marginTop:8, padding:'8px 10px', borderRadius:6, color: msg.startsWith('✅') ? '#2D7D46' : '#A32D2D', background: msg.startsWith('✅') ? '#E6F4EB' : '#FCEBEB' }}>{msg}</div>}
       </div>
     </>
   );
