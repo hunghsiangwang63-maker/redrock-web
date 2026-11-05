@@ -44,7 +44,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      const res = await client.post('/stations/login', { email, password, deviceToken: getDeviceToken() });
+      const res = await client.post('/stations/login', { email, password, deviceToken: getDeviceToken() }, { withCredentials: true });
       loginStation(res.data.token, res.data.station);
       // navigate 由 useEffect 處理
     } catch (err) {
@@ -63,7 +63,7 @@ export default function LoginPage() {
     setError(''); setResendMsg('');
     try {
       if (pendingVerification?.forMode === 'station') {
-        await client.post('/stations/login', { email, password, deviceToken: getDeviceToken() });
+        await client.post('/stations/login', { email, password, deviceToken: getDeviceToken() }, { withCredentials: true });
       } else {
         await staffLogin(email, password);
       }
