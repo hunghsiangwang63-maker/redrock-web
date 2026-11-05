@@ -29,6 +29,17 @@ export default function CourseAdjustmentReviewModal({ request, onClose, onDone }
     return () => { alive = false; };
   }, [request.type, request.enrollmentId]);
 
+  // 證明附件（會員申請必填；內嵌檔案另打 API 取，列表不帶本體）
+  const [proofFiles, setProofFiles] = useState(null); // null＝載入中／無；[]＝無檔
+  useEffect(() => {
+    if (!request.proofCount) { setProofFiles([]); return; }
+    let alive = true;
+    client.get(`/course-adjustments/requests/${request.id}/proof`)
+      .then(r => { if (alive) setProofFiles(r.data.files || []); })
+      .catch(() => { if (alive) setProofFiles([]); });
+    return () => { alive = false; };
+  }, [request.id, request.proofCount]);
+
   const approve = async () => {
     setSaving(true); setError('');
     try {
@@ -54,6 +65,27 @@ export default function CourseAdjustmentReviewModal({ request, onClose, onDone }
         <div>{request.courseName} · {{ refund:'退費', pause:'暫停' }[request.type]}申請</div>
         <div style={{ color:'#999', fontSize:12, marginTop:4 }}>原因：{request.reason}</div>
         <div style={{ color:'#999', fontSize:12, marginTop:4 }}>申請日期：{fmtTs(request.createdAt)}</div>
+      </div>
+      <div style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:8, padding:12, marginBottom:16, fontSize:12.5 }}>
+        <div style={{ fontWeight:600, marginBottom:6 }}>📎 證明文件</div>
+        {!request.proofCount ? (
+          <div style={{ color:'#999' }}>未附證明文件（員工代填，或此功能上線前的舊申請）</div>
+        ) : proofFiles === null ? (
+          <div style={{ color:'#999' }}>載入中…</div>
+        ) : proofFiles.length === 0 ? (
+          <div style={{ color:'#A32D2D' }}>證明文件載入失敗，請重新開啟</div>
+        ) : (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {proofFiles.map((f, i) => f.mime === 'application/pdf' ? (
+              <a key={i} href={f.dataUrl} download={f.name} style={{ display:'flex', alignItems:'center', gap:6, border:'0.5px solid #E8D5D5', borderRadius:6, padding:'8px 12px', fontSize:12, color:'#185FA5', textDecoration:'none' }}>📄 {f.name}（下載 PDF）</a>
+            ) : (
+              <img key={i} src={f.dataUrl} alt={f.name} title="點擊放大" style={{ width:96, height:96, objectFit:'cover', borderRadius:6, border:'0.5px solid #E8D5D5', cursor:'zoom-in' }}
+                onClick={async () => { // Chrome 不允許直接導向 data: 網址，改轉 blob 網址再開新分頁
+                  try { const b = await (await fetch(f.dataUrl)).blob(); window.open(URL.createObjectURL(b), '_blank'); } catch (e) {}
+                }} />
+            ))}
+          </div>
+        )}
       </div>
       {request.type === 'refund' && (
         <div style={{ background:'#F0F6FB', border:'0.5px solid #C7DDF0', borderRadius:8, padding:12, marginBottom:16, fontSize:12.5 }}>

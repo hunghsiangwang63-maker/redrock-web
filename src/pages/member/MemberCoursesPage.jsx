@@ -8,6 +8,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { memberClient } from '../../api/client';
 import { requestCourseRefund, requestCoursePause, requestCourseTransfer, getCourseAdjustmentReasons } from '../../api/courseAdjustments';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
+import { prepareProofFile, PROOF_MAX_FILES } from '../../utils/proofFiles';
 import MemberLevelsCard from '../../components/MemberLevelsCard';
 
 // ── 課程規則共用元件（報名步驟3「規則確認」與 我的課程「📋 課程規則」modal 共用；改這裡兩邊連動）──
@@ -197,6 +198,22 @@ export default function MemberCoursesPage() {
   const [pendingAdjust, setPendingAdjust] = useState(new Map());
   const adjKey = (courseId, memberId) => `${courseId}__${memberId}`;
   const [adjustReason, setAdjustReason] = useState('');
+  const [proofFiles, setProofFiles] = useState([]);   // 暫停／退費申請的證明文件（必填）
+  const [proofBusy, setProofBusy] = useState(false);
+  const addProofFiles = async (fileList) => {
+    const files = Array.from(fileList || []); if (!files.length) return;
+    setProofBusy(true);
+    let next = [...proofFiles];
+    for (const f of files) {
+      if (next.length >= PROOF_MAX_FILES) { showMsg(tt(`證明文件最多 ${PROOF_MAX_FILES} 份`, `Up to ${PROOF_MAX_FILES} files`, `証明書類は最大${PROOF_MAX_FILES}件です`), 'red'); break; }
+      const r = await prepareProofFile(f);
+      if (r.error === 'type') { showMsg(t('證明文件僅限圖片或 PDF'), 'red'); continue; }
+      if (r.error === 'size') { showMsg(t('PDF 請小於 1.5MB，或改拍照上傳'), 'red'); continue; }
+      if (r.error) { showMsg(t('讀取檔案失敗，請重試'), 'red'); continue; }
+      next.push(r.file);
+    }
+    setProofFiles(next); setProofBusy(false);
+  };
   const [adjustLoading, setAdjustLoading] = useState(false);
   // 退費/暫停/轉讓理由（2026-09-07 改結構化，同定期票 REQUEST_REASONS 六項共用清單）
   const [adjustReasons, setAdjustReasons] = useState([]);
@@ -253,7 +270,7 @@ export default function MemberCoursesPage() {
   };
 
   const resetAdjustFields = () => {
-    setAdjustReasonKey(''); setAdjustReason('');
+    setAdjustReasonKey(''); setAdjustReason(''); setProofFiles([]);
     setTransferPhone(''); setTransferRecipients([]); setTransferPickId('');
     resetRefundAccountFields();
   };
@@ -261,6 +278,7 @@ export default function MemberCoursesPage() {
   const handleAdjustSubmit = async () => {
     if (!adjustReasonKey) { showMsg(t('請選擇事由'), 'red'); return; }
     if (adjustModal.type === 'transfer' && !transferPickId) { showMsg(t('請輸入接收對象電話並選定'), 'red'); return; }
+    if ((adjustModal.type === 'refund' || adjustModal.type === 'pause') && proofFiles.length === 0) { showMsg(t('請上傳證明文件（必填）'), 'red'); return; }
     // 已付費的退費申請，前端先擋（後端仍為權威——若判定與此處猜測不同，見下方 catch 對 MISSING_REFUND_ACCOUNT 的處理）
     if (adjustModal.type === 'refund' && adjustModal.paid && (!refundBankCode.trim() || !refundAccount.trim())) {
       showMsg(t('請填寫退款銀行代碼與帳號'), 'red'); return;
@@ -268,6 +286,7 @@ export default function MemberCoursesPage() {
     setAdjustLoading(true);
     try {
       const reasonPayload = { reasonKey: adjustReasonKey, reasonDetail: adjustReason.trim(), memberId: adjustModal.memberId };
+      if (adjustModal.type === 'refund' || adjustModal.type === 'pause') reasonPayload.proofFiles = proofFiles;
       if (adjustModal.type === 'refund') {
         const res = await requestCourseRefund(adjustModal.enrollmentId, {
           ...reasonPayload,
@@ -3089,6 +3108,25 @@ export default function MemberCoursesPage() {
                 )}
                 {_youthCourse && _pickedRecipient && !_pickedRecipient.isChildAccount && (
                   <div style={{ fontSize:12, color:'#A32D2D', marginTop:4 }}>⚠ {t('此課程限未滿 18 歲學員，請確認接收對象是否符合資格（後端仍會權威覆核）')}</div>
+                )}
+              </div>
+            )}
+            {(adjustModal.type === 'refund' || adjustModal.type === 'pause') && (
+              <div style={{ marginBottom:14 }}>
+                <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:6 }}>{t('證明文件')} <span style={{ color:'#A32D2D' }}>*</span>{tt('（必填，例：診斷證明、公文、機票等；圖片或 PDF，最多 3 份）', ' (required, e.g. medical certificate, official letter; images or PDF, up to 3 files)', '（必須。例：診断書・公文書など。画像またはPDF、最大3件）')}</label>
+                {proofFiles.map((pf, i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:8, background:'#FBF5F5', borderRadius:8, padding:'6px 10px', marginBottom:6, fontSize:12 }}>
+                    {pf.mime.startsWith('image/') ? <img src={pf.dataUrl} alt="" style={{ width:36, height:36, objectFit:'cover', borderRadius:4 }} /> : <span style={{ fontSize:22 }}>📄</span>}
+                    <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pf.name}</span>
+                    <button type="button" onClick={() => setProofFiles(proofFiles.filter((_, j) => j !== i))} style={{ border:'none', background:'transparent', color:'#A32D2D', fontSize:12, cursor:'pointer' }}>{t('移除')}</button>
+                  </div>
+                ))}
+                {proofFiles.length < PROOF_MAX_FILES && (
+                  <label style={{ display:'block', textAlign:'center', border:'1px dashed #C9A0A0', borderRadius:8, padding:'10px 0', fontSize:13, color:'#8B1A1A', cursor: proofBusy ? 'wait' : 'pointer', background:'#fff' }}>
+                    {proofBusy ? t('處理中…') : `＋ ${t('選擇檔案或拍照')}`}
+                    <input type="file" accept="image/*,application/pdf" multiple style={{ display:'none' }} disabled={proofBusy}
+                      onChange={e => { addProofFiles(e.target.files); e.target.value = ''; }} />
+                  </label>
                 )}
               </div>
             )}
