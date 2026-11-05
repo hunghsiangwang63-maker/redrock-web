@@ -52,17 +52,20 @@ export default function MemberOnboardingGate({ children }) {
     try {
       // 刷新 waiver 封鎖狀態（/auth/member/me 即時算 waiver blockReasons）
       let blockReasons = member?.blockReasons || [];
+      // 連線失敗（逾時／斷線／5xx）≠「沒簽署」：失敗時不能當成未簽，否則已簽署的會員會被誤導去重簽
+      let loadFailed = false;
+      const isNetFail = (e) => !e?.response || e.response.status >= 500;
       try {
         const me = await memberClient.get('/auth/member/me');
         if (me.data?.member) {
           blockReasons = me.data.member.blockReasons || [];
           updateMember({ blockReasons, fallTestPassed: me.data.member.fallTestPassed, fallTestScheduleSkipped: me.data.member.fallTestScheduleSkipped });
         }
-      } catch (_) {}
+      } catch (e) { if (isNetFail(e)) loadFailed = true; }
 
       const [sigRes, statusRes, bookRes, expRes] = await Promise.all([
-        getFallTestSignature(memberId).catch(() => ({ data: {} })),
-        getMyFallTestStatus(memberId).catch(() => ({ data: {} })),
+        getFallTestSignature(memberId).catch((e) => { if (isNetFail(e)) loadFailed = true; return { data: {} }; }),
+        getMyFallTestStatus(memberId).catch((e) => { if (isNetFail(e)) loadFailed = true; return { data: {} }; }),
         getMyFallTestBookings().catch(() => ({ data: { bookings: [] } })),
         memberClient.get('/experience-bookings/my').catch(() => ({ data: { bookings: [] } })),
       ]);
@@ -78,7 +81,7 @@ export default function MemberOnboardingGate({ children }) {
         .some(b => b.status !== 'cancelled' && (!b.bookingDate || b.bookingDate >= today));
 
       if (seq !== refreshSeqRef.current) return;
-      setState({ needsWaiver, parentPending, consentSigned, testPassed, booking, hasExperience });
+      setState({ needsWaiver, parentPending, consentSigned, testPassed, booking, hasExperience, loadFailed });
     } finally {
       if (seq === refreshSeqRef.current) setLoading(false);
     }
@@ -108,6 +111,18 @@ export default function MemberOnboardingGate({ children }) {
 
   if (loading && !state) {
     return overlay(<div style={{ textAlign:'center', color:'#999', fontSize:14, padding:'40px 0' }}>{t('載入中…')}</div>);
+  }
+
+  // 連線失敗：不顯示「請簽署」，改提示重試（會員資料其實可能早已完成簽署）
+  if (state.loadFailed) {
+    return overlay(
+      <div style={{ textAlign:'center', padding:'30px 10px' }}>
+        <div style={{ fontSize:40, marginBottom:10 }}>⚠️</div>
+        <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8 }}>{tt('連線不穩，無法確認入場文件狀態', 'Connection problem — unable to check your entry documents', '接続が不安定で、入場書類の状況を確認できません')}</div>
+        <div style={{ fontSize:13, color:'#888', lineHeight:1.7, marginBottom:18 }}>{tt('這不代表您尚未簽署。請確認網路後按「重新載入」；若在館內 Wi-Fi 一直失敗，請改用行動網路。', 'This does not mean you have not signed. Please check your network and tap Reload. If it keeps failing on the gym Wi-Fi, try mobile data.', '未署名という意味ではありません。通信環境をご確認のうえ「再読み込み」を押してください。館内Wi-Fiで失敗が続く場合はモバイル通信をお試しください。')}</div>
+        <button onClick={() => refresh()} style={{ height:44, padding:'0 28px', borderRadius:22, background:'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor:'pointer' }}>{tt('重新載入', 'Reload', '再読み込み')}</button>
+      </div>
+    );
   }
 
   const { needsWaiver, parentPending, consentSigned, testPassed, booking } = state;
