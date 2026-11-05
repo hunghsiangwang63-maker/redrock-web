@@ -87,6 +87,17 @@ export default function CourseAdjustmentReviewModal({ request, onClose, onDone }
           </div>
         )}
       </div>
+      {request.type === 'pause' && (
+        <div style={{ background:'#F0F6FB', border:'0.5px solid #C7DDF0', borderRadius:8, padding:12, marginBottom:16, fontSize:12.5 }}>
+          <div style={{ fontWeight:600, color:'#185FA5', marginBottom:6 }}>📐 暫停堂數（系統計算）</div>
+          {request.pauseSessionCount != null ? (
+            <>
+              <div>申請當時：尚未上課 <b>{request.pauseSessionCount}</b> 堂{request.pauseFirstDate ? `（${request.pauseFirstDate}${request.pauseLastDate && request.pauseLastDate !== request.pauseFirstDate ? ` ～ ${request.pauseLastDate}` : ''}）` : ''}，已上過 {request.heldSessionCount ?? 0} 堂</div>
+              <div style={{ color:'#999', marginTop:4 }}>核准時會依當下狀態重算（已上過的堂次不暫停），實際暫停堂數以核准結果為準。</div>
+            </>
+          ) : <div style={{ color:'#999' }}>此申請未留存試算（舊申請）；核准時系統會自動計算並暫停尚未上課的堂次。</div>}
+        </div>
+      )}
       {request.type === 'refund' && (
         <div style={{ background:'#F0F6FB', border:'0.5px solid #C7DDF0', borderRadius:8, padding:12, marginBottom:16, fontSize:12.5 }}>
           <div style={{ fontWeight:600, color:'#185FA5', marginBottom:6 }}>📐 計算過程</div>

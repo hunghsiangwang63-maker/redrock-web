@@ -200,6 +200,17 @@ export default function MemberCoursesPage() {
   const [adjustReason, setAdjustReason] = useState('');
   const [proofFiles, setProofFiles] = useState([]);   // 暫停／退費申請的證明文件（必填）
   const [proofBusy, setProofBusy] = useState(false);
+  const [adjustPreview, setAdjustPreview] = useState(null); // 系統試算：{loading}|{error}|{data}（暫停堂數／退費金額）
+  useEffect(() => {
+    if (!adjustModal || (adjustModal.type !== 'refund' && adjustModal.type !== 'pause')) { setAdjustPreview(null); return; }
+    let alive = true;
+    setAdjustPreview({ loading: true });
+    const fn = adjustModal.type === 'refund' ? requestCourseRefund : requestCoursePause;
+    fn(adjustModal.enrollmentId, { preview: true, reasonKey: 'other', memberId: adjustModal.memberId })
+      .then(r => { if (alive) setAdjustPreview({ data: r.data }); })
+      .catch(e => { if (alive) setAdjustPreview({ error: e.response?.data?.message || t('試算失敗，仍可送出申請，由館方計算') }); });
+    return () => { alive = false; };
+  }, [adjustModal?.enrollmentId, adjustModal?.memberId, adjustModal?.type]);
   const addProofFiles = async (fileList) => {
     const files = Array.from(fileList || []); if (!files.length) return;
     setProofBusy(true);
@@ -3109,6 +3120,37 @@ export default function MemberCoursesPage() {
                 {_youthCourse && _pickedRecipient && !_pickedRecipient.isChildAccount && (
                   <div style={{ fontSize:12, color:'#A32D2D', marginTop:4 }}>⚠ {t('此課程限未滿 18 歲學員，請確認接收對象是否符合資格（後端仍會權威覆核）')}</div>
                 )}
+              </div>
+            )}
+            {(adjustModal.type === 'refund' || adjustModal.type === 'pause') && adjustPreview && (
+              <div style={{ background:'#F0F6FB', border:'0.5px solid #C7DDF0', borderRadius:10, padding:'12px 14px', marginBottom:14, fontSize:12.5, lineHeight:1.7 }}>
+                <div style={{ fontWeight:700, color:'#185FA5', marginBottom:4 }}>📐 {adjustModal.type === 'refund' ? t('退費試算（系統）') : t('暫停堂數（系統計算）')}</div>
+                {adjustPreview.loading && <div style={{ color:'#999' }}>{t('計算中…')}</div>}
+                {adjustPreview.error && <div style={{ color:'#A32D2D' }}>{adjustPreview.error}</div>}
+                {adjustPreview.data && adjustModal.type === 'pause' && (adjustPreview.data.pauseSessionCount > 0 ? (
+                  <>
+                    <div>{tt(`將暫停尚未上課的 ${adjustPreview.data.pauseSessionCount} 堂`, `${adjustPreview.data.pauseSessionCount} upcoming session(s) will be paused`, `未受講の${adjustPreview.data.pauseSessionCount}回が休止されます`)}</div>
+                    <div style={{ color:'#666' }}>{adjustPreview.data.pauseFirstDate}{adjustPreview.data.pauseLastDate !== adjustPreview.data.pauseFirstDate ? ` ～ ${adjustPreview.data.pauseLastDate}` : ''}</div>
+                    <div style={{ color:'#999', fontSize:11.5 }}>{t('已上過的堂次不受影響；實際堂數以館方核准當日為準。')}</div>
+                  </>
+                ) : <div style={{ color:'#A32D2D' }}>{t('目前沒有尚未上課的堂次可暫停')}</div>)}
+                {adjustPreview.data && adjustModal.type === 'refund' && (() => {
+                  const d = adjustPreview.data;
+                  return (
+                    <>
+                      <div>{t('已繳金額')}：NT${d.paidAmount}{d.hasInstallment ? `（${t('分期實收')} NT$${d.actuallyPaid}）` : ''}</div>
+                      {d.courseType !== 'workshop' && d.totalSessions != null && (
+                        <>
+                          <div>{tt(`剩餘 ${d.remainingSessions}／${d.totalSessions} 堂，剩餘價金 NT$${d.remainingValue}`, `${d.remainingSessions}/${d.totalSessions} sessions left, remaining value NT$${d.remainingValue}`, `残り${d.remainingSessions}／${d.totalSessions}回、残額 NT$${d.remainingValue}`)}</div>
+                          <div>{tt(`手續費 ${Math.round((d.feeRate || 0) * 100)}%：NT$${d.fee}`, `Handling fee ${Math.round((d.feeRate || 0) * 100)}%: NT$${d.fee}`, `手数料 ${Math.round((d.feeRate || 0) * 100)}%：NT$${d.fee}`)}</div>
+                        </>
+                      )}
+                      {d.courseType === 'workshop' && <div style={{ color:'#666' }}>{d.refundNote}</div>}
+                      <div style={{ fontWeight:700, color:'#A32D2D', marginTop:2 }}>{t('建議退款')}：NT${d.suggestedRefund}（{d.suggestedPercentage}%）</div>
+                      <div style={{ color:'#999', fontSize:11.5 }}>{t('以上為系統試算，實際退款金額以館方審核為準。')}</div>
+                    </>
+                  );
+                })()}
               </div>
             )}
             {(adjustModal.type === 'refund' || adjustModal.type === 'pause') && (
