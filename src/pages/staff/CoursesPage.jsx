@@ -2825,7 +2825,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       {(lmSummary.groups||[]).map(g => (
         <div key={g.course.id} style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'6px 0' }}>{g.course.name}
-            {g.course.isActive === false && <span title="此梯次已停用（會員端不開放），因仍有未用補課券而列出" style={{ fontSize:10, fontWeight:600, color:'#8A5A00', background:'#FFF8E6', borderRadius:10, padding:'2px 7px', marginLeft:8 }}>已停用</span>}
+            {g.course.isActive === false && <span title="此梯次已停用（會員端不開放）" style={{ fontSize:10, fontWeight:600, color:'#8A5A00', background:'#FFF8E6', borderRadius:10, padding:'2px 7px', marginLeft:8 }}>已停用</span>}
             <span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>上限 {g.course.maxLeaves} 次｜補課期限 {g.course.makeupDeadline || '—'}</span></div>
           <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 }}>
