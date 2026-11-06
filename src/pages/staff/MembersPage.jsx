@@ -254,11 +254,22 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
                 </span>
               </div>
               {g.sessionStats && (
-                <div style={{ padding:'6px 16px', background:'#F7FAF8', borderBottom:'0.5px solid #E8D5D5', fontSize:12, color:'#555', display:'flex', gap:14, flexWrap:'wrap' }}>
-                  <span>📘 已開 <b style={{ color:'#2D7D46' }}>{g.sessionStats.held}</b> 堂</span>
-                  <span>🕐 待開 <b style={{ color:'#185FA5' }}>{g.sessionStats.upcoming}</b> 堂</span>
-                  <span title="場次取消、課程改期取消等（不含休館停課）">🚫 停課 <b style={{ color: g.sessionStats.cancelled ? '#A32D2D' : '#999' }}>{g.sessionStats.cancelled}</b> 堂</span>
-                  <span title="休館／颱風停課，已發補課券，這堂沒有欠學員">🌀 休館停課（已發補課券） <b style={{ color: g.sessionStats.closure ? '#8A5A00' : '#999' }}>{g.sessionStats.closure ?? 0}</b> 堂</span>
+                <div style={{ padding:'6px 16px', background:'#F7FAF8', borderBottom:'0.5px solid #E8D5D5', fontSize:12, color:'#555' }}>
+                  <div style={{ display:'flex', gap:14, flexWrap:'wrap', alignItems:'center' }}>
+                    <span>本期堂數 <b>{g.sessionStats.held + g.sessionStats.upcoming}</b> 堂</span>
+                    <span style={{ color:'#999' }}>＝</span>
+                    <span>📘 已開 <b style={{ color:'#2D7D46' }}>{g.sessionStats.held}</b></span>
+                    <span style={{ color:'#999' }}>＋</span>
+                    <span>🕐 待開 <b style={{ color:'#185FA5' }}>{g.sessionStats.upcoming}</b></span>
+                  </div>
+                  {(g.sessionStats.closure > 0 || g.sessionStats.cancelled > 0) && (
+                    <div style={{ marginTop:3, fontSize:11.5, color:'#8A8A8A' }}>
+                      不計入本期堂數：
+                      {g.sessionStats.closure > 0 && <span title="休館／颱風停課，已發補課券，這堂沒有欠學員"> 🌀 休館停課 {g.sessionStats.closure} 堂（已發補課券）</span>}
+                      {g.sessionStats.closure > 0 && g.sessionStats.cancelled > 0 && '　'}
+                      {g.sessionStats.cancelled > 0 && <span title="原本未排課，或排定後取消／改期的場次，不影響本期原規劃堂數"> 📅 未排課／改期取消 {g.sessionStats.cancelled} 堂</span>}
+                    </div>
+                  )}
                 </div>
               )}
               {g.members.map((m, i) => (
