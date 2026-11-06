@@ -3030,6 +3030,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           <div>
                             <button onClick={() => setRegDetailTarget({
                               enrollmentId: m.enrollmentId,
+                              sessionCount: m.sessionCount ?? m.count, // 報名堂數（報名當下堂數；無則退回目前場次數）
                               memberName: m.memberName, memberPhone: m.memberPhone,
                               courseName: rosterModal.course?.name,
                               range: (rosterModal.course?.startDate && rosterModal.course?.endDate)
