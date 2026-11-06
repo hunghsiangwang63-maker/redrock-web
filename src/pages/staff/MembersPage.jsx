@@ -253,6 +253,13 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
                   {g.range ? ` · 效期 ${g.range}` : ''}
                 </span>
               </div>
+              {g.sessionStats && (
+                <div style={{ padding:'6px 16px', background:'#F7FAF8', borderBottom:'0.5px solid #E8D5D5', fontSize:12, color:'#555', display:'flex', gap:14, flexWrap:'wrap' }}>
+                  <span>📘 已開 <b style={{ color:'#2D7D46' }}>{g.sessionStats.held}</b> 堂</span>
+                  <span>🕐 待開 <b style={{ color:'#185FA5' }}>{g.sessionStats.upcoming}</b> 堂</span>
+                  <span title="含休館停課、場次取消、課程改期取消">🚫 停課 <b style={{ color: g.sessionStats.cancelled ? '#A32D2D' : '#999' }}>{g.sessionStats.cancelled}</b> 堂</span>
+                </div>
+              )}
               {g.members.map((m, i) => (
                 <div key={i} style={{ padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none', opacity: m.refunded ? 0.65 : 1 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
@@ -853,7 +860,7 @@ export default function MembersPage() {
         <>
           <RowMemberList loading={listLoading} searchPlaceholder="搜尋會員姓名" groupFilterLabel="全部班別"
             groups={(courseList || []).map(g => ({
-              key: g.courseId, title: g.courseName, members: g.members, gymId: g.gymId, courseId: g.courseId, courseName: g.courseName,
+              key: g.courseId, title: g.courseName, members: g.members, gymId: g.gymId, courseId: g.courseId, courseName: g.courseName, sessionStats: g.sessionStats,
               range: g.practiceStart && g.practiceEnd ? `${dayjs(g.practiceStart).format('MM/DD')}–${dayjs(g.practiceEnd).format('MM/DD')}` : (g.practiceEnd ? `至 ${dayjs(g.practiceEnd).format('MM/DD')}` : ''),
             }))}
             headerExtra={isManagerRole ? (gSel) => (
@@ -955,7 +962,7 @@ export default function MembersPage() {
                         <RowMemberList loading={false} searchPlaceholder="搜尋會員姓名"
                           groups={[{
                             key: historyDetail.courseId, title: historyDetail.courseName, members: historyDetail.members,
-                            gymId: historyDetail.gymId, courseId: historyDetail.courseId, courseName: historyDetail.courseName,
+                            gymId: historyDetail.gymId, courseId: historyDetail.courseId, courseName: historyDetail.courseName, sessionStats: historyDetail.sessionStats,
                             range: historyDetail.practiceStart && historyDetail.practiceEnd ? `${dayjs(historyDetail.practiceStart).format('MM/DD')}–${dayjs(historyDetail.practiceEnd).format('MM/DD')}` : '',
                           }]}
                           headerExtra={isManagerRole ? () => (
@@ -1012,7 +1019,7 @@ export default function MembersPage() {
                 ) : (
                   <RowMemberList loading={false} searchPlaceholder="搜尋會員姓名" groupFilterLabel="全部班別"
                     groups={(futureList || []).map(g => ({
-                      key: g.courseId, title: g.courseName, members: g.members, gymId: g.gymId, courseId: g.courseId, courseName: g.courseName,
+                      key: g.courseId, title: g.courseName, members: g.members, gymId: g.gymId, courseId: g.courseId, courseName: g.courseName, sessionStats: g.sessionStats,
                       range: g.practiceStart && g.practiceEnd ? `${dayjs(g.practiceStart).format('MM/DD')}–${dayjs(g.practiceEnd).format('MM/DD')}` : (g.practiceStart ? `${dayjs(g.practiceStart).format('MM/DD')} 起` : ''),
                     }))}
                     headerExtra={isManagerRole ? (gSel) => (
