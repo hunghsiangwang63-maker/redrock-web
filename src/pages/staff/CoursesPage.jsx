@@ -2846,13 +2846,14 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:720 }}>
             <thead><tr style={{ background:'#FBF5F5' }}>
-              {['姓名','請假日期','請假','補課額度(剩/共)','已排補課'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>)}
+              {['姓名','請假日期','補課券','請假','補課額度(剩/共)','已排補課'].map(h=><th key={h} style={{ padding:'6px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>)}
             </tr></thead>
             <tbody>
               {(g.rows||[]).map(r=>(
                 <tr key={r.memberId} style={{ borderBottom:'0.5px solid #F0E8E8' }}>
                   <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{r.memberName}</td>
-                  <td style={{ padding:'6px 10px' }}>{(r.leaves||[]).length ? (r.leaves||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px' }}>{(r.leaveItems||r.leaves||[]).length ? (r.leaveItems ? r.leaveItems.map(it=>it.text) : r.leaves).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px', fontSize:11, whiteSpace:'nowrap' }}>{(r.leaveItems||[]).length ? (r.leaveItems||[]).map((it,j)=><div key={j} style={{ color: /已補課/.test(it.voucher) ? '#2D7D46' : /作廢|無補課券/.test(it.voucher) ? '#A32D2D' : '#185FA5' }}>{it.voucher ? it.voucher.replace(/^（|）$/g,'').replace(/）（/g,'、') : '—'}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
                   <td style={{ padding:'6px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
                   <td style={{ padding:'6px 10px', whiteSpace:'nowrap' }}>
                     {r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}
@@ -2872,6 +2873,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 <tr key={'pc'+i} style={{ borderBottom:'0.5px solid #F0E8E8', background:'#FFFBF2' }}>
                   <td style={{ padding:'6px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#B5762B' }}>{pc.name}<span style={{ fontSize:10, fontWeight:400, marginLeft:4 }}>未認領</span></td>
                   <td style={{ padding:'6px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).length ? (pc.leaveDates||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px' }} />
                   <td style={{ padding:'6px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).length}</td>
                   <td colSpan={2} style={{ padding:'6px 10px', fontSize:11, color:'#B5762B' }}>認領時自動入名單＋請假/停課券</td>
                 </tr>
@@ -2941,13 +2943,14 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
             <div style={{ overflowX:'auto' }}>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth:760 }}>
               <thead><tr style={{ background:'#FBF5F5' }}>
-                {['姓名','請假日期','請假','補課額度(剩/共)','補課到期','已排補課'].map(h=><th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>)}
+                {['姓名','請假日期','補課券','請假','補課額度(剩/共)','補課到期','已排補課'].map(h=><th key={h} style={{ padding:'8px 10px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5', whiteSpace:'nowrap' }}>{h}</th>)}
               </tr></thead>
               <tbody>
                 {(lmSummary.rows||[]).map(r=>(
                   <tr key={r.memberId} style={{ borderBottom:'0.5px solid #F0E8E8' }}>
                     <td style={{ padding:'8px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{r.memberName}<div style={{ fontSize:10, color:'#999', fontWeight:400 }}>{r.memberPhone}</div></td>
-                    <td style={{ padding:'8px 10px' }}>{(r.leaves||[]).length ? (r.leaves||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px' }}>{(r.leaveItems||r.leaves||[]).length ? (r.leaveItems ? r.leaveItems.map(it=>it.text) : r.leaves).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px', fontSize:11, whiteSpace:'nowrap' }}>{(r.leaveItems||[]).length ? (r.leaveItems||[]).map((it,j)=><div key={j} style={{ color: /已補課/.test(it.voucher) ? '#2D7D46' : /作廢|無補課券/.test(it.voucher) ? '#A32D2D' : '#185FA5' }}>{it.voucher ? it.voucher.replace(/^（|）$/g,'').replace(/）（/g,'、') : '—'}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap', color: r.leaveCount>=r.leaveCap?'#A32D2D':undefined }}>{r.leaveCount}/{r.leaveCap}</td>
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap' }}>
                       {r.makeupTotal>0 ? `剩 ${r.makeupAvailable}／共 ${r.makeupTotal}` : <span style={{ color:'#ccc' }}>—</span>}
@@ -2968,12 +2971,13 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                   <tr key={'pc'+i} style={{ borderBottom:'0.5px solid #F0E8E8', background:'#FFFBF2' }}>
                     <td style={{ padding:'8px 10px', fontWeight:600, whiteSpace:'nowrap', color:'#B5762B' }}>{pc.name}<div style={{ fontSize:10, fontWeight:400 }}>未認領（註冊後自動入名單）</div></td>
                     <td style={{ padding:'8px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).length ? (pc.leaveDates||[]).map((d,j)=><div key={j}>{d}</div>) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px' }} />
                     <td style={{ padding:'8px 10px', color:'#B5762B' }}>{(pc.leaveDates||[]).length}</td>
                     <td colSpan={3} style={{ padding:'8px 10px', fontSize:11, color:'#B5762B' }}>認領時自動登記請假＋發補課券</td>
                   </tr>
                 ))}
                 {!(lmSummary.rows||[]).length && !(lmSummary.pendingClaims||[]).length && (
-                  <tr><td colSpan={6} style={{ padding:20, textAlign:'center', color:'#999' }}>尚無資料</td></tr>
+                  <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color:'#999' }}>尚無資料</td></tr>
                 )}
               </tbody>
             </table>
