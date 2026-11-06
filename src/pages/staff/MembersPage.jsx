@@ -271,6 +271,9 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
                       )}
                     </span>
                     <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                      {m.sessionCount != null && (
+                        <span style={{ fontSize:12, color:'#8B1A1A', background:'#FBF5F5', padding:'2px 8px', borderRadius:10 }}>報名 {m.sessionCount} 堂</span>
+                      )}
                       {(m.startDate || m.endDate) && (
                         <span style={{ fontSize:12, color:'#666', fontFamily:'monospace' }}>
                           {fmtDate(m.startDate)} ~ {fmtDate(m.endDate)}

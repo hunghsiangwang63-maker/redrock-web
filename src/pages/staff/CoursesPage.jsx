@@ -3048,7 +3048,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                           </div>
                         </td>
                         <td style={{ padding:'10px 12px', color:'#666', fontFamily:'monospace', fontSize:12 }}>{m.memberPhone}</td>
-                        <td style={{ padding:'10px 12px', color:'#666' }}>{m.count} 堂</td>
+                        <td style={{ padding:'10px 12px', color:'#666' }}>{m.sessionCount ?? m.count} 堂</td>
                         {!isWorkshop && (
                         <td style={{ padding:'10px 12px' }}>
                           {isEditing ? (
