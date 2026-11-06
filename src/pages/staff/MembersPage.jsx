@@ -271,8 +271,6 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
                   )}
                 </div>
               )}
-                </div>
-              )}
               {g.members.map((m, i) => (
                 <div key={i} style={{ padding:'10px 16px', borderTop: i>0 ? '0.5px solid #F5EFEF' : 'none', opacity: m.refunded ? 0.65 : 1 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
