@@ -257,7 +257,8 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
                 <div style={{ padding:'6px 16px', background:'#F7FAF8', borderBottom:'0.5px solid #E8D5D5', fontSize:12, color:'#555', display:'flex', gap:14, flexWrap:'wrap' }}>
                   <span>📘 已開 <b style={{ color:'#2D7D46' }}>{g.sessionStats.held}</b> 堂</span>
                   <span>🕐 待開 <b style={{ color:'#185FA5' }}>{g.sessionStats.upcoming}</b> 堂</span>
-                  <span title="含休館停課、場次取消、課程改期取消">🚫 停課 <b style={{ color: g.sessionStats.cancelled ? '#A32D2D' : '#999' }}>{g.sessionStats.cancelled}</b> 堂</span>
+                  <span title="場次取消、課程改期取消等（不含休館停課）">🚫 停課 <b style={{ color: g.sessionStats.cancelled ? '#A32D2D' : '#999' }}>{g.sessionStats.cancelled}</b> 堂</span>
+                  <span title="休館／颱風停課，已發補課券，這堂沒有欠學員">🌀 休館停課（已發補課券） <b style={{ color: g.sessionStats.closure ? '#8A5A00' : '#999' }}>{g.sessionStats.closure ?? 0}</b> 堂</span>
                 </div>
               )}
               {g.members.map((m, i) => (
