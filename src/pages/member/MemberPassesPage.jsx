@@ -675,7 +675,7 @@ export default function MemberPassesPage() {
           </div>
         )}
         {p.credits !== null && <div style={{ marginTop:10, fontSize:13, display:'flex', justifyContent:'space-between' }}><span style={{ color:'#6b6b6b' }}>{t('剩餘次數')}</span><span style={{ fontWeight:600, fontFamily:'monospace', fontSize:16, color:'#8B1A1A' }}>{tt(`${p.credits} 次`, `${p.credits}`, `${p.credits}回`)}</span></div>}
-        {/* 線上續約（到期前 14 天內，getRenewalInfo 才有值）——本人與家庭成員票券皆可（家長可代
+        {/* 線上續約（定期票期限內隨時可續約，getRenewalInfo 才有值）——本人與家庭成員票券皆可（家長可代
             子女續約，見後端 orderResolvers.pass_renewal 說明）；只支援一次付清，分期仍走既有
             「產生入場 QR」流程順便續約。 */}
         {!dim && p.status === 'active' && p.renewalInfo && (
