@@ -4,7 +4,7 @@ import Modal from './Modal';
 
 // 課程學員「詳細資料」modal（唯讀）：個別學員完整報名/繳費/備註資訊，比照賽事管理報名名單頁的詳細資料彈窗樣式。
 // 共用於「會員 → 課程學員」報表（已開課/已過期梯次）與「課程管理 → 報名名單」（尚未開課梯次），資料來源不同、欄位形狀一致。
-// props: r {memberName, memberPhone, courseName, range, enrolledAt, fee, originalFee, feeCalcNote, paymentMethod, paymentStatus,
+// props: r {memberName, sessionCount(或 count，報名堂數), memberPhone, courseName, range, enrolledAt, fee, originalFee, feeCalcNote, paymentMethod, paymentStatus,
 //           memberPaidAmount, confirmedAmount, receivedAmount, receivedAmountOverride, bankName, bankLastFive,
 //           paymentDate, staffNote, healthNote, referralSource, enrollNote, enrollmentId,
 //           partnerGymApplied, partnerGym, partnerGymPending, needsEntryTicket, entryTicketIssued}
@@ -50,6 +50,7 @@ export default function CourseRegDetailModal({ r, onClose, editable = false, onS
       <div style={{ borderTop: '0.5px solid #F0E4E4', paddingTop: 6 }}>
         {Row('電話', r.memberPhone)}
         {Row('報名時間', sec ? dayjs(sec * 1000).format('YYYY-MM-DD HH:mm') : '—')}
+        {Row('報名堂數', (r.sessionCount ?? r.count) != null ? `${r.sessionCount ?? r.count} 堂` : '—')}
         {Row('費用', r.fee != null ? `NT$${r.fee}` : '—')}
         {r.feeCalcNote && Row('計算過程', <span style={{ color: '#2D7D46' }}>{r.feeCalcNote}</span>)}
         {Row('付款方式', r.paymentMethod)}
