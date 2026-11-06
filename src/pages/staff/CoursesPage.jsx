@@ -109,6 +109,7 @@ export default function CoursesPage({ embedded = false }) {
   const [rosterModal, setRosterModal] = useState(null);
   const [regDetailTarget, setRegDetailTarget] = useState(null); // 報名名單「詳細資料」modal 目標
   const [calCourseFilter, setCalCourseFilter] = useState('');   // 課程月曆篩選（''＝全部課程）
+  const [lmTab, setLmTab] = useState('ongoing'); // 假補總表分頁：ongoing 進行中／ended 歷史資料（已結束）／upcoming 尚未開課
   const [lmSummary, setLmSummary] = useState(null); // 請假補課總表 {loading, course, rows, pendingClaims} // { course, enrollments }
   const [editLeave, setEditLeave] = useState(null); // { memberId, value }
   const [savingLeave, setSavingLeave] = useState(false);
@@ -962,7 +963,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
       (g.rows||[]).forEach(r => lines.push([
         esc(g.course?.name), esc(r.memberName), esc(r.memberPhone), esc((r.leaves||[]).join('、')),
         r.leaveCount, r.leaveCap, esc(`${r.makeupAvailable}/${r.makeupTotal}`), esc(r.makeupExpiresAt||''),
-        esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.note?'('+b.note+')':''}${b.taken?'(已上)':''}`).join('、')),
+        esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.note?'('+b.note+')':''}${b.taken?(b.attended?'(已上)':'(未出席)'):''}`).join('、')),
       ].join(',')));
       (g.pendingClaims||[]).forEach(pc => lines.push([esc(g.course?.name), esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
     });
@@ -983,7 +984,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
     lmSummary.rows.forEach(r => lines.push([
       esc(r.memberName), esc(r.memberPhone), esc((r.leaves||[]).join('、')),
       r.leaveCount, r.leaveCap, esc(`${r.makeupAvailable}/${r.makeupTotal}`), esc(r.makeupExpiresAt||''),
-      esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.note?'('+b.note+')':''}${b.taken?'(已上)':''}`).join('、')),
+      esc((r.bookedMakeups||[]).map(b=>`${b.date} ${b.startTime} ${b.courseName}${b.note?'('+b.note+')':''}${b.taken?(b.attended?'(已上)':'(未出席)'):''}`).join('、')),
     ].join(',')));
     (lmSummary.pendingClaims||[]).forEach(pc => lines.push([esc(pc.name+'（未認領）'),'',esc((pc.leaveDates||[]).join('、')),(pc.leaveDates||[]).length,'','','',''].join(',')));
     const blob = new Blob(['\ufeff'+lines.join('\n')], { type:'text/csv;charset=utf-8' });
@@ -2810,7 +2811,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 <select value={lmSummary.sel || 'all'} onChange={e => loadLmAll(e.target.value)}
                   style={{ height:32, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', maxWidth:280 }}>
                   <option value="all">全部課程</option>
-                  {courses.filter(c => c.status !== 'cancelled' && c.isActive !== false).map(c => (
+                  {courses.filter(c => c.status !== 'cancelled' && c.type !== 'workshop' && c.source !== 'experience').map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -2821,8 +2822,23 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
               </div>
             </div>
             {lmSummary.loading ? <div style={{ textAlign:'center', color:'#999', padding:40 }}>載入中...</div> : lmSummary.mode === 'all' ? (<>
-      {(lmSummary.groups||[]).length === 0 && !(lmSummary.crossMakeups||[]).length && !(lmSummary.overdueMakeups||[]).length && !(lmSummary.historicalLeaves||[]).length && <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有任何請假/補課/待認領資料</div>}
-      {(lmSummary.groups||[]).map(g => (
+      {(() => {
+        const cnt = (ph) => (lmSummary.groups||[]).filter(g => (g.course.phase || 'ongoing') === ph).length;
+        const tabs = [['ongoing','進行中'],['ended','歷史資料（已結束）'],['upcoming','尚未開課']];
+        return (
+          <div style={{ display:'flex', gap:6, margin:'8px 0 12px', flexWrap:'wrap' }}>
+            {tabs.map(([k, label]) => (
+              <button key={k} onClick={() => setLmTab(k)}
+                style={{ height:32, padding:'0 14px', borderRadius:16, border: lmTab === k ? '1.5px solid #8B1A1A' : '1px solid #E8D5D5', background: lmTab === k ? '#FCEBEB' : '#fff', color: lmTab === k ? '#8B1A1A' : '#666', fontSize:12, fontWeight: lmTab === k ? 700 : 500, cursor:'pointer' }}>
+                {label}（{cnt(k)}）
+              </button>
+            ))}
+          </div>
+        );
+      })()}
+      {(lmSummary.groups||[]).filter(g => (g.course.phase || 'ongoing') === lmTab).length === 0 && (lmTab !== 'ongoing' || (!(lmSummary.crossMakeups||[]).length)) && (lmTab !== 'ended' || (!(lmSummary.overdueMakeups||[]).length && !(lmSummary.historicalLeaves||[]).length)) && <div style={{ textAlign:'center', color:'#999', padding:30 }}>這個分頁目前沒有請假／補課／待認領資料</div>}
+      {false && (lmSummary.groups||[]).length === 0 && !(lmSummary.crossMakeups||[]).length && !(lmSummary.overdueMakeups||[]).length && !(lmSummary.historicalLeaves||[]).length && <div style={{ textAlign:'center', color:'#999', padding:30 }}>目前沒有任何請假/補課/待認領資料</div>}
+      {(lmSummary.groups||[]).filter(g => (g.course.phase || 'ongoing') === lmTab).map(g => (
         <div key={g.course.id} style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#8B1A1A', margin:'6px 0' }}>{g.course.name}
             {g.course.isActive === false && <span title="此梯次已停用（會員端不開放）" style={{ fontSize:10, fontWeight:600, color:'#8A5A00', background:'#FFF8E6', borderRadius:10, padding:'2px 7px', marginLeft:8 }}>已停用</span>}
@@ -2849,7 +2865,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       </div>
                     )}
                   </td>
-                  <td style={{ padding:'6px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                  <td style={{ padding:'6px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && (b.attended ? <span style={{ color:'#2D7D46' }}>（已上）</span> : <span style={{ color:'#A32D2D' }}>（未出席）</span>)}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
                 </tr>
               ))}
               {(g.pendingClaims||[]).map((pc,i)=>(
@@ -2865,7 +2881,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           </div>
         </div>
       ))}
-      {(lmSummary.crossMakeups||[]).length > 0 && (
+      {lmTab === 'ongoing' && (lmSummary.crossMakeups||[]).length > 0 && (
         <div style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#5B2D8B', margin:'6px 0' }}>跨期補課（前期）<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>以原班級(前一梯)為主，後接補課班級與日期；已完成者列在最後供查核</span></div>
           <div style={{ overflowX:'auto' }}>
@@ -2888,7 +2904,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           </table></div>
         </div>
       )}
-      {(lmSummary.overdueMakeups||[]).length > 0 && (
+      {lmTab === 'ended' && (lmSummary.overdueMakeups||[]).length > 0 && (
         <div style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#A32D2D', margin:'6px 0' }}>近三個月逾期未補課<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>補課券已過期、未使用</span></div>
           <div style={{ overflowX:'auto' }}>
@@ -2903,7 +2919,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
           </table></div>
         </div>
       )}
-      {(lmSummary.historicalLeaves||[]).length > 0 && (
+      {lmTab === 'ended' && (lmSummary.historicalLeaves||[]).length > 0 && (
         <div style={{ marginBottom:18 }}>
           <div style={{ fontSize:13, fontWeight:700, color:'#666', margin:'6px 0' }}>歷史請假紀錄（匯入）<span style={{ fontSize:11, color:'#999', fontWeight:400, marginLeft:8 }}>對不到系統現有場次、不發補課券，純記錄；以姓名排序</span></div>
           <div style={{ overflowX:'auto' }}>
@@ -2945,7 +2961,7 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       )}
                     </td>
                     <td style={{ padding:'8px 10px', whiteSpace:'nowrap', fontSize:11, color:'#666' }}>{r.makeupExpiresAt || '—'}</td>
-                    <td style={{ padding:'8px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && <span style={{ color:'#2D7D46' }}>（已上）</span>}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
+                    <td style={{ padding:'8px 10px', fontSize:11 }}>{(r.bookedMakeups||[]).length ? r.bookedMakeups.map((b,i)=>(<div key={i}>{b.date} {b.startTime} {b.courseName}{b.note && <span style={{ color:'#9333EA' }}>（{b.note}）</span>}{b.taken && (b.attended ? <span style={{ color:'#2D7D46' }}>（已上）</span> : <span style={{ color:'#A32D2D' }}>（未出席）</span>)}</div>)) : <span style={{ color:'#ccc' }}>—</span>}</td>
                   </tr>
                 ))}
                 {(lmSummary.pendingClaims||[]).map((pc,i)=>(
