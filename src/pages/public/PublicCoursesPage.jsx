@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 import { GYM_LABEL } from '../../utils/gymLabel';
+import { tc } from '../../utils/courseNameI18n';
 
 const RED = '#8B1A1A';
 const GYMS = [{ id: 'gym-hsinchu', label: '新竹館' }, { id: 'gym-shilin', label: '士林館' }];
@@ -56,7 +57,7 @@ export default function PublicCoursesPage() {
               <img src={cat.imageUrl} alt="" style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 10, flexShrink: 0 }} />
             )}
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{cat.name}</div>
+              <div style={{ fontWeight: 700, fontSize: 15 }}>{tc(cat.name)}</div>
               <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
                 {cat.gymIds.map(g => t(GYM_LABEL[g] || g)).join('・')}
                 {' · '}{tt(`${cat.cohortCount} 梯`, `${cat.cohortCount} batches`, `${cat.cohortCount} 期`)}

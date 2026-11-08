@@ -104,6 +104,7 @@ import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import { GymContractInfoBox, ContractTermsSections } from '../../components/ContractTermsSections.jsx';
 import { WEEKDAYS } from '../../utils/weekdays';
 import { wdShort, wdList } from '../../utils/weekdaysI18n';
+import { tc } from '../../utils/courseNameI18n';
 
 // 課程服務同意書完整條款（報名步驟「合約條款」專用，僅週課出現）——條款文字改由設定頁提供
 // （GET /settings/contract-terms/member，見 loadContractTerms），與後端產生 PDF 時讀的是同一份
@@ -1068,7 +1069,7 @@ export default function MemberCoursesPage() {
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>{t('取消候補')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              {tt(`確定要取消「${cancelWaitlistTarget.courseName}」的候補嗎？取消後將移出候補名單，若要再候補需重新報名。`, `Are you sure you want to cancel your waitlist spot for "${cancelWaitlistTarget.courseName}"? You will be removed from the waitlist and need to register again to rejoin.`, `「${cancelWaitlistTarget.courseName}」のキャンセル待ちを取り消しますか？取り消すとキャンセル待ちリストから外れます。再度並ぶには改めて登録が必要です。`)}
+              {tt(`確定要取消「${tc(cancelWaitlistTarget.courseName)}」的候補嗎？取消後將移出候補名單，若要再候補需重新報名。`, `Are you sure you want to cancel your waitlist spot for "${tc(cancelWaitlistTarget.courseName)}"? You will be removed from the waitlist and need to register again to rejoin.`, `「${tc(cancelWaitlistTarget.courseName)}」のキャンセル待ちを取り消しますか？取り消すとキャンセル待ちリストから外れます。再度並ぶには改めて登録が必要です。`)}
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelWaitlistTarget(null)} disabled={loading}
@@ -1089,7 +1090,7 @@ export default function MemberCoursesPage() {
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'24px 22px', width:320, maxWidth:'90vw', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:8, textAlign:'left' }}>{t('取消報名')}</div>
             <div style={{ fontSize:13, color:'#666', lineHeight:1.7, marginBottom:20, textAlign:'left' }}>
-              {tt(`確定要取消「${cancelWorkshopTarget.courseName}」的報名嗎？取消後名額將立即釋出，若要再參加需重新報名。`, `Are you sure you want to cancel your registration for "${cancelWorkshopTarget.courseName}"? The spot will be released immediately and you will need to register again to rejoin.`, `「${cancelWorkshopTarget.courseName}」の登録を取り消しますか？取り消すと定員がすぐに解放されます。再度参加するには改めて登録が必要です。`)}
+              {tt(`確定要取消「${tc(cancelWorkshopTarget.courseName)}」的報名嗎？取消後名額將立即釋出，若要再參加需重新報名。`, `Are you sure you want to cancel your registration for "${tc(cancelWorkshopTarget.courseName)}"? The spot will be released immediately and you will need to register again to rejoin.`, `「${tc(cancelWorkshopTarget.courseName)}」の登録を取り消しますか？取り消すと定員がすぐに解放されます。再度参加するには改めて登録が必要です。`)}
             </div>
             <div style={{ display:'flex', gap:10 }}>
               <button onClick={() => setCancelWorkshopTarget(null)} disabled={loading}
@@ -1131,7 +1132,7 @@ export default function MemberCoursesPage() {
         <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }}
           onClick={() => setRulesModal(null)}>
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'82vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
-            <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{rulesModal.courseName}{tt('｜課程規則', ' | Course Rules', '｜コース規則')}</div>
+            <div style={{ fontSize:15, fontWeight:700, color:'#1a1a1a', marginBottom:12, textAlign:'left' }}>{tc(rulesModal.courseName)}{tt('｜課程規則', ' | Course Rules', '｜コース規則')}</div>
             {rulesModal.course?.type !== 'workshop' && (<>
               <div style={{ fontWeight:600, fontSize:13, marginBottom:8, textAlign:'left' }}>📋 {t('課程請假、補課方式')}</div>
               <LeaveMakeupRulesBox course={rulesModal.course}/>
@@ -1186,7 +1187,7 @@ export default function MemberCoursesPage() {
                     {cancelLeavePre.bookedMakeups.map(bm => (
                       <div key={bm.enrollmentId} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
                         <div style={{ fontSize:12, color:'#444', textAlign:'left' }}>
-                          {bm.date}{bm.startTime ? ` ${bm.startTime}` : ''}　{bm.courseName}
+                          {bm.date}{bm.startTime ? ` ${bm.startTime}` : ''}　{tc(bm.courseName)}
                         </div>
                         {bm.canCancel ? (
                           <button onClick={() => handleInlineCancelMakeup(bm)} disabled={!!inlineMkCancel}
@@ -1243,7 +1244,7 @@ export default function MemberCoursesPage() {
           <div onClick={e => e.stopPropagation()} style={{ background:'#fff', borderRadius:16, padding:'22px 20px', width:360, maxWidth:'92vw', maxHeight:'88vh', overflowY:'auto', boxShadow:'0 8px 32px rgba(0,0,0,.18)' }}>
             <div style={{ fontSize:16, fontWeight:700, marginBottom:6, textAlign:'left' }}>{reuploadTarget.mode === 'promoted' ? t('選擇付款方式') : reuploadTarget.mode === 'initial' ? t('填寫轉帳資訊') : t('重新上傳轉帳')}</div>
             <div style={{ fontSize:12.5, color:'#666', marginBottom:14, textAlign:'left', lineHeight:1.7 }}>
-              {reuploadTarget.courseName}<br/>
+              {tc(reuploadTarget.courseName)}<br/>
               {reuploadTarget.mode === 'promoted'
                 ? <span style={{ color:'#B5651D' }}>{t('候補已遞補為正取，請選擇付款方式完成報名。')}</span>
                 : reuploadTarget.mode === 'initial'
@@ -1387,7 +1388,7 @@ export default function MemberCoursesPage() {
                         <div key={c.id} onClick={() => setSelectedCourse(c)}
                           style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, cursor:'pointer' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                            <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(c.gymId)}{c.name}</div>
+                            <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(c.gymId)}{tc(c.name)}</div>
                             {isFull
                               ? <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#F3E0E0', color:'#8B1A1A' }}>{t('額滿')}</span>
                               : <span style={{ fontSize:11, fontWeight:600, padding:'2px 8px', borderRadius:10, background:'#E4F3E8', color:'#1B7A3D' }}>{t('尚有名額')}</span>}
@@ -1477,7 +1478,7 @@ export default function MemberCoursesPage() {
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:12 }}>
                 <button onClick={() => setSelectedCourse(null)}
                   style={{ background:'none', border:'none', fontSize:20, color:'#8B1A1A', cursor:'pointer' }}>←</button>
-                <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(selectedCourse.gymId)}{selectedCourse.name}</div>
+                <div style={{ fontWeight:600, fontSize:15 }}>{gymPrefix(selectedCourse.gymId)}{tc(selectedCourse.name)}</div>
               </div>
               <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', marginBottom:12, overflow:'hidden' }}>
                 {(selectedCourse.categoryImageUrl || selectedCourse.imageUrl) && (
@@ -1814,7 +1815,7 @@ export default function MemberCoursesPage() {
                     <div key={b.id} style={{ background: '#fff', borderRadius: 12, border: '0.5px solid #E8D5D5', padding: 14, marginBottom: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                         <div>
-                          <div style={{ fontWeight: 600, fontSize: 14 }}>{gymPrefix(b.gymId)}{b.courseName}</div>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>{gymPrefix(b.gymId)}{tc(b.courseName)}</div>
                           <div style={{ fontSize: 12, color: '#666', marginTop: 2 }}>{dayjs(b.bookingDate).format('YYYY/MM/DD')}（{wdOf(b.bookingDate)}）{b.bookingTime}</div>
                         </div>
                         <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 8, background: sl.bg, color: sl.color, flexShrink: 0 }}>{sl.text}</span>
@@ -1890,7 +1891,7 @@ export default function MemberCoursesPage() {
                     <div key={cid} onClick={() => setTrialCourseId(cid)}
                       style={{ background:'#fff', border:'0.5px solid #E8D5D5', borderRadius:12, padding:'14px 16px', marginBottom:10, cursor:'pointer', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div>
-                        <div style={{ fontSize:15, fontWeight:600 }}>{gymPrefix(c.gymId)}{c.name}</div>
+                        <div style={{ fontSize:15, fontWeight:600 }}>{gymPrefix(c.gymId)}{tc(c.name)}</div>
                         <div style={{ fontSize:12, color:'#999', marginTop:3 }}>{tt(`${c.sessions.length} 個可試上場次 · 試上費 NT$${(c.sessions[0]?.trialPrice||0).toLocaleString()}`, `${c.sessions.length} sessions available for trial · Trial fee NT$${(c.sessions[0]?.trialPrice||0).toLocaleString()}`, `体験可能な回：${c.sessions.length} · 体験料 NT$${(c.sessions[0]?.trialPrice||0).toLocaleString()}`)}</div>
                       </div>
                       <span style={{ color:'#8B1A1A', fontSize:13 }}>›</span>
@@ -1982,7 +1983,7 @@ export default function MemberCoursesPage() {
                     <label key={sx.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, border: `1.5px solid ${trialBkEdit.form.sessionId === sx.id ? '#8B1A1A' : '#EDE5E5'}`, marginBottom: 6, cursor: 'pointer', fontSize: 13 }}>
                       <input type="radio" name="trialBkEditSession" checked={trialBkEdit.form.sessionId === sx.id}
                         onChange={() => setTrialBkEdit(t => ({ ...t, form: { sessionId: sx.id } }))} style={{ accentColor: '#8B1A1A' }} />
-                      <span style={{ textAlign: 'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}</span>
+                      <span style={{ textAlign: 'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{tc(sx.courseName)}</span>
                     </label>
                   ))}
                 </div>
@@ -2018,7 +2019,7 @@ export default function MemberCoursesPage() {
               <button onClick={()=>{ setTrialModal(null); setTrialFor('self'); }} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
             </div>
             <div style={{ background:'#FBF5F5', borderRadius:10, padding:12, marginBottom:14, fontSize:13 }}>
-              <div style={{ fontWeight:600 }}>{gymPrefix(trialModal.gymId)}{trialModal.courseName}</div>
+              <div style={{ fontWeight:600 }}>{gymPrefix(trialModal.gymId)}{tc(trialModal.courseName)}</div>
               <div style={{ color:'#666', marginTop:4 }}>{dayjs(trialModal.date).format('YYYY/MM/DD')}（{wdOf(trialModal.date)}）{trialModal.startTime}～{trialModal.endTime}{trialModal.instructor?tt(` · 教練 ${trialModal.instructor}`, ` · Coach ${trialModal.instructor}`, ` · コーチ ${trialModal.instructor}`):''}</div>
               <div style={{ color:'#8B1A1A', fontWeight:700, marginTop:6 }}>{tt(`試上費 NT$${(trialModal.trialPrice||0).toLocaleString()}`, `Trial fee NT$${(trialModal.trialPrice||0).toLocaleString()}`, `体験料 NT$${(trialModal.trialPrice||0).toLocaleString()}`)}</div>
             </div>
@@ -2193,7 +2194,7 @@ export default function MemberCoursesPage() {
                             <div onClick={() => setCalendarExpandedCourseId(isExpanded ? null : group.courseId)} style={{ cursor:'pointer' }}>
                               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                                 <div style={{ fontWeight:600, fontSize:14, color: isLeaveGroup?'#999':isMakeupGroup?'#2D7D46':'#1a1a1a' }}>
-                                  {group.courseName}
+                                  {tc(group.courseName)}
                                   {isCancelledGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>{t('課程已取消')}</span>}
                                   {isLeaveGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>{t('已請假')}</span>}
                                   {isMakeupGroup && <span style={{ fontSize:10, fontWeight:600, marginLeft:6, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>{t('安排補課')}</span>}
@@ -2249,7 +2250,7 @@ export default function MemberCoursesPage() {
                 <div key={m.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8, background:'#fff', borderRadius:8, padding:'8px 12px', opacity: frozen ? 0.55 : 1 }}>
                   <div>
                     <div style={{ fontSize:13, fontWeight:500 }}>
-                      {m.courseName}
+                      {tc(m.courseName)}
                       {m._isSelf === false && <span style={{ fontSize:11, color:'#185FA5', marginLeft:6, fontWeight:600 }}>👦 {m._ownerName}</span>}
                     </div>
                     <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
@@ -2334,7 +2335,7 @@ export default function MemberCoursesPage() {
                   <div key={grpKey} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:14, marginBottom:10, opacity:0.75 }}>
                     <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
                       <div style={{ fontWeight:600, fontSize:15, color:'#666' }}>
-                        {gymPrefix(group.gymId)}{group.courseName}
+                        {gymPrefix(group.gymId)}{tc(group.courseName)}
                         {familyMembers.length > 0 && eName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{showChild ? '👦' : '👤'} {eName}</span>}
                       </div>
                       <span style={{ fontSize:11, background:'#F0EDED', color:'#999', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>{t('已取消')}</span>
@@ -2391,7 +2392,7 @@ export default function MemberCoursesPage() {
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8, cursor:'pointer' }}
                     onClick={() => setExpandedCourseId(isExpanded ? null : groupKey)}>
                     <div style={{ fontWeight:600, fontSize:15 }}>
-                      {gymPrefix(group.gymId)}{group.courseName}
+                      {gymPrefix(group.gymId)}{tc(group.courseName)}
                       {hasFamily && enrolleeName && <span style={{ fontSize:11, fontWeight:600, color:'#185FA5', background:'#E6F1FB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{enrolleeIcon} {enrolleeName}</span>}
                       {refundFrozen && <span style={{ fontSize:11, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{t('退費審核中')}</span>}
                       {makeupOnly && <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'2px 8px', borderRadius:10, marginLeft:8 }}>{t('補課')}</span>}
@@ -2686,7 +2687,7 @@ export default function MemberCoursesPage() {
             {/* Header */}
             <div style={{ padding:'16px 20px 12px', borderBottom:'0.5px solid #F0E8E8', flexShrink:0 }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
-                <div style={{ fontWeight:600, fontSize:15 }}>{enrollSession.isWaitlist ? t('候補報名') : t('確認報名')} — {selectedCourse?.name}</div>
+                <div style={{ fontWeight:600, fontSize:15 }}>{enrollSession.isWaitlist ? t('候補報名') : t('確認報名')} — {tc(selectedCourse?.name)}</div>
                 <button onClick={resetEnrollModal} style={{ background:'none', border:'none', fontSize:20, color:'#999', cursor:'pointer' }}>✕</button>
               </div>
               <div style={{ display:'flex', gap:6 }}>
@@ -2982,7 +2983,7 @@ export default function MemberCoursesPage() {
               <button onClick={() => setShowMakeupModal(false)} style={{ background:'none', border:'none', fontSize:20, cursor:'pointer', color:'#999' }}>✕</button>
             </div>
             <div style={{ fontSize:12, color:'#666', marginBottom:14, textAlign:'left' }}>
-              {selectedMakeup?.courseName ? <>{tt(`此補課券來自「${selectedMakeup.courseName}」，`, `This makeup credit is from "${selectedMakeup.courseName}", `, `この補講券は「${selectedMakeup.courseName}」からのものです。`)}</> : null}
+              {selectedMakeup?.courseName ? <>{tt(`此補課券來自「${tc(selectedMakeup.courseName)}」，`, `This makeup credit is from "${tc(selectedMakeup.courseName)}", `, `この補講券は「${tc(selectedMakeup.courseName)}」からのものです。`)}</> : null}
               {tt('可補課至', 'You can make up at sessions of ', '')}<b>{t('同補課類型')}</b>{tt('的班別場次。', ' classes.', 'の同じ補講タイプのクラスで補講できます。')}
               {(() => {
                 const names = [...new Set(makeupSessions.map(s => s.categoryName).filter(Boolean))];
@@ -3007,7 +3008,7 @@ export default function MemberCoursesPage() {
                 <div style={{ fontSize:12, fontWeight:600, color:'#854F0B', marginBottom:6 }}>🏆 {tt('也可以用補課券抵兒童賽報名費', 'Or use this credit for a kids competition', 'このチケットは子ども大会の参加費にも充当できます')}</div>
                 {kidsComps.map(c => (
                   <div key={c.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8, marginTop:6 }}>
-                    <div style={{ fontSize:13, fontWeight:500, textAlign:'left' }}>{c.name}</div>
+                    <div style={{ fontSize:13, fontWeight:500, textAlign:'left' }}>{tc(c.name)}</div>
                     <button onClick={() => { setShowMakeupModal(false); navigate(`/member/competitions?comp=${c.id}`); }}
                       style={{ height:32, padding:'0 12px', borderRadius:8, background:'#854F0B', color:'#fff', border:'none', fontSize:12, cursor:'pointer', flexShrink:0 }}>
                       {tt('報名比賽', 'Register', '参加申込')}
@@ -3030,7 +3031,7 @@ export default function MemberCoursesPage() {
                   <div key={`ap_${s.id}`} style={{ background:'#F0F8F0', border:'0.5px solid #B3DEC0', borderRadius:10, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
                       <div style={{ fontWeight:500, fontSize:14 }}>{dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）</div>
-                      <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{s.startTime}～{s.endTime} · {s.courseName}</div>
+                      <div style={{ fontSize:12, color:'#999', marginTop:2 }}>{s.startTime}～{s.endTime} · {tc(s.courseName)}</div>
                     </div>
                     <span style={{ fontSize:11, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'3px 10px', borderRadius:8, flexShrink:0 }}>{t('已申請補課')}</span>
                   </div>
@@ -3055,7 +3056,7 @@ export default function MemberCoursesPage() {
                     {dayjs(s.date).format('MM/DD')}（{wdOf(s.date)}）
                   </div>
                   <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
-                    {s.startTime}～{s.endTime} · {s.courseName}
+                    {s.startTime}～{s.endTime} · {tc(s.courseName)}
                   </div>
                   {notStarted && <div style={{ fontSize:11, color:'#A32D2D', marginTop:2 }}>{tt(`尚未開課（首堂 ${dayjs(s.courseFirstDate).format('MM/DD')}），開課後才能申請`, `Not yet started (first class ${dayjs(s.courseFirstDate).format('MM/DD')}) — you can apply after it starts`, `未開講（初回 ${dayjs(s.courseFirstDate).format('MM/DD')}）・開始後に申請可能`)}</div>}
                 </div>
@@ -3083,7 +3084,7 @@ export default function MemberCoursesPage() {
             <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>
               {adjustModal.type === 'refund' ? t('申請退費') : adjustModal.type === 'transfer' ? t('申請轉讓') : t('申請暫停課程')}
             </div>
-            <div style={{ fontSize:13, color:'#999', marginBottom:16 }}>{adjustModal.courseName}</div>
+            <div style={{ fontSize:13, color:'#999', marginBottom:16 }}>{tc(adjustModal.courseName)}</div>
             {adjustModal.type === 'pause' && (
               <div style={{ background:'#FFF8E6', border:'0.5px solid #F5D87A', borderRadius:8, padding:'8px 12px', marginBottom:14, fontSize:12, color:'#8B6914' }}>
                 ⚠ {t('暫停期間將移除課程學員入場資格，恢復後由管理員重新加回')}

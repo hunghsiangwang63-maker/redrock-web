@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { publicClient } from '../../api/client';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 import { WEEKDAYS } from '../../utils/weekdays';
+import { tc } from '../../utils/courseNameI18n';
 
 const RED = '#8B1A1A';
 
@@ -60,7 +61,7 @@ export default function PublicCourseEnrollPage() {
       <div style={wrap}>
         <div style={card}>
           {course.categoryImageUrl && <img src={course.categoryImageUrl} alt="" style={{ width: '100%', borderRadius: 10, marginBottom: 10, display: 'block' }} />}
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{course.name}</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{tc(course.name)}</div>
           {(course.categoryDescription || course.description) && (
             <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{course.categoryDescription || course.description}</div>
           )}

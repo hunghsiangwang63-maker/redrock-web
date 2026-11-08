@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { publicClient } from '../../api/client';
 import { t, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { tc } from '../../utils/courseNameI18n';
 
 const RED = '#8B1A1A';
 
@@ -49,7 +50,7 @@ export default function PublicWorkshopEnrollPage() {
       </div>
       <div style={wrap}>
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{course.name}</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{tc(course.name)}</div>
           {course.description && <div style={{ marginTop: 6, fontSize: 13, color: '#666', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{course.description}</div>}
           <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>
             🗓 {session.date}　⏰ {session.startTime}–{session.endTime}

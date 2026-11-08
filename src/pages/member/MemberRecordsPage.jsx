@@ -8,6 +8,7 @@ import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import { entryTypeLabel, entryLabelOf } from '../../utils/entryLabel';
 import { gymPrefix } from '../../utils/gymLabel';
+import { tc } from '../../utils/courseNameI18n';
 
 const TABS = [
   { key:'checkins',    icon:'🚪', label:'入場紀錄' },
@@ -223,7 +224,7 @@ export default function MemberRecordsPage() {
                       style={{ padding:'12px 14px', cursor:'pointer' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:8 }}>
                         <div style={{ fontSize:13, fontWeight:600, color:'#333' }}>
-                          {gymPrefix(g.gymId)}{g.courseName}{g.allMakeup ? ` 🔄 ${t('補課')}` : ''}{g.allTrial ? ` ✨ ${t('試上')}` : ''}
+                          {gymPrefix(g.gymId)}{tc(g.courseName)}{g.allMakeup ? ` 🔄 ${t('補課')}` : ''}{g.allTrial ? ` ✨ ${t('試上')}` : ''}
                         </div>
                         <div style={{ fontSize:12, color:'#999', flexShrink:0 }}>{open ? '▲' : '▼'}</div>
                       </div>
@@ -265,7 +266,7 @@ export default function MemberRecordsPage() {
                 <Card key={i}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                     <div>
-                      <div style={{ fontSize:13, fontWeight:500 }}>{r.courseName||typeLabel}</div>
+                      <div style={{ fontSize:13, fontWeight:500 }}>{tc(r.courseName||typeLabel)}</div>
                       <div style={{ fontSize:11, color:'#666', marginTop:2 }}>{typeLabel}{r.reason?` · ${r.reason}`:''}</div>
                       <div style={{ fontSize:11, color:'#999', marginTop:2 }}>
                         {r.createdAt?._seconds ? dayjs(r.createdAt._seconds*1000).format('YYYY/MM/DD') : ''}

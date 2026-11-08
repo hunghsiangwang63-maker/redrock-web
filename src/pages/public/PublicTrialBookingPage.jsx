@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { publicClient } from '../../api/client';
 import SignaturePad from '../../components/SignaturePad';
 import { t, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
+import { tc } from '../../utils/courseNameI18n';
 
 const RED = '#8B1A1A';
 
@@ -89,7 +90,7 @@ export default function PublicTrialBookingPage() {
           <div style={{ fontSize: 52 }}>✅</div>
           <h2 style={{ color: RED, marginTop: 12 }}>{done.isWaitlist ? t('已加入候補名單！') : t('試上預約已送出！')}</h2>
           <div style={{ ...card, textAlign: 'left', lineHeight: 1.8 }}>
-            <div>{t('感謝您預約紅石攀岩試上課程「')}{info.session.courseName}{t('」。')}</div>
+            <div>{t('感謝您預約紅石攀岩試上課程「')}{tc(info.session.courseName)}{t('」。')}</div>
             <div style={{ marginTop: 8 }}>{t('應繳金額：')}<b style={{ color: RED }}>NT${done.totalFee}</b></div>
             <div style={{ marginTop: 8, color: '#666', fontSize: 14 }}>
               {done.isWaitlist ? t('此場次已額滿，已為您排入候補，有名額釋出將依序轉正並通知您。') : t('請於期限內完成匯款，館方確認收款後即完成報名。')}
@@ -114,7 +115,7 @@ export default function PublicTrialBookingPage() {
       </div>
       <div style={wrap}>
         <div style={card}>
-          <div style={{ fontWeight: 700, fontSize: 16 }}>{info.session.courseName}</div>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>{tc(info.session.courseName)}</div>
           <div style={{ marginTop: 8, fontSize: 14, color: '#555' }}>🗓 {info.session.date}　⏰ {info.session.startTime}–{info.session.endTime}</div>
           <div style={{ marginTop: 10, background: '#FBF5F5', borderRadius: 10, padding: 12, fontSize: 14 }}>
             {t('試上費：')}<b style={{ color: RED, fontSize: 17 }}>NT${info.trialPrice}</b>

@@ -4,6 +4,7 @@ import { publicClient } from '../../api/client';
 import { t, tt, isEn, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 import { GYM_LABEL } from '../../utils/gymLabel';
 import { wdList } from '../../utils/weekdaysI18n';
+import { tc } from '../../utils/courseNameI18n';
 
 const RED = '#8B1A1A';
 const GYMS = [{ id: 'gym-hsinchu', label: '新竹館' }, { id: 'gym-shilin', label: '士林館' }];
@@ -47,7 +48,7 @@ export default function PublicCourseCategoryPage() {
     <div style={{ background: '#FBF7F7', minHeight: '100vh' }}>
       <div style={{ background: RED, color: '#fff', padding: '22px 16px', textAlign: 'center', position: 'relative' }}>
         <div onClick={toggleMemberLang} style={langBtn}>🌐 {nextLangLabel()}</div>
-        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{t('紅石攀岩')} · {category.name}</div>
+        <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{t('紅石攀岩')} · {tc(category.name)}</div>
         <div style={{ fontSize: 13, opacity: .9, marginTop: 4 }}>{t('免登入即可瀏覽，選擇梯次後登入或註冊會員即可報名')}</div>
       </div>
       <div style={wrap}>
@@ -87,7 +88,7 @@ export default function PublicCourseCategoryPage() {
           <div key={c.id} style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{c.name}</div>
+                <div style={{ fontWeight: 700, fontSize: 15 }}>{tc(c.name)}</div>
                 <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>
                   {t(GYM_LABEL[c.gymId] || c.gymId)}
                   {c.startDate && c.endDate && ` · ${c.startDate} ~ ${c.endDate}`}

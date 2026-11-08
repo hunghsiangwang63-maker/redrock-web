@@ -12,6 +12,7 @@ import PaymentSection, { isTransferInfoComplete } from '../../components/Payment
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
+import { tc } from '../../utils/courseNameI18n';
 
 // 參加者生日為民國格式（如 "920110"＝民國92年）；相容 ISO。未滿 4 歲回 true。
 const participantUnder4 = (s) => {
@@ -531,7 +532,7 @@ export default function MemberExperiencePage() {
                     <label key={sx.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:8, border:`1.5px solid ${bkEdit.form.sessionId===sx.id?'#8B1A1A':'#EDE5E5'}`, marginBottom:6, cursor:'pointer', fontSize:13 }}>
                       <input type="radio" name="bkEditSession" checked={bkEdit.form.sessionId===sx.id}
                         onChange={()=>setBkEdit(prev=>({ ...prev, form:{ sessionId: sx.id } }))} style={{ accentColor:'#8B1A1A' }}/>
-                      <span style={{ textAlign:'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{sx.courseName}</span>
+                      <span style={{ textAlign:'left' }}>{sx.date} {sx.startTime}~{sx.endTime}　{tc(sx.courseName)}</span>
                     </label>
                   ))}
                 </div>

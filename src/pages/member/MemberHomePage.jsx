@@ -31,6 +31,7 @@ import PaymentSection from '../../components/PaymentSection';
 import { getMyReminders } from '../../api/memberReminders';
 import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import { loadQuickEntry } from '../../utils/quickEntry';
+import { tc } from '../../utils/courseNameI18n';
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
@@ -327,7 +328,7 @@ export default function MemberHomePage() {
           )}
           {(identity?.courseAccess || []).map((c, i) => (
             <div key={`ca${i}`} style={{ fontSize:10, color:'#8A6A1F', textAlign:'left' }}>
-              📚 <span style={{ fontWeight:700 }}>{t('課程學員')} · {c.courseName}</span>　{tt(`入館效期 ${c.gymAccessStart || '—'} ～ ${c.gymAccessEnd || '—'}`, `Access ${c.gymAccessStart || '—'} – ${c.gymAccessEnd || '—'}`, `入館有効期間 ${c.gymAccessStart || '—'}～${c.gymAccessEnd || '—'}`)}
+              📚 <span style={{ fontWeight:700 }}>{t('課程學員')} · {tc(c.courseName)}</span>　{tt(`入館效期 ${c.gymAccessStart || '—'} ～ ${c.gymAccessEnd || '—'}`, `Access ${c.gymAccessStart || '—'} – ${c.gymAccessEnd || '—'}`, `入館有効期間 ${c.gymAccessStart || '—'}～${c.gymAccessEnd || '—'}`)}
             </div>
           ))}
           {(identity?.passes || []).map((p, i) => (
@@ -582,7 +583,7 @@ export default function MemberHomePage() {
                 <div key={`c-${e.id}`} style={{ background: isCancelled?'#FFF0F0':isLeave?'#F5F5F5':isMakeup?'#F0F8F0':'#fff', borderRadius:12, border:`0.5px solid ${isCancelled?'#FFB3B3':isLeave?'#DDD':isMakeup?'#B3DEC0':'#E8D5D5'}`, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                   <div>
                     <div style={{ fontWeight:600, fontSize:14, color: isCancelled?'#A32D2D':isLeave?'#999':isMakeup?'#2D7D46':'#1a1a1a', display:'flex', alignItems:'center', gap:6 }}>
-                      {e.courseName}
+                      {tc(e.courseName)}
                       {isCancelled && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>{t('課程已取消')}</span>}
                       {isLeave && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#EEE', color:'#999' }}>{t('已請假')}</span>}
                       {isMakeup && <span style={{ fontSize:10, fontWeight:600, padding:'1px 6px', borderRadius:6, background:'#E6F4EB', color:'#2D7D46' }}>{t('安排補課')}</span>}
@@ -600,7 +601,7 @@ export default function MemberHomePage() {
               <div key={`x-${b.id}`} onClick={() => navigate(b.kind==='trial' ? '/member/courses?tab=trial' : '/member/experience?tab=my')}
                 style={{ background:'#FBF5F5', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
                 <div>
-                  <div style={{ fontWeight:600, fontSize:14 }}>🧗 {b.kind==='trial' ? (b.courseName || t('課程試上')) : t('體驗課程預約')}</div>
+                  <div style={{ fontWeight:600, fontSize:14 }}>🧗 {b.kind==='trial' ? (tc(b.courseName) || t('課程試上')) : t('體驗課程預約')}</div>
                   <div style={{ fontSize:12, color:'#999', marginTop:3 }}>
                     {tt(`${b.bookingDate} ${b.bookingTime} · ${b.gymId==='gym-hsinchu'?'新竹館':'士林館'} · ${b.numParticipants}人`, `${b.bookingDate} ${b.bookingTime} · ${b.gymId==='gym-hsinchu'?'Hsinchu':'Shilin'} · ${b.numParticipants} people`, `${b.bookingDate} ${b.bookingTime}・${b.gymId==='gym-hsinchu'?'新竹':'士林'}・${b.numParticipants}名`)}
                   </div>
