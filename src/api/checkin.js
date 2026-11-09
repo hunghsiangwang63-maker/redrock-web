@@ -19,6 +19,9 @@ export const getTodayStats = (gymId) =>
 export const getTodayCourseStudents = (gymId) =>
   client.get('/checkin/today-course-students', { params: { gymId } });
 
+export const markCourseAttendance = (data) =>
+  client.post('/checkin/course-attendance', data);
+
 export const getCheckInHistory = (params) =>
   client.get('/checkin/history', { params });
 

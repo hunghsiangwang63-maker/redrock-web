@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import client from '../../api/client';
-import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon, getRentalAddonInvoices, createRentalAddonInvoice, correctCheckInPaymentMethod, getCheckinRenewalInvoices, createCheckinRenewalInvoice, getPassRenewalInvoices, createPassRenewalInvoice, voidPassRenewalInvoice } from '../../api/checkin';
+import { scanQrCode, confirmCheckIn, cancelCheckIn, getTodayStats, getTodayCourseStudents, markCourseAttendance, getCheckInHistory, getCheckinInvoices, createCheckinInvoice, voidCheckinInvoice, scanRentalAddon, confirmRentalAddon, getRentalAddonInvoices, createRentalAddonInvoice, correctCheckInPaymentMethod, getCheckinRenewalInvoices, createCheckinRenewalInvoice, getPassRenewalInvoices, createPassRenewalInvoice, voidPassRenewalInvoice } from '../../api/checkin';
 import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
@@ -74,6 +74,7 @@ export default function CheckinPage() {
   }, [targetGymId, isSuperAdmin]);
 
   const [courseStudents, setCourseStudents] = useState([]);
+  const [courseSessions, setCourseSessions] = useState([]); // 依場次分組（班別／時間／教練＋學員＋請假），2026-11-09
   const [courseStudentsLoading, setCourseStudentsLoading] = useState(false);
   const [quickCheckinLoading, setQuickCheckinLoading] = useState(null); // memberId 正在處理中
 
@@ -88,7 +89,8 @@ export default function CheckinPage() {
       const res = await getTodayCourseStudents(targetGymId);
       if (seq !== courseStudentsSeqRef.current) return;
       setCourseStudents(res.data.students || []);
-    } catch (e) { if (seq === courseStudentsSeqRef.current) setCourseStudents([]); }
+      setCourseSessions(res.data.sessions || []);
+    } catch (e) { if (seq === courseStudentsSeqRef.current) { setCourseStudents([]); setCourseSessions([]); } }
     finally { if (seq === courseStudentsSeqRef.current) setCourseStudentsLoading(false); }
   };
 
@@ -104,6 +106,22 @@ export default function CheckinPage() {
     setMergeMode(false); setMergeSelected(new Set()); // 切館別重置選取，避免跨館混選
     return () => { alive = false; };
   }, [targetGymId]);
+
+  // 今日課程學員登記出席（出席／缺席）；先樂觀更新畫面，失敗則還原並顯示原因
+  const handleMarkAttendance = async (group, student, status) => {
+    if (!student.memberId) return;
+    const prev = student.attendance || null;
+    const apply = (val) => setCourseSessions(list => list.map(g => g.sessionId !== group.sessionId ? g
+      : { ...g, students: g.students.map(x => x.memberId === student.memberId && x.isMakeup === student.isMakeup ? { ...x, attendance: val } : x) }));
+    apply(status);
+    try {
+      await markCourseAttendance({ sessionId: group.sessionId, memberId: student.memberId, status });
+    } catch (err) {
+      apply(prev);
+      const st = err.response?.status;
+      showQuickMsg(`${student.memberName} 出席登記失敗：${err.response?.data?.message || (st === 401 ? '登入已失效，請重新整理並重新打卡值班' : st ? `錯誤 ${st}` : '網路連線失敗')}`, 'red');
+    }
+  };
 
   const handleQuickCourseCheckin = async (student) => {
     if (student.alreadyCheckedIn) { showQuickMsg(`${student.memberName} 今天已入場`, 'red'); return; }
@@ -1409,6 +1427,84 @@ export default function CheckinPage() {
             ) : courseStudents.length === 0 ? (
               <div style={{ textAlign:'center', padding:20, color:'#999', fontSize:12 }}>今日尚無課程報名者</div>
             ) : (
+              courseSessions.length > 0 ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                {courseSessions.map(g => {
+                  const regular = g.students || [];
+                  const inCount = regular.filter(x => x.alreadyCheckedIn).length;
+                  const attCount = regular.filter(x => x.attendance === 'present').length;
+                  return (
+                  <div key={g.sessionId} style={{ border:'0.5px solid #B3DEC0', borderRadius:12, overflow:'hidden' }}>
+                    <div style={{ background:'#E6F4EB', padding:'10px 14px' }}>
+                      <div style={{ fontSize:14, fontWeight:700, color:'#1F5F34' }}>{g.courseName}</div>
+                      <div style={{ fontSize:12, color:'#2D7D46', marginTop:3, display:'flex', gap:12, flexWrap:'wrap' }}>
+                        <span>🕐 {g.startTime}～{g.endTime}</span>
+                        <span>👤 教練：{g.instructor || '—'}</span>
+                        <span>報名 {regular.length} 人・已入場 {inCount}・已出席 {attCount}{g.leaves?.length ? `・請假 ${g.leaves.length}` : ''}</span>
+                      </div>
+                    </div>
+                    <div style={{ padding:'6px 10px' }}>
+                      {regular.length === 0 && <div style={{ fontSize:12, color:'#999', padding:'10px 4px' }}>這個時段沒有上課學員</div>}
+                      {regular.map(s => {
+                        const clickDisabled = s.isCrossMakeup || s.alreadyCheckedIn || quickCheckinLoading === s.memberId;
+                        return (
+                        <div key={`${g.sessionId}-${s.memberId || s.memberName}-${s.isMakeup ? 'm' : 'r'}`}
+                          style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, flexWrap:'wrap',
+                            padding:'8px 4px', borderBottom:'0.5px solid #F0F0F0', opacity: s.alreadyCheckedIn ? 0.75 : 1 }}>
+                          <div style={{ minWidth:0, flex:'1 1 180px' }}>
+                            <div style={{ fontSize:13, fontWeight:600, color:'#1a1a1a' }}>
+                              {s.memberName}
+                              {s.isMakeup && !s.isCrossMakeup && <span style={{ fontSize:9, fontWeight:600, color:'#2D7D46', background:'#E6F4EB', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>補課</span>}
+                              {s.isCrossMakeup && <span style={{ fontSize:9, fontWeight:600, color:'#5B2D8B', background:'#F3EEF9', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>跨期補課・櫃檯放行</span>}
+                              {s.isTrial && <span style={{ fontSize:9, fontWeight:600, color:'#5B2D8B', background:'#F3EEF9', padding:'1px 6px', borderRadius:6, marginLeft:6 }}>試上</span>}
+                              {s.trialUnpaid && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>試上費未收</span>}
+                              {s.isLastSession && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>最後一堂，請開立發票</span>}
+                              {s.newStudentPrep && <span style={{ fontSize:9, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>🎁 請準備制服跟集點卡</span>}
+                            </div>
+                            {s.note && <div style={{ fontSize:11, color:'#7A5A00', marginTop:2 }}>備註：{s.note}</div>}
+                            {s.isLastSession && canCheckin && (s.receivedAmount ?? 0) > 0 && (
+                              <div style={{ marginTop:6, maxWidth:260 }}>
+                                <InvoiceButtonAuto sourceType="course" refId={s.enrollmentId} refreshToken={courseInvRefresh}
+                                  onClick={() => setCourseInvoiceTarget(s)} style={{ width:'100%', textAlign:'center' }} />
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                            {s.memberId && (
+                              <div style={{ display:'flex', gap:4 }}>
+                                {[['present','出席','#2D7D46','#E6F4EB'],['absent','缺席','#A32D2D','#FCEBEB']].map(([val, label, color, bg]) => (
+                                  <button key={val} onClick={() => handleMarkAttendance(g, s, val)}
+                                    style={{ height:28, padding:'0 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
+                                      border: s.attendance === val ? `1.5px solid ${color}` : '0.5px solid #D8D8D8',
+                                      background: s.attendance === val ? bg : '#fff', color: s.attendance === val ? color : '#888' }}>
+                                    {s.attendance === val ? `✓ ${label}` : label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            <button disabled={clickDisabled}
+                              onClick={() => { if (s.isCrossMakeup) { showQuickMsg('跨期補課為非會員名單，請由櫃檯另行放行', 'red'); return; } handleQuickCourseCheckin(s); }}
+                              style={{ height:28, padding:'0 12px', borderRadius:6, fontSize:12, fontWeight:600, border:'none',
+                                cursor: clickDisabled ? 'default' : 'pointer',
+                                background: s.alreadyCheckedIn ? '#EEE' : s.isCrossMakeup ? '#F3EEF9' : '#2D7D46',
+                                color: s.alreadyCheckedIn ? '#999' : s.isCrossMakeup ? '#5B2D8B' : '#fff' }}>
+                              {s.isCrossMakeup ? '非會員名單' : s.alreadyCheckedIn ? '已入場' : quickCheckinLoading === s.memberId ? '處理中...' : '入場'}
+                            </button>
+                          </div>
+                        </div>
+                        );
+                      })}
+                      {(g.leaves || []).length > 0 && (
+                        <div style={{ fontSize:12, color:'#888', background:'#F7F7F7', borderRadius:8, padding:'8px 10px', margin:'8px 0 4px' }}>
+                          <span style={{ fontWeight:600 }}>請假（供參考，不需入場）：</span>{g.leaves.map(x => x.memberName).join('、')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  );
+                })}
+              </div>
+              ) : (
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:8 }}>
                 {courseStudents.map(s => {
                   const clickDisabled = s.isCrossMakeup || s.alreadyCheckedIn || quickCheckinLoading === s.memberId;
@@ -1456,6 +1552,7 @@ export default function CheckinPage() {
                   );
                 })}
               </div>
+              )
             )}
           </div>
         )}
