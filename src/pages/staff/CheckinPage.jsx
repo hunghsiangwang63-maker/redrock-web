@@ -123,7 +123,7 @@ export default function CheckinPage() {
     }
   };
 
-  const handleQuickCourseCheckin = async (student) => {
+  const handleQuickCourseCheckin = async (student, group) => {
     if (student.alreadyCheckedIn) { showQuickMsg(`${student.memberName} 今天已入場`, 'red'); return; }
     if (quickCheckinLoading) { showQuickMsg('上一位還在處理中，請稍候再點；若一直卡住請重新整理頁面', 'red'); return; }
     setQuickCheckinLoading(student.memberId);
@@ -135,6 +135,10 @@ export default function CheckinPage() {
         paymentMethod: 'cash',
       });
       showQuickMsg(`${student.memberName} 入場成功`);
+      // 入場＝出席：入場後端只會在「尚無出席紀錄」時自動標出席，若先前被標缺席要在這裡改回出席
+      if (group?.sessionId && student.attendance && student.attendance !== 'present') {
+        try { await markCourseAttendance({ sessionId: group.sessionId, memberId: student.memberId, status: 'present' }); } catch (e) { /* 不影響入場 */ }
+      }
       await loadCourseStudents();
       await loadStats();
     } catch (err) {
@@ -1432,7 +1436,7 @@ export default function CheckinPage() {
                 {courseSessions.map(g => {
                   const regular = g.students || [];
                   const inCount = regular.filter(x => x.alreadyCheckedIn).length;
-                  const attCount = regular.filter(x => x.attendance === 'present').length;
+                  const absCount = regular.filter(x => x.attendance === 'absent' && !x.alreadyCheckedIn).length;
                   return (
                   <div key={g.sessionId} style={{ border:'0.5px solid #B3DEC0', borderRadius:12, overflow:'hidden' }}>
                     <div style={{ background:'#E6F4EB', padding:'10px 14px' }}>
@@ -1440,7 +1444,7 @@ export default function CheckinPage() {
                       <div style={{ fontSize:12, color:'#2D7D46', marginTop:3, display:'flex', gap:12, flexWrap:'wrap' }}>
                         <span>🕐 {g.startTime}～{g.endTime}</span>
                         <span>👤 教練：{g.instructor || '—'}</span>
-                        <span>報名 {regular.length} 人・已入場 {inCount}・已出席 {attCount}{g.leaves?.length ? `・請假 ${g.leaves.length}` : ''}</span>
+                        <span>報名 {regular.length} 人・已入場 {inCount}{absCount > 0 ? `・缺席 ${absCount}` : ''}{g.leaves?.length ? `・請假 ${g.leaves.length}` : ''}</span>
                       </div>
                     </div>
                     <div style={{ padding:'6px 10px' }}>
@@ -1476,7 +1480,7 @@ export default function CheckinPage() {
                           <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                             {s.memberId && (
                               <div style={{ display:'flex', gap:4 }}>
-                                {[['present','出席','#2D7D46','#E6F4EB'],['absent','缺席','#A32D2D','#FCEBEB']].map(([val, label, color, bg]) => (
+                                {!s.alreadyCheckedIn && [['absent','缺席','#A32D2D','#FCEBEB']].map(([val, label, color, bg]) => (
                                   <button key={val} onClick={() => handleMarkAttendance(g, s, val)}
                                     style={{ height:28, padding:'0 10px', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer',
                                       border: s.attendance === val ? `1.5px solid ${color}` : '0.5px solid #D8D8D8',
@@ -1487,7 +1491,7 @@ export default function CheckinPage() {
                               </div>
                             )}
                             <button disabled={clickDisabled}
-                              onClick={() => { if (s.isCrossMakeup) { showQuickMsg('跨期補課為非會員名單，請由櫃檯另行放行', 'red'); return; } handleQuickCourseCheckin(s); }}
+                              onClick={() => { if (s.isCrossMakeup) { showQuickMsg('跨期補課為非會員名單，請由櫃檯另行放行', 'red'); return; } handleQuickCourseCheckin(s, g); }}
                               style={{ height:28, padding:'0 12px', borderRadius:6, fontSize:12, fontWeight:600, border:'none',
                                 cursor: clickDisabled ? 'default' : 'pointer',
                                 background: s.alreadyCheckedIn ? '#EEE' : s.isCrossMakeup ? '#F3EEF9' : '#2D7D46',
