@@ -8,7 +8,7 @@ import Modal from './Modal';
 //           memberPaidAmount, confirmedAmount, receivedAmount, receivedAmountOverride, bankName, bankLastFive,
 //           paymentDate, staffNote, healthNote, referralSource, enrollNote, enrollmentId,
 //           partnerGymApplied, partnerGym, partnerGymPending, needsEntryTicket, entryTicketIssued}
-const COURSE_PAY_LABEL = { pending: '待確認', confirmed: '已確認', pending_confirm: '待確認', transfer_rejected: '已退回', na: '—' };
+const COURSE_PAY_LABEL = { direct_pay: '直接付按摩師', pending: '待確認', confirmed: '已確認', pending_confirm: '待確認', transfer_rejected: '已退回', na: '—' };
 
 // editable/onSaveAmount（選填）：管理員在彈窗內編輯實收金額——預設檢視模式，按「✏️ 編輯」才出現輸入框
 // （2026-08-27 需求：名單列不再直接編輯、統一進彈窗檢視後按編輯）。不傳＝維持原本純唯讀（CoursesPage 報名名單沿用）。

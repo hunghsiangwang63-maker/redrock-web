@@ -118,6 +118,9 @@ function FullContractTermsBox({ course, text }) {
 // 從日期算單一星期幾，供「（週四）」這類括號附註使用
 const wdOf = (dateLike) => wdShort(dayjs(dateLike).day());
 
+// 運動按摩：費用直接交給按摩師，館方不代收（2026-11-09）——報名時不選付款方式、不上傳匯款資料
+const isMassageName = (n) => /運動按摩/.test(String(n || ''));
+
 export default function MemberCoursesPage() {
   const { member } = useMember();
   const navigate = useNavigate();
@@ -672,7 +675,8 @@ export default function MemberCoursesPage() {
 
   const handleEnroll = async () => {
     if (!enrollSession) return;
-    if (!isTransferInfoComplete(paymentData)) { showMsg(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
+    const massageEnroll = isMassageName(selectedCourse?.name);
+    if (!massageEnroll && !isTransferInfoComplete(paymentData)) { showMsg(t('轉帳請完整填寫匯款銀行、日期、末五碼與實際匯款金額'), 'red'); return; }
     const enrollGymId = selectedCourse?.gymId || enrollSession?.gymId || gymId; // 用課程所屬館（銀行帳號/待收款歸該館）
     setLoading(true);
     try {
@@ -709,7 +713,7 @@ export default function MemberCoursesPage() {
         res = await memberClient.post(`/courses/sessions/${enrollSession.id}/enroll`, {
           memberId: targetId,
           gymId: enrollGymId,
-          paymentMethod,
+          paymentMethod: massageEnroll ? 'pay_therapist' : paymentMethod,
           partnerGymId: enrollPartnerGymId || undefined,
           ...extraFields,
         });
@@ -724,7 +728,7 @@ export default function MemberCoursesPage() {
       // （enrInfo.fee 下面 setPayFor 線上付款流程另有用途，避免牽動）。
       const depositAmt = enrollSession.isCourse ? 0 : (Number(res.data.enrollment?.depositAmount) || 0);
       // 轉帳付款：一律建立 transferRecords（截圖或填末五碼皆可）→ 待辦頁確認收款（候補不收款、跳過）
-      if (!isWaitlisted && paymentMethod === 'transfer' && enrInfo.id) {
+      if (!isWaitlisted && !massageEnroll && paymentMethod === 'transfer' && enrInfo.id) {
         try {
           const formData = new FormData();
           if (screenshot) formData.append('screenshot', screenshot);
@@ -2446,7 +2450,7 @@ export default function MemberCoursesPage() {
                   {promotedAwaitingConfirm && (
                     <div style={{ background:'#FFF6E6', border:'0.5px solid #F0D9A0', borderRadius:8, padding:'9px 12px', marginBottom:8, textAlign:'left' }}>
                       <div style={{ fontSize:12, color:'#8B6914', lineHeight:1.6 }}>
-                        ⏳ {tt(`候補已遞補為正取，應繳 NT$${(primary.enrollmentFee || 0).toLocaleString()}，${primary.paymentMethod === 'cash' ? '請至櫃檯繳費' : '轉帳資訊已提交'}，待工作人員確認。`, `Promoted from waitlist — amount due NT$${(primary.enrollmentFee || 0).toLocaleString()}, ${primary.paymentMethod === 'cash' ? 'please pay at the front desk' : 'transfer info submitted'}, awaiting staff confirmation.`, `キャンセル待ちから繰り上がりました。お支払い金額 NT$${(primary.enrollmentFee || 0).toLocaleString()}、${primary.paymentMethod === 'cash' ? 'フロントでお支払いください' : '振込情報を送信済みです'}。スタッフの確認をお待ちください。`)}
+                        ⏳ {primary.paymentMethod === 'pay_therapist' ? tt(`候補已遞補為正取，費用 NT$${(primary.enrollmentFee || 0).toLocaleString()} 請於按摩當天直接交給按摩師。`, `Promoted from waitlist — please pay the therapist NT$${(primary.enrollmentFee || 0).toLocaleString()} directly on the day.`, `キャンセル待ちから繰り上がりました。料金 NT$${(primary.enrollmentFee || 0).toLocaleString()} は当日施術者へ直接お支払いください。`) : tt(`候補已遞補為正取，應繳 NT$${(primary.enrollmentFee || 0).toLocaleString()}，${primary.paymentMethod === 'cash' ? '請至櫃檯繳費' : '轉帳資訊已提交'}，待工作人員確認。`, `Promoted from waitlist — amount due NT$${(primary.enrollmentFee || 0).toLocaleString()}, ${primary.paymentMethod === 'cash' ? 'please pay at the front desk' : 'transfer info submitted'}, awaiting staff confirmation.`, `キャンセル待ちから繰り上がりました。お支払い金額 NT$${(primary.enrollmentFee || 0).toLocaleString()}、${primary.paymentMethod === 'cash' ? 'フロントでお支払いください' : '振込情報を送信済みです'}。スタッフの確認をお待ちください。`)}
                       </div>
                     </div>
                   )}
@@ -2765,7 +2769,12 @@ export default function MemberCoursesPage() {
                   {tt('本次報名須另收', 'This registration also requires a ', '今回の登録には別途')}<b>{tt(`保證金 NT$${Number(selectedCourse.teamDepositAmount).toLocaleString()}`, `deposit of NT$${Number(selectedCourse.teamDepositAmount).toLocaleString()}`, `保証金 NT$${Number(selectedCourse.teamDepositAmount).toLocaleString()}`)}</b>{tt('，', ', which will be ', 'が必要です。')}<b>{tt('當天報到後全額退還', 'fully refunded upon check-in on the day', '当日の受付後に全額返金')}</b>{tt('；未出席則保證金沒收。', '; the deposit will be forfeited if you do not attend.', '。欠席の場合、保証金は返金されません。')}
                 </div>
               )}
-              <PaymentSection
+              {isMassageName(selectedCourse?.name) ? (
+                <div style={{ background:'#FFF6E9', border:'0.5px solid #E0C08A', borderRadius:10, padding:'12px 14px', marginBottom:12, fontSize:13, color:'#6B4E16', lineHeight:1.8, textAlign:'left' }}>
+                  <div style={{ fontWeight:700, color:'#8B1A1A', marginBottom:4 }}>{tt(`費用 NT$${(workshopEffectiveFee() ?? 0).toLocaleString()}`, `Fee: NT$${(workshopEffectiveFee() ?? 0).toLocaleString()}`, `料金 NT$${(workshopEffectiveFee() ?? 0).toLocaleString()}`)}</div>
+                  {tt('費用請於按摩當天直接以現金交給按摩師，紅石僅協助預約登記，不代收費用，報名時不需轉帳或上傳資料。', 'Please pay the therapist directly in cash on the day of your massage. RedRock only handles the booking and does not collect payment — no transfer or upload is needed.', '料金はマッサージ当日に施術者へ現金で直接お支払いください。紅石は予約の受付のみを行い、料金はお預かりしません（振込・アップロードは不要です）。')}
+                </div>
+              ) : <PaymentSection
                 value={paymentData}
                 methods={selectedCourse?.paymentMethods?.length ? selectedCourse.paymentMethods : ['cash','transfer']} /* 課程端隱藏電子支付；課程可覆寫(如運動按摩只現金) */
                 onChange={d => { setPaymentData(d); setPaymentMethod(d.method); }}
@@ -2777,8 +2786,8 @@ export default function MemberCoursesPage() {
                   return feeToPay + deposit; // 保證金一律全額隨本次繳清，不併入分期
                 })()}
                 bankInfo={(() => { const bk = bankAccounts[selectedCourse?.gymId || enrollSession?.gymId || gymId]; return bk ? { bankName: bk.bankName, branch: bk.branch||'', account: bk.accountNumber, accountName: bk.accountName } : null; })()}
-              />
-              {(paymentData.method==='cash'||paymentData.method==='transfer') && (
+              />}
+              {!isMassageName(selectedCourse?.name) && (paymentData.method==='cash'||paymentData.method==='transfer') && (
                 <div style={{ marginBottom:12 }}>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>{t('上傳匯款截圖（選填）')}</label>
                   <input type="file" accept="image/*" onChange={e => setScreenshot(e.target.files[0])} style={{ fontSize:12, width:'100%' }}/>
