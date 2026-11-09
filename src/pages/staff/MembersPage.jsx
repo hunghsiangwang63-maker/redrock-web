@@ -281,6 +281,12 @@ const RowMemberList = ({ loading, groups, searchPlaceholder = '搜尋姓名', gr
                           🕐 候補・第{m.waitlistPosition ?? '?'}位
                         </span>
                       )}
+                      {!m.refunded && m.adjustPending && (
+                        <span title="申請審核中：入場資格與請假已凍結（核准／退回後恢復或變更）"
+                          style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:'#FCEBEB', color:'#A32D2D' }}>
+                          {m.adjustPending === 'refund' ? '⏳ 退費審核中' : '⏳ 暫停審核中'}
+                        </span>
+                      )}
                       {m.refunded && (
                         <span title={m.refundedAt ? `退費時間：${fmtTs(m.refundedAt) || ''}` : ''}
                           style={{ fontSize:10, fontWeight:600, padding:'2px 7px', borderRadius:10, background:'#F0EDED', color:'#999' }}>

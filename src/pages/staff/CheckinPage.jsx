@@ -1460,6 +1460,7 @@ export default function CheckinPage() {
                               {s.trialUnpaid && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>試上費未收</span>}
                               {s.isLastSession && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>最後一堂，請開立發票</span>}
                               {s.newStudentPrep && <span style={{ fontSize:9, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>🎁 請準備制服跟集點卡</span>}
+                              {s.adjustPending && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>{s.adjustPending === 'refund' ? '⏳ 退費審核中' : '⏳ 暫停審核中'}</span>}
                             </div>
                             {s.note && <div style={{ fontSize:11, color:'#7A5A00', marginTop:2 }}>備註：{s.note}</div>}
                             {s.isLastSession && canCheckin && (s.receivedAmount ?? 0) > 0 && (
@@ -1469,6 +1470,9 @@ export default function CheckinPage() {
                               </div>
                             )}
                           </div>
+                          {s.adjustPending ? (
+                            <div style={{ fontSize:11, color:'#A32D2D', flexShrink:0 }}>申請審核中，入場資格已凍結（不可入場）</div>
+                          ) : (
                           <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
                             {s.memberId && (
                               <div style={{ display:'flex', gap:4 }}>
@@ -1491,6 +1495,7 @@ export default function CheckinPage() {
                               {s.isCrossMakeup ? '非會員名單' : s.alreadyCheckedIn ? '已入場' : quickCheckinLoading === s.memberId ? '處理中...' : '入場'}
                             </button>
                           </div>
+                          )}
                         </div>
                         );
                       })}
