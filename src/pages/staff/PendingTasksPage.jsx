@@ -959,8 +959,12 @@ export default function PendingTasksPage() {
               // 轉帳待確認（涵蓋課程/體驗/試上/租借/攀岩隊，皆共用 transferRecords 這條路徑）：
               // 金額＋末五碼獨立成不會被 desc 省略號截斷的徽章，一眼就看得到，不用點開才知道
               // （原本嵌在 desc 文字裡，姓名/課程名一長就被 ellipsis 蓋掉）。
-              const amountTag = task.type === 'transfer_confirm' ? task.record?.amount : null;
-              const bankLastFiveTag = task.type === 'transfer_confirm' ? task.record?.bankLastFive : null;
+              // 2026-11-11：轉帳的待辦一律在外面顯示末五碼（原本只有 transfer_confirm 有，比賽報名待收款／體驗預約等看不到）；
+              // 比賽報名待收款（competition_payment）另顯示報名費。
+              const amountTag = task.type === 'transfer_confirm' ? task.record?.amount
+                : task.type === 'competition_payment' ? (task.record?.registrationFee ?? null) : null;
+              const _five = task.record?.bankLastFive || task.bankLastFive || null;
+              const bankLastFiveTag = (_five && (task.method || task.record?.paymentMethod) !== 'cash') ? _five : null; // 有填末五碼且不是現金才顯示
               return (
                 <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12 }}>
                   <div style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, minWidth:0 }}>
