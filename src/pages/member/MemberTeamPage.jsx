@@ -8,6 +8,7 @@ import { useMember } from '../../store/memberStore.jsx';
 import { getTeamFees, applyTeam, getMyTeamRecords } from '../../api/team';
 import dayjs from 'dayjs';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
+import useGymBankAccounts from '../../hooks/useGymBankAccounts';
 
 const STATUS = {
   pending:   { bg:'#FAEEDA', color:'#854F0B', text:'待審核' },
@@ -32,6 +33,8 @@ export default function MemberTeamPage() {
   const [idNumber, setIdNumber] = useState('');
   const [address, setAddress] = useState('');
   const [primaryGym, setPrimaryGym] = useState('新竹紅石');
+  const { bankInfoForGym } = useGymBankAccounts(); // 年費收款帳號依「主要岩館」顯示（2026-11-10 修，原寫死新竹）
+  const gymIdOf = (pg) => pg === '士林紅石' ? 'gym-shilin' : 'gym-hsinchu';
   // 入隊轉帳被退回 → 重新上傳
   const [reupDate, setReupDate] = useState('');
   const [reupLast5, setReupLast5] = useState('');
@@ -131,7 +134,7 @@ export default function MemberTeamPage() {
         try {
           const { submitTransferRecord } = await import('../../api/transfers');
           await submitTransferRecord({
-            memberId: member.id, memberName: member.name, gymId: primaryGym,
+            memberId: member.id, memberName: member.name, gymId: gymIdOf(primaryGym),
             orderType: 'team_member', refId: res.data.id, orderName: `攀岩隊年費（${year}）`,
             amount, bankLastFive, bankName, paymentDate, paidAmount,
           });
@@ -213,8 +216,11 @@ export default function MemberTeamPage() {
                   {tt(`⚡ 目前費率：${fees.feeLabel}`, `⚡ Current rate: ${fees.feeLabel}`, `⚡ 現在の料金：${fees.feeLabel}`)}
                 </div>
                 <div style={{ marginTop:8, fontSize:12, color:'#666' }}>
-                  {t('請匯款至：')}台新銀行(812) 關東橋分行<br/>
-                  {t('帳號：')}21000100211430　{t('戶名：')}紅石攀岩有限公司<br/>
+                  {t('請依您的主要岩館匯款：')}<br/>
+                  {[['新竹紅石','gym-hsinchu'],['士林紅石','gym-shilin']].map(([label, gid]) => {
+                    const b = bankInfoForGym(gid);
+                    return b ? <div key={gid}>・{t(label)}：{b.bankName}　{t('帳號：')}{b.account}　{t('戶名：')}{b.accountName}</div> : null;
+                  })}
                   {t('※ 恕不接受電子支付')}
                 </div>
               </div>
@@ -409,9 +415,9 @@ export default function MemberTeamPage() {
                   </div>
                   {r.paymentStatus === 'pending' && (
                     <div style={{ marginTop:10, background:'#FFF8E6', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#8B6914' }}>
-                      {tt(`⚠ 請匯款 NT$${r.paymentAmount} 至台新銀行(812) 21000100211430，並等待館方確認`,
-                          `⚠ Please transfer NT$${r.paymentAmount} to Taishin Bank (812) 21000100211430 and wait for gym confirmation`,
-                          `⚠ NT$${r.paymentAmount}を台新銀行(812) 21000100211430へ振込のうえ、施設の確認をお待ちください`)}
+                      {(() => { const b = bankInfoForGym(gymIdOf(r.primaryGym)); const dest = b ? `${b.bankName} ${b.account}` : ''; return tt(`⚠ 請匯款 NT$${r.paymentAmount} 至${dest ? ' ' + dest : '主要岩館帳號'}，並等待館方確認`,
+                          `⚠ Please transfer NT$${r.paymentAmount} to ${dest || 'your main gym account'} and wait for gym confirmation`,
+                          `⚠ NT$${r.paymentAmount}を${dest || '主要施設の口座'}へ振込のうえ、施設の確認をお待ちください`); })()}
                     </div>
                   )}
                 </div>
@@ -441,7 +447,7 @@ export default function MemberTeamPage() {
               value={paymentData}
               methods={['transfer']}
               onChange={setPaymentData}
-              bankInfo={{ bankName:'台新銀行(812)', branch:'', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+              bankInfo={bankInfoForGym(gymIdOf(currentYearRecord?.primaryGym))}
             />
             <div style={{ display:'flex', gap:8, marginTop:14 }}>
               <button onClick={() => setShowPayModal(false)}

@@ -15,6 +15,7 @@ import dayjs from 'dayjs';
 import { generateQrDataUrl } from '../../utils/generateQrDataUrl';
 import { reportClientError } from '../../utils/reportClientError';
 import useScreenWakeLock from '../../hooks/useScreenWakeLock';
+import useGymBankAccounts from '../../hooks/useGymBankAccounts';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 
@@ -181,6 +182,8 @@ export default function MemberCompetitionsPage() {
   };
 
   // 繳費資訊被退回 → 重新填寫（現金/轉帳＋日期，日期限 3 日內）
+  // 轉帳收款帳號：依「賽事所屬館」顯示（原本寫死新竹台新帳號，2026-11-10 修）
+  const { bankInfoForGym } = useGymBankAccounts();
   const [repayTarget, setRepayTarget] = useState(null);
   const [repayData, setRepayData] = useState({ method: 'transfer' });
   const [repaySaving, setRepaySaving] = useState(false);
@@ -932,7 +935,7 @@ export default function MemberCompetitionsPage() {
                   onChange={setPaymentData}
                   dateMin={dayjs().format('YYYY-MM-DD')}
                   dateMax={dayjs().add(3,'day').format('YYYY-MM-DD')}
-                  bankInfo={{ bankName:'台新銀行(812)', branch:'關東橋分行', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+                  bankInfo={bankInfoForGym(selectedComp?.gymId || 'gym-hsinchu')}
                 />
               </>)}
 
@@ -1286,7 +1289,7 @@ export default function MemberCompetitionsPage() {
               onChange={setRepayData}
               dateMin={dayjs().format('YYYY-MM-DD')}
               dateMax={dayjs().add(3,'day').format('YYYY-MM-DD')}
-              bankInfo={{ bankName:'台新銀行(812)', branch:'關東橋分行', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+              bankInfo={bankInfoForGym(competitions.find(c => c.id === repayTarget.competitionId)?.gymId || 'gym-hsinchu')}
             />
             {repayErr && <div style={{ fontSize:12, color:'#A32D2D', marginBottom:10 }}>{repayErr}</div>}
             <div style={{ display:'flex', gap:8 }}>

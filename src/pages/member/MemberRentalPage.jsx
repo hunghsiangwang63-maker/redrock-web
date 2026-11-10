@@ -10,6 +10,7 @@ import TransferReuploadModal from '../../components/TransferReuploadModal';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
+import useGymBankAccounts from '../../hooks/useGymBankAccounts';
 import PaymentFlow from '../../components/PaymentFlow';
 import { useOnlineFlowEnabled } from '../../utils/paymentMethods';
 
@@ -52,6 +53,7 @@ export default function MemberRentalPage() {
   const [returnDate, setReturnDate] = useState('');
   const [quantities, setQuantities] = useState({ crashPad: 0, helmet: 0, harness: 0 });
   const [showPayModal, setShowPayModal] = useState(false);
+  const { bankInfoForGym } = useGymBankAccounts(); // 收款帳號依所選館別（2026-11-10 修，原寫死新竹）
   const [paymentData, setPaymentData] = useState({ method: 'cash' }); // { method, paymentDate, bankLastFive, bankName, paidAmount }
   const [submitting, setSubmitting] = useState(false);
 
@@ -501,7 +503,7 @@ export default function MemberRentalPage() {
               value={paymentData}
               methods={['cash','transfer']}
               onChange={setPaymentData}
-              bankInfo={{ bankName:'台新銀行(812)', branch:'關東橋分行', account:'21000100211430', accountName:'紅石攀岩有限公司' }}
+              bankInfo={bankInfoForGym(gymId)}
             />
 
             <div style={{ display:'flex', gap:8, marginTop:14 }}>
