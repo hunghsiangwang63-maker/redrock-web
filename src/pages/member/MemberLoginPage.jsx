@@ -5,6 +5,8 @@ import { useMember } from '../../store/memberStore.jsx';
 import PasswordInput from '../../components/PasswordInput';
 import { t, tt, toggleMemberLang, nextLangLabel } from '../../utils/memberI18n';
 import { isHalloween } from '../../utils/halloween';
+import { isThanksgiving } from '../../utils/thanksgiving';
+import { ThanksgivingScene, ThanksgivingGreeting } from '../../components/ThanksgivingDeco';
 import { HalloweenScene, HalloweenGreeting, PumpkinPatch, HW, Web } from '../../components/HalloweenDeco';
 
 const inputStyle = { width:'100%', height:44, borderRadius:10, border:'0.5px solid #E8D5D5', padding:'0 14px', fontSize:15, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
@@ -80,11 +82,13 @@ export default function MemberLoginPage() {
   };
 
   const halloween = isHalloween();
+  const thanksgiving = isThanksgiving();
   return (
     <div style={{ minHeight:'100vh', background: halloween ? `linear-gradient(180deg,#1E0F38 0%,${HW.night2} 60%,#7B3FA0 100%)` : '#F7F3F3', display:'flex', alignItems:'center', justifyContent:'center', padding:16, position:'relative', overflow:'hidden' }}>
       {halloween && <><Web size={120} /><Web size={120} flip /></>}
       <div style={{ width:'100%', maxWidth:360 }}>
         {halloween && <HalloweenScene />}
+        {thanksgiving && <ThanksgivingScene />}
         {/* Logo */}
         <div style={{ textAlign:'center', marginBottom:32, position:'relative' }}>
           <div onClick={toggleMemberLang}
@@ -184,6 +188,7 @@ export default function MemberLoginPage() {
           )}
         </div>
         {halloween && <HalloweenGreeting />}
+        {thanksgiving && <ThanksgivingGreeting />}
         {halloween && <PumpkinPatch style={{ marginTop:14 }} />}
       </div>
     </div>

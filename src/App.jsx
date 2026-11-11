@@ -37,6 +37,7 @@ import PendingTasksPage from './pages/staff/PendingTasksPage';
 import ExperienceBookingsPage from './pages/staff/ExperienceBookingsPage';
 import StaffLayout from './components/StaffLayout';
 import UpdateChecker from './components/UpdateChecker';
+import SeasonLayer from './components/SeasonLayer';
 
 // Member imports
 import MemberLoginPage from './pages/member/MemberLoginPage';
@@ -121,6 +122,8 @@ function StaffRoutes() {
 
 function MemberRoutes() {
   return (
+    <>
+    <SeasonLayer />
     <Routes>
       <Route path="/member/login"           element={<MemberLoginPage />} />
       <Route path="/member/forgot-password"  element={<MemberForgotPasswordPage />} />
@@ -158,6 +161,7 @@ function MemberRoutes() {
       <Route path="/competitions/waiver/parent/:token" element={<ParentCompetitionWaiverPage />} />
       <Route path="*" element={<Navigate to="/member/login" replace />} />
     </Routes>
+    </>
   );
 }
 

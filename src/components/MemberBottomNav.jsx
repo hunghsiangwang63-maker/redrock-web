@@ -26,7 +26,7 @@ export default function MemberBottomNav({ navigate, dark = false }) {
   ];
 
   return (
-    <div style={{
+    <div className="rr-bottom-nav" style={{
       position:'fixed', bottom:0, left:0, right:0, width:'100%', background: dark ? 'linear-gradient(180deg,#2B1646,#1E0F38)' : '#fff', borderTop: dark ? '1px solid #C2610C' : '0.5px solid #E8D5D5', display:'flex', height:60, paddingBottom:'env(safe-area-inset-bottom)', zIndex:50,
       // 手機瀏覽器（尤其 iOS Safari）在頁面很長、需要捲動很多才能看到底部內容時（如課程報名的場次
       // 列表），position:fixed 元素偶爾會「脫離」視窗底部、卡在畫面中間——這是瀏覽器對長頁面 fixed
