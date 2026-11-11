@@ -36,6 +36,15 @@ html[data-season="thanksgiving"] .rr-bottom-nav {
 /* ── 頁面底部小景（導覽列上方，不擋點擊） ── */
 .rr-tg-ground { position:fixed; left:0; right:0; bottom:57px; z-index:37; pointer-events:none; height:28px; display:flex; flex-direction:column; justify-content:flex-end; }
 
+/* ── 右下角探頭吉祥物（疊在底部小景上方；只用 transform／opacity 動畫） ── */
+.rr-tg-peek { position:fixed; right:2px; bottom:80px; z-index:36; pointer-events:none; width:64px; }
+.rr-tg-peek-img { width:64px; height:auto; display:block; filter:drop-shadow(0 3px 4px rgba(90,52,20,.3)); animation:rrTgPeek 2.4s ease-in-out infinite; transform-origin:50% 100%; }
+@keyframes rrTgPeek { 0%,100%{ transform:translateY(0) rotate(-2deg);} 50%{ transform:translateY(-6px) rotate(3deg);} }
+.rr-tg-bubble { position:absolute; right:58px; bottom:44px; white-space:nowrap; background:#fff; color:#7A4A21; font-size:11px; font-weight:800; padding:4px 9px; border-radius:12px 12px 2px 12px;
+  border:1.5px solid #E0A44E; box-shadow:0 2px 6px rgba(90,52,20,.25); opacity:0; animation:rrTgBubble 24s linear infinite; }
+@keyframes rrTgBubble { 0%{ opacity:0; transform:translateY(6px);} 2%{ opacity:1; transform:translateY(0);} 12%{ opacity:1;} 14%{ opacity:0;} 100%{ opacity:0;} }
+
 @media (prefers-reduced-motion: reduce) {
-  .rr-tg-leaves, .rr-tg-fly-wrap { display:none; }
+  .rr-tg-leaves, .rr-tg-fly-wrap, .rr-tg-bubble { display:none; }
+  .rr-tg-peek-img { animation:none; }
 }

@@ -156,6 +156,24 @@ export function FlyingTurkey() {
   );
 }
 
+// 右下角探頭的吉祥物（其他頁用；首頁／登入頁已有大橫幅吉祥物，不放）：偶爾冒出一句感謝話，不擋點擊
+const PEEK_LINES = () => [
+  tt('感謝有你！', 'Thank you!', 'ありがとう！'),
+  tt('一起放手爬！', "Let's climb!", '一緒に登ろう！'),
+  tt('感恩節快樂', 'Happy Thanksgiving', '感謝祭おめでとう'),
+];
+export function MascotPeek() {
+  const ok = useMascotAvailable('mascot2');
+  if (!ok) return null;
+  const lines = PEEK_LINES();
+  return (
+    <div className="rr-tg-peek" aria-hidden="true">
+      {lines.map((l, i) => <div key={i} className="rr-tg-bubble" style={{ animationDelay:`${i * 8}s` }}>{l}</div>)}
+      <img src="/thanksgiving/mascot2.webp" alt="" draggable="false" className="rr-tg-peek-img" />
+    </div>
+  );
+}
+
 // 頁面底部（導覽列上方）的小景：南瓜、麥穗、橡實、落葉——只蓋在頁面底部留白處
 export function AutumnGround() {
   return (

@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isThanksgiving } from '../utils/thanksgiving';
 import '../styles/thanksgiving.css';
-import { FallingLeaves, FlyingTurkey, AutumnGround } from './ThanksgivingDeco';
+import { FallingLeaves, FlyingTurkey, AutumnGround, MascotPeek } from './ThanksgivingDeco';
 
 const QUIET = /\/(waiver|fall-test|sign|verify|reset-password|forgot-password)/;
 
@@ -20,5 +20,6 @@ export default function SeasonLayer() {
   }, [on]);
   if (!on) return null;
   const quiet = QUIET.test(pathname) || /\/(competitions\/waiver|sign\/)/.test(pathname);
-  return quiet ? null : <><FallingLeaves /><FlyingTurkey /><AutumnGround /></>;
+  const hero = /\/member\/(home|login)\/?$/.test(pathname); // 首頁／登入頁已有大橫幅吉祥物
+  return quiet ? null : <><FallingLeaves /><FlyingTurkey /><AutumnGround />{!hero && <MascotPeek />}</>;
 }
