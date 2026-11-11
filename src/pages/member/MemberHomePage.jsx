@@ -1,6 +1,7 @@
 import { isHalloween } from '../../utils/halloween';
-import { isThanksgiving } from '../../utils/thanksgiving';
+import { isThanksgiving, isThanksInboxSeason } from '../../utils/thanksgiving';
 import { ThanksgivingHero, ThankCard, MascotImg } from '../../components/ThanksgivingDeco';
+import { ThanksCardInbox, SendThanksCard } from '../../components/ThanksCards';
 import { HalloweenHero, FlyingWitch, HW, Sprite, Bat } from '../../components/HalloweenDeco';
 
 // 萬聖節功能格：橘／深紫／羊皮紙三種底，角落點綴小南瓜、幽靈、蝙蝠（只在萬聖節期間使用）
@@ -246,9 +247,11 @@ export default function MemberHomePage() {
             lines={[tt('這一年有你的支持，紅石才能一起長大。', 'Your support helped RedRock grow this year.', '今年もご利用いただき、ありがとうございました。'),
                     tt('感恩節期間，祝你天天爬得開心！', 'Wishing you happy climbing this Thanksgiving week!', '感謝祭の週も、楽しいクライミングを！')]}
             style={{ paddingRight:84 }} />
-          <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:-6 }}><MascotImg name="mascot2" size={74} /></div>
+          <div aria-hidden="true" style={{ position:'absolute', right:6, top:30 }}><MascotImg name="mascot2" size={74} /></div>
+          <SendThanksCard />
         </div>
       )}
+      {isThanksInboxSeason() && <ThanksCardInbox />}
 
       {/* 今日已入場橫幅（全天顯示；資料源自後端 my-today，隔日消失、取消後消失）*/}
       {todayCheckin?.checkedIn && (

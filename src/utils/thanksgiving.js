@@ -12,3 +12,13 @@ export function isThanksgiving() {
     return today >= THANKSGIVING_START && today <= THANKSGIVING_END;
   } catch { return false; }
 }
+
+// 感謝卡片收件匣顯示期間（寄送只到 11/29，收到的卡片多顯示一週到 12/06）
+export const THANKS_INBOX_END = '2026-12-06';
+export function isThanksInboxSeason() {
+  try {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('thanksgiving') === '1') return true;
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+    return today >= THANKSGIVING_START && today <= THANKS_INBOX_END;
+  } catch { return false; }
+}
