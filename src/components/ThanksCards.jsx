@@ -16,8 +16,20 @@ export const PHRASES = {
   p6: () => tt('你是我最棒的岩友！', 'You are my best climbing buddy!', '最高のクライミング仲間！'),
   p7: () => tt('感恩有你，一起放手爬！', 'Grateful for you — keep climbing!', 'ありがとう、これからも一緒に登ろう！'),
   p8: () => tt('祝你感恩節快樂，天天平安！', 'Happy Thanksgiving, stay safe!', '感謝祭おめでとう、毎日無事で！'),
+  // 俏皮打氣（攀岩哏）
+  p9: () => tt('跳出去就有了！', "Just go for the dyno — you've got it!", '思い切って飛べば、つかめるよ！'),
+  p10: () => tt('這條你一定行，相信自己！', 'You can send this one — believe in yourself!', 'このルート、きっと登れる。自分を信じて！'),
+  p11: () => tt('放手爬，保護交給我！', "Let go and climb — I've got your belay!", '思い切って登って、ビレイは任せて！'),
+  p12: () => tt('今天的你比昨天更強！', "You're stronger than yesterday!", '昨日より強くなってるよ！'),
+  p13: () => tt('卡關沒關係，休息一下再來！', 'Stuck? Rest a bit and try again!', '行き詰まったら、少し休んでもう一度！'),
+  p14: () => tt('手抓緊，心放鬆，加油！', 'Grip tight, stay relaxed — go!', '手はしっかり、心はリラックス、がんばれ！'),
+  p15: () => tt('下一條紅點就是你的！', 'Your next redpoint is coming!', '次のレッドポイントはあなたのもの！'),
+  p16: () => tt('你笑著爬的樣子最棒！', 'You look best climbing with a smile!', '笑顔で登る姿が一番素敵！'),
+  p17: () => tt('慢慢爬也沒關係，風景都一樣好！', 'Slow is fine — the view is just as good!', 'ゆっくりでも大丈夫、景色は同じだよ！'),
+  p18: () => tt('掉下來只是重來一次，再來！', 'A fall is just a reset — go again!', '落ちてもリセット、もう一回！'),
 };
-const PHRASE_IDS = Object.keys(PHRASES);
+const THANKS_IDS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+const CHEER_IDS = ['p9', 'p10', 'p11', 'p12', 'p13', 'p14', 'p15', 'p16', 'p17', 'p18'];
 
 function PieSvg({ size }) {
   return (
@@ -230,9 +242,16 @@ function SendSheet({ member, onClose }) {
               ))}
             </div>
             <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>{tt('③ 選一句話', '③ Pick a message', '③ メッセージを選ぶ')}</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:14 }}>
-              {PHRASE_IDS.map(id => (
-                <div key={id} onClick={() => setPhrase(id)} style={{ padding:'9px 12px', borderRadius:10, fontSize:13, cursor:'pointer', background: phrase === id ? '#FFEFD8' : '#fff', border: phrase === id ? '1.5px solid #C45E1A' : '1px solid #EEE', color: phrase === id ? '#8B3A0E' : '#444', fontWeight: phrase === id ? 700 : 500 }}>{PHRASES[id]()}</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:6, marginBottom:14, maxHeight:240, overflowY:'auto' }}>
+              {[[tt('感謝', 'Thanks', '感謝'), THANKS_IDS], [tt('打氣（攀岩哏）', 'Cheer-ups (climbing talk)', '応援（クライミング用語）'), CHEER_IDS]].map(([label, ids]) => (
+                <div key={label}>
+                  <div style={{ fontSize:11, color:'#9A6A2C', fontWeight:700, margin:'4px 0 6px' }}>{label}</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                    {ids.map(id => (
+                      <div key={id} onClick={() => setPhrase(id)} style={{ padding:'9px 12px', borderRadius:10, fontSize:13, cursor:'pointer', background: phrase === id ? '#FFEFD8' : '#fff', border: phrase === id ? '1.5px solid #C45E1A' : '1px solid #EEE', color: phrase === id ? '#8B3A0E' : '#444', fontWeight: phrase === id ? 700 : 500 }}>{PHRASES[id]()}</div>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
             {member?.nickname && (
