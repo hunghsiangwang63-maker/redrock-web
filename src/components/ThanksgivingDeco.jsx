@@ -177,7 +177,7 @@ export function ThanksgivingScene() {
       <div style={{ position:'absolute', left:-16, top:-16, opacity:.9 }}><Leaf size={56} color="#F9D27D" rotate={20}/></div>
       <div style={{ position:'absolute', right:90, top:6 }}><Leaf size={34} color="#B5382B" rotate={-40}/></div>
       <div style={{ position:'absolute', left:62, top:16 }}><Acorn size={26}/></div>
-      <div style={{ position:'absolute', left:6, bottom:-4 }}><MascotImg size={112} /></div>
+      <div style={{ position:'absolute', left:8, bottom:-2 }}><MascotImg size={92} /></div>
       <div style={{ position:'absolute', right: hasMascot ? 8 : '50%', marginRight: hasMascot ? 0 : -60, bottom:6 }}><RoastTurkey size={120}/></div>
       <div style={{ position:'absolute', left:'50%', top:10, transform:'translateX(-50%)', width:60 }}><Wheat size={50}/></div>
     </div>
@@ -198,9 +198,9 @@ export function ThanksgivingHero() {
     <div style={{ margin:'12px 16px 0', borderRadius:18, height:150, position:'relative', overflow:'hidden',
       background:'linear-gradient(135deg,#F7B05A 0%,#E9812A 55%,#C45E1A 100%)', boxShadow:'0 8px 20px rgba(122,74,33,.35)', border:'1.5px solid #F2D08C' }}>
       <div aria-hidden="true" style={{ position:'absolute', right:-10, top:-14, opacity:.85 }}><Leaf size={64} color="#F9D27D" rotate={-15}/></div>
-      <div aria-hidden="true" style={{ position:'absolute', left:6, bottom:-6 }}><MascotImg size={104} /></div>
+      <div aria-hidden="true" style={{ position:'absolute', left:8, bottom:-4 }}><MascotImg size={92} /></div>
       <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:4 }}><RoastTurkey size={112}/></div>
-      <div style={{ position:'absolute', left: hasMascot ? 112 : 20, top:22, right:116 }}>
+      <div style={{ position:'absolute', left: hasMascot ? 108 : 20, top:22, right:116 }}>
         <div style={{ fontSize:19, fontWeight:900, color:'#FFF4E2', textShadow:'0 2px 0 rgba(90,52,20,.5)', lineHeight:1.25 }}>{tt('感恩節快樂！', 'Happy Thanksgiving!', '感謝祭おめでとう！')}</div>
         <div style={{ fontSize:12, color:'#FFEBC9', marginTop:6, lineHeight:1.5, textShadow:'0 1px 0 rgba(90,52,20,.5)' }}>{tt('感謝有你，一起放手爬', 'Thankful for you — keep climbing', 'ありがとう、これからも一緒に')}</div>
       </div>
