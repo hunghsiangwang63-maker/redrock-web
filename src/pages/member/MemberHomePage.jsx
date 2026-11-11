@@ -458,8 +458,8 @@ export default function MemberHomePage() {
           { iconClass:'ti ti-bolt', label:'快速入場', highlight:true,
             action: () => familyKids.length > 0 ? setShowQuickPicker(true) : navigate(quickPref ? '/member/qr?quick=1' : '/member/qr') },
           { icon:'📋', label:'我的紀錄', path:'/member/records' },
-          // 抱石路線攻略：2026-09-02 正式放上首頁；標籤 2026-09-13 由「施工中」改「新上線」。
-          { img:'/climbing-routes.jpg', label:'路線攻略', path:'/member/routes', badge:'新上線' },
+          // 抱石路線攻略：2026-09-02 正式放上首頁；標籤 2026-09-13 由「施工中」改「新上線」，2026-11-11 拿掉標籤（badge 機制保留，日後新功能可再用）。
+          { img:'/climbing-routes.jpg', label:'路線攻略', path:'/member/routes' },
           // 課程報名／體驗課程／比賽報名合併成一格（原路徑與分享連結都不變，只是首頁入口收在一起）
           { icon:'📝', label:'報名', action: () => setShowSignupSheet(true) },
           { img:'/climbing-team.webp', label:'加入攀岩隊', path:'/member/team' },

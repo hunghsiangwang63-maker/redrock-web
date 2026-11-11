@@ -87,11 +87,15 @@ export function CardFace({ stickerId, phraseId, from, to, compact = false }) {
 
 // ───────────── 首頁：收到的感謝卡片 ─────────────
 export function ThanksCardInbox() {
+  const { member } = useMember();
   const [cards, setCards] = useState([]);
   const [menuFor, setMenuFor] = useState(null);
+  const [canSend, setCanSend] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
   useEffect(() => {
     let alive = true;
     getThanksInbox().then(d => { if (alive) setCards(d.cards || []); }).catch(() => {});
+    getThanksConfig().then(c => { if (alive) setCanSend(!!c.sendOpen); }).catch(() => {});
     return () => { alive = false; };
   }, []);
   if (!cards.length) return null;
@@ -106,6 +110,12 @@ export function ThanksCardInbox() {
         {cards.map(c => (
           <div key={c.id} style={{ position:'relative' }}>
             <CardFace stickerId={c.stickerId} phraseId={c.phraseId} from={c.fromDisplay} compact />
+            {canSend && (
+              <button onClick={() => setReplyTo({ id: c.id, fromDisplay: c.fromDisplay })}
+                style={{ position:'absolute', right:10, bottom:8, height:28, padding:'0 12px', borderRadius:14, border:'none', background:'linear-gradient(90deg,#E9812A,#C45E1A)', color:'#fff', fontSize:12, fontWeight:800, cursor:'pointer' }}>
+                💌 {tt('回送卡片', 'Send one back', 'お返しする')}
+              </button>
+            )}
             <button onClick={() => setMenuFor(menuFor === c.id ? null : c.id)} aria-label="more"
               style={{ position:'absolute', top:4, right:6, border:'none', background:'transparent', color:'#B08850', fontSize:18, cursor:'pointer', padding:'0 6px' }}>⋯</button>
             {menuFor === c.id && (
@@ -117,6 +127,7 @@ export function ThanksCardInbox() {
           </div>
         ))}
       </div>
+      {replyTo && <SendSheet member={member} replyTo={replyTo} onClose={() => setReplyTo(null)} />}
     </div>
   );
 }
@@ -139,8 +150,9 @@ export function SendThanksCard() {
   );
 }
 
-function SendSheet({ member, onClose }) {
-  const [step, setStep] = useState(1);
+// replyTo：{ id, fromDisplay }＝回送卡片（收件人固定為寄件人，直接從第 2 步開始）
+function SendSheet({ member, onClose, replyTo = null }) {
+  const [step, setStep] = useState(replyTo ? 2 : 1);
   const [tab, setTab] = useState('phone');
   const [phone, setPhone] = useState('');
   const [found, setFound] = useState(null);   // { toMemberId, maskedName }
@@ -163,17 +175,17 @@ function SendSheet({ member, onClose }) {
     finally { setBusy(false); }
   };
   const recipientReady = tab === 'phone' ? !!found : !!staffPick;
-  const toName = tab === 'phone' ? found?.maskedName : staffPick?.name;
+  const toName = replyTo ? replyTo.fromDisplay : (tab === 'phone' ? found?.maskedName : staffPick?.name);
   const send = async () => {
     setErr(''); setBusy(true);
     try {
-      const payload = tab === 'phone' ? { toType:'member', toMemberId: found.toMemberId } : { toType:'staff', toStaffId: staffPick.id };
+      const payload = replyTo ? { replyToCardId: replyTo.id } : (tab === 'phone' ? { toType:'member', toMemberId: found.toMemberId } : { toType:'staff', toStaffId: staffPick.id });
       const r = await sendThanksCard({ ...payload, stickerId: sticker, phraseId: phrase, displayAs });
       setDone(r);
     } catch (e) { setErr(errMsg(e, tt('送出失敗，請稍後再試', 'Could not send, please try again', '送信に失敗しました'))); }
     finally { setBusy(false); }
   };
-  const again = () => { setDone(null); setStep(1); setFound(null); setStaffPick(null); setPhone(''); setErr(''); };
+  const again = () => { setDone(null); setStep(replyTo ? 2 : 1); setFound(null); setStaffPick(null); setPhone(''); setErr(''); };
 
   const chip = (active) => ({ padding:'7px 12px', borderRadius:18, fontSize:13, cursor:'pointer', border: active ? '1.5px solid #C45E1A' : '1px solid #E8D5D5', background: active ? '#FFEFD8' : '#fff', color: active ? '#8B3A0E' : '#666', fontWeight: active ? 700 : 500 });
   const btn = (disabled) => ({ width:'100%', height:44, borderRadius:12, border:'none', background: disabled ? '#CFC6C0' : 'linear-gradient(90deg,#E9812A,#C45E1A)', color:'#fff', fontSize:15, fontWeight:800, cursor: disabled ? 'default' : 'pointer' });
@@ -182,7 +194,7 @@ function SendSheet({ member, onClose }) {
     <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:300, display:'flex', alignItems:'flex-end' }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{ background:'#FFF8EC', borderRadius:'18px 18px 0 0', width:'100%', maxHeight:'88vh', overflowY:'auto', padding:'18px 18px 28px' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-          <div style={{ fontSize:16, fontWeight:800, color:TG.red }}>💌 {tt('送一張感謝卡片', 'Send a thank-you card', '感謝カードを送る')}</div>
+          <div style={{ fontSize:16, fontWeight:800, color:TG.red }}>💌 {replyTo ? tt(`回送卡片給 ${replyTo.fromDisplay}`, `Reply to ${replyTo.fromDisplay}`, `${replyTo.fromDisplay} さんに返信`) : tt('送一張感謝卡片', 'Send a thank-you card', '感謝カードを送る')}</div>
           <span onClick={onClose} style={{ fontSize:22, color:'#999', cursor:'pointer' }}>×</span>
         </div>
 
@@ -265,7 +277,8 @@ function SendSheet({ member, onClose }) {
             <CardFace stickerId={sticker} phraseId={phrase} to={toName} from={displayAs === 'nickname' && member?.nickname ? member.nickname : member?.name} />
             {err && <div style={{ marginTop:10, fontSize:12, color:'#A32D2D' }}>{err}</div>}
             <div style={{ display:'flex', gap:8, marginTop:14 }}>
-              <button onClick={() => setStep(1)} style={{ width:90, height:44, borderRadius:12, border:'1px solid #E0C08A', background:'#fff', color:'#8B3A0E', fontSize:14, cursor:'pointer' }}>{tt('上一步', 'Back', '戻る')}</button>
+              {replyTo ? <button onClick={onClose} style={{ width:90, height:44, borderRadius:12, border:'1px solid #E0C08A', background:'#fff', color:'#8B3A0E', fontSize:14, cursor:'pointer' }}>{tt('取消', 'Cancel', 'キャンセル')}</button>
+                : <button onClick={() => setStep(1)} style={{ width:90, height:44, borderRadius:12, border:'1px solid #E0C08A', background:'#fff', color:'#8B3A0E', fontSize:14, cursor:'pointer' }}>{tt('上一步', 'Back', '戻る')}</button>}
               <button onClick={send} disabled={busy} style={{ ...btn(busy), flex:1 }}>{busy ? tt('送出中…', 'Sending…', '送信中…') : tt('送出感謝卡片', 'Send card', 'カードを送る')}</button>
             </div>
           </>
