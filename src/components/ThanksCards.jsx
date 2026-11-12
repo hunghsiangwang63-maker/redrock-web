@@ -65,10 +65,12 @@ export function Sticker({ id, size = 56 }) {
       {id === 'acorn' && <Acorn size={size * 0.85} />}
       {id === 'wheat' && <Wheat size={size} />}
       {id === 'pie' && <PieSvg size={size} />}
+      {(id === 'pumpkin2' || id === 'star' || id === 'cranberry') && <Pumpkin size={size} />}
+      {id === 'maple2' && <Leaf size={size} color="#C0281E" />}
     </div>
   );
 }
-const STICKER_IDS = ['pumpkin', 'maple', 'ginkgo', 'acorn', 'wheat', 'pie'];
+const STICKER_IDS = ['pumpkin', 'maple', 'ginkgo', 'acorn', 'wheat', 'pumpkin2', 'star', 'cranberry', 'maple2'];
 
 // 一張卡片（預覽／收件匣共用）
 export function CardFace({ stickerId, phraseId, from, to, compact = false }) {
@@ -246,7 +248,7 @@ function SendSheet({ member, onClose, replyTo = null }) {
         ) : (
           <>
             <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>{tt('② 選貼紙', '② Pick a sticker', '② ステッカーを選ぶ')}</div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:6, marginBottom:14 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6, marginBottom:14 }}>
               {STICKER_IDS.map(id => (
                 <div key={id} onClick={() => setSticker(id)} style={{ borderRadius:10, padding:4, display:'flex', justifyContent:'center', cursor:'pointer', background: sticker === id ? '#FFEFD8' : '#fff', border: sticker === id ? '2px solid #C45E1A' : '1px solid #EEE' }}>
                   <Sticker id={id} size={40} />
