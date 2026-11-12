@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { tt } from '../utils/memberI18n';
 import { useMember } from '../store/memberStore.jsx';
 import { getThanksConfig, lookupThanksRecipient, getThanksStaff, sendThanksCard, getThanksInbox, hideThanksCard } from '../api/thanksCards';
-import { Leaf, Acorn, Wheat, Pumpkin, TG } from './ThanksgivingDeco';
+import { Leaf, Acorn, Wheat, Pumpkin, TG, MascotImg } from './ThanksgivingDeco';
 
 // 預設句子（id 與後端 config/thanksCards.js 一致）
 export const PHRASES = {
@@ -203,7 +203,8 @@ function SendSheet({ member, onClose, replyTo = null }) {
         {done ? (
           <div style={{ textAlign:'center', padding:'10px 0' }}>
             <CardFace stickerId={sticker} phraseId={phrase} to={toName} />
-            <div style={{ marginTop:14, fontSize:15, fontWeight:800, color:'#2D7D46' }}>✓ {tt('已送出！', 'Sent!', '送信しました！')}</div>
+            <div style={{ display:'flex', justifyContent:'center', marginTop:10 }}><MascotImg name="mascot4" size={96} /></div>
+            <div style={{ marginTop:6, fontSize:15, fontWeight:800, color:'#2D7D46' }}>✓ {tt('已送出！', 'Sent!', '送信しました！')}</div>
             <div style={{ fontSize:12, color:'#888', marginTop:4 }}>{tt(`對同一個人還可以再送 ${done.remaining} 張`, `You can send ${done.remaining} more to the same person`, `同じ相手にあと${done.remaining}枚送れます`)}</div>
             <button onClick={again} style={{ ...btn(false), marginTop:14 }}>{tt('再送一張', 'Send another', 'もう1枚送る')}</button>
             <button onClick={onClose} style={{ marginTop:8, width:'100%', height:40, borderRadius:12, border:'1px solid #E0C08A', background:'#fff', color:'#8B3A0E', fontSize:14, cursor:'pointer' }}>{tt('完成', 'Done', '完了')}</button>
