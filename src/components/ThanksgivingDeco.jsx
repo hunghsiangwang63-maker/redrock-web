@@ -147,11 +147,23 @@ export function FallingLeaves() {
     </div>
   );
 }
-export function FlyingTurkey() {
+// AI 圖版火雞：兩格動作（翅膀上／下）疊在一起輪流顯示＝拍翅；圖檔朝左，往右飛的那隻翻面
+function TurkeyImg({ width }) {
   return (
-    <div className="rr-tg-fly-wrap" aria-hidden="true">
-      <div className="rr-tg-fly-a"><div className="rr-tg-bob"><TurkeySvg size={84} /></div></div>
-      <div className="rr-tg-fly-b"><div className="rr-tg-bob"><TurkeySvg size={64} /></div></div>
+    <div className="rr-tg-turkey-img" style={{ width, aspectRatio:'265 / 220' }}>
+      <img src="/thanksgiving/turkey-fly1.webp" alt="" draggable="false" className="rr-tg-tf1" />
+      <img src="/thanksgiving/turkey-fly2.webp" alt="" draggable="false" className="rr-tg-tf2" />
+    </div>
+  );
+}
+export function FlyingTurkey() {
+  const ok1 = useMascotAvailable('turkey-fly1');
+  const ok2 = useMascotAvailable('turkey-fly2');
+  const hasImg = !!(ok1 && ok2);
+  return (
+    <div className={'rr-tg-fly-wrap' + (hasImg ? ' rr-tg-fly-img' : '')} aria-hidden="true">
+      <div className="rr-tg-fly-a"><div className="rr-tg-bob">{hasImg ? <TurkeyImg width={104} /> : <TurkeySvg size={84} />}</div></div>
+      <div className="rr-tg-fly-b"><div className="rr-tg-bob">{hasImg ? <TurkeyImg width={80} /> : <TurkeySvg size={64} />}</div></div>
     </div>
   );
 }

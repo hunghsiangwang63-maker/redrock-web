@@ -23,7 +23,15 @@ html[data-season="thanksgiving"] .rr-bottom-nav {
 .rr-tg-fly-wrap { position:fixed; inset:0; overflow:hidden; pointer-events:none; z-index:39; }
 .rr-tg-fly-a { position:absolute; left:0; top:11vh; will-change:transform; animation:rrTgFlyA 36s linear infinite; }
 .rr-tg-fly-b { position:absolute; left:0; top:58vh; will-change:transform; animation:rrTgFlyB 36s linear infinite; animation-delay:-18s; }
-.rr-tg-fly-b > .rr-tg-bob { transform:scaleX(-1); }
+.rr-tg-fly-b > .rr-tg-fly-img .rr-tg-fly-b > .rr-tg-bob { transform:none; }
+.rr-tg-fly-img .rr-tg-fly-a > .rr-tg-bob { transform:scaleX(-1); }
+.rr-tg-turkey-img { position:relative; }
+.rr-tg-turkey-img img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; filter:drop-shadow(0 3px 4px rgba(90,52,20,.3)); }
+.rr-tg-tf1 { animation:rrTgFlapA .6s steps(1,end) infinite; }
+.rr-tg-tf2 { animation:rrTgFlapB .6s steps(1,end) infinite; }
+@keyframes rrTgFlapA { 0%{opacity:1;} 50%{opacity:0;} }
+@keyframes rrTgFlapB { 0%{opacity:0;} 50%{opacity:1;} }
+.rr-tg-bob { transform:scaleX(-1); }
 .rr-tg-bob { animation:rrTgBob 1.1s ease-in-out infinite; transform-origin:50% 60%; }
 @keyframes rrTgFlyA { 0%{ transform:translateX(-30vw);} 30%{ transform:translateX(130vw);} 100%{ transform:translateX(130vw);} }
 @keyframes rrTgFlyB { 0%{ transform:translateX(130vw);} 30%{ transform:translateX(-30vw);} 100%{ transform:translateX(-30vw);} }
