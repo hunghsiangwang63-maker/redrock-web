@@ -136,12 +136,18 @@ const LEAVES = [
   { x:6, s:22, d:14, delay:0 }, { x:19, s:28, d:18, delay:4 }, { x:33, s:18, d:12, delay:8 }, { x:47, s:26, d:20, delay:2 },
   { x:61, s:20, d:15, delay:10 }, { x:74, s:30, d:19, delay:6 }, { x:86, s:22, d:13, delay:12 }, { x:94, s:18, d:17, delay:1 },
 ];
+// 貼紙圖（public/thanksgiving/stickers/<id>.webp）；載入失敗就不顯示
+function StickerPic({ id, size, rotate = 0 }) {
+  return <img src={`/thanksgiving/stickers/${id}.webp`} alt="" draggable="false" onError={e => { e.currentTarget.style.display = 'none'; }}
+    style={{ width:size, height:size, objectFit:'contain', display:'block', transform:`rotate(${rotate}deg)`, filter:'drop-shadow(0 2px 2px rgba(90,52,20,.25))' }} />;
+}
+const LEAF_STICKERS = ['maple', 'ginkgo', 'maple2', 'acorn', 'maple', 'ginkgo', 'maple2', 'acorn'];
 export function FallingLeaves() {
   return (
     <div className="rr-tg-leaves" aria-hidden="true">
       {LEAVES.map((l, i) => (
         <div key={i} className="rr-tg-leaf" style={{ left:`${l.x}%`, animationDuration:`${l.d}s`, animationDelay:`-${l.delay}s` }}>
-          <div className="rr-tg-leaf-sway" style={{ animationDuration:`${3 + (i % 3)}s` }}><Leaf size={l.s} color={LEAF_COLORS[i % LEAF_COLORS.length]} rotate={(i * 47) % 360} /></div>
+          <div className="rr-tg-leaf-sway" style={{ animationDuration:`${3 + (i % 3)}s` }}><StickerPic id={LEAF_STICKERS[i % LEAF_STICKERS.length]} size={l.s + 12} rotate={(i * 47) % 360} /></div>
         </div>
       ))}
     </div>
@@ -192,9 +198,9 @@ export function MascotPeek() {
 export function AutumnGround() {
   return (
     <div className="rr-tg-ground" aria-hidden="true">
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', padding:'0 10px' }}>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:2 }}><Wheat size={28}/><Pumpkin size={26}/><Leaf size={16} color="#D9541E" rotate={30}/></div>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:2 }}><Acorn size={16}/><Leaf size={18} color="#F2A33A" rotate={-25}/><Pumpkin size={24}/><Wheat size={26}/></div>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', padding:'0 8px' }}>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:0 }}><StickerPic id="wheat" size={36} /><StickerPic id="pumpkin2" size={32} /><StickerPic id="maple" size={22} rotate={20} /></div>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:0 }}><StickerPic id="acorn" size={24} /><StickerPic id="cranberry" size={24} /><StickerPic id="pumpkin" size={30} /><StickerPic id="sunflower" size={34} /></div>
       </div>
     </div>
   );
