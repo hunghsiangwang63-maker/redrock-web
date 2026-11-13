@@ -163,13 +163,15 @@ const PEEK_LINES = () => [
   tt('感恩節快樂', 'Happy Thanksgiving', '感謝祭おめでとう'),
 ];
 export function MascotPeek() {
+  // 探頭半身（mascot6，靠右緣）；沒有就退回舉手全身（mascot2）
+  const has6 = useMascotAvailable('mascot6');
   const ok = useMascotAvailable('mascot2');
-  if (!ok) return null;
+  if (!has6 && !ok) return null;
   const lines = PEEK_LINES();
   return (
     <div className="rr-tg-peek" aria-hidden="true">
       {lines.map((l, i) => <div key={i} className="rr-tg-bubble" style={{ animationDelay:`${i * 8}s` }}>{l}</div>)}
-      <img src="/thanksgiving/mascot2.webp" alt="" draggable="false" className="rr-tg-peek-img" />
+      <img src={has6 ? "/thanksgiving/mascot6.webp" : "/thanksgiving/mascot2.webp"} alt="" draggable="false" className={has6 ? "rr-tg-peek-img rr-tg-peek-edge" : "rr-tg-peek-img"} />
     </div>
   );
 }
