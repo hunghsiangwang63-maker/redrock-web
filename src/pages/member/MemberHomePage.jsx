@@ -247,7 +247,7 @@ export default function MemberHomePage() {
             lines={[tt('這一年有你的支持，紅石才能一起長大。', 'Your support helped RedRock grow this year.', '今年もご利用いただき、ありがとうございました。'),
                     tt('感恩節期間，祝你天天爬得開心！', 'Wishing you happy climbing this Thanksgiving week!', '感謝祭の週も、楽しいクライミングを！')]}
             style={{ paddingRight:84 }} />
-          <div aria-hidden="true" style={{ position:'absolute', right:6, top:30 }}><MascotImg name="mascot2" size={74} /></div>
+          <div aria-hidden="true" style={{ position:'absolute', right:6, top:26 }}><MascotImg name="mascot5" size={72} /></div>
           <SendThanksCard />
         </div>
       )}
