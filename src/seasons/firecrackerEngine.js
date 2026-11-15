@@ -17,11 +17,36 @@ function rng(seed) {
 const GOLD = ['#FFD54A', '#F5B800', '#FFE79A', '#E8A100'];
 const RED = ['#D81E1E', '#B71414', '#F03A2E'];
 
+// 鞭炮圖（217×900）裡每一顆鞭炮的位置（圖片座標）。由下往上逐顆引爆；ang＝筒身軸向（度），rx／ry＝擦除橢圓的半長軸／半短軸。
+// 最後一筆（knot）是頂端中國結與吊繩，爆得最大。
+const IMG_W = 217, IMG_H = 900;
+const BLASTS = [
+  { x: 110, y: 850, r: 62 },                                  // 流蘇（點火處，最先炸）
+  { x: 80, y: 725, ang: -35, rx: 64, ry: 42 },                // L7
+  { x: 132, y: 690, ang: 40, rx: 66, ry: 42 },                // R7
+  { x: 69, y: 638, ang: -35, rx: 68, ry: 42 },                // L6
+  { x: 183, y: 594, ang: 40, rx: 46, ry: 34 },                // B4
+  { x: 134, y: 590, ang: 40, rx: 68, ry: 42 },                // R6
+  { x: 62, y: 550, ang: -35, rx: 68, ry: 42 },                // L5
+  { x: 186, y: 519, ang: 40, rx: 46, ry: 34 },                // B3
+  { x: 134, y: 506, ang: 40, rx: 68, ry: 42 },                // R5
+  { x: 53, y: 450, ang: -35, rx: 68, ry: 42 },                // L4
+  { x: 185, y: 431, ang: 40, rx: 46, ry: 34 },                // B2
+  { x: 125, y: 416, ang: 40, rx: 68, ry: 42 },                // R4
+  { x: 50, y: 362, ang: -35, rx: 68, ry: 42 },                // L3
+  { x: 131, y: 341, ang: 40, rx: 68, ry: 42 },                // R3
+  { x: 180, y: 325, ang: 40, rx: 46, ry: 34 },                // B1
+  { x: 53, y: 284, ang: -35, rx: 68, ry: 42 },                // L2
+  { x: 134, y: 277, ang: 40, rx: 68, ry: 42 },                // R2
+  { x: 69, y: 209, ang: -35, rx: 68, ry: 42 },                // L1
+  { x: 144, y: 206, ang: 40, rx: 68, ry: 42 },                // R1
+  { x: 108, y: 80, r: 90, last: true },                        // 中國結與吊繩（最後一響）
+];
+
 export function playFirecrackers({
   container = document.body,
   imgSrc = '/newyear/firecracker.webp',
-  count = 10,            // 鞭炮顆數（引爆次數）
-  interval = 340,        // 相鄰兩顆引爆間隔 ms
+  interval = 190,        // 相鄰兩顆引爆間隔 ms
   heightVh = 58,         // 整串高度（螢幕高度百分比）
   rightPct = 5,          // 距右邊百分比
   seed = 7,
@@ -37,52 +62,75 @@ export function playFirecrackers({
   root.style.cssText = 'position:fixed;inset:0;z-index:2147483000;pointer-events:none;overflow:hidden;';
   const canvas = document.createElement('canvas');
   canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
-  const string = document.createElement('img');
-  string.src = imgSrc;
-  string.alt = '';
-  string.draggable = false;
-  string.style.cssText = `position:absolute;top:0;right:${rightPct}%;height:${heightVh}vh;width:auto;will-change:clip-path;`;
-  root.appendChild(string);
+  // 鞭炮串畫在自己的 canvas 上：每顆爆破時用「擦除」把那一顆整個炸掉（不是一刀橫切）
+  const sc = document.createElement('canvas');
+  sc.style.cssText = 'position:absolute;top:0;';
+  const img = new Image();
+  img.src = imgSrc;
+  let imgReady = false;
+  root.appendChild(sc);
   root.appendChild(canvas);
   container.appendChild(root);
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   let W = 0, H = 0;
+  let sk = 1;                          // 圖片座標 → 螢幕像素
+  const layoutString = () => {
+    sk = (H * heightVh) / 100 / IMG_H;
+    const cw = IMG_W * sk, ch = IMG_H * sk;
+    sc.style.width = `${cw}px`; sc.style.height = `${ch}px`; sc.style.right = `${rightPct}%`;
+    sc.width = Math.round(cw * dpr); sc.height = Math.round(ch * dpr);
+    const c = sc.getContext('2d');
+    c.setTransform(dpr * sk, 0, 0, dpr * sk, 0, 0);
+    if (imgReady) c.drawImage(img, 0, 0, IMG_W, IMG_H);
+    for (let k = 0; k < Math.min(next, BLASTS.length); k++) erase(c, BLASTS[k]);   // resize 時把已炸掉的再擦一次
+  };
   const resize = () => {
     W = root.clientWidth || window.innerWidth;
     H = root.clientHeight || window.innerHeight;
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
+    layoutString();
+  };
+  const ctx = canvas.getContext('2d');
+  let next = 0;                        // 下一顆（resize 會用到，先宣告）
+
+  // 擦掉某一顆：橢圓（沿筒身軸向）＋中間吊繩的一小段；最後一響把整串清掉
+  function erase(c, b) {
+    c.save();
+    c.globalCompositeOperation = 'destination-out';
+    c.fillStyle = '#000';
+    if (b.last) { c.clearRect(0, 0, IMG_W, IMG_H); c.restore(); return; }
+    c.beginPath();
+    if (b.r) c.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+    else c.ellipse(b.x, b.y, b.rx, b.ry, (b.ang * Math.PI) / 180, 0, Math.PI * 2);
+    c.fill();
+    c.fillRect(86, b.y - 42, 44, 84);      // 中間吊繩與小珠
+    c.fillRect(0, b.y + 62, IMG_W, IMG_H);   // 再往下一定已經炸完：清掉殘留的環片
+    c.restore();
+  }
+
+  // 圖片座標 → 螢幕座標
+  const toScreen = (x, y) => {
+    const r = sc.getBoundingClientRect();
+    return { x: r.left + x * sk, y: r.top + y * sk };
   };
   resize();
-  const ctx = canvas.getContext('2d');
-
-  // 整串的實際位置（圖載入後才知道寬度，爆破中心取其水平中線）
-  const geom = () => {
-    const r = string.getBoundingClientRect();
-    return { cx: r.left + r.width / 2, top: r.top, h: r.height || (H * heightVh) / 100, w: r.width || 80 };
-  };
 
   const particles = [];  // 煙霧、紙屑、火花
   const flashes = [];
   let t = 0;             // 已播放毫秒
-  let next = 0;          // 下一顆
   let finished = false;
   let stopped = false;
 
   function explode(i) {
-    const g = geom();
-    const f = 1 - (i + 0.5) / count;          // 這一顆在整串的相對高度（0=頂、1=底）
-    const x = g.cx + rand(-g.w * 0.12, g.w * 0.12);
-    const y = g.top + f * g.h;
-    const last = i === count - 1;
-    // 之後只剩這顆以上的鞭炮（用 clip-path 從下往上一截截消失）
-    const hiddenPct = ((i + 1) / count) * 100;
-    string.style.clipPath = `inset(0 0 ${hiddenPct}% 0)`;
-
-    flashes.push({ x, y, born: t, life: last ? 220 : 150, r: last ? 110 : 70 });
+    const bl = BLASTS[i];
+    const { x, y } = toScreen(bl.x, bl.y);
+    const last = !!bl.last;
+    erase(sc.getContext('2d'), bl);
+    flashes.push({ x, y, born: t, life: last ? 240 : 140, r: last ? 120 : 52 });
     // 煙霧：柔軟的白灰團，膨脹、上飄、淡出
-    const puffs = last ? 11 : 7;
+    const puffs = last ? 11 : 5;
     for (let k = 0; k < puffs; k++) {
       const a = rand(0, Math.PI * 2);
       const sp = rand(10, 55);
@@ -90,12 +138,12 @@ export function playFirecrackers({
         kind: 'smoke', born: t, delay: rand(0, 90), life: rand(750, 1250) * (last ? 1.25 : 1),
         x: x + Math.cos(a) * rand(0, 12), y: y + Math.sin(a) * rand(0, 12),
         vx: Math.cos(a) * sp - 12, vy: Math.sin(a) * sp * 0.5 - rand(18, 46),
-        r0: rand(14, 26), r1: rand(46, 78), alpha: rand(0.3, 0.48),
+        r0: rand(12, 22), r1: rand(38, 66), alpha: rand(0.3, 0.48),
         warm: rand(0.4, 1),
       });
     }
     // 金紙屑
-    const gold = last ? 40 : 24;
+    const gold = last ? 44 : 14;
     for (let k = 0; k < gold; k++) {
       const a = rand(0, Math.PI * 2);
       const sp = rand(130, 400);
@@ -107,7 +155,7 @@ export function playFirecrackers({
       });
     }
     // 紅色碎片（少量）
-    for (let k = 0; k < (last ? 10 : 6); k++) {
+    for (let k = 0; k < (last ? 10 : 4); k++) {
       const a = rand(0, Math.PI * 2);
       const sp = rand(100, 320);
       particles.push({
@@ -118,7 +166,7 @@ export function playFirecrackers({
       });
     }
     // 小火花（快速拖尾）
-    for (let k = 0; k < 10; k++) {
+    for (let k = 0; k < (last ? 16 : 7); k++) {
       const a = rand(0, Math.PI * 2);
       const sp = rand(180, 460);
       particles.push({
@@ -206,7 +254,7 @@ export function playFirecrackers({
   let lastTs = 0;
   function frame(dt) {
     t += dt;
-    while (next < count && t >= next * interval) { explode(next); next++; }
+    while (next < BLASTS.length && t >= next * interval) { explode(next); next++; }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     // 由下而上：煙霧 → 火光 → 紙屑／火花
@@ -215,7 +263,7 @@ export function playFirecrackers({
       if (t - flashes[i].born > flashes[i].life) flashes.splice(i, 1); else drawFlash(flashes[i]);
     }
     drawParticles(dt, false);
-    if (next >= count && !particles.length && !flashes.length && !finished) finish();
+    if (next >= BLASTS.length && !particles.length && !flashes.length && !finished) finish();
   }
 
   function finish() {
@@ -245,7 +293,7 @@ export function playFirecrackers({
   window.addEventListener('resize', resize);
   if (!manual) {
     const start = () => { if (!stopped) raf = requestAnimationFrame(loop); };
-    if (string.complete) start(); else { string.onload = start; string.onerror = start; }
+    if (img.complete) { imgReady = true; layoutString(); start(); } else { img.onload = () => { imgReady = true; layoutString(); start(); }; img.onerror = start; }
   }
 
   return {
@@ -255,6 +303,6 @@ export function playFirecrackers({
       while (left > 0 && !finished) { const d = Math.min(16, left); frame(d); left -= d; }
     },
     get time() { return t; },
-    get ready() { return string.complete; },
+    get ready() { if (img.complete && !imgReady) { imgReady = true; layoutString(); } return imgReady; },
   };
 }
