@@ -22,5 +22,5 @@ export default function SeasonLayer() {
   const quiet = QUIET.test(pathname) || /\/(competitions\/waiver|sign\/)/.test(pathname);
   const hero = /\/member\/(home|login)\/?$/.test(pathname); // 首頁／登入頁已有大橫幅吉祥物
   const noNav = /\/member\/(login|register)/.test(pathname); // 沒有底部導覽列的頁面不放底部小景（會蓋到文字）
-  return quiet ? null : <><FallingLeaves /><FlyingTurkey />{!noNav && <AutumnGround />}{!hero && <MascotPeek />}</>;
+  return quiet ? null : <><FallingLeaves /><FlyingTurkey />{!noNav && <AutumnGround big={/\/member\/home\/?$/.test(pathname)} />}{!hero && <MascotPeek />}</>;
 }

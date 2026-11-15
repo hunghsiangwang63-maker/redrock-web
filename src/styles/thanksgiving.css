@@ -42,6 +42,8 @@ html[data-season="thanksgiving"] .rr-bottom-nav {
 @keyframes rrTgFlapR { 0%{ transform:rotate(28deg);} 100%{ transform:rotate(-26deg);} }
 
 /* ── 頁面底部小景（導覽列上方，不擋點擊） ── */
+.rr-tg-ground-img { height:auto !important; display:block !important; }
+.rr-tg-ground-img img { width:100%; height:auto; display:block; }
 .rr-tg-ground { position:fixed; left:0; right:0; bottom:57px; z-index:37; pointer-events:none; height:28px; display:flex; flex-direction:column; justify-content:flex-end; }
 
 /* ── 右下角探頭吉祥物（疊在底部小景上方；只用 transform／opacity 動畫） ── */

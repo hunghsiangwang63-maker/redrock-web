@@ -97,6 +97,17 @@ export function RoastTurkey({ size = 96 }) {
 
 // ── 感謝卡片（首頁／各頁小卡）─────────────────────────────────
 export function ThankCard({ title, lines = [], style, compact = false }) {
+  const hasBg = useMascotAvailable('card-bg');
+  if (hasBg) {
+    // 底圖（楓葉／橡實／麥穗邊角＋虛線框）已含裝飾；文字一律程式寫、置中
+    return (
+      <div style={{ position:'relative', borderRadius:18, overflow:'hidden', boxShadow:'0 4px 14px rgba(122,74,33,.18)', aspectRatio:'1000 / 305', display:'flex', flexDirection:'column', justifyContent:'center',
+        padding:'0 24px', background:'url(/thanksgiving/card-bg.webp) center / 100% 100% no-repeat', ...style }}>
+        {title && <div style={{ fontSize: compact ? 14 : 16, fontWeight:800, color:TG.red, textAlign:'center', marginBottom: lines.length ? 4 : 0, letterSpacing:.5 }}>{title}</div>}
+        {lines.map((l, i) => <div key={i} style={{ fontSize:12, color:TG.ink, textAlign:'center', lineHeight:1.7 }}>{l}</div>)}
+      </div>
+    );
+  }
   return (
     <div style={{ position:'relative', borderRadius:16, padding: compact ? '12px 16px' : '16px 18px', background:'linear-gradient(135deg,#FFF9EC 0%,#FBE9C8 100%)',
       border:'1.5px dashed #D9A55A', boxShadow:'0 4px 14px rgba(122,74,33,.18)', ...style }}>
@@ -195,7 +206,10 @@ export function MascotPeek() {
 }
 
 // 頁面底部（導覽列上方）的小景：南瓜、麥穗、橡實、落葉——只蓋在頁面底部留白處
-export function AutumnGround() {
+export function AutumnGround({ big = false }) {
+  const hasImg = useMascotAvailable('ground');
+  // 豐收角／南瓜／松果／蔓越莓整條背景透明圖；缺檔時退回貼紙小景
+  if (big && hasImg) return <div className="rr-tg-ground rr-tg-ground-img" aria-hidden="true"><img src="/thanksgiving/ground.webp" alt="" draggable="false" /></div>;
   return (
     <div className="rr-tg-ground" aria-hidden="true">
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', padding:'0 8px' }}>

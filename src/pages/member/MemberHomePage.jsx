@@ -442,7 +442,7 @@ export default function MemberHomePage() {
           </div>
         </div>
       ) : (
-        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background: isHalloween() ? 'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%), url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
+        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background: isHalloween() ? 'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%), url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : isThanksgiving() ? 'url(/thanksgiving/welcome-bg.webp) center / cover no-repeat, linear-gradient(135deg,#8B1A1A,#C0392B)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
           <div style={{ color:'#fff' }}>
             <div style={{ fontSize:10, opacity:.75, letterSpacing:.5 }}>{t('歡迎回來')}</div>
             <div style={{ fontSize:18, fontWeight:600, marginTop:3 }}>{t('開始今天的攀岩！')}</div>
