@@ -194,7 +194,8 @@ export default function SchedulePage() {
   for (let d = 1; d <= daysInMonth; d++) calendarCells.push(startOfMonth.date(d).format('YYYY-MM-DD'));
 
   const shiftsForDate = (date) => shifts.filter(s => s.date === date);
-  const eventsForDate = (date) => events.filter(e => e.date === date);
+  // 多天活動（date～endDate，含首尾）涵蓋的每一天都要顯示；沒有 endDate＝單天
+  const eventsForDate = (date) => events.filter(e => e.date <= date && (e.endDate || e.date) >= date);
   const coursesForDate = (date) => myCourses.filter(c => c.date === date);
   const openCourse = async (c) => {
     setViewingCourse(c); setCourseRoster(null); setRosterError('');
@@ -215,7 +216,7 @@ export default function SchedulePage() {
     setEditingEvent(ev);
     setEventScope('single');
     setEventForm({
-      gymId: ev.gymId || '', date: ev.date, endDate:'', allDay: ev.allDay,
+      gymId: ev.gymId || '', date: ev.date, endDate: ev.endDate || '', allDay: ev.allDay,
       startTime: ev.startTime || '10:00', endTime: ev.endTime || '18:00',
       category: ev.category, title: ev.title || '', note: ev.note || '', recurType: 'none',
     });
@@ -229,9 +230,13 @@ export default function SchedulePage() {
       // 套用到「這筆及之後」或「整個系列」時，日期是各筆各自的、不能一起改，故不送出這欄
       // （後端對多筆異動本來就會忽略 date，這裡前端一併不送，避免混淆）。
       const includeDate = !editingEvent || eventScope === 'single';
+      // 多天活動的結束日期：只有「新增不循環」與「編輯單筆（非循環系列）」才有；循環建立的 endDate 是系列結束日（見下方）
+      const spanMode = editingEvent ? (eventScope === 'single' && !editingEvent.recurrenceGroupId) : eventForm.recurType === 'none';
+      if (spanMode && eventForm.endDate && eventForm.endDate < eventForm.date) { showMsg('結束日期不能早於開始日期', 'red'); setEventSaving(false); return; }
       const payload = {
         gymId: eventForm.gymId || null,
         ...(includeDate ? { date: eventForm.date } : {}),
+        ...(spanMode ? { endDate: eventForm.endDate || '' } : {}),
         allDay: eventForm.allDay,
         category: eventForm.category,
         title: eventForm.title,
@@ -532,7 +537,7 @@ export default function SchedulePage() {
                               cursor:'pointer',
                               whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis',
                             }}>
-                            {meta.emoji} {ev.title || meta.label}{!ev.allDay && ev.startTime ? ` ${ev.startTime}-${ev.endTime}` : ''}
+                            {meta.emoji} {ev.title || meta.label}{!ev.allDay && ev.startTime ? ` ${ev.startTime}-${ev.endTime}` : ''}{ev.endDate && ev.endDate > ev.date ? ` ・${dayjs(date).diff(dayjs(ev.date), 'day') + 1}/${dayjs(ev.endDate).diff(dayjs(ev.date), 'day') + 1}` : ''}
                           </div>
                         );
                       })}
@@ -735,7 +740,9 @@ export default function SchedulePage() {
                   <span style={{ background: meta.color, color:'#fff', borderRadius:5, padding:'2px 8px', fontSize:12, fontWeight:700 }}>{meta.emoji} {meta.label}</span>
                 </Row>
                 <Row label="標題">{ev.title || meta.label}</Row>
-                <Row label="日期">{ev.date}（週{['日','一','二','三','四','五','六'][dayjs(ev.date).day()]}）{ev.recurrenceGroupId ? '　🔁 循環系列' : ''}</Row>
+                <Row label="日期">{ev.endDate && ev.endDate > ev.date
+                  ? `${ev.date}（週${['日','一','二','三','四','五','六'][dayjs(ev.date).day()]}）～ ${ev.endDate}（週${['日','一','二','三','四','五','六'][dayjs(ev.endDate).day()]}），共 ${dayjs(ev.endDate).diff(dayjs(ev.date), 'day') + 1} 天`
+                  : `${ev.date}（週${['日','一','二','三','四','五','六'][dayjs(ev.date).day()]}）`}{ev.recurrenceGroupId ? '　🔁 循環系列' : ''}</Row>
                 <Row label="時間">{ev.allDay ? '全天' : `${ev.startTime || ''}~${ev.endTime || ''}`}</Row>
                 <Row label="備註">{ev.note || '—'}</Row>
                 <div style={{ display:'flex', gap:8, marginTop:18 }}>
@@ -848,6 +855,18 @@ export default function SchedulePage() {
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>{!editingEvent && eventForm.recurType !== 'none' ? '起始日期' : '日期'}</label>
               <input type="date" value={eventForm.date} onChange={e => setEventForm({...eventForm, date:e.target.value})}
                 style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+            </div>
+          )}
+          {(editingEvent ? (eventScope === 'single' && !editingEvent.recurrenceGroupId) : eventForm.recurType === 'none') && (
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>結束日期（選填；多天活動如連休、連續休館才填，留空＝單天）</label>
+              <input type="date" value={eventForm.endDate} min={eventForm.date || undefined}
+                max={eventForm.date ? dayjs(eventForm.date).add(91,'day').format('YYYY-MM-DD') : undefined}
+                onChange={e => setEventForm({...eventForm, endDate:e.target.value})}
+                style={{ width:'100%', height:38, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' }}/>
+              {eventForm.endDate && eventForm.endDate > eventForm.date && (
+                <div style={{ fontSize:11, color:'#8B1A1A', marginTop:5 }}>共 {dayjs(eventForm.endDate).diff(dayjs(eventForm.date), 'day') + 1} 天（{eventForm.date} ～ {eventForm.endDate}）{!eventForm.allDay ? '；每天都套用上面的時間區段' : ''}</div>
+              )}
             </div>
           )}
           {!editingEvent && (
