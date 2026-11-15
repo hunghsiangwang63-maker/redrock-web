@@ -36,6 +36,14 @@ import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import { loadQuickEntry } from '../../utils/quickEntry';
 import { tc } from '../../utils/courseNameI18n';
 
+// 感恩節：功能格橘紅漸層（入場 QR＝深紅、快速入場＝橘；其餘為奶油色，不用外部素材）
+const tgTile = (f, fi) => {
+  const base = { position:'relative', borderRadius:12, padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' };
+  if (f.highlight && fi === 0) return { ...base, background:'linear-gradient(160deg,#B3261E 0%,#8E1B14 100%)', border:'none', boxShadow:'0 4px 10px rgba(142,27,20,.4), inset 0 1px 0 rgba(255,255,255,.25)' };
+  if (f.highlight) return { ...base, background:'linear-gradient(160deg,#F28B2E 0%,#D4630F 100%)', border:'none', boxShadow:'0 4px 10px rgba(212,99,15,.4), inset 0 1px 0 rgba(255,255,255,.3)' };
+  return { ...base, background:'linear-gradient(180deg,#FFFAEE 0%,#FCEBCB 100%)', border:'1px solid #F1D8A8', boxShadow:'0 2px 8px rgba(160,100,40,.15)' };
+};
+
 export default function MemberHomePage() {
   const { member, logout } = useMember();
   const navigate = useNavigate();
@@ -465,9 +473,9 @@ export default function MemberHomePage() {
           { img:'/climbing-team.webp', label:'加入攀岩隊', path:'/member/team' },
           { img:'/harness.webp', label:'器材租借', path:'/member/rental' },
           { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
-        ].map((f, fi) => { const hwT = isHalloween() ? HW_TILES[fi % HW_TILES.length] : null; return (
+        ].map((f, fi) => { const hwT = isHalloween() ? HW_TILES[fi % HW_TILES.length] : null; const tgOn = isThanksgiving() && !hwT; return (
           <div key={f.label} onClick={() => f.action ? f.action() : f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
-            style={hwT ? { position:'relative', background:hwT.bg, borderRadius:12, border:hwT.bd, padding:'12px 8px', textAlign:'center', cursor:'pointer', boxShadow:'0 3px 10px rgba(30,15,56,.35)' } : f.highlight
+            style={hwT ? { position:'relative', background:hwT.bg, borderRadius:12, border:hwT.bd, padding:'12px 8px', textAlign:'center', cursor:'pointer', boxShadow:'0 3px 10px rgba(30,15,56,.35)' } : tgOn ? tgTile(f, fi) : f.highlight
               ? { position:'relative', background:'linear-gradient(135deg,#9C3C3C,#BE5858)', borderRadius:12, border:'none', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s', boxShadow:'0 3px 10px rgba(156,60,60,.35)' }
               : { position:'relative', background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' }}
             onMouseEnter={e => { if (!f.highlight) e.currentTarget.style.borderColor='#8B1A1A'; }}
@@ -485,7 +493,8 @@ export default function MemberHomePage() {
                 ? <i className={f.iconClass} style={{ fontSize:28.8, color:'#fff' }} aria-hidden="true" />
                 : <span style={{ fontSize:26.4, lineHeight:1 }}>{f.icon}</span>}
             </div>
-            <div style={{ fontSize:11, color: hwT ? hwT.fg : (f.highlight ? '#fff' : '#6b6b6b'), fontWeight: (hwT || f.highlight) ? 700 : 500 }}>{t(f.label)}</div>
+            <div style={{ fontSize:11, color: hwT ? hwT.fg : (f.highlight ? '#fff' : (tgOn ? '#7A4A21' : '#6b6b6b')), fontWeight: (hwT || f.highlight) ? 700 : 500, textShadow: (tgOn && f.highlight) ? '0 1px 2px rgba(80,20,0,.4)' : undefined }}>{t(f.label)}</div>
+            {tgOn && (fi === 0 || fi === 3) && <img aria-hidden="true" src={fi === 0 ? '/thanksgiving/stickers/maple.webp' : '/thanksgiving/stickers/maple2.webp'} alt="" draggable="false" style={{ position:'absolute', pointerEvents:'none', width:26, height:26, objectFit:'contain', ...(fi === 0 ? { left:-8, top:-10 } : { right:-9, bottom:-8 }) }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
             {hwT && <div aria-hidden="true" style={{ position:'absolute', left:2, top:2, pointerEvents:'none' }}>{hwT.deco[0] === 'bat' ? <Sprite name="bat2" size={24} /> : <Sprite name={hwT.deco[0]} size={20} />}</div>}
           </div>
         ); })}

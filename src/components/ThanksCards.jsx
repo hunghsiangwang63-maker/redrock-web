@@ -144,7 +144,7 @@ export function SendThanksCard() {
   return (
     <>
       <button onClick={() => setOpen(true)}
-        style={{ marginTop:10, width:'100%', height:40, borderRadius:12, border:'none', background:'linear-gradient(90deg,#E9812A,#C45E1A)', color:'#fff', fontSize:14, fontWeight:800, cursor:'pointer', boxShadow:'0 3px 8px rgba(196,94,26,.35)' }}>
+        style={{ marginTop:12, width:'100%', height:48, borderRadius:24, border:'none', background:'linear-gradient(180deg,#F7A23E 0%,#E27B1B 55%,#C85F0E 100%)', color:'#fff', fontSize:16, fontWeight:800, letterSpacing:.5, cursor:'pointer', textShadow:'0 1px 2px rgba(120,50,0,.45)', boxShadow:'0 6px 14px rgba(200,95,14,.4), inset 0 1px 0 rgba(255,255,255,.45)' }}>
         💌 {tt('送一張感謝卡片', 'Send a thank-you card', '感謝カードを送る')}
       </button>
       {open && <SendSheet member={member} onClose={() => setOpen(false)} />}
