@@ -1,7 +1,7 @@
 // 感恩節裝飾（純展示，無互動、無資料）。僅在 isThanksgiving() 為真時由 SeasonLayer／各頁引用。
 // 全部用 SVG／CSS 程式繪製，沒有第三方素材（無授權問題）；吉祥物圖檔放 public/thanksgiving/mascot*.webp（沒有檔案就自動不顯示）。
 import { useState, useEffect } from 'react';
-import { tt } from '../utils/memberI18n';
+import { tt, getMemberLang } from '../utils/memberI18n';
 
 export const TG = { brown:'#7A4A21', brownD:'#5A3414', orange:'#E07A1F', gold:'#F2B33D', red:'#B5382B', cream:'#FFF4E2', cream2:'#FBE3C0', ink:'#4A2C12' };
 const LEAF_COLORS = ['#D9541E', '#F2A33A', '#B5382B', '#C9822B', '#E8C14A', '#9C4A1A'];
@@ -207,21 +207,34 @@ export function AutumnGround() {
 }
 
 // 登入頁頂部橫幅：秋日暖光＋吉祥物＋烤火雞
-export function ThanksgivingScene() {
+// 橫幅（登入頁／首頁共用）：農場風景背景圖（空白木牌）＋程式寫上的三語文字＋兩位吉祥物。
+// 文字一律用程式寫（會員端有中英日三種語言，不能燒進圖）；用 container query 單位（cqw）讓字隨橫幅寬度縮放。
+// 背景圖缺檔時退回橘色漸層＋葉片裝飾。
+function ThanksBanner({ bg, ratio, sub = true, script = true, titleSize = 7.6, titleTop, mascotW = 30, margin, shadow }) {
+  const hasBg = useMascotAvailable(bg);
   const hasMascot = useMascotAvailable('mascot');
   const has3 = useMascotAvailable('mascot3');
+  const lang = getMemberLang();
   return (
-    <div aria-hidden="true" style={{ position:'relative', height:150, margin:'0 -6px 10px', borderRadius:18, overflow:'hidden',
-      background:'linear-gradient(135deg,#F7B05A 0%,#E9812A 55%,#C45E1A 100%)', boxShadow:'0 8px 22px rgba(122,74,33,.35)', border:'1.5px solid #F2D08C' }}>
-      <div style={{ position:'absolute', left:-16, top:-16, opacity:.9 }}><Leaf size={56} color="#F9D27D" rotate={20}/></div>
-      <div style={{ position:'absolute', right:90, top:6 }}><Leaf size={34} color="#B5382B" rotate={-40}/></div>
-      <div style={{ position:'absolute', left:62, top:16 }}><Acorn size={26}/></div>
-      <div style={{ position:'absolute', left:8, bottom:-2 }}><MascotImg size={92} /></div>
-      {has3 ? <div style={{ position:'absolute', right:8, bottom:-2 }}><MascotImg name="mascot3" size={96} /></div>
-        : <div style={{ position:'absolute', right: hasMascot ? 8 : '50%', marginRight: hasMascot ? 0 : -60, bottom:6 }}><RoastTurkey size={120}/></div>}
-      <div style={{ position:'absolute', left:'50%', top:10, transform:'translateX(-50%)', width:60 }}><Wheat size={50}/></div>
+    <div aria-hidden="true" style={{ position:'relative', aspectRatio: ratio, margin, borderRadius:18, overflow:'hidden', containerType:'inline-size',
+      background: hasBg ? `#F7D9A0 url(/thanksgiving/${bg}.webp) center / cover no-repeat` : 'linear-gradient(135deg,#F7B05A 0%,#E9812A 55%,#C45E1A 100%)',
+      boxShadow: shadow || '0 8px 20px rgba(122,74,33,.35)', border:'1.5px solid #F2D08C' }}>
+      {!hasBg && <div style={{ position:'absolute', right:-10, top:-14, opacity:.85 }}><Leaf size={64} color="#F9D27D" rotate={-15}/></div>}
+      {script && lang !== 'en' && <div style={{ position:'absolute', left:'22%', right:'22%', top:'3%', textAlign:'center', fontFamily:'Georgia, "Times New Roman", serif', fontStyle:'italic', fontWeight:700,
+        fontSize:'6.2cqw', color:'#9A4A12', textShadow:'0 1px 0 rgba(255,255,255,.7)' }}>Happy Thanksgiving</div>}
+      <div style={{ position:'absolute', left:'25%', right:'25%', top: titleTop || (sub ? '35%' : '39%'), textAlign:'center', fontWeight:900, fontSize:`${titleSize}cqw`, lineHeight:1.15, whiteSpace:'nowrap', color:'#FFF4E2',
+        textShadow:'0 2px 0 #5A2F10, 0 0 6px rgba(90,47,16,.6)' }}>{tt('感恩節快樂！', 'Happy Thanksgiving!', '感謝祭おめでとう！')}</div>
+      {sub && <div style={{ position:'absolute', left:'25%', right:'25%', top:'55%', textAlign:'center', fontWeight:700, fontSize:'3.7cqw', color:'#FFE9C4', textShadow:'0 1px 0 #5A2F10' }}>
+        {tt('感謝有你，一起放手爬！', 'Thankful for you — keep climbing!', 'ありがとう、これからも一緒に！')}</div>}
+      {hasMascot && <img src="/thanksgiving/mascot.webp" alt="" draggable="false" style={{ position:'absolute', left:'1%', bottom:'-4%', width:`${mascotW}%`, height:'auto', filter:'drop-shadow(0 4px 6px rgba(90,52,20,.35))' }} />}
+      {has3 ? <img src="/thanksgiving/mascot3.webp" alt="" draggable="false" style={{ position:'absolute', right:'1%', bottom:'-4%', width:`${mascotW + 2}%`, height:'auto', filter:'drop-shadow(0 4px 6px rgba(90,52,20,.35))' }} />
+        : <div style={{ position:'absolute', right:'3%', bottom:'4%' }}><RoastTurkey size={100}/></div>}
     </div>
   );
+}
+// 登入頁頂部橫幅
+export function ThanksgivingScene() {
+  return <ThanksBanner bg="hero-bg2" ratio="2172 / 724" sub={false} script={false} titleSize={6.4} titleTop="36%" mascotW={25} margin="0 -6px 10px" shadow="0 8px 22px rgba(122,74,33,.35)" />;
 }
 export function ThanksgivingGreeting() {
   return (
@@ -233,19 +246,5 @@ export function ThanksgivingGreeting() {
 
 // 首頁大橫幅：秋日橫幅＋吉祥物＋祝福語＋烤火雞
 export function ThanksgivingHero() {
-  const hasMascot = useMascotAvailable('mascot');
-  const has3 = useMascotAvailable('mascot3');
-  return (
-    <div style={{ margin:'12px 16px 0', borderRadius:18, height:150, position:'relative', overflow:'hidden',
-      background:'linear-gradient(135deg,#F7B05A 0%,#E9812A 55%,#C45E1A 100%)', boxShadow:'0 8px 20px rgba(122,74,33,.35)', border:'1.5px solid #F2D08C' }}>
-      <div aria-hidden="true" style={{ position:'absolute', right:-10, top:-14, opacity:.85 }}><Leaf size={64} color="#F9D27D" rotate={-15}/></div>
-      <div aria-hidden="true" style={{ position:'absolute', left:8, bottom:-4 }}><MascotImg size={92} /></div>
-      {has3 ? <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:-4 }}><MascotImg name="mascot3" size={92} /></div>
-        : <div aria-hidden="true" style={{ position:'absolute', right:6, bottom:4 }}><RoastTurkey size={112}/></div>}
-      <div style={{ position:'absolute', left: hasMascot ? 108 : 20, top:20, right: has3 ? 104 : 116 }}>
-        <div style={{ fontSize:19, fontWeight:900, color:'#FFF4E2', textShadow:'0 2px 0 rgba(90,52,20,.5)', lineHeight:1.25 }}>{tt('感恩節快樂！', 'Happy Thanksgiving!', '感謝祭おめでとう！')}</div>
-        <div style={{ fontSize:12, color:'#FFEBC9', marginTop:6, lineHeight:1.5, textShadow:'0 1px 0 rgba(90,52,20,.5)' }}>{tt('感謝有你，一起放手爬', 'Thankful for you — keep climbing', 'ありがとう、これからも一緒に')}</div>
-      </div>
-    </div>
-  );
+  return <ThanksBanner bg="hero-bg" ratio="2 / 1" mascotW={23} margin="12px 16px 0" />;
 }
