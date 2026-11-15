@@ -1,7 +1,7 @@
 import { isHalloween } from '../../utils/halloween';
-import { isThanksgiving, isThanksInboxSeason } from '../../utils/thanksgiving';
-import { ThanksgivingHero, ThankCard, MascotImg } from '../../components/ThanksgivingDeco';
-import { ThanksCardInbox, SendThanksCard } from '../../components/ThanksCards';
+import { getActiveSeason, getInboxSeason } from '../../seasons';
+import { SeasonHero, SeasonCard, SeasonImg } from '../../seasons/SeasonDeco';
+import { SeasonCardInbox, SendSeasonCard } from '../../components/SeasonCards';
 import { HalloweenHero, FlyingWitch, HW, Sprite, Bat } from '../../components/HalloweenDeco';
 
 // 萬聖節功能格：橘／深紫／羊皮紙三種底，角落點綴小南瓜、幽靈、蝙蝠（只在萬聖節期間使用）
@@ -36,16 +36,10 @@ import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import { loadQuickEntry } from '../../utils/quickEntry';
 import { tc } from '../../utils/courseNameI18n';
 
-// 感恩節：功能格橘紅漸層（入場 QR＝深紅、快速入場＝橘；其餘為奶油色，不用外部素材）
-const tgTile = (f, fi) => {
-  const base = { position:'relative', borderRadius:18, minHeight:62, padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' };
-  if (f.highlight && fi === 0) return { ...base, background:'linear-gradient(160deg,#B92727 0%,#8F1C1C 100%)', border:'none', boxShadow:'0 4px 10px rgba(142,27,20,.4), inset 0 1px 0 rgba(255,255,255,.25)' };
-  if (f.highlight) return { ...base, background:'linear-gradient(160deg,#FF850D 0%,#E06A00 100%)', border:'none', boxShadow:'0 4px 10px rgba(212,99,15,.4), inset 0 1px 0 rgba(255,255,255,.3)' };
-  return { ...base, background:'linear-gradient(180deg,#FFF9ED 0%,#FDEFD0 100%)', border:'1px solid #F1D8A8', boxShadow:'0 2px 8px rgba(160,100,40,.15)' };
-};
-
 export default function MemberHomePage() {
   const { member, logout } = useMember();
+  const season = getActiveSeason();        // 目前套用外觀的季節（沒有＝null，畫面維持平常樣子）
+  const inboxSeason = getInboxSeason();    // 目前顯示感謝卡片收件匣的季節
   const navigate = useNavigate();
   const [familyKids, setFamilyKids] = useState([]);
   const [showQuickPicker, setShowQuickPicker] = useState(false); // 有家庭成員時，快速入場先選入場人員
@@ -248,18 +242,15 @@ export default function MemberHomePage() {
       {/* 萬聖節祝福橫幅（2026-10-27～11-08 自動顯示，期間後自動消失） */}
       {isHalloween() && <HalloweenHero />}
       {isHalloween() && <FlyingWitch />}
-      {isThanksgiving() && <ThanksgivingHero />}
-      {isThanksgiving() && (
+      {season && <SeasonHero season={season} />}
+      {season && (
         <div style={{ position:'relative', margin:'18px 16px 0' }}>
-          <ThankCard title={tt('感謝您一路相伴', 'Thank you for climbing with us', 'いつもありがとうございます')}
-            lines={[tt('這一年有你的支持，紅石才能一起長大。', 'Your support helped RedRock grow this year.', '今年もご利用いただき、ありがとうございました。'),
-                    tt('感恩節期間，祝你天天爬得開心！', 'Wishing you happy climbing this Thanksgiving week!', '感謝祭の週も、楽しいクライミングを！')]}
-            style={{ paddingRight:84 }} />
-          <div aria-hidden="true" style={{ position:'absolute', right:6, top:26 }}><MascotImg name="mascot5" size={72} /></div>
-          <SendThanksCard />
+          <SeasonCard season={season} title={season.text.cardTitle()} lines={season.text.cardLines()} style={{ paddingRight:84 }} />
+          <div aria-hidden="true" style={{ position:'absolute', ...season.card.mailerPos }}><SeasonImg season={season} name={season.assets.mailer} size={season.card.mailerSize} /></div>
+          <SendSeasonCard />
         </div>
       )}
-      {isThanksInboxSeason() && <ThanksCardInbox />}
+      {inboxSeason && <SeasonCardInbox />}
 
       {/* 今日已入場橫幅（全天顯示；資料源自後端 my-today，隔日消失、取消後消失）*/}
       {todayCheckin?.checkedIn && (
@@ -450,7 +441,7 @@ export default function MemberHomePage() {
           </div>
         </div>
       ) : (
-        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background: isHalloween() ? 'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%), url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : isThanksgiving() ? 'url(/thanksgiving/welcome-bg.webp) center / cover no-repeat, linear-gradient(135deg,#8B1A1A,#C0392B)' : 'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
+        <div style={{ margin:'14px 16px 0', borderRadius:12, overflow:'hidden', height:100, background: isHalloween() ? 'linear-gradient(90deg,rgba(30,15,56,.92) 0%,rgba(30,15,56,.7) 50%,rgba(30,15,56,0) 85%), url(/halloween/banner.webp) right bottom / auto 100% no-repeat, linear-gradient(135deg,#2B1646,#5A2A82)' : season ? `url(${season.base}/${season.assets.welcomeBg}.webp) center / cover no-repeat, linear-gradient(135deg,#8B1A1A,#C0392B)` : 'linear-gradient(135deg,#8B1A1A,#C0392B)', display:'flex', alignItems:'center', padding:'0 20px' }}>
           <div style={{ color:'#fff' }}>
             <div style={{ fontSize:10, opacity:.75, letterSpacing:.5 }}>{t('歡迎回來')}</div>
             <div style={{ fontSize:18, fontWeight:600, marginTop:3 }}>{t('開始今天的攀岩！')}</div>
@@ -473,9 +464,9 @@ export default function MemberHomePage() {
           { img:'/climbing-team.webp', label:'加入攀岩隊', path:'/member/team' },
           { img:'/harness.webp', label:'器材租借', path:'/member/rental' },
           { img:'https://comp.redrocktaiwan.com/apple-touch-icon.png', label:'成績快報', path:'https://comp.redrocktaiwan.com', external:true },
-        ].map((f, fi) => { const hwT = isHalloween() ? HW_TILES[fi % HW_TILES.length] : null; const tgOn = isThanksgiving() && !hwT; return (
+        ].map((f, fi) => { const hwT = isHalloween() ? HW_TILES[fi % HW_TILES.length] : null; const tgOn = !!season && !hwT; return (
           <div key={f.label} onClick={() => f.action ? f.action() : f.external ? window.open(f.path, '_blank', 'noopener') : navigate(f.path)}
-            style={hwT ? { position:'relative', background:hwT.bg, borderRadius:12, border:hwT.bd, padding:'12px 8px', textAlign:'center', cursor:'pointer', boxShadow:'0 3px 10px rgba(30,15,56,.35)' } : tgOn ? tgTile(f, fi) : f.highlight
+            style={hwT ? { position:'relative', background:hwT.bg, borderRadius:12, border:hwT.bd, padding:'12px 8px', textAlign:'center', cursor:'pointer', boxShadow:'0 3px 10px rgba(30,15,56,.35)' } : tgOn ? season.tiles.style(f, fi) : f.highlight
               ? { position:'relative', background:'linear-gradient(135deg,#9C3C3C,#BE5858)', borderRadius:12, border:'none', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s', boxShadow:'0 3px 10px rgba(156,60,60,.35)' }
               : { position:'relative', background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' }}
             onMouseEnter={e => { if (!f.highlight) e.currentTarget.style.borderColor='#8B1A1A'; }}
@@ -493,8 +484,8 @@ export default function MemberHomePage() {
                 ? <i className={f.iconClass} style={{ fontSize:28.8, color:'#fff' }} aria-hidden="true" />
                 : <span style={{ fontSize:26.4, lineHeight:1 }}>{f.icon}</span>}
             </div>
-            <div style={{ fontSize:11, color: hwT ? hwT.fg : (f.highlight ? '#fff' : (tgOn ? '#7A4A21' : '#6b6b6b')), fontWeight: (hwT || f.highlight) ? 700 : 500, textShadow: (tgOn && f.highlight) ? '0 1px 2px rgba(80,20,0,.4)' : undefined }}>{t(f.label)}</div>
-            {tgOn && (fi === 0 || fi === 3) && <img aria-hidden="true" src={fi === 0 ? '/thanksgiving/stickers/maple.webp' : '/thanksgiving/stickers/maple2.webp'} alt="" draggable="false" style={{ position:'absolute', pointerEvents:'none', width:26, height:26, objectFit:'contain', ...(fi === 0 ? { left:-8, top:-10 } : { right:-9, bottom:-8 }) }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
+            <div style={{ fontSize:11, color: hwT ? hwT.fg : (f.highlight ? '#fff' : (tgOn ? season.tiles.labelColor : '#6b6b6b')), fontWeight: (hwT || f.highlight) ? 700 : 500, textShadow: (tgOn && f.highlight) ? season.tiles.labelShadow : undefined }}>{t(f.label)}</div>
+            {tgOn && season.tiles.deco.filter(d => d.index === fi).map(d => <img key={d.sticker} aria-hidden="true" src={`${season.base}/stickers/${d.sticker}.webp`} alt="" draggable="false" style={{ position:'absolute', pointerEvents:'none', width:season.tiles.decoSize, height:season.tiles.decoSize, objectFit:'contain', ...d.pos }} onError={e => { e.currentTarget.style.display = 'none'; }} />)}
             {hwT && <div aria-hidden="true" style={{ position:'absolute', left:2, top:2, pointerEvents:'none' }}>{hwT.deco[0] === 'bat' ? <Sprite name="bat2" size={24} /> : <Sprite name={hwT.deco[0]} size={20} />}</div>}
           </div>
         ); })}
