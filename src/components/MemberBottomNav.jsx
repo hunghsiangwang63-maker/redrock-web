@@ -37,7 +37,7 @@ export default function MemberBottomNav({ navigate, dark = false }) {
       {items.map(n => {
         const active = location.pathname === n.path;
         return (
-          <div key={n.path} onClick={() => navigate(n.path)}
+          <div key={n.path} onClick={() => navigate(n.path)} className={'rr-bottom-nav-item' + (active ? ' is-active' : '')}
             style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:3, cursor:'pointer', color: active ? (dark ? '#FFB45C' : '#8B1A1A') : (dark ? '#B9A6D6' : '#999') }}>
             <div style={{ position:'relative', fontSize:20 }}>
               {n.icon}

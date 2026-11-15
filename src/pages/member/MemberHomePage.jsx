@@ -38,10 +38,10 @@ import { tc } from '../../utils/courseNameI18n';
 
 // 感恩節：功能格橘紅漸層（入場 QR＝深紅、快速入場＝橘；其餘為奶油色，不用外部素材）
 const tgTile = (f, fi) => {
-  const base = { position:'relative', borderRadius:12, padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' };
-  if (f.highlight && fi === 0) return { ...base, background:'linear-gradient(160deg,#B3261E 0%,#8E1B14 100%)', border:'none', boxShadow:'0 4px 10px rgba(142,27,20,.4), inset 0 1px 0 rgba(255,255,255,.25)' };
-  if (f.highlight) return { ...base, background:'linear-gradient(160deg,#F28B2E 0%,#D4630F 100%)', border:'none', boxShadow:'0 4px 10px rgba(212,99,15,.4), inset 0 1px 0 rgba(255,255,255,.3)' };
-  return { ...base, background:'linear-gradient(180deg,#FFFAEE 0%,#FCEBCB 100%)', border:'1px solid #F1D8A8', boxShadow:'0 2px 8px rgba(160,100,40,.15)' };
+  const base = { position:'relative', borderRadius:18, minHeight:62, padding:'12px 8px', textAlign:'center', cursor:'pointer', transition:'all .15s' };
+  if (f.highlight && fi === 0) return { ...base, background:'linear-gradient(160deg,#B92727 0%,#8F1C1C 100%)', border:'none', boxShadow:'0 4px 10px rgba(142,27,20,.4), inset 0 1px 0 rgba(255,255,255,.25)' };
+  if (f.highlight) return { ...base, background:'linear-gradient(160deg,#FF850D 0%,#E06A00 100%)', border:'none', boxShadow:'0 4px 10px rgba(212,99,15,.4), inset 0 1px 0 rgba(255,255,255,.3)' };
+  return { ...base, background:'linear-gradient(180deg,#FFF9ED 0%,#FDEFD0 100%)', border:'1px solid #F1D8A8', boxShadow:'0 2px 8px rgba(160,100,40,.15)' };
 };
 
 export default function MemberHomePage() {
