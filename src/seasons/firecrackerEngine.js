@@ -143,19 +143,19 @@ export function playFirecrackers({
       });
     }
     // 金紙屑
-    const gold = last ? 44 : 14;
+    const gold = last ? 90 : 34;
     for (let k = 0; k < gold; k++) {
       const a = rand(0, Math.PI * 2);
       const sp = rand(130, 400);
       particles.push({
-        kind: 'paper', born: t, life: rand(1200, 1900),
+        kind: 'paper', born: t, life: rand(1400, 2200),
         x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - rand(40, 150),
-        w: rand(5, 10), h: rand(3, 5), rot: rand(0, 6.28), spin: rand(-9, 9),
+        w: rand(6, 12), h: rand(3.5, 6), rot: rand(0, 6.28), spin: rand(-9, 9),
         flip: rand(0, 6.28), flipSp: rand(5, 13), color: pick(GOLD),
       });
     }
     // 紅色碎片（少量）
-    for (let k = 0; k < (last ? 10 : 4); k++) {
+    for (let k = 0; k < (last ? 14 : 6); k++) {
       const a = rand(0, Math.PI * 2);
       const sp = rand(100, 320);
       particles.push({
