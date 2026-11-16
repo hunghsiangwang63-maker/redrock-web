@@ -116,8 +116,8 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
                       👕 {s.uniformCount ? `已領${s.uniformCount > 1 ? ` ${s.uniformCount} 次` : ''}` : '未領'}
                     </button>
                   </div>
-                  <button onClick={() => openHistory(s)} style={{ background:'none', border:'none', color:'#C0392B', fontSize:12, cursor:'pointer' }}>
-                    目前：{s.currentLevel ? `${s.currentLevel} 級已通過` : '尚未通過任何級'} ›
+                  <button onClick={() => openHistory(s)} style={{ background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', padding:'4px 10px' }}>
+                    目前：{s.currentLevel ? `${s.currentLevel} 級已通過` : '尚未通過任何級'}　📜 詳細歷史 ›
                   </button>
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:8 }}>
@@ -154,23 +154,96 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
 
 function HistoryModal({ h, isAdmin, onClose, onVoided }) {
   const [err, setErr] = useState('');
+  const [showAll, setShowAll] = useState(false);
   const voidIt = async (r) => {
     const reason = window.prompt('作廢原因（誤登請填寫）：');
     if (reason === null) return;
     try { await voidLevelRecord(r.id, reason); onVoided(); } catch (e) { setErr(errMsg(e)); }
   };
+  const defs = h.defs || [];
+  const defOf = (lv) => defs.find(d => d.level === lv);
+  const all = [...(h.records || [])].sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.level - a.level));
+  const valid = all.filter(r => !r.voided);
+  const passedBy = {};                       // 級數 -> 該級最早通過的紀錄
+  valid.filter(r => r.passed).forEach(r => { if (!passedBy[r.level] || (r.date || '') < (passedBy[r.level].date || '')) passedBy[r.level] = r; });
+  const bestBy = {};                         // 級數 -> 最高進度（含未通過）
+  valid.forEach(r => { if (!bestBy[r.level] || (r.progress || 0) > (bestBy[r.level].progress || 0)) bestBy[r.level] = r; });
+  const passedList = Object.values(passedBy).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const cur = h.currentLevel;
+  const nextLevel = cur ? Math.max(0, cur - 1) : 16;
+  const first = passedList[0], last = [...valid].sort((a, b) => (b.date || '').localeCompare(a.date || ''))[0];
+  const stat = (label, val) => (
+    <div style={{ flex:'1 1 110px', background:'#FBF5F5', border:'0.5px solid #F0E0E0', borderRadius:10, padding:'8px 12px' }}>
+      <div style={{ fontSize:11, color:'#9a8a8a' }}>{label}</div>
+      <div style={{ fontSize:15, fontWeight:700, color:'#3a2a2a', marginTop:2 }}>{val}</div>
+    </div>
+  );
+  // 各級列：有紀錄的級數＋下一個目標；展開「顯示全部 16 級」可看全部
+  const levelRows = Array.from({ length: 16 }, (_, i) => 16 - i)
+    .filter(lv => showAll || bestBy[lv] || lv === nextLevel);
   return (
-    <Modal title={`${h.name} 的考核紀錄`} onClose={onClose} width={560}>
-      <div style={{ fontSize:13, marginBottom:10 }}>目前等級：<b>{h.currentLevel ? `${h.currentLevel} 級` : '尚未通過任何級'}</b></div>
-      {err && <div style={{ color:'#C0392B', fontSize:12 }}>{err}</div>}
-      {h.records.length === 0 && <div style={{ color:'#888', fontSize:13 }}>尚無紀錄</div>}
-      {h.records.map(r => (
+    <Modal title={`${h.name} 的等級考核歷史`} onClose={onClose} width={680}>
+      {err && <div style={{ color:'#C0392B', fontSize:12, marginBottom:8 }}>{err}</div>}
+
+      {/* 摘要 */}
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+        {stat('目前等級', cur ? `已通過 ${cur} 級` : '尚未通過任何級')}
+        {stat('通過關數', `${passedList.length} / 16`)}
+        {stat('首次通過', first ? `${first.date}（${first.level} 級）` : '—')}
+        {stat('最近考核', last ? `${last.date}（${last.level} 級 ${last.progress}%）` : '—')}
+      </div>
+
+      {/* 16 格階梯：由 16 級（最入門）到 1 級（最高） */}
+      <div style={{ display:'flex', gap:3, marginBottom:4 }}>
+        {Array.from({ length: 16 }, (_, i) => 16 - i).map(lv => {
+          const r = passedBy[lv];
+          return <div key={lv} title={r ? `${lv} 級　${r.date} 通過` : `${lv} 級　尚未通過`} style={{ flex:1, height:12, borderRadius:3, background: r ? 'linear-gradient(180deg,#C0392B,#8B1A1A)' : lv === nextLevel ? '#F6D9A8' : '#EFE6E6', border: !r && lv === nextLevel ? '1px dashed #E8A317' : 'none', boxSizing:'border-box' }} />;
+        })}
+      </div>
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#aaa', marginBottom:14 }}><span>16 級（入門）</span><span>1 級（最高）</span></div>
+
+      {/* 各級進度 */}
+      <div style={{ fontSize:12, fontWeight:700, color:'#6b6b6b', marginBottom:6 }}>各級進度</div>
+      <div style={{ border:'0.5px solid #F0E4E4', borderRadius:10, overflow:'hidden', marginBottom:6 }}>
+        {levelRows.map(lv => {
+          const p = passedBy[lv], b = bestBy[lv], d = defOf(lv);
+          return (
+            <div key={lv} style={{ display:'flex', gap:10, alignItems:'center', padding:'7px 12px', borderBottom:'0.5px solid #F5EFEF', fontSize:13, background: p ? '#F6FBF7' : '#fff' }}>
+              <span style={{ width:44, fontWeight:700, color: p ? '#2D7D46' : '#888' }}>{lv} 級</span>
+              <span style={{ flex:1, minWidth:0, color:'#555', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }} title={d?.title || ''}>{d?.title || ''}</span>
+              <span style={{ width:170, textAlign:'right', fontSize:12, color: p ? '#2D7D46' : b ? '#D9822B' : '#bbb', fontWeight:600 }}>
+                {p ? `✅ ${p.date} 通過` : b ? `進行中 ${b.progress}%（${b.date}）` : lv === nextLevel ? '🎯 下一個目標' : '尚未開始'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+      <button onClick={() => setShowAll(v => !v)} style={{ background:'none', border:'none', color:'#C0392B', fontSize:12, cursor:'pointer', padding:0, marginBottom:14 }}>
+        {showAll ? '只顯示有紀錄的級數 ▲' : '顯示全部 16 級 ▼'}
+      </button>
+
+      {/* 完整考核紀錄（含作廢） */}
+      <div style={{ fontSize:12, fontWeight:700, color:'#6b6b6b', marginBottom:6 }}>完整考核紀錄（共 {all.length} 筆，新到舊）</div>
+      {all.length === 0 && <div style={{ color:'#888', fontSize:13 }}>尚無紀錄</div>}
+      {all.map(r => (
         <div key={r.id} style={{ borderTop:'0.5px solid #F0E4E4', padding:'8px 0', fontSize:13, opacity: r.voided ? .45 : 1 }}>
-          <div>{r.date}｜{r.level} 級｜{r.progress}%{r.passed ? ' ✅通過' : ''}｜教練：{r.coachName}{r.voided ? '（已作廢）' : ''}</div>
-          {(r.description || r.note) && <div style={{ color:'#888', fontSize:12 }}>{[r.description, r.note].filter(Boolean).join('｜')}</div>}
-          {isAdmin && !r.voided && <button onClick={() => voidIt(r)} style={{ background:'none', border:'none', color:'#999', fontSize:11, cursor:'pointer', padding:0 }}>作廢</button>}
+          <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+            <span style={{ color:'#9a8a8a', fontVariantNumeric:'tabular-nums' }}>{r.date}</span>
+            <span style={{ fontWeight:700, padding:'1px 9px', borderRadius:10, background: r.passed ? '#E6F4EB' : '#FAEEDA', color: r.passed ? '#2D7D46' : '#854F0B' }}>{r.level} 級</span>
+            <span style={{ fontWeight:600, color: r.passed ? '#2D7D46' : '#D9822B' }}>{r.passed ? '✅ 通過（100%）' : `${r.progress}%`}</span>
+            <span style={{ color:'#888', fontSize:12 }}>教練：{r.coachName || '—'}</span>
+            {r.courseName && <span style={{ color:'#aaa', fontSize:11 }}>{r.courseName}</span>}
+            {r.source === 'xlsx-import' && <span style={{ color:'#bbb', fontSize:11 }}>Excel 匯入</span>}
+            {r.voided && <span style={{ color:'#A32D2D', fontSize:11, fontWeight:700 }}>已作廢{r.voidedReason ? `：${r.voidedReason}` : ''}</span>}
+            {isAdmin && !r.voided && <button onClick={() => voidIt(r)} style={{ marginLeft:'auto', background:'none', border:'none', color:'#999', fontSize:11, cursor:'pointer', padding:0 }}>作廢</button>}
+          </div>
+          {(r.description || (r.note && r.source !== 'xlsx-import')) && <div style={{ color:'#777', fontSize:12, marginTop:3, lineHeight:1.5 }}>{[r.description, r.source === 'xlsx-import' ? '' : r.note].filter(Boolean).join('｜')}</div>}
         </div>
       ))}
+
+      {/* 制服領取 */}
+      <div style={{ fontSize:12, fontWeight:700, color:'#6b6b6b', margin:'14px 0 6px' }}>👕 制服領取</div>
+      <UniformPanel memberId={h.memberId} isAdmin={isAdmin} />
     </Modal>
   );
 }
