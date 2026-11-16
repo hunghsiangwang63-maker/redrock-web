@@ -7,6 +7,11 @@ const tau = Math.PI * 2;
 const VW = 520, VH = 780;               // 原作的虛擬畫布（座標以此為準）
 const SPRITE = 174;                     // 單顆筒身顯示大小（虛擬單位）
 const COUNT = 9;
+// 每顆筒身的軸向（弧度，已正規化到 ±90° 內讓字不會倒過來）與筒身中心偏移（虛擬單位，相對圖中心）；由各圖像素分佈量得。
+const AXIS = [-0.71, 0.639, 0.652, -0.646, -0.731, -0.72, -0.698, -0.765, 0.695];
+const CEN = [[2.9, 5.0], [-3.6, 4.6], [-0.4, 6.0], [2.7, 6.5], [2.6, 6.0], [3.6, 6.5], [3.5, 6.3], [3.0, 6.2], [-3.0, 5.0]];
+const BLESS = '恭賀新禧';
+const FONT = '700 14px "PingFang TC","Noto Serif TC","Noto Sans TC","Songti TC","Microsoft JhengHei",serif';
 
 function mkRng(seed) {
   let s = seed | 0;
@@ -66,10 +71,25 @@ export function playFirecrackers({
   }
   resize();
 
+  // 在筒身上沿軸向印「恭賀新禧」小金字（座標＝筒圖中心為原點的圖面空間）
+  function label(i) {
+    ctx.save();
+    ctx.translate(CEN[i][0], CEN[i][1]); ctx.rotate(AXIS[i]);
+    ctx.font = FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round'; ctx.lineWidth = 2.2; ctx.strokeStyle = 'rgba(110,12,12,.85)';
+    ctx.shadowColor = 'rgba(70,0,0,.55)'; ctx.shadowBlur = 2;
+    ctx.fillStyle = '#FFE08A';
+    for (let k = 0; k < BLESS.length; k++) {
+      const x = (k - (BLESS.length - 1) / 2) * 17;
+      ctx.strokeText(BLESS[k], x, 0); ctx.fillText(BLESS[k], x, 0);
+    }
+    ctx.restore();
+  }
   function drawSource(p) {
     const im = images[p.i]; if (!im || !im.naturalWidth) return;
     ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle); ctx.scale(p.scale, p.scale);
     ctx.drawImage(im, -SPRITE / 2, -SPRITE / 2, SPRITE, SPRITE);
+    label(p.i);
     ctx.restore();
   }
   // 吊繩：隨鞭炮消失而縮短（不留一條空繩）
@@ -140,6 +160,7 @@ export function playFirecrackers({
       for (let j = 0; j <= 5; j++) { const a = f.a0 + ((f.a1 - f.a0) * j) / 5; ctx.lineTo(Math.cos(a) * f.r, Math.sin(a) * f.r); }
       ctx.closePath(); ctx.clip();
       ctx.drawImage(im, -SPRITE / 2, -SPRITE / 2, SPRITE, SPRITE);
+      label(f.p.i);
       ctx.restore(); next.push(f);
     }
     fragments = next;
