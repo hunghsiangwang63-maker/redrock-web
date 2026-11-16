@@ -97,7 +97,7 @@ export default function MemberPricingPage() {
               <span style={price}>{money(p.price)}</span>
             </div>
           ))}
-          <div style={{ ...sub, marginTop: 8 }}>{tt('隊員另享折扣；詳情請洽櫃檯。', 'Team members receive an additional discount. Ask the front desk for details.', 'チームメンバーには別途割引があります。詳細は受付へ。')}</div>
+          <div style={{ ...sub, marginTop: 8 }}>{tt(`隊員另享 ${Math.round(d.teamDiscount.rate * 10)} 折優惠`, `Team members get an additional ${Math.round((1 - d.teamDiscount.rate) * 100)}% off`, `チームメンバーはさらに${Math.round(d.teamDiscount.rate * 10)}掛けでご利用いただけます`)}</div>
         </div>
 
         <div style={card}>
