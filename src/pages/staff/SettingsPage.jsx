@@ -1569,7 +1569,7 @@ export default function SettingsPage() {
           </div>
           <div style={{ padding:16 }}>
             <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
-              全票／學生票在<strong>無其他折扣</strong>時，入場費定額折抵。與隊員 9 折、舊折扣卡 8 折<strong>互斥</strong>（隊員或折扣卡任一成立即不套用）；兒童票不適用。會員入場 QR 自選是否使用，櫃檯掃碼時提示請會員出示特約廠商證件。
+              成人單次票（不含學生票）在<strong>無其他折扣</strong>時，入場費定額折抵。與隊員 9 折、舊折扣卡 8 折<strong>互斥</strong>（隊員或折扣卡任一成立即不套用）；兒童票不適用。會員入場 QR 自選是否使用，櫃檯掃碼時提示請會員出示特約廠商證件。
             </div>
             <label onClick={() => { setPartnerVendor(p => ({ ...p, enabled: !p.enabled })); setPartnerVendorDirty(true); }}
               style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', borderRadius:10, border:'0.5px solid #E8D5D5', marginBottom:16, cursor:'pointer' }}>
