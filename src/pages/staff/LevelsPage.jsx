@@ -114,8 +114,8 @@ function RecordTab({ programs, gymId, isAdmin }) {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6 }}>
                   <div style={{ fontWeight:600, display:'flex', alignItems:'center', gap:8 }}>
                     {s.name}
-                    <button onClick={() => setUniformFor(s)} title="制服領取紀錄" style={{ border:'none', cursor:'pointer', fontSize:11, fontWeight:700, padding:'2px 9px', borderRadius:10, background: s.uniformCount ? '#E6F4EB' : '#FCEBEB', color: s.uniformCount ? '#2D7D46' : '#A32D2D' }}>
-                      👕 {s.uniformCount ? `已領${s.uniformCount > 1 ? ` ${s.uniformCount} 次` : ''}` : '未領'}
+                    <button onClick={() => setUniformFor(s)} title="制服領取紀錄" style={{ border:'none', cursor:'pointer', fontSize:11, fontWeight:700, padding:'2px 9px', borderRadius:10, background: s.uniformOver2y ? '#FAEEDA' : s.uniformCount ? '#E6F4EB' : '#FCEBEB', color: s.uniformOver2y ? '#854F0B' : s.uniformCount ? '#2D7D46' : '#A32D2D' }}>
+                      👕 {s.uniformOver2y ? `已領超過2年（${(s.uniformLastDate || '').replace(/-/g, '/')}）` : s.uniformCount ? `已領${s.uniformCount > 1 ? ` ${s.uniformCount} 次` : ''}` : '未領'}
                     </button>
                   </div>
                   <button onClick={() => openHistory(s)} style={{ background:'#FBF5F5', border:'0.5px solid #E8D5D5', borderRadius:8, color:'#8B1A1A', fontSize:12, fontWeight:600, cursor:'pointer', padding:'4px 10px' }}>

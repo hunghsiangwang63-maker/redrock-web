@@ -1472,6 +1472,12 @@ export default function CheckinPage() {
                                   👕 {s.uniformFirstClass ? '首堂・請發制服' : '尚未領制服'}
                                 </button>
                               )}
+                              {s.uniformOver2y && !s.uniformDue && !s.isCrossMakeup && s.memberId && (
+                                <button onClick={(ev) => { ev.stopPropagation(); setUniformFor({ memberId: s.memberId, name: s.memberName }); }} title="制服已領滿兩年，可再次發放；點一下記錄"
+                                  style={{ fontSize:9, fontWeight:700, color:'#fff', background:'#B7791F', border:'none', cursor:'pointer', padding:'2px 8px', borderRadius:8, marginLeft:4 }}>
+                                  👕 制服已領滿2年，可再發
+                                </button>
+                              )}
                               {s.adjustPending && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>{s.adjustPending === 'refund' ? '⏳ 退費審核中' : '⏳ 暫停審核中'}</span>}
                             </div>
                             {s.note && <div style={{ fontSize:11, color:'#7A5A00', marginTop:2 }}>備註：{s.note}</div>}
@@ -1548,6 +1554,12 @@ export default function CheckinPage() {
                           <button onClick={(ev) => { ev.stopPropagation(); setUniformFor({ memberId: s.memberId, name: s.memberName }); }} title="點一下記錄制服領取"
                             style={{ fontSize:9, fontWeight:700, color:'#fff', background: s.uniformFirstClass ? '#C0392B' : '#D9822B', border:'none', cursor:'pointer', padding:'2px 8px', borderRadius:8, marginLeft:4 }}>
                             👕 {s.uniformFirstClass ? '首堂・請發制服' : '尚未領制服'}
+                          </button>
+                        )}
+                        {s.uniformOver2y && !s.uniformDue && !s.isCrossMakeup && s.memberId && (
+                          <button onClick={(ev) => { ev.stopPropagation(); setUniformFor({ memberId: s.memberId, name: s.memberName }); }} title="制服已領滿兩年，可再次發放；點一下記錄"
+                            style={{ fontSize:9, fontWeight:700, color:'#fff', background:'#B7791F', border:'none', cursor:'pointer', padding:'2px 8px', borderRadius:8, marginLeft:4 }}>
+                            👕 制服已領滿2年，可再發
                           </button>
                         )}
                       </span>

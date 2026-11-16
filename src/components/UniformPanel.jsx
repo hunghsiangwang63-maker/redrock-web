@@ -45,8 +45,12 @@ export default function UniformPanel({ memberId, isAdmin, onChange }) {
   };
 
   if (issues === null) return <div style={{ fontSize: 12, color: '#999' }}>載入中…</div>;
+  // 最近一次領取已滿兩年（滿 2 年可再次發放）：日期以當日／月份最後一天算，日期不詳者不判斷
+  const lastIssued = issues.map(u => (!u.issuedAt ? null : u.issuedAt.length === 7 ? dayjs(u.issuedAt + '-01').endOf('month').format('YYYY-MM-DD') : u.issuedAt)).filter(Boolean).sort().pop();
+  const over2y = !!lastIssued && dayjs(lastIssued).add(2, 'year').format('YYYY-MM-DD') <= dayjs().format('YYYY-MM-DD');
   return (
     <div>
+      {over2y && <div style={{ background: '#FAEEDA', color: '#854F0B', fontSize: 12, fontWeight: 600, borderRadius: 8, padding: '6px 10px', marginBottom: 8 }}>⏰ 最近一次領取是 {lastIssued.replace(/-/g, '/')}，已超過兩年，可再次發放。</div>}
       {err && <div style={{ color: '#C0392B', fontSize: 12, marginBottom: 6 }}>{err}</div>}
       {issues.length === 0 && !adding && <div style={{ fontSize: 13, color: '#999' }}>尚無制服領取紀錄</div>}
       {issues.map(u => (
