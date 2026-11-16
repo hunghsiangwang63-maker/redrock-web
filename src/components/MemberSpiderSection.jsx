@@ -17,7 +17,7 @@ export default function MemberSpiderSection({ memberId, isAdmin }) {
 
   if (lv === null || cnt === null) return null;
   const hasLevels = (lv.records || []).some(r => !r.voided);
-  const hasAny = hasLevels || cnt > 0;
+  const hasAny = hasLevels || cnt > 0 || !!lv.enrolled;   // 目前是小蜘蛛人週課的正式學員：沒有任何紀錄也顯示等級／制服狀態
   if (!hasAny && !open) {
     return (
       <div style={{ padding: '8px 0', borderBottom: '1px solid #F5EFEF', fontSize: 12 }}>
@@ -33,7 +33,10 @@ export default function MemberSpiderSection({ memberId, isAdmin }) {
         <b style={{ color: lv.currentLevel ? '#8B1A1A' : '#999' }}>{lv.currentLevel ? `已通過 ${lv.currentLevel} 級` : '尚未通過任何級'}</b>
         {hasLevels && <span style={{ color: '#aaa', fontSize: 11, marginLeft: 8 }}>（共 {(lv.records || []).filter(r => r.passed && !r.voided).length} 級通過紀錄；詳見「等級考核」）</span>}
       </div>
-      <div style={{ fontSize: 12, color: '#6b6b6b', fontWeight: 600, marginBottom: 2 }}>👕 制服領取</div>
+      <div style={{ fontSize: 12, color: '#6b6b6b', fontWeight: 600, marginBottom: 2 }}>
+        👕 制服領取
+        {cnt === 0 && lv.enrolled && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, padding: '1px 8px', borderRadius: 10, background: '#FCEBEB', color: '#A32D2D' }}>尚未領取</span>}
+      </div>
       <UniformPanel memberId={memberId} isAdmin={isAdmin} onChange={() => setCnt(c => (c || 0) + 1)} />
     </div>
   );

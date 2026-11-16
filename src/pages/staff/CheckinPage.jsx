@@ -13,6 +13,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContai
 import InvoiceIssuer, { RealPrintPanel } from '../../components/InvoiceIssuer';
 import { InvoiceButtonAuto } from '../../components/InvoiceButton';
 import Modal from '../../components/Modal';
+import UniformPanel from '../../components/UniformPanel';
 import { getRegistrationInvoices, createRegistrationInvoice, voidCompetitionInvoice } from '../../api/competitions';
 import { getCourseInvoices, createCourseInvoice, voidCourseInvoice } from '../../api/members';
 
@@ -197,6 +198,7 @@ export default function CheckinPage() {
   const [checkinRenewalTarget, setCheckinRenewalTarget] = useState(null); // 現場續約（checkIns.renewalAmount>0）發票 modal 目標
   const [checkinRenewalRefresh, setCheckinRenewalRefresh] = useState(0);
   const [courseInvoiceTarget, setCourseInvoiceTarget] = useState(null); // 今日課程學員「最後一堂」開立課程發票 modal 目標
+  const [uniformFor, setUniformFor] = useState(null); // 小蜘蛛人制服領取視窗 {memberId, name}
   const [courseInvRefresh, setCourseInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
   // 合併列印發票（多筆入場合開一張，如同行三人一起付款）——僅真列印館別開放（見下方 printingEnabled 查詢），
   // 手動記帳版沒有自然的「多筆合一」記錄方式，不提供此功能。
@@ -1464,6 +1466,12 @@ export default function CheckinPage() {
                               {s.trialUnpaid && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>試上費未收</span>}
                               {s.isLastSession && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>最後一堂，請開立發票</span>}
                               {s.newStudentPrep && <span style={{ fontSize:9, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>🎁 請準備制服跟集點卡</span>}
+                              {s.uniformDue && !s.isCrossMakeup && s.memberId && (
+                                <button onClick={(ev) => { ev.stopPropagation(); setUniformFor({ memberId: s.memberId, name: s.memberName }); }} title="點一下記錄制服領取"
+                                  style={{ fontSize:9, fontWeight:700, color:'#fff', background: s.uniformFirstClass ? '#C0392B' : '#D9822B', border:'none', cursor:'pointer', padding:'2px 8px', borderRadius:8, marginLeft:4 }}>
+                                  👕 {s.uniformFirstClass ? '首堂・請發制服' : '尚未領制服'}
+                                </button>
+                              )}
                               {s.adjustPending && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>{s.adjustPending === 'refund' ? '⏳ 退費審核中' : '⏳ 暫停審核中'}</span>}
                             </div>
                             {s.note && <div style={{ fontSize:11, color:'#7A5A00', marginTop:2 }}>備註：{s.note}</div>}
@@ -1536,6 +1544,12 @@ export default function CheckinPage() {
                         {s.trialUnpaid && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>試上費未收</span>}
                         {s.isLastSession && <span style={{ fontSize:9, fontWeight:600, color:'#A32D2D', background:'#FCEBEB', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>最後一堂，請開立發票</span>}
                         {s.newStudentPrep && <span style={{ fontSize:9, fontWeight:600, color:'#854F0B', background:'#FAEEDA', padding:'1px 6px', borderRadius:6, marginLeft:4 }}>🎁 請準備制服跟集點卡</span>}
+                        {s.uniformDue && !s.isCrossMakeup && s.memberId && (
+                          <button onClick={(ev) => { ev.stopPropagation(); setUniformFor({ memberId: s.memberId, name: s.memberName }); }} title="點一下記錄制服領取"
+                            style={{ fontSize:9, fontWeight:700, color:'#fff', background: s.uniformFirstClass ? '#C0392B' : '#D9822B', border:'none', cursor:'pointer', padding:'2px 8px', borderRadius:8, marginLeft:4 }}>
+                            👕 {s.uniformFirstClass ? '首堂・請發制服' : '尚未領制服'}
+                          </button>
+                        )}
                       </span>
                       {s.isCrossMakeup ? (
                         <span style={{ fontSize:10, color:'#5B2D8B', fontWeight:600 }}>非會員名單</span>
@@ -2020,6 +2034,13 @@ export default function CheckinPage() {
           />
         );
       })()}
+
+      {/* 小蜘蛛人制服領取（今日課程學員名單的「請發制服」標籤點開） */}
+      {uniformFor && (
+        <Modal title={`${uniformFor.name} 的制服領取`} onClose={() => { setUniformFor(null); loadCourseStudents(); }} width={560}>
+          <UniformPanel memberId={uniformFor.memberId} isAdmin={['super_admin', 'gym_manager'].includes(operator?.role || staff?.role)} />
+        </Modal>
+      )}
 
       {/* 取消入場確認彈窗——先查這筆有沒有已列印/作用中的發票，有的話醒目警示務必取回原紙本 */}
       {cancelConfirm && (

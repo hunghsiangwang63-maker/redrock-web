@@ -80,7 +80,8 @@ export default function MemberLevelsCard({ memberId }) {
       for (const p of people) {
         try {
           const r = await getMyMemberLevels(p.id);
-          if (r.data.records?.length) out.push({ ...p, ...r.data });
+          // 有考核紀錄、或目前是小蜘蛛人週課的正式學員（還沒通過任何級也要顯示「尚未通過、下一個目標」）才顯示
+          if (r.data.records?.length || r.data.enrolled) out.push({ ...p, ...r.data });
         } catch (e) { /* 單人失敗不影響其他人 */ }
       }
       if (alive) setItems(out);
@@ -151,6 +152,7 @@ export default function MemberLevelsCard({ memberId }) {
             )}
 
             {/* 考核歷史 */}
+            {history.length > 0 && <>
             <div onClick={() => setOpen(isOpen ? null : it.id)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 10, borderTop: '0.5px solid #F0E4E4', cursor: 'pointer', fontSize: 12, color: '#8a7a7a' }}>
               <span>{tt(`考核紀錄（${history.length}）`, `History (${history.length})`, `履歴（${history.length}）`)}</span>
               <span style={{ color: RED, fontWeight: 600 }}>{isOpen ? tt('收合 ▲', 'Hide ▲', '閉じる ▲') : tt('展開 ▼', 'Show ▼', '開く ▼')}</span>
@@ -172,6 +174,7 @@ export default function MemberLevelsCard({ memberId }) {
                 ))}
               </div>
             )}
+            </>}
           </div>
         );
       })}
