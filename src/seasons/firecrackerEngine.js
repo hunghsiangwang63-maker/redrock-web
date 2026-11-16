@@ -79,11 +79,11 @@ export function playFirecrackers({
     if (last < 0) return;
     const end = cracker[last].y + 30;
     ctx.save(); ctx.lineCap = 'round';
-    ctx.strokeStyle = '#951b1d'; ctx.lineWidth = 8;
+    ctx.strokeStyle = '#15100f'; ctx.lineWidth = 7;
     ctx.beginPath(); ctx.moveTo(260, 48); ctx.bezierCurveTo(240, 95, 270, 135, 255, 190);
     for (let y = 190; y < end; y += 45) ctx.lineTo(259 + Math.sin(y / 28) * 8, y);
     ctx.lineTo(259 + Math.sin(end / 28) * 8, end); ctx.stroke();
-    ctx.strokeStyle = 'rgba(243,180,88,.72)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(150,135,125,.55)'; ctx.lineWidth = 1.6;
     ctx.beginPath(); ctx.moveTo(258, 50); ctx.lineTo(255, Math.min(end, 190)); ctx.stroke(); ctx.restore();
   }
   // 筒身碎成 13 個扇形碎片（各自速度與旋轉）
