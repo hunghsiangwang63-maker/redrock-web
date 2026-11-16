@@ -109,7 +109,7 @@ export default function MemberPricingPage() {
         <div style={card}>
           <div style={h}>{tt('入場須知', 'Good to Know', 'ご利用案内')}</div>
           <p style={li}>• {tt('首次入場須先簽署風險安全聲明書，並通過抱石墜落測驗（未滿 10 歲須通過親子版）。', 'First-time visitors must sign the liability waiver and pass the bouldering fall test (children under 10 take the parent-child version).', '初回は同意書への署名と、ボルダリング墜落テストの合格が必要です（10歳未満は親子版）。')}</p>
-          <p style={li}>• {tt('墜落測驗有效 1 年；到期前 2 個月內入場，且過去一年入場滿 2 次，系統會自動延長 1 年。', 'The fall test is valid for 1 year. If you visit within 2 months before expiry and at least twice in the past year, it is extended by 1 year automatically.', '墜落テストの有効期間は1年。期限の2か月前以内に来館し、過去1年に2回以上入場している場合は自動で1年延長されます。')}</p>
+          <p style={li}>• {tt('墜落測驗有效 1 年；一年內入場滿 2 次，系統會自動延長 1 年。', 'The fall test is valid for 1 year. If you visit at least twice within a year, it is extended by 1 year automatically.', '墜落テストの有効期間は1年。1年以内に2回以上入場すると、自動で1年延長されます。')}</p>
           <p style={li}>• {tt('入場費用請於櫃檯付款：', 'Pay at the front desk: ', 'ご利用料金は受付でお支払いください：')}{d.payments.map(k => payNames[k] || k).join(tt('、', ', ', '、'))}</p>
         </div>
       </>)}
