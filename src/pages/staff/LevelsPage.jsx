@@ -5,6 +5,7 @@ import { getCourses } from '../../api/courses';
 import { getLevelDefs, updateLevelDef, getLevelCourseStudents, createLevelRecords, voidLevelRecord, getMemberLevels } from '../../api/climbLevels';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import Modal from '../../components/Modal';
+import UniformPanel from '../../components/UniformPanel';
 
 const input = { height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 10px', fontSize:13, background:'#FBF5F5', outline:'none', color:'#1a1a1a', boxSizing:'border-box' };
 const btn = { height:36, borderRadius:8, border:'none', padding:'0 16px', fontSize:13, fontWeight:600, cursor:'pointer', background:'#C0392B', color:'#fff' };
@@ -45,6 +46,7 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
   const [history, setHistory] = useState(null);
+  const [uniformFor, setUniformFor] = useState(null);
 
   useEffect(() => {
     if (!program) return;
@@ -108,7 +110,12 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
             return (
               <div key={s.memberId} style={{ border:'0.5px solid #E8D5D5', borderRadius:10, padding:12, marginBottom:10, background:'#fff' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:6 }}>
-                  <div style={{ fontWeight:600 }}>{s.name}</div>
+                  <div style={{ fontWeight:600, display:'flex', alignItems:'center', gap:8 }}>
+                    {s.name}
+                    <button onClick={() => setUniformFor(s)} title="制服領取紀錄" style={{ border:'none', cursor:'pointer', fontSize:11, fontWeight:700, padding:'2px 9px', borderRadius:10, background: s.uniformCount ? '#E6F4EB' : '#FCEBEB', color: s.uniformCount ? '#2D7D46' : '#A32D2D' }}>
+                      👕 {s.uniformCount ? `已領${s.uniformCount > 1 ? ` ${s.uniformCount} 次` : ''}` : '未領'}
+                    </button>
+                  </div>
                   <button onClick={() => openHistory(s)} style={{ background:'none', border:'none', color:'#C0392B', fontSize:12, cursor:'pointer' }}>
                     目前：{s.currentLevel ? `${s.currentLevel} 級已通過` : '尚未通過任何級'} ›
                   </button>
@@ -136,6 +143,11 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
         </>
       )}
       {history && <HistoryModal h={history} isAdmin={isAdmin} onClose={() => setHistory(null)} onVoided={() => { setHistory(null); loadStudents(courseId); }} />}
+      {uniformFor && (
+        <Modal title={`${uniformFor.name} 的制服領取`} onClose={() => { setUniformFor(null); loadStudents(courseId); }} width={560}>
+          <UniformPanel memberId={uniformFor.memberId} isAdmin={isAdmin} />
+        </Modal>
+      )}
     </div>
   );
 }

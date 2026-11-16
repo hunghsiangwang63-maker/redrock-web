@@ -6,6 +6,7 @@ import { refundTicketOnline } from '../../api/passes';
 import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature } from '../../api/fallTests';
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
+import MemberSpiderSection from '../../components/MemberSpiderSection';
 import dayjs from 'dayjs';
 import VipPage from './VipPage';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -1315,6 +1316,9 @@ export default function MembersPage() {
                 </div>
               )}
             </div>
+
+            {/* 小蜘蛛人（等級＋制服領取） */}
+            {detail.member?.id && <MemberSpiderSection memberId={detail.member.id} isAdmin={isAdmin} />}
 
             {/* 有效定期票 */}
             <div style={{ padding:'10px 0', borderBottom:'1px solid #F5EFEF' }}>
