@@ -22,6 +22,7 @@ import SalesPage from './pages/staff/SalesPage';
 import RevenuePage from './pages/staff/RevenuePage';
 import VipPage from './pages/staff/VipPage';
 import LevelsPage from './pages/staff/LevelsPage';
+import PaperTicketsPage from './pages/staff/PaperTicketsPage';
 import CoursesPage from './pages/staff/CoursesPage';
 import SettingsPage from './pages/staff/SettingsPage';
 import DailySettlementPage from './pages/staff/DailySettlementPage';
@@ -114,6 +115,7 @@ function StaffRoutes() {
         <Route path="staff-entry"    element={<StaffEntryQrPage />} />
         <Route path="activities"     element={<CourseActivitiesPage />} />
         <Route path="levels"         element={<LevelsPage />} />
+        <Route path="paper-tickets"  element={<PaperTicketsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
