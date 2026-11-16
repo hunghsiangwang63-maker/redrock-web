@@ -6,7 +6,7 @@ export const updateLevelDef = (program, level, data) => client.put(`/climb-level
 export const getLevelCourseStudents = (courseId) => client.get(`/climb-levels/course/${courseId}/students`);
 export const createLevelRecords = (data) => client.post('/climb-levels/records', data);
 export const voidLevelRecord = (id, reason) => client.post(`/climb-levels/records/${id}/void`, { reason });
-export const getMemberLevels = (memberId) => client.get(`/climb-levels/member/${memberId}`);
+export const getMemberLevels = (memberId, program) => client.get(`/climb-levels/member/${memberId}`, { params: program ? { program } : {} });
 
 // 會員端
 export const getMyMemberLevels = (memberId) => memberClient.get(`/climb-levels/member/${memberId}`);

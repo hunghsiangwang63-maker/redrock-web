@@ -3,7 +3,7 @@ import { memberClient } from '../api/client';
 import { getMyMemberLevels } from '../api/climbLevels';
 import { tt } from '../utils/memberI18n';
 
-// 小蜘蛛人等級卡：本人與名下子會員中「有考核紀錄」者才顯示（沒有紀錄的人整張卡不出現）。
+// 攀岩等級卡（小蜘蛛人／青少年）：本人與名下子會員中「有考核紀錄」者才顯示（沒有紀錄的人整張卡不出現）。
 // 等級定義/考核內容目前只有繁中（管理員於員工端維護）。
 // 等級 16 最入門、1 最高：階梯條由 16 往 1 填滿；「下一個目標」拆成練習內容／標準／體能三行；考核歷史用時間軸＋進度條。
 const MAX_LEVEL = 16;
@@ -118,7 +118,7 @@ export default function MemberLevelsCard({ memberId }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12, color: '#9a8a8a' }}>
-                  🕷 {tt('小蜘蛛人等級', 'Spider Kid Level', 'スパイダーキッズ等級')}
+                  🧗 {tt('攀岩等級', 'Climbing Level', 'クライミング等級')}
                   {it.name && <span style={{ marginLeft: 6, background: '#F5E8E8', color: RED, borderRadius: 10, padding: '1px 8px', fontWeight: 600 }}>{it.name}</span>}
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: RED, marginTop: 3 }}>

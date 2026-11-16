@@ -18,25 +18,26 @@ export default function LevelsPage() {
   const isAdmin = ['super_admin', 'gym_manager'].includes(role);
   const gymId = activeGymId || staff?.gymId || (role === 'super_admin' ? (viewGym || '') : '');
   const [tab, setTab] = useState('record');
-  const [program, setProgram] = useState(null);
-  const [defs, setDefs] = useState([]);
+  const [programs, setPrograms] = useState([]);   // [{ key, name, categoryIds, gymIds, defs }]
+  const [defsProgram, setDefsProgram] = useState('spider');
 
-  const loadDefs = () => getLevelDefs().then(r => { setProgram(r.data.program); setDefs(r.data.defs || []); }).catch(() => {});
+  const loadDefs = () => Promise.all(['spider', 'teen'].map(k => getLevelDefs(k).then(r => ({ ...r.data.program, defs: r.data.defs || [] })).catch(() => null)))
+    .then(list => setPrograms(list.filter(Boolean)));
   useEffect(() => { loadDefs(); }, []);
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', padding: 16 }}>
-      <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>🕷 小蜘蛛人等級考核</div>
+      <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 12 }}>🧗 攀岩等級考核</div>
       {isAdmin && <SegmentedTabs tabs={[{ key:'record', label:'考核登記' }, { key:'defs', label:'等級設定' }]} value={tab} onChange={setTab} style={{ marginBottom: 16 }} />}
       {tab === 'record' || !isAdmin
-        ? <RecordTab program={program} defs={defs} gymId={gymId} isAdmin={isAdmin} />
-        : <DefsTab defs={defs} reload={loadDefs} />}
+        ? <RecordTab programs={programs} gymId={gymId} isAdmin={isAdmin} />
+        : <DefsTab programs={programs} programKey={defsProgram} setProgramKey={setDefsProgram} reload={loadDefs} />}
     </div>
   );
 }
 
 // ── 考核登記 ──────────────────────────────────────────────
-function RecordTab({ program, defs, gymId, isAdmin }) {
+function RecordTab({ programs, gymId, isAdmin }) {
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [data, setData] = useState(null);
@@ -49,13 +50,13 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
   const [uniformFor, setUniformFor] = useState(null);
 
   useEffect(() => {
-    if (!program) return;
+    if (!programs.length) return;
     getCourses(gymId).then(r => {
-      const list = (r.data.courses || []).filter(c => c.type !== 'workshop' && program.categoryIds?.includes(c.categoryId)
-        && !['ended', 'cancelled'].includes(c.statusLabel) && (!program.gymIds?.length || program.gymIds.includes(c.gymId)));
+      const list = (r.data.courses || []).filter(c => c.type !== 'workshop' && programs.some(p => p.categoryIds?.includes(c.categoryId) && (!p.gymIds?.length || p.gymIds.includes(c.gymId)))
+        && !['ended', 'cancelled'].includes(c.statusLabel));
       setCourses(list);
     }).catch(() => {});
-  }, [program, gymId]);
+  }, [programs, gymId]);
 
   const loadStudents = async (id) => {
     setCourseId(id); setData(null); setRows({}); setMsg(null);
@@ -69,6 +70,7 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
   const nextLevel = (s) => (s.currentLevel ? Math.max(1, s.currentLevel - 1) : 16);
   const rowOf = (s) => rows[s.memberId] || { level: nextLevel(s), progress: '', description: '', note: '' };
   const setRow = (s, patch) => setRows(p => ({ ...p, [s.memberId]: { ...rowOf(s), ...patch } }));
+  const defs = programs.find(p => p.key === data?.program?.key)?.defs || [];
   const defOf = (lv) => defs.find(d => d.level === Number(lv));
   const filled = useMemo(() => (data?.students || []).filter(s => rowOf(s).progress), [data, rows]); // eslint-disable-line
 
@@ -86,7 +88,7 @@ function RecordTab({ program, defs, gymId, isAdmin }) {
   };
 
   const openHistory = async (s) => {
-    try { const r = await getMemberLevels(s.memberId); setHistory({ name: s.name, ...r.data }); } catch (e) { setMsg({ err: errMsg(e) }); }
+    try { const r = await getMemberLevels(s.memberId, data?.program?.key); setHistory({ name: s.name, ...r.data }); } catch (e) { setMsg({ err: errMsg(e) }); }
   };
 
   return (
@@ -249,18 +251,25 @@ function HistoryModal({ h, isAdmin, onClose, onVoided }) {
 }
 
 // ── 等級設定（管理員）────────────────────────────────────
-function DefsTab({ defs, reload }) {
+function DefsTab({ programs, programKey, setProgramKey, reload }) {
+  const defs = programs.find(p => p.key === programKey)?.defs || [];
   const [edit, setEdit] = useState({});
   const [msg, setMsg] = useState(null);
   const val = (d, k) => (edit[d.level]?.[k] ?? d[k] ?? '');
   const set = (d, k, v) => setEdit(p => ({ ...p, [d.level]: { ...(p[d.level] || {}), [k]: v } }));
   const save = async (d) => {
-    try { await updateLevelDef('spider', d.level, edit[d.level]); setEdit(p => { const n = { ...p }; delete n[d.level]; return n; }); setMsg({ ok: `${d.level} 級已儲存` }); reload(); }
+    try { await updateLevelDef(programKey, d.level, edit[d.level]); setEdit(p => { const n = { ...p }; delete n[d.level]; return n; }); setMsg({ ok: `${d.level} 級已儲存` }); reload(); }
     catch (e) { setMsg({ err: errMsg(e) }); }
   };
   return (
     <div>
-      <div style={{ fontSize:12, color:'#888', marginBottom:10 }}>16 級最入門、1 級最高。修改後只影響之後顯示，已登記的考核紀錄不變。</div>
+      <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+        {programs.map(p => (
+          <button key={p.key} onClick={() => { setProgramKey(p.key); setEdit({}); setMsg(null); }}
+            style={{ border:'0.5px solid #E8D5D5', borderRadius:16, padding:'5px 14px', fontSize:13, fontWeight:600, cursor:'pointer', background: p.key === programKey ? '#8B1A1A' : '#fff', color: p.key === programKey ? '#fff' : '#8B1A1A' }}>{p.name}</button>
+        ))}
+      </div>
+      <div style={{ fontSize:12, color:'#888', marginBottom:10 }}>16 級最入門、1 級最高。小蜘蛛人與青少年各自一套內容，互不影響；修改後只影響之後顯示，已登記的考核紀錄不變。</div>
       {msg?.err && <div style={{ color:'#C0392B', fontSize:13 }}>{msg.err}</div>}
       {msg?.ok && <div style={{ color:'#2e7d32', fontSize:13 }}>✓ {msg.ok}</div>}
       {defs.map(d => (

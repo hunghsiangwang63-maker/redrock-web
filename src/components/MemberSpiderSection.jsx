@@ -21,13 +21,13 @@ export default function MemberSpiderSection({ memberId, isAdmin }) {
   if (!hasAny && !open) {
     return (
       <div style={{ padding: '8px 0', borderBottom: '1px solid #F5EFEF', fontSize: 12 }}>
-        <button onClick={() => setOpen(true)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', padding: 0 }}>🕷 小蜘蛛人：＋記錄制服領取</button>
+        <button onClick={() => setOpen(true)} style={{ background: 'none', border: 'none', color: '#999', cursor: 'pointer', padding: 0 }}>🧗 攀岩等級：＋記錄制服領取</button>
       </div>
     );
   }
   return (
     <div style={{ padding: '10px 0', borderBottom: '1px solid #F5EFEF' }}>
-      <div style={{ fontSize: 11, color: '#999', marginBottom: 6, fontWeight: 600, letterSpacing: .5 }}>🕷 小蜘蛛人</div>
+      <div style={{ fontSize: 11, color: '#999', marginBottom: 6, fontWeight: 600, letterSpacing: .5 }}>🧗 攀岩等級（{lv?.program?.name || '小蜘蛛人'}）</div>
       <div style={{ fontSize: 13, marginBottom: 8 }}>
         <span style={{ color: '#6b6b6b' }}>目前等級　</span>
         <b style={{ color: lv.currentLevel ? '#8B1A1A' : '#999' }}>{lv.currentLevel ? `已通過 ${lv.currentLevel} 級` : '尚未通過任何級'}</b>
