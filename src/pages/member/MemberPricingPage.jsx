@@ -73,7 +73,6 @@ export default function MemberPricingPage() {
             const n = SINGLE_I18N[s.id];
             return <div key={s.id} style={row}><span>{n ? tt(n[0], n[1], n[2]) : s.name}</span><span style={price}>{money(s.price)}</span></div>;
           })}
-          <div style={row}><span>{tt('課程學員（上課當天）', 'Course students (on class day)', 'コース受講生（受講当日）')}</span><span style={{ ...price, color: '#2D7D46' }}>{tt('免費', 'Free', '無料')}</span></div>
           <div style={{ ...sub, marginTop: 8 }}>{tt('學生票適用 22 歲以下，或已驗證學生證者。12 歲以下須成人陪同。', 'Student rate: age 22 or under, or verified student ID. Children 12 and under must be accompanied by an adult.', '学生料金は22歳以下、または学生証確認済みの方が対象です。12歳以下は大人の同伴が必要です。')}</div>
         </div>
 
@@ -111,6 +110,7 @@ export default function MemberPricingPage() {
           <div style={h}>{tt('入場須知', 'Good to Know', 'ご利用案内')}</div>
           <p style={li}>• {tt('首次入場須先簽署風險安全聲明書，並通過抱石墜落測驗（未滿 10 歲須通過親子版）。', 'First-time visitors must sign the liability waiver and pass the bouldering fall test (children under 10 take the parent-child version).', '初回は同意書への署名と、ボルダリング墜落テストの合格が必要です（10歳未満は親子版）。')}</p>
           <p style={li}>• {tt('墜落測驗有效 1 年；到期前 2 個月內入場，且過去一年入場滿 2 次，系統會自動延長 1 年。', 'The fall test is valid for 1 year. If you visit within 2 months before expiry and at least twice in the past year, it is extended by 1 year automatically.', '墜落テストの有効期間は1年。期限の2か月前以内に来館し、過去1年に2回以上入場している場合は自動で1年延長されます。')}</p>
+          <p style={li}>• {tt('週課學員於課程期間免費入場。', 'Weekly-course students enter free during their course period.', '週間コースの受講生は、コース期間中は無料で入場できます。')}</p>
           <p style={li}>• {tt('入場費用請於櫃檯付款：', 'Pay at the front desk: ', 'ご利用料金は受付でお支払いください：')}{d.payments.map(k => payNames[k] || k).join(tt('、', ', ', '、'))}</p>
         </div>
       </>)}
