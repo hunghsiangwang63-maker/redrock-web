@@ -13,6 +13,7 @@ import PaymentPlanChoice from '../../components/PaymentPlanChoice';
 import { useEnabledPayments, filterPayments } from '../../utils/paymentMethods';
 import dayjs from 'dayjs';
 import SegmentedTabs from '../../components/SegmentedTabs';
+import PaperTicketsPage from './PaperTicketsPage';
 import CardsPage from './CardsPage';
 
 // 新增定期票的收款方式（與 PaymentPlanChoice 同一份對照；實際可選的由系統設定「啟用的付款方式」過濾）
@@ -451,6 +452,8 @@ export default function PassesPage() {
         { key:'types',   icon:'📋', label:'票種定義' },
         { key:'cards',   icon:'💳', label:'優惠卡/黑卡' },
         { key:'tickets', icon:'🎟️', label:'單次發放' },
+        // 紙本單張入場券「使用回收」：僅管理員／館長（後端同樣限制）
+        ...(canAddPass ? [{ key:'paper', icon:'🧾', label:'紙本票回收' }] : []),
       ],
     },
     {
@@ -1278,6 +1281,8 @@ export default function PassesPage() {
           </div>
         </Modal>
       )}
+      {/* ── 紙本票回收 ── */}
+      {tab === 'paper' && canAddPass && <PaperTicketsPage embedded />}
       {/* ── 優惠卡/黑卡 ── */}
       {tab === 'cards' && (
         <CardsPage embedded />

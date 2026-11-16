@@ -37,7 +37,7 @@ function ResultRow({ r }) {
   );
 }
 
-export default function PaperTicketsPage() {
+export default function PaperTicketsPage({ embedded = false }) {
   const { staff, operator } = useAuth();
   const role = operator?.role || staff?.role;
   const isAdmin = ['super_admin', 'gym_manager'].includes(role);
@@ -102,8 +102,8 @@ export default function PaperTicketsPage() {
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 16, color: '#1a1a1a' }}>
-      <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>🎫 紙本入場券使用回收</div>
+    <div style={{ maxWidth: 900, margin: embedded ? 0 : '0 auto', padding: embedded ? 0 : 16, color: '#1a1a1a' }}>
+      <div style={{ fontSize: embedded ? 16 : 18, fontWeight: 600, marginBottom: 4 }}>🧾 紙本入場券使用回收</div>
       <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>先前售出的紙本單張入場券。客人繳回時登記票號，系統會擋下重複使用與查無的票號（不會自動建立入場紀錄）。票號首碼不代表館別，兩館的票都可在任一館使用。</div>
 
       {loadErr && <div style={{ background: '#FCEBEB', color: '#A32D2D', borderRadius: 8, padding: '8px 12px', fontSize: 13, marginBottom: 12 }}>⚠️ 讀取失敗：{loadErr}。畫面上的數字可能不完整。 <button onClick={loadAll} style={{ marginLeft: 8, border: 'none', background: 'none', color: '#8B1A1A', textDecoration: 'underline', cursor: 'pointer' }}>重新載入</button></div>}

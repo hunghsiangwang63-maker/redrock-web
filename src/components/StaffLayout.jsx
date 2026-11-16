@@ -13,7 +13,6 @@ const NAV = [
   { path:'/staff/checkin',    icon:'ti-door-enter',    label:'入場' },
   { path:'/staff/members',    icon:'ti-users',         label:'會員' },
   { path:'/staff/passes',     icon:'ti-ticket',        label:'票券管理' },
-  { path:'/staff/paper-tickets', icon:'ti-receipt',    label:'紙本票回收' },
   { path:'/staff/shop',       icon:'ti-shopping-cart', label:'商品/租借' },
   { path:'/staff/finance',    icon:'ti-chart-bar',     label:'財務' },
   { path:'/staff/settlement', icon:'ti-calculator',    label:'結帳' },
@@ -59,7 +58,7 @@ export default function StaffLayout() {
     part_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/levels', '/staff/staff-entry'],
     full_time: ['/staff/pending-tasks', '/staff/schedule', '/staff/activities', '/staff/levels', '/staff/routes', '/staff/shop', '/staff/staff-entry', '/staff/settings'],
   };
-  const canSeeNav = (path) => path === '/staff/paper-tickets' ? isAdmin : (isAdmin || onDuty) ? true : (PERSONAL_NAV[navRole] ? PERSONAL_NAV[navRole].includes(path) : true);
+  const canSeeNav = (path) => (isAdmin || onDuty) ? true : (PERSONAL_NAV[navRole] ? PERSONAL_NAV[navRole].includes(path) : true);
   // 全域場館切換僅 super_admin：載入場館清單
   useEffect(() => {
     if (!isSuperAdmin) return;
