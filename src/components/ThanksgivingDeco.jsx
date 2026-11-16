@@ -120,6 +120,20 @@ export function ThankCard({ title, lines = [], style, compact = false }) {
   );
 }
 
+// 感謝卡片上的信封（單獨一個，不放吉祥物；2026-11-16）：米色信封＋橘紅楓葉火漆
+export function ThanksEnvelope({ width = 62, style }) {
+  return (
+    <svg viewBox="0 0 80 56" width={width} height={width * 0.7} aria-hidden="true" style={{ filter:'drop-shadow(0 3px 4px rgba(90,52,20,.35))', ...style }}>
+      <rect x="2" y="4" width="76" height="50" rx="5" fill="#FFF6E4" stroke="#D9B27A" strokeWidth="1.5"/>
+      <path d="M3 6 L40 33 L77 6" fill="none" stroke="#D9B27A" strokeWidth="1.5"/>
+      <path d="M3 52 L30 28 M77 52 L50 28" stroke="#E8CDA0" strokeWidth="1.2"/>
+      <rect x="6" y="9" width="6" height="3" fill="#D9541E"/><rect x="14" y="9" width="6" height="3" fill="#F2A33A"/>
+      <circle cx="40" cy="33" r="10" fill="#C0392B"/><circle cx="40" cy="33" r="7" fill="none" stroke="#E86A4A" strokeWidth="1.2"/>
+      <path d="M40 27 l2.2 3.4 3.6-.8-1 3.6 2.8 2.4-3.6.8.2 3.6-4.2-2-4.2 2 .2-3.6-3.6-.8 2.8-2.4-1-3.6 3.6.8z" fill="#FFE3B0" opacity=".9"/>
+    </svg>
+  );
+}
+
 // 預先載入吉祥物圖檔，回傳是否存在（null＝檢查中、true／false）；版面（如首頁橫幅文字起點）依此調整，沒圖時不留空白
 export function useMascotAvailable(name = 'mascot') {
   const [ok, setOk] = useState(null);
@@ -220,14 +234,13 @@ export function AutumnGround({ big = false }) {
   );
 }
 
-// 登入頁頂部橫幅：秋日暖光＋吉祥物＋烤火雞
+// 登入頁頂部橫幅：秋日暖光＋吉祥物（2026-11-16 起只留左邊一位）
 // 橫幅（登入頁／首頁共用）：農場風景背景圖（空白木牌）＋程式寫上的三語文字＋兩位吉祥物。
 // 文字一律用程式寫（會員端有中英日三種語言，不能燒進圖）；用 container query 單位（cqw）讓字隨橫幅寬度縮放。
 // 背景圖缺檔時退回橘色漸層＋葉片裝飾。
 function ThanksBanner({ bg, ratio, sub = true, script = true, titleSize = 7.6, titleTop, mascotW = 30, margin, shadow }) {
   const hasBg = useMascotAvailable(bg);
   const hasMascot = useMascotAvailable('mascot');
-  const has3 = useMascotAvailable('mascot3');
   const lang = getMemberLang();
   return (
     <div aria-hidden="true" style={{ position:'relative', aspectRatio: ratio, margin, borderRadius:18, overflow:'hidden', containerType:'inline-size',
@@ -241,8 +254,6 @@ function ThanksBanner({ bg, ratio, sub = true, script = true, titleSize = 7.6, t
       {sub && <div style={{ position:'absolute', left:'25%', right:'25%', top:'55%', textAlign:'center', fontWeight:700, fontSize:'3.7cqw', color:'#FFE9C4', textShadow:'0 1px 0 #5A2F10' }}>
         {tt('感謝有你，一起放手爬！', 'Thankful for you — keep climbing!', 'ありがとう、これからも一緒に！')}</div>}
       {hasMascot && <img src="/thanksgiving/mascot.webp" alt="" draggable="false" style={{ position:'absolute', left:'1%', bottom:'-4%', width:`${mascotW}%`, height:'auto', filter:'drop-shadow(0 4px 6px rgba(90,52,20,.35))' }} />}
-      {has3 ? <img src="/thanksgiving/mascot3.webp" alt="" draggable="false" style={{ position:'absolute', right:'1%', bottom:'-4%', width:`${mascotW + 2}%`, height:'auto', filter:'drop-shadow(0 4px 6px rgba(90,52,20,.35))' }} />
-        : <div style={{ position:'absolute', right:'3%', bottom:'4%' }}><RoastTurkey size={100}/></div>}
     </div>
   );
 }
