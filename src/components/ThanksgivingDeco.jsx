@@ -96,15 +96,20 @@ export function RoastTurkey({ size = 96 }) {
 }
 
 // ── 感謝卡片（首頁／各頁小卡）─────────────────────────────────
-export function ThankCard({ title, lines = [], style, compact = false }) {
+export function ThankCard({ title, lines = [], style, compact = false, insetRight = 0 }) {
+  const lang = getMemberLang();
+  const tSize = lang === 'zh' ? (compact ? 14 : 16) : (compact ? 11 : 12);
+  const lSize = lang === 'zh' ? 12 : 10;
   const hasBg = useMascotAvailable('card-bg');
   if (hasBg) {
     // 底圖（楓葉／橡實／麥穗邊角＋虛線框）已含裝飾；文字一律程式寫、置中
     return (
       <div style={{ position:'relative', borderRadius:18, overflow:'hidden', boxShadow:'0 4px 14px rgba(122,74,33,.18)', aspectRatio:'1000 / 305', display:'flex', flexDirection:'column', justifyContent:'center',
-        padding:'0 24px', background:'url(/thanksgiving/card-bg.webp) center / 100% 100% no-repeat', ...style }}>
-        {title && <div style={{ fontSize: compact ? 14 : 16, fontWeight:800, color:TG.red, textAlign:'center', marginBottom: lines.length ? 4 : 0, letterSpacing:.5 }}>{title}</div>}
-        {lines.map((l, i) => <div key={i} style={{ fontSize:12, color:TG.ink, textAlign:'center', lineHeight:1.7 }}>{l}</div>)}
+        paddingLeft:24, paddingRight:24, background:'url(/thanksgiving/card-bg.webp) center / 100% 100% no-repeat', ...style }}>
+        <div style={{ marginRight: insetRight, marginLeft: 22 }}>
+          {title && <div style={{ fontSize: tSize, fontWeight:800, color:TG.red, textAlign:'center', marginBottom: lines.length ? 4 : 0, letterSpacing:.5 }}>{title}</div>}
+          {lines.map((l, i) => <div key={i} style={{ fontSize:lSize, color:TG.ink, textAlign:'center', lineHeight:1.7 }}>{l}</div>)}
+        </div>
       </div>
     );
   }
@@ -114,24 +119,15 @@ export function ThankCard({ title, lines = [], style, compact = false }) {
       <div aria-hidden="true" style={{ position:'absolute', top:-12, left:16 }}><Leaf size={26} color="#D9541E" rotate={-20} /></div>
       <div aria-hidden="true" style={{ position:'absolute', top:-10, left:38 }}><Leaf size={20} color="#F2A33A" rotate={25} /></div>
       <div aria-hidden="true" style={{ position:'absolute', top:-14, right:14 }}><Acorn size={26} /></div>
-      {title && <div style={{ fontSize: compact ? 14 : 16, fontWeight:800, color:TG.red, textAlign:'center', marginBottom: lines.length ? 4 : 0, letterSpacing:.5 }}>{title}</div>}
-      {lines.map((l, i) => <div key={i} style={{ fontSize:12, color:TG.ink, textAlign:'center', lineHeight:1.7 }}>{l}</div>)}
+      {title && <div style={{ fontSize: tSize, fontWeight:800, color:TG.red, textAlign:'center', marginBottom: lines.length ? 4 : 0, letterSpacing:.5 }}>{title}</div>}
+      {lines.map((l, i) => <div key={i} style={{ fontSize:lSize, color:TG.ink, textAlign:'center', lineHeight:1.7 }}>{l}</div>)}
     </div>
   );
 }
 
-// 感謝卡片上的信封（單獨一個，不放吉祥物；2026-11-16）：米色信封＋橘紅楓葉火漆
+// 感謝卡片上的信封（單獨一個，不放吉祥物；2026-11-16）：使用者產生的秋季信封圖 public/thanksgiving/envelope.webp
 export function ThanksEnvelope({ width = 62, style }) {
-  return (
-    <svg viewBox="0 0 80 56" width={width} height={width * 0.7} aria-hidden="true" style={{ filter:'drop-shadow(0 3px 4px rgba(90,52,20,.35))', ...style }}>
-      <rect x="2" y="4" width="76" height="50" rx="5" fill="#FFF6E4" stroke="#D9B27A" strokeWidth="1.5"/>
-      <path d="M3 6 L40 33 L77 6" fill="none" stroke="#D9B27A" strokeWidth="1.5"/>
-      <path d="M3 52 L30 28 M77 52 L50 28" stroke="#E8CDA0" strokeWidth="1.2"/>
-      <rect x="6" y="9" width="6" height="3" fill="#D9541E"/><rect x="14" y="9" width="6" height="3" fill="#F2A33A"/>
-      <circle cx="40" cy="33" r="10" fill="#C0392B"/><circle cx="40" cy="33" r="7" fill="none" stroke="#E86A4A" strokeWidth="1.2"/>
-      <path d="M40 27 l2.2 3.4 3.6-.8-1 3.6 2.8 2.4-3.6.8.2 3.6-4.2-2-4.2 2 .2-3.6-3.6-.8 2.8-2.4-1-3.6 3.6.8z" fill="#FFE3B0" opacity=".9"/>
-    </svg>
-  );
+  return <img src="/thanksgiving/envelope.webp" alt="" draggable="false" width={width} style={{ display:'block', height:'auto', filter:'drop-shadow(0 3px 4px rgba(90,52,20,.35))', ...style }} />;
 }
 
 // 預先載入吉祥物圖檔，回傳是否存在（null＝檢查中、true／false）；版面（如首頁橫幅文字起點）依此調整，沒圖時不留空白
@@ -248,10 +244,10 @@ function ThanksBanner({ bg, ratio, sub = true, script = true, titleSize = 7.6, t
       boxShadow: shadow || '0 8px 20px rgba(122,74,33,.35)', border:'1.5px solid #F2D08C' }}>
       {!hasBg && <div style={{ position:'absolute', right:-10, top:-14, opacity:.85 }}><Leaf size={64} color="#F9D27D" rotate={-15}/></div>}
       {script && lang !== 'en' && <div style={{ position:'absolute', left:'22%', right:'22%', top:'3%', textAlign:'center', fontFamily:'Georgia, "Times New Roman", serif', fontStyle:'italic', fontWeight:700,
-        fontSize:'6.2cqw', color:'#9A4A12', textShadow:'0 1px 0 rgba(255,255,255,.7)' }}>Happy Thanksgiving</div>}
-      <div style={{ position:'absolute', left:'25%', right:'25%', top: titleTop || (sub ? '35%' : '39%'), textAlign:'center', fontWeight:900, fontSize:`${titleSize}cqw`, lineHeight:1.15, whiteSpace:'nowrap', color:'#FFF4E2',
+        fontSize: lang === 'ja' ? '5cqw' : '6.2cqw', whiteSpace:'nowrap', color:'#9A4A12', textShadow:'0 1px 0 rgba(255,255,255,.7)' }}>Happy Thanksgiving</div>}
+      <div style={{ position:'absolute', left:'25%', right:'25%', top: titleTop || (sub ? '35%' : '39%'), textAlign:'center', fontWeight:900, fontSize:`${lang === 'en' ? titleSize * 0.66 : lang === 'ja' ? titleSize * 0.84 : titleSize}cqw`, lineHeight:1.15, whiteSpace:'nowrap', color:'#FFF4E2',
         textShadow:'0 2px 0 #5A2F10, 0 0 6px rgba(90,47,16,.6)' }}>{tt('感恩節快樂！', 'Happy Thanksgiving!', '感謝祭おめでとう！')}</div>
-      {sub && <div style={{ position:'absolute', left:'25%', right:'25%', top:'55%', textAlign:'center', fontWeight:700, fontSize:'3.7cqw', color:'#FFE9C4', textShadow:'0 1px 0 #5A2F10' }}>
+      {sub && <div style={{ position:'absolute', left:'25%', right:'25%', top:'55%', textAlign:'center', fontWeight:700, fontSize: lang === 'en' ? '2.7cqw' : lang === 'ja' ? '3cqw' : '3.7cqw', whiteSpace:'nowrap', color:'#FFE9C4', textShadow:'0 1px 0 #5A2F10' }}>
         {tt('感謝有你，一起放手爬！', 'Thankful for you — keep climbing!', 'ありがとう、これからも一緒に！')}</div>}
       {hasMascot && <img src="/thanksgiving/mascot.webp" alt="" draggable="false" style={{ position:'absolute', left:'1%', bottom:'-4%', width:`${mascotW}%`, height:'auto', filter:'drop-shadow(0 4px 6px rgba(90,52,20,.35))' }} />}
     </div>

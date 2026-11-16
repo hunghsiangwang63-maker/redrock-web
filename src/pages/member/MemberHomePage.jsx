@@ -18,7 +18,7 @@ const HW_TILES = [
 import { useState, useEffect, useRef } from 'react';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t, tt, toggleMemberLang, nextLangLabel, localeCode } from '../../utils/memberI18n';
+import { t, tt, toggleMemberLang, nextLangLabel, localeCode, getMemberLang } from '../../utils/memberI18n';
 import { useNavigate } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
 import { getMemberGyms, getMemberAnnouncements } from '../../api/gyms';
@@ -254,8 +254,8 @@ export default function MemberHomePage() {
           <ThankCard title={tt('感謝您一路相伴', 'Thank you for climbing with us', 'いつもありがとうございます')}
             lines={[tt('這一年有你的支持，紅石才能一起長大。', 'Your support helped RedRock grow this year.', '今年もご利用いただき、ありがとうございました。'),
                     tt('感恩節期間，祝你天天爬得開心！', 'Wishing you happy climbing this Thanksgiving week!', '感謝祭の週も、楽しいクライミングを！')]}
-            style={{ paddingRight:80 }} />
-          <div aria-hidden="true" style={{ position:'absolute', right:10, top:20, transform:'rotate(-6deg)' }}><ThanksEnvelope width={58} /></div>
+            insetRight={getMemberLang() === 'zh' ? 52 : 66} />
+          <div aria-hidden="true" style={{ position:'absolute', right:8, top:12, transform:'rotate(-6deg)' }}><ThanksEnvelope width={70} /></div>
           <SendThanksCard />
         </div>
       )}
