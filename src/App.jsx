@@ -48,6 +48,7 @@ import MemberQRPage from './pages/member/MemberQRPage';
 import MemberPassesPage from './pages/member/MemberPassesPage';
 import MemberProfilePage from './pages/member/MemberProfilePage';
 import MemberGymsPage from './pages/member/MemberGymsPage';
+import MemberPricingPage from './pages/member/MemberPricingPage';
 import MemberCoursesPage from './pages/member/MemberCoursesPage';
 import MemberFallTestPage from './pages/member/MemberFallTestPage';
 import MemberCompetitionsPage from './pages/member/MemberCompetitionsPage';
@@ -146,6 +147,7 @@ function MemberRoutes() {
           根路徑 "/" 也指到同一個元件，登入與否只影響頁內顯示的按鈕（登入按鈕 vs 登出按鈕/底部選單）。 */}
       <Route path="/"               element={<MemberRootRoute />} />
       <Route path="/member/gyms"    element={<MemberGymsPage />} />
+      <Route path="/member/pricing" element={<MemberPricingPage />} />
       <Route path="/member/courses" element={<MemberRoute><MemberCoursesPage /></MemberRoute>} />
       <Route path="/member/waiver"  element={<MemberRoute><MemberWaiverPage /></MemberRoute>} />
       <Route path="/member/fall-test" element={<MemberRoute><MemberFallTestPage /></MemberRoute>} />

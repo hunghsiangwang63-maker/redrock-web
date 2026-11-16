@@ -114,6 +114,11 @@ export default function MemberGymsPage() {
           <div style={{ fontSize:22 }}>🧗</div>
           <div style={{ fontSize:12, fontWeight:600, marginTop:4 }}>{t('體驗課程預約')}</div>
         </div>
+        <div onClick={() => navigate('/member/pricing')}
+          style={{ flex:1, background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 10px', textAlign:'center', cursor:'pointer' }}>
+          <div style={{ fontSize:22 }}>💰</div>
+          <div style={{ fontSize:12, fontWeight:600, marginTop:4 }}>{tt('入場收費', 'Entry fees', '入場料金')}</div>
+        </div>
       </div>
 
       {/* 場館切換 */}
