@@ -35,6 +35,7 @@ const TAB_GROUPS = [
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
       { key: 'discountCardValidity', icon: '🎟️', label: '優惠卡期限', superAdminOnly: true },
       { key: 'cardTransferLimit', icon: '🔢', label: '卡券移轉上限', superAdminOnly: true },
+      { key: 'discountCardPrice', icon: '🎟️', label: '優惠折扣券售價', superAdminOnly: true },
       { key: 'partnerVendor',icon: '🤝', label: '特約廠商優惠', superAdminOnly: true },
       { key: 'partnerGymMember',icon: '🧗', label: '友館隊員優惠', superAdminOnly: true },
       { key: 'partnerGyms',  icon: '🧗', label: '友館折扣清單', superAdminOnly: true },
@@ -197,6 +198,7 @@ export default function SettingsPage() {
     if (activeTab === 'bonus' && isSuperAdmin) loadBonus();
     if (activeTab === 'discountCardValidity' && isSuperAdmin) loadDcv();
     if (activeTab === 'cardTransferLimit' && isSuperAdmin) loadCardTransferLimit();
+    if (activeTab === 'discountCardPrice' && isSuperAdmin) loadDcPrice();
     if (activeTab === 'partnerVendor' && isSuperAdmin) loadPartnerVendor();
     if (activeTab === 'partnerGymMember' && isSuperAdmin) loadPartnerGymMember();
     if (activeTab === 'partnerGyms' && isSuperAdmin) loadPartnerGyms();
@@ -698,6 +700,21 @@ export default function SettingsPage() {
       const res = await client.put('/settings/partner-gyms', { gyms: clean });
       setPartnerGyms(res.data.gyms || []); setPartnerGymsDirty(false);
       showMsg('友館清單已儲存');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+  // ─── 優惠折扣券購買價（預設 600；會員入場購買、入場收費資訊頁都讀這個值）──────────────
+  const [dcPrice, setDcPrice] = useState('600');
+  const [dcPriceDirty, setDcPriceDirty] = useState(false);
+  const loadDcPrice = async () => {
+    try { const res = await client.get('/settings/discount-card-price'); setDcPrice(String(res.data.price ?? 600)); setDcPriceDirty(false); } catch (e) {}
+  };
+  const handleSaveDcPrice = async () => {
+    setLoading(true);
+    try {
+      const res = await client.put('/settings/discount-card-price', { price: Number(dcPrice) });
+      setDcPrice(String(res.data.price)); setDcPriceDirty(false);
+      showMsg('優惠折扣券售價已儲存');
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -1518,6 +1535,27 @@ export default function SettingsPage() {
                 onChange={e => { setCtl({ maxCredits: e.target.value }); setCtlDirty(true); }}
                 style={{ ...s.input, width:'100%' }} />
               <div style={{ fontSize:11, color:'#999', marginTop:6 }}>可填 1～100，預設 10。</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'discountCardPrice' && isSuperAdmin && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>🎟️ 優惠折扣券售價</span>
+            <SaveButton onSave={handleSaveDcPrice} isDirty={dcPriceDirty} label='儲存售價' fullWidth />
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
+              會員「購買優惠折扣券入場」的售價（含本次入場，之後 10 次入場享八折）。有效隊員再 9 折。修改後入場 QR、線上付款與會員 App「入場收費資訊」頁都會使用新價格（入場收費資訊頁最多 10 分鐘後更新）。已購買的券不受影響。
+            </div>
+            <div style={{ maxWidth:260 }}>
+              <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>售價（NT$）</label>
+              <input type="number" value={dcPrice} min="1" max="100000"
+                onChange={e => { setDcPrice(e.target.value); setDcPriceDirty(true); }}
+                style={{ ...s.input, width:'100%' }} />
+              <div style={{ fontSize:11, color:'#999', marginTop:6 }}>預設 600 元。</div>
             </div>
           </div>
         </div>

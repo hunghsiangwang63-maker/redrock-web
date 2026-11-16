@@ -79,7 +79,7 @@ export default function MemberPricingPage() {
 
         <div style={card}>
           <div style={h}>{tt('優惠折扣券與各項折扣', 'Discount Card & Discounts', '割引券・各種割引')}</div>
-          <div style={row}><span>{tt('購買優惠折扣券（含本次入場）', 'Buy a discount card (includes today\'s entry)', '割引券の購入（本日の入場込み）')}</span><span style={price}>{money(dc.price)}</span></div>
+          <div style={row}><span>{tt(`購買優惠折扣券（含本次入場，另享 ${dc.credits} 次八折）`, `Buy a discount card (includes today\'s entry, plus ${dc.credits} discounted entries)`, `割引券の購入（本日の入場込み・さらに${dc.credits}回割引）`)}</span><span style={price}>{money(dc.price)}</span></div>
           <div style={row}><span>{tt('使用優惠折扣券入場', 'Entry with a discount card', '割引券で入場')}
             <div style={sub}>{tt(`原價 ${Math.round(dc.rate * 10)} 折；兒童不適用`, `${Math.round((1 - dc.rate) * 100)}% off the regular price; not for children`, `通常料金の${Math.round(dc.rate * 10)}掛け；子どもは対象外`)}</div></span>
             <span style={price}>{adult != null ? `${tt('成人', 'Adult', '一般')} ${money(Math.round(adult * dc.rate))}` : ''}{student != null ? ` / ${tt('學生', 'Student', '学生')} ${money(Math.round(student * dc.rate))}` : ''}</span></div>
