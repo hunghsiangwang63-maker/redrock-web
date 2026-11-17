@@ -32,6 +32,7 @@ import { reportClientError } from '../../utils/reportClientError';
 import { requestRentalAddon, getRentalAddonStatus } from '../../api/checkin';
 import PaymentSection from '../../components/PaymentSection';
 import { getMyReminders } from '../../api/memberReminders';
+import { getMyRentals } from '../../api/rentals';
 import useScreenWakeLock from '../../hooks/useScreenWakeLock';
 import { loadQuickEntry } from '../../utils/quickEntry';
 import { tc } from '../../utils/courseNameI18n';
@@ -43,6 +44,8 @@ const tgTile = (f, fi) => {
   if (f.highlight) return { ...base, background:'linear-gradient(160deg,#FF850D 0%,#E06A00 100%)', border:'none', boxShadow:'0 4px 10px rgba(212,99,15,.4), inset 0 1px 0 rgba(255,255,255,.3)' };
   return { ...base, background:'linear-gradient(180deg,#FFF9ED 0%,#FDEFD0 100%)', border:'1px solid #F1D8A8', boxShadow:'0 2px 8px rgba(160,100,40,.15)' };
 };
+
+const RENTAL_NAME_I18N = { crashPad: ['抱石墊', 'Crash pad', 'クラッシュパッド'], helmet: ['岩盔', 'Helmet', 'ヘルメット'], harness: ['攀岩吊帶', 'Harness', 'ハーネス'], locker: ['置物櫃', 'Locker', 'ロッカー'] };
 
 export default function MemberHomePage() {
   const { member, logout } = useMember();
@@ -58,6 +61,7 @@ export default function MemberHomePage() {
   const [myEnrollments, setMyEnrollments] = useState([]);
   const [myExperiences, setMyExperiences] = useState([]);
   const [myReminders, setMyReminders] = useState([]);
+  const [myRentalEvents, setMyRentalEvents] = useState([]); // 器材外借的借出日／歸還日提醒（近一週；逾期未歸還也列）
   const [reminderImgPreview, setReminderImgPreview] = useState(null); // 提醒卡縮圖點擊 → 全螢幕看完整圖 // 店員手動增減的首頁自訂提醒（比賽等活動），與課程/體驗提醒混在同一份清單依日期排序
   const [banners, setBanners] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -146,6 +150,23 @@ export default function MemberHomePage() {
           .sort((a,b) => a.bookingDate.localeCompare(b.bookingDate));
         setMyExperiences(upcoming);
       }).catch(() => { if (seq === loadSeqRef.current) setMyExperiences([]); });
+    // 器材外借（抱石墊／岩盔／吊帶／置物櫃）：借出日、歸還日（置物櫃為到期日）；只列未取消、未歸還的申請
+    getMyRentals()
+      .then(r => {
+        if (seq !== loadSeqRef.current) return;
+        const td = dayjs().format('YYYY-MM-DD'), nw = dayjs().add(7, 'day').format('YYYY-MM-DD');
+        const ev = [];
+        (r.data.rentals || []).forEach(x => {
+          if (!['pending', 'confirmed', 'active'].includes(x.status)) return;
+          const names = (x.items || []).map(it => `${RENTAL_NAME_I18N[it.type] ? tt(...RENTAL_NAME_I18N[it.type]) : (it.name || it.type)}${it.quantity > 1 ? ` ×${it.quantity}` : ''}`).join('、');
+          const base = { id: x.id, names, gymId: x.gymId, status: x.status, monthly: x.rentalType === 'monthly' };
+          // 借出日：尚未借出（pending／confirmed）且在近一週內
+          if (['pending', 'confirmed'].includes(x.status) && x.pickupDate >= td && x.pickupDate <= nw) ev.push({ ...base, kind: 'pickup', date: x.pickupDate });
+          // 歸還日：已確認／已借出，近一週內到期；或已逾期未歸還
+          if (['confirmed', 'active'].includes(x.status) && x.returnDate && x.returnDate <= nw && (x.returnDate >= td || x.status === 'active')) ev.push({ ...base, kind: 'return', date: x.returnDate, overdue: x.returnDate < td });
+        });
+        setMyRentalEvents(ev.sort((a, b) => a.date.localeCompare(b.date)));
+      }).catch(() => { if (seq === loadSeqRef.current) setMyRentalEvents([]); });
     getMyReminders()
       .then(r => { if (seq === loadSeqRef.current) setMyReminders(r.data.reminders || []); })
       .catch(() => { if (seq === loadSeqRef.current) setMyReminders([]); });
@@ -594,7 +615,7 @@ export default function MemberHomePage() {
           <div style={{ fontSize:11, color: isHalloween() ? '#E9DDF7' : '#999', fontWeight:600, letterSpacing:.5, textTransform:'uppercase' }}>{t('課程活動提醒')}</div>
           <div onClick={() => navigate('/member/courses')} style={{ fontSize:11, color: isHalloween() ? '#FFB45C' : '#8B1A1A', cursor:'pointer' }}>{t('查看全部 →')}</div>
         </div>
-        {myEnrollments.length === 0 && myExperiences.length === 0 && myReminders.length === 0 ? (
+        {myEnrollments.length === 0 && myExperiences.length === 0 && myReminders.length === 0 && myRentalEvents.length === 0 ? (
           <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'16px 14px', textAlign:'center', color:'#999', fontSize:13 }}>
             {t('一週內沒有課程或體驗活動')}
           </div>
@@ -637,6 +658,24 @@ export default function MemberHomePage() {
                   </div>
                 </div>
                 <div style={{ fontSize:20 }}>🧗</div>
+              </div>
+            ) })),
+            ...myRentalEvents.map(ev => ({ sortKey: ev.date, node: (
+              <div key={`rt-${ev.id}-${ev.kind}`} onClick={() => navigate('/member/rental')}
+                style={{ background: ev.overdue ? '#FFF0F0' : '#F2F7FB', borderRadius:12, border:`0.5px solid ${ev.overdue ? '#FFB3B3' : '#BBD3EA'}`, padding:'12px 14px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center', cursor:'pointer' }}>
+                <div>
+                  <div style={{ fontWeight:600, fontSize:14, color: ev.overdue ? '#A32D2D' : '#185FA5', display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                    {ev.kind === 'pickup' ? t('器材借出') : (ev.monthly ? t('置物櫃到期') : t('器材歸還'))}
+                    {ev.date === dayjs().format('YYYY-MM-DD') && <span style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:6, background:'#185FA5', color:'#fff' }}>{t('今天')}</span>}
+                    {ev.overdue && <span style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:6, background:'#FCEBEB', color:'#A32D2D' }}>{t('已逾期，請盡快歸還')}</span>}
+                  </div>
+                  <div style={{ fontSize:12, color:'#666', marginTop:3 }}>{ev.names}</div>
+                  <div style={{ fontSize:12, color:'#999', marginTop:2 }}>
+                    {new Date(ev.date).toLocaleDateString(localeCode(), { month:'numeric', day:'numeric', weekday:'short' })} · {ev.gymId === 'gym-hsinchu' ? tt('新竹館', 'Hsinchu', '新竹店') : tt('士林館', 'Shilin', '士林店')}
+                    {ev.kind === 'pickup' && ev.status === 'pending' && <span style={{ color:'#854F0B' }}> · {t('待確認付款')}</span>}
+                  </div>
+                </div>
+                <div style={{ fontSize:20 }}>{ev.kind === 'pickup' ? '🎒' : '📦'}</div>
               </div>
             ) })),
             ...myReminders.map(r => ({ sortKey: r.showFrom || '0000-00-00', node: (
