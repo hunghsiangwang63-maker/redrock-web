@@ -232,6 +232,7 @@ export default function CheckinPage() {
   const [phoneSelectedMember, setPhoneSelectedMember] = useState(null);
   const [memberEligibility, setMemberEligibility] = useState(null);
   const [phoneInstrument, setPhoneInstrument] = useState(null); // 票券：null=一般付款
+  const [phoneDiscountKind, setPhoneDiscountKind] = useState(null); // 電話入場優惠：null｜'partnerGymMember'（友館隊員 9 折）｜'partnerVendor'（特約廠商 −N）；僅成人單次票、一般付款、非有效隊員
   const [phoneSubMembers, setPhoneSubMembers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState(null);
@@ -537,6 +538,7 @@ export default function CheckinPage() {
   const selectPhoneMember = async (m) => {
     setPhoneSelectedMember(m);
     setMemberEligibility(null);
+    setPhoneDiscountKind(null);
     setPhoneInstrument(null);
     try {
       const res = await client.get(`/checkin/eligibility/${m.id}`, { params: { gymId: targetGymId } });
@@ -593,6 +595,13 @@ export default function CheckinPage() {
     }
   };
 
+  // 電話入場「友館隊員／特約廠商」優惠：僅成人單次票、一般付款（未選票券）、非有效隊員、非 VIP／定期票／課程學員（這些已免費或另有折扣）時可選
+  const phoneDiscountEligible = !!memberEligibility && phoneEntryType === 'single_ticket' && !phoneInstrument && !memberEligibility.isTeam
+    && !memberEligibility.isVip && !memberEligibility.hasValidPass && !memberEligibility.hasCourseAccess;
+  const phoneDiscountActive = phoneDiscountEligible
+    && ((phoneDiscountKind === 'partnerGymMember' && memberEligibility.partnerGymMember?.enabled) || (phoneDiscountKind === 'partnerVendor' && memberEligibility.partnerVendor?.enabled))
+    ? phoneDiscountKind : null;
+
   const handlePhoneCheckin = async () => {
     if (!phoneSelectedMember) {
       setPhoneError('請先選擇入場人員');
@@ -627,6 +636,8 @@ export default function CheckinPage() {
           rentShoes: phoneRentShoes,
           rentChalk: phoneRentChalk,
           legacyDiscountCard: phoneInstrument?.kind === 'legacyDiscount', // 轉換期舊折扣卡8折
+          ...(phoneDiscountActive === 'partnerGymMember' ? { partnerGymMember: true } : {}),   // 友館隊員 9 折（櫃檯已確認證明；後端權威判斷是否成立）
+          ...(phoneDiscountActive === 'partnerVendor' ? { partnerVendor: true } : {}),         // 特約廠商 −N
         });
       }
       setPhoneCheckedIn({
@@ -639,6 +650,7 @@ export default function CheckinPage() {
       setPhoneRentShoes(false);
       setPhoneRentChalk(false);
       setPhoneInstrument(null);
+      setPhoneDiscountKind(null);
       await loadStats();
     } catch (e) {
       setPhoneError(e.response?.data?.message || '入場失敗');
@@ -1275,6 +1287,28 @@ export default function CheckinPage() {
                     </>
                   )}
 
+                  {/* 電話入場優惠：友館隊員 9 折／特約廠商 −N（僅成人單次票、一般付款、非有效隊員；二擇一，需請會員出示證明確認） */}
+                  {phoneDiscountEligible && (memberEligibility.partnerGymMember?.enabled || memberEligibility.partnerVendor?.enabled) && (() => {
+                    const base = entryTypes.find(t => t.id === 'single_ticket')?.price || 0;
+                    const opts = [];
+                    if (memberEligibility.partnerGymMember?.enabled) opts.push({ key:'partnerGymMember', label:`友館隊員 ${Math.round(memberEligibility.partnerGymMember.rate*10)}折 NT$${Math.round(base*memberEligibility.partnerGymMember.rate)}` });
+                    if (memberEligibility.partnerVendor?.enabled) opts.push({ key:'partnerVendor', label:`特約廠商 −NT$${memberEligibility.partnerVendor.discount} → NT$${Math.max(0, base - memberEligibility.partnerVendor.discount)}` });
+                    return (
+                      <>
+                        <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>入場優惠（僅成人單次票，不含學生票；不與其他折扣併用）</div>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom: phoneDiscountActive ? 6 : 12 }}>
+                          {opts.map(o => (
+                            <button key={o.key} type="button" onClick={() => setPhoneDiscountKind(phoneDiscountKind === o.key ? null : o.key)}
+                              style={{ height:34, padding:'0 12px', borderRadius:8, border:`0.5px solid ${phoneDiscountKind===o.key?'#8B1A1A':'#E8D5D5'}`, background: phoneDiscountKind===o.key?'#8B1A1A':'#fff', color: phoneDiscountKind===o.key?'#fff':'#666', fontSize:12, cursor:'pointer' }}>
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                        {phoneDiscountActive && <div style={{ fontSize:12, color:'#854F0B', background:'#FAEEDA', borderRadius:6, padding:'6px 10px', marginBottom:12 }}>⚠ 請會員出示{phoneDiscountActive === 'partnerGymMember' ? '友館隊員證明' : '特約廠商證件'}確認後再入場；不符請改回原價。</div>}
+                      </>
+                    );
+                  })()}
+
                   {phoneEntryType === 'single_ticket' && (
                     <>
                       <div style={{ fontSize:11, color:'#666', marginBottom:6 }}>付款方式</div>
@@ -1317,6 +1351,8 @@ export default function CheckinPage() {
                   {(() => {
                     const basePrice = (entryTypes.find(t => t.id === phoneEntryType)?.price || 0);
                     let entryPrice = basePrice;
+                    if (phoneDiscountActive === 'partnerGymMember') entryPrice = Math.round(basePrice * (memberEligibility.partnerGymMember.rate || 0.9));
+                    else if (phoneDiscountActive === 'partnerVendor') entryPrice = Math.max(0, basePrice - (memberEligibility.partnerVendor.discount || 0));
                     if (phoneInstrument) {
                       if (phoneInstrument.kind === 'discountCard' || phoneInstrument.kind === 'legacyDiscount') {
                         const rate = memberEligibility?.instruments?.discountCard?.rate || 0.8; // 8折(或隊員疊9折=0.72)
