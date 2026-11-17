@@ -1625,7 +1625,7 @@ export default function MemberCoursesPage() {
                         )}
                         {renewalDiscount > 0 && (
                           <div style={{ display:'flex', justifyContent:'space-between', padding:'2px 0', color:'#2D7D46' }}>
-                            <span>🎁 {quote?.renewalDiscountType === 'full_term_renewal' ? t('續報優惠') : t('舊生優惠')}</span>
+                            <span>🎁 {quote?.renewalDiscountType === 'early_bird' ? t('早鳥優惠') : quote?.renewalDiscountType === 'full_term_renewal' ? t('續報優惠') : t('舊生優惠')}</span>
                             <span style={{ fontFamily:'monospace' }}>− NT${renewalDiscount.toLocaleString()}</span>
                           </div>
                         )}
