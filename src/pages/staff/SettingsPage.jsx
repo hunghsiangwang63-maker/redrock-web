@@ -1597,7 +1597,7 @@ export default function SettingsPage() {
           </div>
           <div style={{ padding:16 }}>
             <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
-              友館隊員憑證明入場，全票／學生票在<strong>無其他折扣</strong>時打折（預設 9 折，成人 300→270、學生 250→225）。與隊員 9 折、舊折扣卡 8 折<strong>互斥</strong>；與特約廠商優惠擇一（友館隊員較優先）；兒童票不適用。會員入場 QR 自選，櫃檯掃碼時提示請會員出示友館隊員證明。
+              友館隊員憑證明入場，<strong>成人全票</strong>（不含學生票）在<strong>無其他折扣</strong>時打折（預設 9 折，成人 300→270）。與隊員 9 折、舊折扣卡 8 折<strong>互斥</strong>；與特約廠商優惠擇一（友館隊員較優先）；兒童票不適用。會員入場 QR 自選，櫃檯掃碼時提示請會員出示友館隊員證明。
             </div>
             <label onClick={() => { setPartnerGymMember(p => ({ ...p, enabled: !p.enabled })); setPartnerGymMemberDirty(true); }}
               style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 14px', borderRadius:10, border:'0.5px solid #E8D5D5', marginBottom:16, cursor:'pointer' }}>

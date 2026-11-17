@@ -328,7 +328,7 @@ export default function MemberQRPage() {
       if (!selectedEntry.freeEntry) {
         payload.paymentMethod = payMethod;
         payload.originalAmount = selectedEntry.price || 0;
-        // 友館隊員(9折)／特約廠商(−20)：全票/學生票、非隊員、一般付款；互斥、友館隊員優先（後端權威覆核，前端僅顯示一致）
+        // 友館隊員(9折)／特約廠商(−20)：僅成人全票、非隊員、一般付款；互斥、友館隊員優先（後端權威覆核，前端僅顯示一致）
         const _base = selectedEntry.discountedPrice ?? selectedEntry.price ?? 0;
         const pgmActive = selectedEntry.kind === 'pay' && selectedEntry.partnerGymMemberEligible === true && partnerGymMember;
         const pgmRate = verifyResult?.partnerGymMemberRate || 0.9;
@@ -744,7 +744,7 @@ export default function MemberQRPage() {
             </div>
           )}
         </div>
-        {/* 友館隊員優惠（全票/學生票、非隊員、非票券）：勾選 9折，需櫃檯出示友館隊員證明；與特約廠商互斥；金額後端權威 */}
+        {/* 友館隊員優惠（僅成人全票、非隊員、非票券）：勾選 9折，需櫃檯出示友館隊員證明；與特約廠商互斥；金額後端權威 */}
         {pgmEligible && (
           <div onClick={() => { setPartnerGymMember(v => !v); setPartnerVendor(false); }}
             style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'12px 14px', marginBottom:12, borderRadius:12, border:`1.5px solid ${partnerGymMember?'#8B1A1A':'#E8D5D5'}`, background: partnerGymMember?'#FBF5F5':'#fff', cursor:'pointer' }}>
@@ -757,7 +757,7 @@ export default function MemberQRPage() {
             </div>
           </div>
         )}
-        {/* 特約廠商優惠（全票/學生票、非隊員、非票券）：勾選 −NT$20，需櫃檯出示證件；金額後端權威 */}
+        {/* 特約廠商優惠（僅成人全票、非隊員、非票券）：勾選 −NT$20，需櫃檯出示證件；金額後端權威 */}
         {pvEligible && (
           <div onClick={() => { setPartnerVendor(v => !v); setPartnerGymMember(false); }}
             style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'12px 14px', marginBottom:16, borderRadius:12, border:`1.5px solid ${partnerVendor?'#8B1A1A':'#E8D5D5'}`, background: partnerVendor?'#FBF5F5':'#fff', cursor:'pointer' }}>
