@@ -753,7 +753,7 @@ export default function MemberQRPage() {
             </div>
             <div style={{ flex:1, textAlign:'left' }}>
               <div style={{ fontWeight:600, fontSize:14, color:'#1a1a1a' }}>{tt(`友館隊員優惠（${(pgmRate*10).toFixed(pgmRate*10%1?1:0)}折）`, `Partner-gym athlete (${Math.round((1-pgmRate)*100)}% off)`, `提携ジム会員優待（${Math.round((1-pgmRate)*100)}%OFF）`)}</div>
-              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{tt('僅限成人全票，不與其他折扣併用。需於櫃檯出示友館隊員證明核對，未出示或不符將以原價計。', 'Adult full-price entry only; cannot be combined with other discounts. Show partner-gym athlete proof at counter; otherwise full price.', '一般（全額）入場のみ、他の割引との併用不可。フロントで提携ジムの会員証をご提示ください。提示がない場合は通常料金となります。')}</div>
+              <div style={{ fontSize:11.5, color:'#999', marginTop:3 }}>{tt('僅限成人單次票，不含學生票；不與其他折扣併用。需於櫃檯出示友館隊員證明核對，未出示或不符將以原價計。', 'Adult single entry only (not the student rate); cannot combine with other discounts. Show partner-gym athlete proof at counter; otherwise full price.', '一般1回入場のみ（学生料金は対象外）。他の割引との併用不可。フロントで提携ジムの会員証をご提示ください。提示がない場合は通常料金となります。')}</div>
             </div>
           </div>
         )}
