@@ -966,7 +966,7 @@ export default function PendingTasksPage() {
               const _five = task.record?.bankLastFive || task.bankLastFive || null;
               const bankLastFiveTag = (_five && (task.method || task.record?.paymentMethod) !== 'cash') ? _five : null; // 有填末五碼且不是現金才顯示
               return (
-                <div key={task.id} style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12 }}>
+                <div key={task.id} style={{ background: task.overdue ? '#FFF6F6' : '#fff', borderRadius:12, border: task.overdue ? '1px solid #FFB3B3' : '0.5px solid #E8D5D5', padding:'12px 14px', display:'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 12 }}>
                   <div style={{ display:'flex', alignItems: isMobile ? 'flex-start' : 'center', gap:12, minWidth:0 }}>
                     {/* 圖示 */}
                     <div style={{ width:40, height:40, borderRadius:10, background:cfg.bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>
@@ -976,7 +976,7 @@ export default function PendingTasksPage() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3, flexWrap:'wrap' }}>
                         <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:cfg.bg, color:cfg.color, flexShrink:0 }}>{badgeLabel}</span>
-                        <span style={{ fontSize:13, fontWeight:600 }}>{task.title}</span>
+                        <span style={{ fontSize:13, fontWeight:600, ...(task.overdue ? { color:'#A32D2D' } : {}) }}>{task.title}</span>
                         {payTag && <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:payTag.bg, color:payTag.color, flexShrink:0 }}>{payTag.label}</span>}
                         {amountTag != null && <span style={{ fontSize:10, fontWeight:700, padding:'1px 7px', borderRadius:6, background:'#FBF5F5', color:'#8B1A1A', flexShrink:0 }}>NT${amountTag.toLocaleString()}</span>}
                         {bankLastFiveTag && <span style={{ fontSize:10, fontWeight:600, padding:'1px 7px', borderRadius:6, background:'#E6F1FB', color:'#185FA5', flexShrink:0 }}>末五碼 {bankLastFiveTag}</span>}
