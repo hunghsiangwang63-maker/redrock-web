@@ -703,7 +703,7 @@ export default function SettingsPage() {
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
   };
-  // ─── 優惠折扣券購買價（預設 600；會員入場購買、入場收費資訊頁都讀這個值）──────────────
+  // ─── 優惠折扣券購買價（預設 600；會員入場購買、收費資訊頁都讀這個值）──────────────
   const [dcPrice, setDcPrice] = useState('600');
   const [dcPriceDirty, setDcPriceDirty] = useState(false);
   const loadDcPrice = async () => {
@@ -1548,7 +1548,7 @@ export default function SettingsPage() {
           </div>
           <div style={{ padding:16 }}>
             <div style={{ fontSize:12, color:'#999', lineHeight:1.6, marginBottom:16 }}>
-              會員「購買優惠折扣券入場」的售價（含本次入場，之後 10 次入場享八折）。有效隊員再 9 折。修改後入場 QR、線上付款與會員 App「入場收費資訊」頁都會使用新價格（入場收費資訊頁最多 10 分鐘後更新）。已購買的券不受影響。
+              會員「購買優惠折扣券入場」的售價（含本次入場，之後 10 次入場享八折）。有效隊員再 9 折。修改後入場 QR、線上付款與會員 App「收費資訊」頁都會使用新價格（收費資訊頁最多 10 分鐘後更新）。已購買的券不受影響。
             </div>
             <div style={{ maxWidth:260 }}>
               <label style={{ ...s.label, fontSize:13, marginBottom:8, display:'block' }}>售價（NT$）</label>

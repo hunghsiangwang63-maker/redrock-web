@@ -117,7 +117,7 @@ export default function MemberGymsPage() {
         <div onClick={() => navigate('/member/pricing')}
           style={{ flex:1, background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:'12px 10px', textAlign:'center', cursor:'pointer' }}>
           <div style={{ fontSize:22 }}>💰</div>
-          <div style={{ fontSize:12, fontWeight:600, marginTop:4 }}>{tt('入場收費', 'Entry fees', '入場料金')}</div>
+          <div style={{ fontSize:12, fontWeight:600, marginTop:4 }}>{tt('收費資訊', 'Pricing', '料金のご案内')}</div>
         </div>
       </div>
 

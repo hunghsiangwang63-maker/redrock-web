@@ -584,7 +584,7 @@ export default function MemberHomePage() {
           ))}
         </div>
         <div onClick={() => navigate('/member/pricing')} style={{ marginTop:8, textAlign:'right', fontSize:12, fontWeight:600, color: isHalloween() ? '#FFB45C' : '#8B1A1A', cursor:'pointer' }}>
-          💰 {tt('入場收費資訊', 'Entry fees', '入場料金のご案内')} ›
+          💰 {tt('收費資訊', 'Pricing', '料金のご案内')} ›
         </div>
       </div>
 

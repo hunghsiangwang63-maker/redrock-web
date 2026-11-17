@@ -21,6 +21,7 @@ const SINGLE_I18N = {
   student_free: ['學生單次入場', 'Student single entry', '学生 1回入場'],
   child_free: ['兒童單次入場（12 歲以下）', 'Child single entry (12 and under)', '子ども 1回入場（12歳以下）'],
 };
+const RENTAL_I18N = { crashPad: ['抱石墊', 'Crash pad', 'クラッシュパッド'], helmet: ['岩盔', 'Helmet', 'ヘルメット'], harness: ['攀岩吊帶', 'Climbing harness', 'クライミングハーネス'] };
 const SINGLE_ORDER = ['single_ticket', 'student_free', 'child_free'];
 const rateLabel = (r) => tt(`${Math.round(r * 10)} 折`, `${Math.round((1 - r) * 100)}% off`, `${Math.round(r * 10)}掛け`);
 const money = (n) => `NT$${Number(n || 0).toLocaleString()}`;
@@ -58,7 +59,7 @@ export default function MemberPricingPage() {
       </div>
       <div style={{ background: '#fff', padding: '16px 20px', borderBottom: '0.5px solid #E8D5D5', display: 'flex', alignItems: 'center', gap: 10 }}>
         <div onClick={() => navigate(isLoggedIn ? '/member/home' : '/member/gyms')} style={{ fontSize: 20, cursor: 'pointer', color: '#8B1A1A' }}>←</div>
-        <div style={{ fontWeight: 600, fontSize: 15 }}>{tt('入場收費資訊', 'Entry Fees', '入場料金のご案内')}</div>
+        <div style={{ fontWeight: 600, fontSize: 15 }}>{tt('收費資訊', 'Pricing', '料金のご案内')}</div>
       </div>
 
       {err && <div style={{ ...card, color: '#A32D2D', fontSize: 13 }}>{tt('載入失敗，請稍後再試。', 'Failed to load. Please try again later.', '読み込みに失敗しました。しばらくしてからお試しください。')}</div>}
@@ -102,8 +103,28 @@ export default function MemberPricingPage() {
 
         <div style={card}>
           <div style={h}>{tt('器材租借', 'Rentals', 'レンタル')}</div>
+          <div style={{ ...sub, margin: '0 0 4px', fontWeight: 600 }}>{tt('入場時現場租借', 'On-site rental with entry', '入場時のレンタル')}</div>
           {d.rentals.shoe.active && <div style={row}><span>{tt('岩鞋', 'Climbing shoes', 'クライミングシューズ')}</span><span style={price}>{money(d.rentals.shoe.price)}</span></div>}
           {d.rentals.chalk.active && <div style={row}><span>{tt('粉袋', 'Chalk bag', 'チョークバッグ')}</span><span style={price}>{money(d.rentals.chalk.price)}</span></div>}
+          {d.rentals.items?.length > 0 && (<>
+            <div style={{ ...sub, margin: '12px 0 4px', fontWeight: 600 }}>{tt('外借器材', 'Take-home rental', '貸出')}</div>
+            {d.rentals.items.map(it => {
+              const n = RENTAL_I18N[it.key];
+              return (
+                <div key={it.key} style={{ ...row, display: 'block' }}>
+                  <div style={{ fontWeight: 600 }}>{n ? tt(n[0], n[1], n[2]) : it.name}</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 16px', marginTop: 4, fontSize: 13, color: '#444' }}>
+                    {it.weekendFee != null && <span>{tt('週末方案', 'Weekend', '週末プラン')} <b>{money(it.weekendFee)}</b></span>}
+                    {it.sevenDayFee != null && <span>{tt('七天方案', '7-day', '7日プラン')} <b>{money(it.sevenDayFee)}</b></span>}
+                    {it.deposit > 0 && <span>{tt('押金', 'Deposit', '保証金')} <b>{money(it.deposit)}</b></span>}
+                  </div>
+                  {it.description && it.description !== it.name && <div style={sub}>{it.description}</div>}
+                </div>
+              );
+            })}
+            <div style={{ ...sub, marginTop: 8 }}>{tt('週末方案：週五借出、週一歸還；七天方案：使用前一天借出、使用後一天歸還。押金於歸還、確認狀態後退還。', 'Weekend plan: pick up Friday, return Monday. 7-day plan: pick up the day before use, return the day after. The deposit is refunded after the equipment is returned and checked.', '週末プラン：金曜日に貸出、月曜日に返却。7日プラン：利用前日に貸出、利用後日に返却。保証金は返却・状態確認後に返金されます。')}</div>
+            {isLoggedIn && <div onClick={() => navigate('/member/rental')} style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: '#8B1A1A', cursor: 'pointer' }}>{tt('線上申請外借 ›', 'Apply for take-home rental ›', '貸出を申し込む ›')}</div>}
+          </>)}
         </div>
 
         <div style={card}>
