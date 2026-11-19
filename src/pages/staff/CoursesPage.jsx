@@ -179,6 +179,7 @@ export default function CoursesPage({ embedded = false }) {
     // 續報/舊生優惠（比率＋開關，週課專用；未開啟時 rate 僅為 UI 預設顯示，不會送出）
     fullTermRenewalDiscountEnabled: false, fullTermRenewalDiscountRate: 90,
     alumniDiscountEnabled: false, alumniDiscountRate: 95,
+    earlyBirdEnabled: false, earlyBirdRate: 95, earlyBirdDeadline: '',
     unlimitedPracticeStart: '', unlimitedPracticeEnd: '',
     installment: { enabled: false, periods: [] },
   };
@@ -596,6 +597,8 @@ export default function CoursesPage({ embedded = false }) {
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(courseForm.fullTermRenewalDiscountRate) || 90) / 100,
         alumniDiscountEnabled: isWorkshop ? undefined : !!courseForm.alumniDiscountEnabled,
         alumniDiscountRate: isWorkshop ? undefined : (Number(courseForm.alumniDiscountRate) || 95) / 100,
+        earlyBirdDeadline: isWorkshop ? undefined : (courseForm.earlyBirdEnabled && courseForm.earlyBirdDeadline ? courseForm.earlyBirdDeadline : null),
+        earlyBirdRate: isWorkshop ? undefined : (courseForm.earlyBirdEnabled && courseForm.earlyBirdDeadline ? (Number(courseForm.earlyBirdRate) || 95) / 100 : null),
         maxStudents: parseInt(courseForm.maxStudents),
         gymAccessDays: parseInt(courseForm.gymAccessDays), // 自開課日起算的入館有效天數（決定 unlimitedPracticeEnd）
         weekdays: courseForm.weekdays.map(Number),
@@ -655,6 +658,9 @@ export default function CoursesPage({ embedded = false }) {
       fullTermRenewalDiscountRate: course.fullTermRenewalDiscountRate != null ? Math.round(course.fullTermRenewalDiscountRate * 100) : 90,
       alumniDiscountEnabled: !!course.alumniDiscountEnabled,
       alumniDiscountRate: course.alumniDiscountRate != null ? Math.round(course.alumniDiscountRate * 100) : 95,
+      earlyBirdEnabled: !!(course.earlyBirdDeadline && course.earlyBirdRate),
+      earlyBirdRate: course.earlyBirdRate != null ? Math.round(course.earlyBirdRate * 100) : 95,
+      earlyBirdDeadline: course.earlyBirdDeadline || '',
       renewalDeadline: course.renewalDeadline || '',
       preStartFeeRate: course.preStartFeeRate != null ? Math.round(course.preStartFeeRate * 100) : '',
       allowMakeup: course.allowMakeup ?? '',
@@ -711,6 +717,8 @@ export default function CoursesPage({ embedded = false }) {
         fullTermRenewalDiscountRate: isWorkshop ? undefined : (Number(editForm.fullTermRenewalDiscountRate) || 90) / 100,
         alumniDiscountEnabled: isWorkshop ? undefined : !!editForm.alumniDiscountEnabled,
         alumniDiscountRate: isWorkshop ? undefined : (Number(editForm.alumniDiscountRate) || 95) / 100,
+        earlyBirdDeadline: isWorkshop ? undefined : (editForm.earlyBirdEnabled && editForm.earlyBirdDeadline ? editForm.earlyBirdDeadline : null),
+        earlyBirdRate: isWorkshop ? undefined : (editForm.earlyBirdEnabled && editForm.earlyBirdDeadline ? (Number(editForm.earlyBirdRate) || 95) / 100 : null),
         maxStudents: parseInt(editForm.maxStudents),
         // 規則：空＝null（清除覆寫、回到班別預設）
         leaveDeadlineHours: ovNum(editForm.leaveDeadlineHours),
@@ -2075,6 +2083,9 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       fullTermRenewalDiscountRate: src.fullTermRenewalDiscountRate != null ? Math.round(src.fullTermRenewalDiscountRate * 100) : 90,
                       alumniDiscountEnabled: !!src.alumniDiscountEnabled,
                       alumniDiscountRate: src.alumniDiscountRate != null ? Math.round(src.alumniDiscountRate * 100) : 95,
+                      earlyBirdEnabled: !!(src.earlyBirdDeadline && src.earlyBirdRate),
+                      earlyBirdRate: src.earlyBirdRate != null ? Math.round(src.earlyBirdRate * 100) : 95,
+                      earlyBirdDeadline: src.earlyBirdDeadline || '',
                       weekdays: src.weekdays || [],
                       installment: src.installment || prev.installment,
                     }));
@@ -2344,6 +2355,27 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                       )}
                     </div>
                   ))}
+                  {courseForm.type === 'weekly' && (
+              <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#444', cursor:'pointer', flexShrink:0 }}>
+                  <input type="checkbox" checked={!!courseForm.earlyBirdEnabled}
+                    onChange={e => setCourseForm({...courseForm, earlyBirdEnabled: e.target.checked})}/>
+                  早鳥優惠（限期內報名）
+                </label>
+                {courseForm.earlyBirdEnabled && (
+                  <>
+                    <input type="number" min={1} max={99} value={courseForm.earlyBirdRate ?? 95}
+                      onChange={e => setCourseForm({...courseForm, earlyBirdRate: e.target.value})}
+                      style={{ width:70, height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}/>
+                    <span style={{ fontSize:12, color:'#999' }}>%　報名截止日（含當天）</span>
+                    <input type="date" value={courseForm.earlyBirdDeadline || ''}
+                      onChange={e => setCourseForm({...courseForm, earlyBirdDeadline: e.target.value})}
+                      style={{ height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}/>
+                    <span style={{ fontSize:11, color:'#999', flexBasis:'100%' }}>與續報／舊生／隊員優惠擇優（取最低價），不疊加；未選截止日則不啟用</span>
+                  </>
+                )}
+              </div>
+                  )}
                 </div>
               );
             })()}
@@ -2655,6 +2687,27 @@ const [closureTarget, setClosureTarget] = useState(null); // 休館停課確認 
                 )}
               </div>
             ))}
+            {(editForm.type || editingCourse?.type) === 'weekly' && (
+              <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:10, flexWrap:'wrap', background:'#FBF5F5', borderRadius:8, padding:'8px 12px' }}>
+                <label style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, color:'#444', cursor:'pointer', flexShrink:0 }}>
+                  <input type="checkbox" checked={!!editForm.earlyBirdEnabled}
+                    onChange={e => setEditForm({...editForm, earlyBirdEnabled: e.target.checked})}/>
+                  早鳥優惠（限期內報名）
+                </label>
+                {editForm.earlyBirdEnabled && (
+                  <>
+                    <input type="number" min={1} max={99} value={editForm.earlyBirdRate ?? 95}
+                      onChange={e => setEditForm({...editForm, earlyBirdRate: e.target.value})}
+                      style={{ width:70, height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}/>
+                    <span style={{ fontSize:12, color:'#999' }}>%　報名截止日（含當天）</span>
+                    <input type="date" value={editForm.earlyBirdDeadline || ''}
+                      onChange={e => setEditForm({...editForm, earlyBirdDeadline: e.target.value})}
+                      style={{ height:32, borderRadius:6, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, background:'#fff', outline:'none', color:'#1a1a1a' }}/>
+                    <span style={{ fontSize:11, color:'#999', flexBasis:'100%' }}>與續報／舊生／隊員優惠擇優（取最低價），不疊加；未選截止日則不啟用</span>
+                  </>
+                )}
+              </div>
+            )}
             <div style={{ gridColumn:'1/-1' }}>
               <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:8 }}>上課星期（可複選）</label>
               <div style={{ display:'flex', gap:8 }}>
