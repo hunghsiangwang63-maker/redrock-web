@@ -7,6 +7,7 @@ import { getStaffFallTestSignature, recordFallTestResult, resetFallTestSignature
 import client from '../../api/client';
 import { useAuth } from '../../store/authStore';
 import MemberSpiderSection from '../../components/MemberSpiderSection';
+import { downloadFile } from '../../utils/downloadFile';
 import dayjs from 'dayjs';
 import VipPage from './VipPage';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -1575,10 +1576,16 @@ export default function MembersPage() {
             <div style={{ fontSize:12, color:'#999' }}>
               簽署時間：{waiverData.memberSignedAt ? dayjs(waiverData.memberSignedAt._seconds * 1000).format('YYYY/MM/DD HH:mm') : '-'}
             </div>
+            <div style={{ display:'flex', flexShrink:0 }}>
             <button onClick={() => { const w=window.open('','_blank'); const fmt=(x)=>x?._seconds?new Date(x._seconds*1000).toLocaleString('zh-TW'):'-'; const body=waiverData.contentSnapshot?.zh||''; const memberSig=waiverData.memberSignatureUrl?'<img src="'+waiverData.memberSignatureUrl+'" style="max-width:300px">':''; const parentBlock=waiverData.parentSignatureUrl?('<h3>法定代理人簽名</h3><p style="color:#666;font-size:12px">'+(waiverData.parentName?'簽署人：'+waiverData.parentName+'（'+(waiverData.parentRelation||'法定代理人')+'）　':'')+'簽署時間：'+fmt(waiverData.parentSignedAt)+'</p><img src="'+waiverData.parentSignatureUrl+'" style="max-width:300px">'):''; w.document.write('<html><head><title>Waiver</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 Waiver</h2><p style="color:#666;font-size:12px">簽署時間：'+fmt(waiverData.memberSignedAt)+'</p><hr><pre style="white-space:pre-wrap;font-size:13px">'+body+'</pre><h3>'+(detail?.member?.isChildAccount?'法定代理人簽名':'本人簽名')+'</h3>'+memberSig+parentBlock+'</body></html>'); w.document.close(); w.print(); }}
               style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
-              🖨️ 列印/PDF
+              🖨️ 列印
             </button>
+            <button onClick={async () => { try { await downloadFile('/members/__ID__/waiver/pdf'.replace('__ID__', detail.member.id), { filename: `風險安全聲明書_${detail?.member?.name || ''}_${dayjs().format('YYYYMMDD')}.pdf` }); } catch (e) { alert('下載 PDF 失敗：' + e.message); } }}
+              style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
+              ⬇️ 下載 PDF
+            </button>
+            </div>
           </div>
           {waiverData.contentSnapshot?.zh && (
             <div style={{ marginBottom:16 }}>
@@ -1633,6 +1640,7 @@ export default function MembersPage() {
                 <div style={{ fontSize:12, color:'#999' }}>
                   簽署時間：{fallTestSigData.signedAt ? dayjs(fallTestSigData.signedAt._seconds * 1000).format('YYYY/MM/DD HH:mm') : '-'}
                 </div>
+                <div style={{ display:'flex', flexShrink:0 }}>
                 <button onClick={() => {
                   const w = window.open('', '_blank');
                   const t = fallTestSigData.signedAt ? new Date(fallTestSigData.signedAt._seconds*1000).toLocaleString('zh-TW') : '-';
@@ -1642,8 +1650,13 @@ export default function MembersPage() {
                   w.document.write('<html><head><title>墜落測驗同意書</title></head><body style="font-family:sans-serif;padding:24px;max-width:600px"><h2 style="color:#8B1A1A">紅石攀岩 — 墜落測驗同意書</h2><p style="color:#666;font-size:12px">簽署時間：' + t + '</p><hr><pre style="white-space:pre-wrap;font-size:13px;line-height:1.8">' + body + '</pre><h3>' + (detail?.member?.isChildAccount ? '法定代理人簽名' : '本人簽名') + '</h3>' + sig + gsig + '</body></html>');
                   w.document.close(); w.print();
                 }} style={{ height:28, padding:'0 12px', borderRadius:6, background:'#185FA5', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
-                  🖨️ 列印/PDF
+                  🖨️ 列印
                 </button>
+                <button onClick={async () => { try { await downloadFile('/fall-tests/signature/__ID__/pdf'.replace('__ID__', detail.member.id), { filename: `墜落測驗同意書_${detail?.member?.name || ''}_${dayjs().format('YYYYMMDD')}.pdf` }); } catch (e) { alert('下載 PDF 失敗：' + e.message); } }}
+                  style={{ height:28, padding:'0 12px', borderRadius:6, background:'#8B1A1A', color:'#fff', border:'none', fontSize:11, cursor:'pointer', flexShrink:0, marginLeft:8 }}>
+                  ⬇️ 下載 PDF
+                </button>
+                </div>
               </div>
               {fallTestSigData.contentSnapshot?.zh && (
                 <div style={{ marginBottom:16 }}>
