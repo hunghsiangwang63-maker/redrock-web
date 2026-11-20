@@ -162,7 +162,7 @@ export default function MemberRentalPage() {
     return () => { alive = false; clearTimeout(timer); };
   }, [gymId, pickupDate, returnDate, quantities.crashPad, rentalMode]);
 
-  const padBlocked = !!(padAvail && padAvail.blocked);
+  const padBlocked = !!(padAvail && (padAvail.blocked || padAvail.hardBlocked));
 
   const handleApply = async () => {
     if (!pickupDate) { showMsg(t('請選擇借出日期'), 'red'); return; }
@@ -366,7 +366,11 @@ export default function MemberRentalPage() {
                       {cfg.description && <div style={{ fontSize:11, color:'#aaa' }}>{cfg.description}</div>}
                       {type === 'crashPad' && padAvail && qty > 0 && (
                         <div style={{ fontSize:11, marginTop:4, color: padAvail.blocked ? '#B3261E' : (padAvail.over ? '#B26A00' : '#2D7D46'), lineHeight:1.5 }}>
-                          {padAvail.blocked
+                          {padAvail.hardBlocked
+                            ? tt(`兩館抱石墊合計僅 ${padAvail.maxTotal} 張，此期間已被預約 ${padAvail.peakAll} 張，最多還能再借 ${padAvail.remainingTotal} 張，請減少數量或改選其他日期。`,
+                                 `We have ${padAvail.maxTotal} crash pads in total across both gyms; ${padAvail.peakAll} are already booked for these dates, so at most ${padAvail.remainingTotal} more can be rented. Please reduce the quantity or pick other dates.`,
+                                 `両店舗合計で${padAvail.maxTotal}枚のみです。この期間はすでに${padAvail.peakAll}枚が予約済みのため、あと${padAvail.remainingTotal}枚までお借りいただけます。数量の変更か別の日程をお選びください。`)
+                            : padAvail.blocked
                             ? tt(`此期間抱石墊僅剩 ${padAvail.remaining} 張可立即借用，您需要 ${qty} 張；需更多請於 ${padAvail.advanceDays} 天前預約（借出日最早 ${padAvail.earliestOverDate}），或減少數量／改選其他日期。`,
                                  `Only ${padAvail.remaining} crash pad(s) available for these dates; you need ${qty}. For more, book at least ${padAvail.advanceDays} days ahead (earliest pickup ${padAvail.earliestOverDate}), or reduce the quantity / pick other dates.`,
                                  `この期間は即日貸出可能なクラッシュパッドが残り${padAvail.remaining}枚ですが、${qty}枚が必要です。より多く必要な場合は${padAvail.advanceDays}日前までにご予約ください（貸出日は${padAvail.earliestOverDate}以降）。数量の変更か別の日程をお選びください。`)
