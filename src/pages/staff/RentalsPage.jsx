@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getRentals, getRentalStats, updateRentalSettings, getRentalSettingsStaff, cancelRentalStaff, updateRentalStaff, saveRentalStaffNote, returnRentalDeposit, getRentalInvoices, createRentalInvoice, voidRentalInvoice } from '../../api/rentals';
 import { useAuth } from '../../store/authStore';
+import { GYM_LABEL } from '../../utils/gymLabel';
 import dayjs from 'dayjs';
 import RentalActionModal from '../../components/review/RentalActionModal';
 import SegmentedTabs from '../../components/SegmentedTabs';
@@ -254,7 +255,20 @@ export default function RentalsPage({ embedded = false }) {
                     <div style={{ fontSize:28, marginBottom:4 }}><ItemIcon type={s.type} size={28} /></div>
                     <div style={{ fontSize:13, fontWeight:600 }}>{s.name}</div>
                     <div style={{ fontSize:28, fontWeight:700, color:'#8B1A1A', margin:'6px 0' }}>{s.total}</div>
-                    <div style={{ fontSize:11, color:'#999' }}>件最多同時出借</div>
+                    <div style={{ fontSize:11, color:'#999' }}>件（期間內逐日最高同時出借）</div>
+                    {/* 分館最高占用；抱石墊另列常態數量與兩館上限，超過以橘字標示 */}
+                    {Object.keys(s.peakByGym || {}).length > 0 && (
+                      <div style={{ marginTop:8, paddingTop:8, borderTop:'0.5px solid #F0E8E8', fontSize:11, color:'#666', textAlign:'left', lineHeight:1.7 }}>
+                        {Object.entries(s.peakByGym).map(([g, n]) => {
+                          const cap = s.stock?.byGym?.[g];
+                          const over = cap != null && n > cap;
+                          return <div key={g}>{GYM_LABEL[g] || g}：最高 <b style={{ color: over ? '#B26A00' : '#333' }}>{n}</b>{cap != null && ` ／ 常態 ${cap}`}{over && ' ⚠'}</div>;
+                        })}
+                        {s.stock?.maxTotal != null && Object.keys(s.peakByGym).length > 1 && (
+                          <div>兩館合計：最高 <b style={{ color: s.total > s.stock.maxTotal ? '#B3261E' : '#333' }}>{s.total}</b> ／ 上限 {s.stock.maxTotal}</div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -266,7 +280,7 @@ export default function RentalsPage({ embedded = false }) {
                     <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                       <thead>
                         <tr style={{ background:'#FBF5F5' }}>
-                          {['會員','數量','借出','歸還','狀態'].map(h => (
+                          {['會員','館別','數量','借出','歸還','狀態'].map(h => (
                             <th key={h} style={{ padding:'8px 12px', textAlign:'left', fontWeight:600, color:'#666', borderBottom:'0.5px solid #E8D5D5' }}>{h}</th>
                           ))}
                         </tr>
@@ -274,7 +288,8 @@ export default function RentalsPage({ embedded = false }) {
                       <tbody>
                         {s.records.map((rec, i) => (
                           <tr key={i} style={{ borderBottom:'0.5px solid #F0E8E8' }}>
-                            <td style={{ padding:'8px 12px' }}>{rec.memberName}</td>
+                            <td style={{ padding:'8px 12px' }}>{rec.memberName}{rec.crashPadOverStock && <span style={{ marginLeft:6, fontSize:10, padding:'1px 6px', borderRadius:6, background:'#FFF1D6', color:'#B26A00' }}>需調度</span>}</td>
+                            <td style={{ padding:'8px 12px', color:'#666' }}>{GYM_LABEL[rec.gymId] || ''}</td>
                             <td style={{ padding:'8px 12px', fontWeight:600 }}>{rec.quantity}</td>
                             <td style={{ padding:'8px 12px', color:'#666' }}>{rec.pickupDate}</td>
                             <td style={{ padding:'8px 12px', color:'#666' }}>{rec.returnDate}</td>
