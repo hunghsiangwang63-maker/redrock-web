@@ -4,6 +4,7 @@ export const getRentalSettings = () => memberClient.get('/rentals/settings');   
 export const getRentalSettingsStaff = () => client.get('/rentals/settings');            // 員工端（staff token；誤用 memberClient 會 401 被攔截器踢去會員登入頁）
 export const updateRentalSettings = (data) => client.put('/rentals/settings', data);
 export const applyRental = (data) => memberClient.post('/rentals/apply', data);
+export const getCrashPadAvailability = (params) => memberClient.get('/rentals/availability', { params });   // 抱石墊剩餘數量（會員申請畫面）
 export const getMyRentals = () => memberClient.get('/rentals/my');
 export const getRentals = (params) => client.get('/rentals', { params });
 export const getRentalStats = (params) => client.get('/rentals/stats', { params });

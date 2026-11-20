@@ -573,6 +573,7 @@ function RentalCard({ r, onAction, onCancel, onEdit, onNote, onDeposit }) {
       </div>
       <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>
         {r.items?.map(i => `${i.name}×${i.quantity}`).join('　')}
+        {r.crashPadOverStock && <span style={{ marginLeft:8, fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:6, background:'#FFF1D6', color:'#B26A00' }}>⚠ 抱石墊超過常態數量，需調度</span>}
       </div>
       <div style={{ fontSize:12, color:'#8B1A1A', marginBottom:10 }}>
         租金 NT${r.totalRentalFee}　押金 NT${r.totalDeposit}

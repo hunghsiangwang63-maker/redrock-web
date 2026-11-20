@@ -5,7 +5,7 @@ import MemberBottomNav from '../../components/MemberBottomNav';
 import { t, tt } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
-import { getRentalSettings, applyRental, getMyRentals, cancelRentalMember, updateRentalMember } from '../../api/rentals';
+import { getRentalSettings, applyRental, getMyRentals, cancelRentalMember, updateRentalMember, getCrashPadAvailability } from '../../api/rentals';
 import TransferReuploadModal from '../../components/TransferReuploadModal';
 import { memberClient } from '../../api/client';
 import dayjs from 'dayjs';
@@ -56,6 +56,7 @@ export default function MemberRentalPage() {
   const { bankInfoForGym } = useGymBankAccounts(); // 收款帳號依所選館別（2026-11-10 修，原寫死新竹）
   const [paymentData, setPaymentData] = useState({ method: 'cash' }); // { method, paymentDate, bankLastFive, bankName, paidAmount }
   const [submitting, setSubmitting] = useState(false);
+  const [padAvail, setPadAvail] = useState(null); // 抱石墊數量管制：{stock, peak, remaining, over, blocked, advanceDays, earliestOverDate}
 
   const [alertModal, setAlertModal] = useState(null);
   const showMsg = (msg, type='ok') => setAlertModal({ message: msg, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
@@ -147,6 +148,21 @@ export default function MemberRentalPage() {
 
   const hasItems = rentalMode === 'locker' ? !!lockerCfg : Object.values(quantities).some(q => q > 0);
   const { rentalFee, deposit } = calcTotal();
+
+  // 抱石墊剩餘數量（依館別、借出日、歸還日、數量；後端權威，這裡只是提示）
+  useEffect(() => {
+    const qty = quantities.crashPad || 0;
+    if (rentalMode === 'locker' || !pickupDate || !returnDate || qty <= 0) { setPadAvail(null); return; }
+    let alive = true;
+    const timer = setTimeout(() => {
+      getCrashPadAvailability({ gymId, pickupDate, returnDate, quantity: qty })
+        .then(r => { if (alive) setPadAvail(r.data.crashPad?.controlled ? r.data.crashPad : null); })
+        .catch(() => { if (alive) setPadAvail(null); });
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [gymId, pickupDate, returnDate, quantities.crashPad, rentalMode]);
+
+  const padBlocked = !!(padAvail && padAvail.blocked);
 
   const handleApply = async () => {
     if (!pickupDate) { showMsg(t('請選擇借出日期'), 'red'); return; }
@@ -348,6 +364,17 @@ export default function MemberRentalPage() {
                         {tt(`租金 NT$${unitFee}/件　押金 NT$${cfg.deposit}/件`, `Fee NT$${unitFee}/item  Deposit NT$${cfg.deposit}/item`, `レンタル料 NT$${unitFee}/個　保証金 NT$${cfg.deposit}/個`)}
                       </div>
                       {cfg.description && <div style={{ fontSize:11, color:'#aaa' }}>{cfg.description}</div>}
+                      {type === 'crashPad' && padAvail && qty > 0 && (
+                        <div style={{ fontSize:11, marginTop:4, color: padAvail.blocked ? '#B3261E' : (padAvail.over ? '#B26A00' : '#2D7D46'), lineHeight:1.5 }}>
+                          {padAvail.blocked
+                            ? tt(`此期間抱石墊僅剩 ${padAvail.remaining} 張可立即借用，您需要 ${qty} 張；需更多請於 ${padAvail.advanceDays} 天前預約（借出日最早 ${padAvail.earliestOverDate}），或減少數量／改選其他日期。`,
+                                 `Only ${padAvail.remaining} crash pad(s) available for these dates; you need ${qty}. For more, book at least ${padAvail.advanceDays} days ahead (earliest pickup ${padAvail.earliestOverDate}), or reduce the quantity / pick other dates.`,
+                                 `この期間は即日貸出可能なクラッシュパッドが残り${padAvail.remaining}枚ですが、${qty}枚が必要です。より多く必要な場合は${padAvail.advanceDays}日前までにご予約ください（貸出日は${padAvail.earliestOverDate}以降）。数量の変更か別の日程をお選びください。`)
+                            : padAvail.over
+                              ? tt(`超過常態數量，以提前 ${padAvail.advanceDays} 天預約受理；櫃檯會另行調度，確認收款後生效。`, `This exceeds our standard stock and is accepted as an advance booking; staff will arrange the extra pads.`, `通常の在庫数を超えるため事前予約として受け付けます。追加分はスタッフが手配します。`)
+                              : tt(`此期間剩 ${padAvail.remaining} 張可借`, `${padAvail.remaining} available for these dates`, `この期間は残り${padAvail.remaining}枚`)}
+                        </div>
+                      )}
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:12 }}>
                       <button onClick={() => setQuantities(q => ({ ...q, [type]: Math.max(0, (q[type]||0)-1) }))}
@@ -386,9 +413,9 @@ export default function MemberRentalPage() {
               </div>
             )}
 
-            <button onClick={() => setShowPayModal(true)} disabled={!hasItems || !pickupDate}
-              style={{ width:'100%', height:48, borderRadius:12, background: (!hasItems||!pickupDate)?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: (!hasItems||!pickupDate)?'not-allowed':'pointer' }}>
-              {!pickupDate ? t('請選擇借出日期') : !hasItems ? t('請選擇租借器材') : t('確認申請')}
+            <button onClick={() => setShowPayModal(true)} disabled={!hasItems || !pickupDate || padBlocked}
+              style={{ width:'100%', height:48, borderRadius:12, background: (!hasItems||!pickupDate||padBlocked)?'#ccc':'#8B1A1A', color:'#fff', border:'none', fontSize:15, fontWeight:600, cursor: (!hasItems||!pickupDate||padBlocked)?'not-allowed':'pointer' }}>
+              {!pickupDate ? t('請選擇借出日期') : !hasItems ? t('請選擇租借器材') : padBlocked ? tt('抱石墊數量不足，請調整', 'Crash pads unavailable — please adjust', 'クラッシュパッドが不足しています') : t('確認申請')}
             </button>
           </>)}
 
