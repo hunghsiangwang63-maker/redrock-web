@@ -123,11 +123,27 @@ export default function MemberRentalPage() {
     if (rentalMode === 'locker') {
       setReturnDate(dayjs(pickupDate).add(Number(lockerMonths) || 1, 'month').format('YYYY-MM-DD'));
     } else if (rentalType === 'weekend') {
-      setReturnDate(dayjs(pickupDate).add(3, 'day').format('YYYY-MM-DD'));
+      // 週末方案：預設歸還日＝該週末後第一個週一（士林週一不營業→週二）；週六借→+2、週日借→+1、其他日期照週五算 +3
+      const wd = dayjs(pickupDate).day();
+      const toMon = wd === 6 ? 2 : (wd === 0 ? 1 : 3);
+      setReturnDate(dayjs(pickupDate).add(toMon + (gymId === 'gym-shilin' ? 1 : 0), 'day').format('YYYY-MM-DD'));
     } else {
       setReturnDate(dayjs(pickupDate).add(7, 'day').format('YYYY-MM-DD'));
     }
-  }, [pickupDate, rentalType, rentalMode, lockerMonths]);
+  }, [pickupDate, rentalType, rentalMode, lockerMonths, gymId]);
+
+  // 日期規則即時檢查（後端權威：營業日、週末方案區間、七天方案最多 9 天）
+  const [dateErr, setDateErr] = useState(null);
+  useEffect(() => {
+    if (rentalMode === 'locker' || !pickupDate || !returnDate) { setDateErr(null); return; }
+    let alive = true;
+    const timer = setTimeout(() => {
+      getCrashPadAvailability({ gymId, pickupDate, returnDate, rentalType })
+        .then(r => { if (alive) setDateErr(r.data.dateOk === false ? r.data.dateError : null); })
+        .catch(() => { if (alive) setDateErr(null); });
+    }, 300);
+    return () => { alive = false; clearTimeout(timer); };
+  }, [gymId, pickupDate, returnDate, rentalType, rentalMode]);
 
   const calcTotal = () => {
     if (!settings) return { rentalFee: 0, deposit: 0 };
@@ -162,7 +178,7 @@ export default function MemberRentalPage() {
     return () => { alive = false; clearTimeout(timer); };
   }, [gymId, pickupDate, returnDate, quantities.crashPad, rentalMode]);
 
-  const padBlocked = !!(padAvail && (padAvail.blocked || padAvail.hardBlocked));
+  const padBlocked = !!(padAvail && (padAvail.blocked || padAvail.hardBlocked)) || !!dateErr;
 
   const handleApply = async () => {
     if (!pickupDate) { showMsg(t('請選擇借出日期'), 'red'); return; }
@@ -315,7 +331,7 @@ export default function MemberRentalPage() {
                 </div>
               ) : (
                 <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-                  {[{k:'weekend',l:'週末方案（3天）'},{k:'sevenDay',l:'七天方案'}].map(rt => (
+                  {[{k:'weekend',l:'週末方案'},{k:'sevenDay',l:'七天方案'}].map(rt => (
                     <button key={rt.k} onClick={() => setRentalType(rt.k)}
                       style={{ flex:1, height:38, borderRadius:8, border:`1.5px solid ${rentalType===rt.k?'#8B1A1A':'#E8D5D5'}`, background:rentalType===rt.k?'#FBF5F5':'#fff', color:rentalType===rt.k?'#8B1A1A':'#666', fontSize:12, fontWeight:rentalType===rt.k?600:400, cursor:'pointer' }}>
                       {t(rt.l)}
@@ -326,7 +342,7 @@ export default function MemberRentalPage() {
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
                 <div>
                   <label style={{ fontSize:11, color:'#666', display:'block', marginBottom:5 }}>
-                    {rentalMode==='locker' ? t('起租日期') : tt(`借出日期${rentalType==='weekend'?' （建議週五）':''}`, `Pickup Date${rentalType==='weekend'?' (Friday recommended)':''}`, `借出日${rentalType==='weekend'?'（金曜日推奨）':''}`)}
+                    {rentalMode==='locker' ? t('起租日期') : tt(`借出日期${rentalType==='weekend'?' （週五～週日）':''}`, `Pickup Date${rentalType==='weekend'?' (Fri–Sun)':''}`, `借出日${rentalType==='weekend'?'（金～日曜日）':''}`)}
                   </label>
                   <input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)}
                     min={dayjs().add(1,'day').format('YYYY-MM-DD')}
@@ -345,6 +361,17 @@ export default function MemberRentalPage() {
                   )}
                 </div>
               </div>
+              {rentalMode !== 'locker' && (
+                <div style={{ fontSize:11, color:'#999', marginTop:8, lineHeight:1.6 }}>
+                  {rentalType === 'weekend'
+                    ? tt(`週末方案：週五～週日借出，最晚${gymId === 'gym-shilin' ? '下週二（士林館週一不營業）' : '下週一'}歸還，期間內可中途取件、歸還。`,
+                         `Weekend plan: pick up Fri–Sun, return by ${gymId === 'gym-shilin' ? 'the following Tuesday (closed Mondays)' : 'the following Monday'}; mid-weekend pickup/return is fine.`,
+                         `週末プラン：金～日曜日に貸出、遅くとも${gymId === 'gym-shilin' ? '翌火曜日（月曜定休）' : '翌月曜日'}までに返却。期間内の途中貸出・返却も可能です。`)
+                    : tt('七天方案：借出到歸還最多 9 天。', 'Seven-day plan: up to 9 days from pickup to return.', '7日プラン：貸出から返却まで最大9日間。')}
+                  {tt('　取件與歸還須在營業日。', '  Pickup and return must be on business days.', '　貸出・返却は営業日のみ。')}
+                </div>
+              )}
+              {dateErr && <div style={{ fontSize:12, color:'#B3261E', marginTop:6, lineHeight:1.5 }}>{dateErr}</div>}
             </div>
 
             {/* 器材選擇（置物櫃模式不顯示）*/}
