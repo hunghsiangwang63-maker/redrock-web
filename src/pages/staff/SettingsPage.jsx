@@ -31,6 +31,7 @@ const TAB_GROUPS = [
       { key: 'entryTypes',   icon: '🚪', label: '入場類型', managerOnly: true },
       { key: 'waiver',       icon: '📄', label: 'Waiver 內容', managerOnly: true },
       { key: 'fallTest',     icon: '🧗', label: '墜落測驗', managerOnly: true },
+      { key: 'teamIntro',    icon: '⚡', label: '攀岩隊介紹', managerOnly: true },
       { key: 'shoeRental',   icon: '👟', label: '岩鞋／粉袋租借', managerOnly: true },
       { key: 'bonus',        icon: '🎁', label: '紅利期限', superAdminOnly: true },
       { key: 'discountCardValidity', icon: '🎟️', label: '優惠卡期限', superAdminOnly: true },
@@ -880,6 +881,7 @@ export default function SettingsPage() {
     loadWaiver();
     loadShoeRental();
     loadFallTest();
+    loadTeamIntro();
     if (isAdmin) { loadPendingDevices(); loadTrustedDevices(); loadTransition(); }
   }, []);
 
@@ -906,6 +908,34 @@ export default function SettingsPage() {
     try {
       await client.put('/fall-tests/settings', fallTest);
       showMsg('墜落測驗設定已儲存');
+    } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
+    finally { setLoading(false); }
+  };
+
+  // ─── 攀岩隊介紹（會員端「隊伍介紹」頁，2026-11-25）───────────────────────
+  const TEAM_INTRO_DEFAULT = '一起約爬、週期性訓練、讀書會、比賽、約吃宵夜或唱歌……RedFlash 開放接受各種攀岩及其他交流，讓夥伴感受大家庭的溫暖，帶領大家一起精進！';
+  const TEAM_BENEFITS_DEFAULT = ['加入山協團體會員，可報名全國賽事（每年2月、9月更新）','每週一次團練','定期肢體評估（預計3月、8月各一次）','館內九折優惠（門票、季票、課程及百元以上商品）','優先報名紅石主辦比賽與講座','優惠參加戶外攀岩及隊內模擬賽','特約復健科診所優惠','優惠運動按摩','免費使用 InBody 體組成測量'];
+  const [teamIntro, setTeamIntro] = useState({ intro: { zh:'', en:'', ja:'' }, benefits: { zh:'', en:'', ja:'' } }); // benefits 在畫面上用「一行一條」的文字
+  const [teamIntroDirty, setTeamIntroDirty] = useState(false);
+  const loadTeamIntro = async () => {
+    try {
+      const res = await client.get('/team/intro');
+      const d = res.data || {};
+      const j = (arr) => (Array.isArray(arr) ? arr : []).join('\n');
+      setTeamIntro({ intro: { zh: d.intro?.zh || '', en: d.intro?.en || '', ja: d.intro?.ja || '' }, benefits: { zh: j(d.benefits?.zh), en: j(d.benefits?.en), ja: j(d.benefits?.ja) } });
+      setTeamIntroDirty(false);
+    } catch (e) {}
+  };
+  const handleSaveTeamIntro = async () => {
+    setLoading(true);
+    try {
+      const lines = (txt) => String(txt || '').split('\n').map(x => x.trim()).filter(Boolean);
+      await client.put('/team/intro', {
+        intro: teamIntro.intro,
+        benefits: { zh: lines(teamIntro.benefits.zh), en: lines(teamIntro.benefits.en), ja: lines(teamIntro.benefits.ja) },
+      });
+      showMsg('攀岩隊介紹已儲存');
+      setTeamIntroDirty(false);
     } catch (err) { showMsg(err.response?.data?.message || '儲存失敗', 'err'); }
     finally { setLoading(false); }
   };
@@ -1841,6 +1871,39 @@ export default function SettingsPage() {
                 disabled={!isAdmin}
                 style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box', color:'#1a1a1a' }} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 攀岩隊介紹 ── */}
+      {activeTab === 'teamIntro' && (
+        <div style={s.card}>
+          <div style={s.cardHead}>
+            <span>攀岩隊介紹（會員端「隊伍介紹」頁）</span>
+            {isManagerPlus && <SaveButton onSave={handleSaveTeamIntro} isDirty={teamIntroDirty} label='儲存攀岩隊介紹' fullWidth />}
+          </div>
+          <div style={{ padding:16 }}>
+            <div style={{ fontSize:12, color:'#8a6d3b', background:'#FFF8E6', border:'0.5px solid #F0DDA8', borderRadius:8, padding:'8px 12px', marginBottom:14, lineHeight:1.7 }}>
+              欄位<strong>留空＝使用系統預設文字</strong>；只填中文時，英文、日文版會顯示中文（沒填對應語言就不會翻譯）。福利<strong>一行一條</strong>，最多 30 條。年度費用另外在隊員費用設定，不在這裡。
+              {isManagerPlus && (
+                <div style={{ marginTop:6 }}>
+                  <button style={s.btn} onClick={() => { setTeamIntro(p => ({ intro: { ...p.intro, zh: TEAM_INTRO_DEFAULT }, benefits: { ...p.benefits, zh: TEAM_BENEFITS_DEFAULT.join('\n') } })); setTeamIntroDirty(true); }}>帶入目前預設中文（方便修改）</button>
+                </div>
+              )}
+            </div>
+            {[['zh','中文'],['en','English'],['ja','日本語']].map(([l, name]) => (
+              <div key={l} style={{ marginBottom:18, paddingBottom:14, borderBottom: l==='ja' ? 'none' : '0.5px dashed #E8D5D5' }}>
+                <div style={{ fontWeight:700, fontSize:13, marginBottom:8, color:'#8B1A1A' }}>{name}</div>
+                <label style={{ ...s.label, display:'block', marginBottom:5 }}>介紹文字（歡迎加入 RedFlash 下方那一段）</label>
+                <textarea value={teamIntro.intro[l]} rows={4} maxLength={2000} disabled={!isManagerPlus}
+                  onChange={e => { setTeamIntro(p => ({ ...p, intro: { ...p.intro, [l]: e.target.value } })); setTeamIntroDirty(true); }}
+                  style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', lineHeight:1.7, marginBottom:10 }} />
+                <label style={{ ...s.label, display:'block', marginBottom:5 }}>隊員福利（一行一條）</label>
+                <textarea value={teamIntro.benefits[l]} rows={8} disabled={!isManagerPlus}
+                  onChange={e => { setTeamIntro(p => ({ ...p, benefits: { ...p.benefits, [l]: e.target.value } })); setTeamIntroDirty(true); }}
+                  style={{ width:'100%', borderRadius:8, border:'0.5px solid #E8D5D5', padding:'8px 12px', fontSize:13, background:'#FBF5F5', outline:'none', resize:'vertical', boxSizing:'border-box', fontFamily:'inherit', lineHeight:1.7 }} />
+              </div>
+            ))}
           </div>
         </div>
       )}

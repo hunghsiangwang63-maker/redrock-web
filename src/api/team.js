@@ -1,6 +1,9 @@
 import client, { memberClient } from './client';
 
 export const getTeamFees = () => memberClient.get('/team/fees');
+export const getTeamIntro = () => memberClient.get('/team/intro');
+export const getTeamIntroStaff = () => client.get('/team/intro');
+export const saveTeamIntro = (data) => client.put('/team/intro', data);
 export const applyTeam = (data) => memberClient.post('/team/apply', data);
 export const getMyTeamRecords = () => memberClient.get('/team/my');
 export const getTeamMembers = (year) => client.get('/team/members', { params: { year } });

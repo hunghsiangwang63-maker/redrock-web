@@ -2,13 +2,27 @@ import { useState, useEffect } from 'react';
 import ErrorAlertModal from '../../components/ErrorAlertModal';
 import MemberLogoutButton from '../../components/MemberLogoutButton';
 import MemberBottomNav from '../../components/MemberBottomNav';
-import { t, tt } from '../../utils/memberI18n';
+import { t, tt, getMemberLang } from '../../utils/memberI18n';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useMember } from '../../store/memberStore.jsx';
-import { getTeamFees, applyTeam, getMyTeamRecords } from '../../api/team';
+import { getTeamFees, applyTeam, getMyTeamRecords, getTeamIntro } from '../../api/team';
 import dayjs from 'dayjs';
 import PaymentSection, { isTransferInfoComplete } from '../../components/PaymentSection';
 import useGymBankAccounts from '../../hooks/useGymBankAccounts';
+
+// 預設文字（員工端未設定時使用；英日文版走字典翻譯）
+const DEFAULT_TEAM_INTRO = '一起約爬、週期性訓練、讀書會、比賽、約吃宵夜或唱歌……RedFlash 開放接受各種攀岩及其他交流，讓夥伴感受大家庭的溫暖，帶領大家一起精進！';
+const DEFAULT_TEAM_BENEFITS = [
+  '加入山協團體會員，可報名全國賽事（每年2月、9月更新）',
+  '每週一次團練',
+  '定期肢體評估（預計3月、8月各一次）',
+  '館內九折優惠（門票、季票、課程及百元以上商品）',
+  '優先報名紅石主辦比賽與講座',
+  '優惠參加戶外攀岩及隊內模擬賽',
+  '特約復健科診所優惠',
+  '優惠運動按摩',
+  '免費使用 InBody 體組成測量',
+];
 
 const STATUS = {
   pending:   { bg:'#FAEEDA', color:'#854F0B', text:'待審核' },
@@ -24,6 +38,7 @@ export default function MemberTeamPage() {
 
   const [tab, setTab] = useState('info');
   const [fees, setFees] = useState(null);
+  const [introCfg, setIntroCfg] = useState(null); // 員工端「設定 → 攀岩隊介紹」編輯的文字；空白＝使用下方預設
   const [myRecords, setMyRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState(''); const [msgType, setMsgType] = useState('ok');
@@ -77,6 +92,10 @@ export default function MemberTeamPage() {
   const [showPayModal, setShowPayModal] = useState(false);
 
   const year = dayjs().year();
+  // 員工端自訂文字：目前語言有填就用；英日文沒填但中文有填就顯示中文（避免英日版仍是舊翻譯）
+  const _lang = getMemberLang();
+  const customIntro = introCfg ? (introCfg.intro?.[_lang] || introCfg.intro?.zh || '') : '';
+  const customBenefits = (() => { if (!introCfg) return null; const l = introCfg.benefits?.[_lang]; if (l && l.length) return l; const z = introCfg.benefits?.zh; return z && z.length ? z : null; })();
   const [alertModal, setAlertModal] = useState(null);
   const showMsg = (msg, type='ok') => setAlertModal({ message: msg, type }); // 成功/錯誤一律彈窗（原頂部橫幅易被忽略）
 
@@ -84,7 +103,9 @@ export default function MemberTeamPage() {
     Promise.allSettled([
       getTeamFees(),
       member?.id ? getMyTeamRecords() : Promise.resolve({ data: { records: [] } }),
-    ]).then(([fr, rr]) => {
+      getTeamIntro(),
+    ]).then(([fr, rr, ir]) => {
+      if (ir.status==='fulfilled') setIntroCfg(ir.value.data);
       if (fr.status==='fulfilled') {
         const f = fr.value.data;
         setFees(f);
@@ -181,25 +202,15 @@ export default function MemberTeamPage() {
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
               <div style={{ fontWeight:700, fontSize:15, marginBottom:10 }}>{t('⚡ 歡迎加入 RedFlash 紅石攀岩隊')}</div>
-              <div style={{ fontSize:13, color:'#444', lineHeight:1.9 }}>
-                {t('一起約爬、週期性訓練、讀書會、比賽、約吃宵夜或唱歌……RedFlash 開放接受各種攀岩及其他交流，讓夥伴感受大家庭的溫暖，帶領大家一起精進！')}
+              <div style={{ fontSize:13, color:'#444', lineHeight:1.9, whiteSpace:'pre-wrap' }}>
+                {customIntro || t(DEFAULT_TEAM_INTRO)}
               </div>
             </div>
             <div style={{ background:'#fff', borderRadius:12, border:'0.5px solid #E8D5D5', padding:16 }}>
               <div style={{ fontWeight:600, fontSize:14, marginBottom:10 }}>{t('✅ 隊員福利')}</div>
-              {[
-                '加入山協團體會員，可報名全國賽事（每年2月、9月更新）',
-                '每週一次團練',
-                '定期肢體評估（預計3月、8月各一次）',
-                '館內九折優惠（門票、季票、課程及百元以上商品）',
-                '優先報名紅石主辦比賽與講座',
-                '優惠參加戶外攀岩及隊內模擬賽',
-                '特約復健科診所優惠',
-                '優惠運動按摩',
-                '免費使用 InBody 體組成測量',
-              ].map((b, i) => (
+              {(customBenefits || DEFAULT_TEAM_BENEFITS.map(b => t(b))).map((b, i) => (
                 <div key={i} style={{ fontSize:13, color:'#444', marginBottom:6, display:'flex', gap:8 }}>
-                  <span style={{ color:'#8B1A1A', flexShrink:0 }}>{i+1}.</span><span>{t(b)}</span>
+                  <span style={{ color:'#8B1A1A', flexShrink:0 }}>{i+1}.</span><span>{b}</span>
                 </div>
               ))}
             </div>
