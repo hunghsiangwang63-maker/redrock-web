@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory, getStocktakeDraft, saveStocktakeDraft, clearStocktakeDraft } from '../../api/products';
+import { getProducts, getInactiveProducts, createProduct, updateProduct, deleteProduct, deleteProductPermanent, restockProduct, sellProducts, setWarehouseStock, getProductSales, returnSale, getSaleInvoices, createSaleInvoice, voidSaleInvoice, getStocktakeHistory, getRestockLogs, getStocktakeDraft, saveStocktakeDraft, clearStocktakeDraft } from '../../api/products';
 import InvoiceIssuer, { RealPrintPanel } from '../../components/InvoiceIssuer';
 import CheckTick from '../../components/CheckTick';
 import { InvoiceButtonAuto, InvoiceButtonView } from '../../components/InvoiceButton';
@@ -187,6 +187,18 @@ export default function SalesPage({ embedded = false }) {
   };
   const [productForm, setProductForm] = useState({ brand:'', name:'', description:'', category:'裝備', lowStockAlert:5, variants:[] });
   const [showRestock, setShowRestock] = useState(null);
+  // 入庫紀錄查詢（2026-11-26）：依日期、館別、商品名稱查 stockLogs 入庫明細，可下載 Excel
+  const [restockLog, setRestockLog] = useState(null); // null＝關閉；開啟時 { from, to, gymId, q, rows, total, loading, err }
+  const loadRestockLog = async (f) => {
+    setRestockLog(p => ({ ...(p || f), ...f, loading: true, err: '' }));
+    try {
+      const res = await getRestockLogs({ from: f.from, to: f.to, gymId: f.gymId || undefined, q: f.q || undefined });
+      setRestockLog(p => ({ ...(p || f), ...f, rows: res.data.rows || [], total: res.data.total || 0, loading: false, err: '' }));
+    } catch (e) {
+      setRestockLog(p => ({ ...(p || f), ...f, rows: [], total: 0, loading: false, err: e.response?.data?.message || '查詢失敗（連線逾時或伺服器錯誤），畫面上的空白不代表沒有資料' }));
+    }
+  };
+  const openRestockLog = () => { const f = { from: dayjs().subtract(30, 'day').format('YYYY-MM-DD'), to: dayjs().format('YYYY-MM-DD'), gymId: (isSuperAdmin && !isWarehouse) ? targetGymId : '', q: '' }; setRestockLog({ ...f, rows: [], total: 0, loading: true, err: '' }); loadRestockLog(f); };
   const [showStocktake, setShowStocktake] = useState(false);
   const [stocktakeItems, setStocktakeItems] = useState([]);
   const [stocktakeResult, setStocktakeResult] = useState(null);
@@ -651,6 +663,10 @@ export default function SalesPage({ embedded = false }) {
               style={{ height:isMobile?40:36, padding:`0 ${isMobile?16:14}px`, borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize: isMobile?14:13, cursor:'pointer' }}>
               📤 匯出庫存
             </button>}
+            <button onClick={openRestockLog}
+              style={{ height:36, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
+              📜 入庫紀錄
+            </button>
             <button onClick={openStocktake} disabled={products.length === 0}
               style={{ height:36, padding:'0 14px', borderRadius:8, background:'#854F0B', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>
               📋 庫存盤點
@@ -1241,6 +1257,54 @@ export default function SalesPage({ embedded = false }) {
               {loading ? '更新中...' : '儲存'}
             </button>
           </div>
+        </Modal>
+      )}
+
+      {/* ── 入庫紀錄 Modal ── */}
+      {restockLog && (
+        <Modal title="📜 入庫紀錄" width={760} onClose={() => setRestockLog(null)}>
+          <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end', marginBottom:12 }}>
+            <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>開始日期</label>
+              <input type="date" value={restockLog.from} onChange={e => setRestockLog(p => ({ ...p, from: e.target.value }))} style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13 }} /></div>
+            <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>結束日期</label>
+              <input type="date" value={restockLog.to} onChange={e => setRestockLog(p => ({ ...p, to: e.target.value }))} style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13 }} /></div>
+            {isSuperAdmin && (
+              <div><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>館別</label>
+                <select value={restockLog.gymId} onChange={e => setRestockLog(p => ({ ...p, gymId: e.target.value }))} style={{ height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13 }}>
+                  <option value="">全部</option>
+                  {gyms.map(g => <option key={g.id} value={g.id}>{g.shortName || g.name}</option>)}
+                </select></div>
+            )}
+            <div style={{ flex:1, minWidth:120 }}><label style={{ fontSize:11, color:'#666', display:'block', marginBottom:4 }}>商品名稱</label>
+              <input value={restockLog.q} placeholder="輸入關鍵字" onChange={e => setRestockLog(p => ({ ...p, q: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') loadRestockLog(restockLog); }} style={{ width:'100%', height:34, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 8px', fontSize:13, boxSizing:'border-box' }} /></div>
+            <button onClick={() => loadRestockLog(restockLog)} disabled={restockLog.loading} style={{ height:34, padding:'0 14px', borderRadius:8, background:'#8B1A1A', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>{restockLog.loading ? '查詢中…' : '查詢'}</button>
+            <button onClick={async () => { try { await downloadFile('/products/restock-logs/download', { params: { from: restockLog.from, to: restockLog.to, gymId: restockLog.gymId || undefined, q: restockLog.q || undefined }, filename: `入庫紀錄_${restockLog.from}_${restockLog.to}.xlsx` }); } catch (e) { alert(e.message || '下載失敗'); } }}
+              style={{ height:34, padding:'0 14px', borderRadius:8, background:'#2D7D46', color:'#fff', border:'none', fontSize:13, cursor:'pointer' }}>下載 Excel</button>
+          </div>
+          {restockLog.err && <div style={{ background:'#FCEBEB', color:'#A32D2D', borderRadius:8, padding:'8px 12px', fontSize:13, marginBottom:10 }}>⚠️ {restockLog.err}</div>}
+          <div style={{ fontSize:12, color:'#666', marginBottom:8 }}>共 {restockLog.rows.length} 筆、入庫合計 <strong style={{ color:'#8B1A1A' }}>{restockLog.total}</strong> 件</div>
+          <div style={{ overflowX:'auto', border:'0.5px solid #E8D5D5', borderRadius:8 }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13, minWidth:560 }}>
+              <thead><tr style={{ background:'#FBF5F5', color:'#8a6d6d', textAlign:'left' }}>
+                {['日期時間','館別','商品','規格','數量','備註','經手人'].map(h => <th key={h} style={{ padding:'8px 10px', fontWeight:600, whiteSpace:'nowrap' }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {restockLog.rows.length === 0 && !restockLog.loading && !restockLog.err && <tr><td colSpan={7} style={{ padding:20, textAlign:'center', color:'#999' }}>這段期間沒有入庫紀錄</td></tr>}
+                {restockLog.rows.map(r => (
+                  <tr key={r.id} style={{ borderTop:'0.5px solid #F0E4E4' }}>
+                    <td style={{ padding:'7px 10px', whiteSpace:'nowrap', color:'#666' }}>{r.date}</td>
+                    <td style={{ padding:'7px 10px', whiteSpace:'nowrap' }}>{({ 'gym-hsinchu':'新竹館', 'gym-shilin':'士林館' })[r.gymId] || r.gymId || '倉庫'}</td>
+                    <td style={{ padding:'7px 10px' }}>{r.productName}</td>
+                    <td style={{ padding:'7px 10px', color:'#666' }}>{r.variantName}</td>
+                    <td style={{ padding:'7px 10px', fontWeight:700, color:'#2D7D46', whiteSpace:'nowrap' }}>+{r.quantity}</td>
+                    <td style={{ padding:'7px 10px', color:'#666' }}>{r.note}</td>
+                    <td style={{ padding:'7px 10px', whiteSpace:'nowrap', color:'#666' }}>{r.staffName}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize:11, color:'#999', marginTop:8, lineHeight:1.6 }}>只包含用「入庫」功能記錄的進貨；盤點調整、直接修改庫存、銷售扣庫存不在這裡。</div>
         </Modal>
       )}
 

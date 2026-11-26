@@ -56,3 +56,5 @@ export const saveStocktakeDraft = (gymId, items) =>
 
 export const clearStocktakeDraft = (gymId) =>
   client.delete('/products/stocktake/draft', { params: gymId ? { gymId } : {} });
+
+export const getRestockLogs = (params) => client.get('/products/restock-logs', { params });
