@@ -443,7 +443,8 @@ export default function PendingTasksPage() {
               📅 分期資訊
             </button>
           )}
-          {!isRestrictedPartTime && (
+          {/* 兼職／正職個人帳號也要看得到「指定給自己」的通知（感謝卡片、帶課通知…）；後端 GET /notifications 只回 targetStaffId＝本人的未讀，不會多看到別人的 */}
+          {(
             <button onClick={() => openTrack('notif')}
               style={{ height:32, padding:'0 14px', borderRadius:8, background: trackView==='notif' ? '#854F0B' : '#fff', color: trackView==='notif' ? '#fff' : '#854F0B', border:'0.5px solid #854F0B', fontSize:12, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
               🔔 通知
@@ -672,7 +673,7 @@ export default function PendingTasksPage() {
             ticketRef: n.type === 'single_entry_ticket_approval' ? n.referenceId : null,
             compRefundRef: n.type === 'competition_refund_request' ? n.referenceId : null,
             inquiryRef: n.type === 'member_inquiry' ? n.referenceId : null }));
-        const regItems = (registrations || []).map(r => ({ key: 'r_' + r.id, cat: 'report', title: `${r.memberName} 報名 ${r.name}`, message: [r.detail, REG_CAT[r.regType]].filter(Boolean).join(' · ') + (r.gymId === 'gym-hsinchu' ? ' · 新竹館' : r.gymId === 'gym-shilin' ? ' · 士林館' : ''), ts: r.createdAt || 0, link: r.link, catLabel: '報名', canRead: false }));
+        const regItems = (isRestrictedPartTime ? [] : (registrations || [])).map(r => ({ key: 'r_' + r.id, cat: 'report', title: `${r.memberName} 報名 ${r.name}`, message: [r.detail, REG_CAT[r.regType]].filter(Boolean).join(' · ') + (r.gymId === 'gym-hsinchu' ? ' · 新竹館' : r.gymId === 'gym-shilin' ? ' · 士林館' : ''), ts: r.createdAt || 0, link: r.link, catLabel: '報名', canRead: false }));
         const feed = [...notifItems, ...regItems].filter(i => !notifCat || i.cat === notifCat).sort((a, b) => b.ts - a.ts);
         return (
           <div style={{ marginTop:8 }}>
