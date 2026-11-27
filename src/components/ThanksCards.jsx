@@ -158,6 +158,7 @@ function SendSheet({ member, onClose, replyTo = null }) {
   const [tab, setTab] = useState('phone');
   const [phone, setPhone] = useState('');
   const [found, setFound] = useState(null);   // { toMemberId, maskedName }
+  const [cands, setCands] = useState([]);     // 姓名／暱稱搜尋的候選（最多 5 位）
   const [staff, setStaff] = useState([]);
   const [staffPick, setStaffPick] = useState(null);
   const [sticker, setSticker] = useState('pumpkin');
@@ -172,8 +173,11 @@ function SendSheet({ member, onClose, replyTo = null }) {
   const errMsg = (e, fallback) => e?.response?.data?.message || fallback;
 
   const lookup = async () => {
-    setErr(''); setFound(null); setBusy(true);
-    try { setFound(await lookupThanksRecipient(phone)); } catch (e) { setErr(errMsg(e, tt('查詢失敗，請稍後再試', 'Lookup failed, please try again', '検索に失敗しました'))); }
+    setErr(''); setFound(null); setCands([]); setBusy(true);
+    try {
+      const r = await lookupThanksRecipient(phone.trim());
+      if (Array.isArray(r.candidates)) { if (r.candidates.length === 1) setFound(r.candidates[0]); else setCands(r.candidates); } else setFound(r);
+    } catch (e) { setErr(errMsg(e, tt('查詢失敗，請稍後再試', 'Lookup failed, please try again', '検索に失敗しました'))); }
     finally { setBusy(false); }
   };
   const recipientReady = tab === 'phone' ? !!found : !!staffPick;
@@ -213,19 +217,30 @@ function SendSheet({ member, onClose, replyTo = null }) {
           <>
             <div style={{ fontSize:13, fontWeight:700, marginBottom:8 }}>{tt('① 要送給誰？', '① Who is it for?', '① 誰に送りますか？')}</div>
             <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-              <span style={chip(tab === 'phone')} onClick={() => setTab('phone')}>{tt('輸入對方手機', 'By phone number', '電話番号で')}</span>
+              <span style={chip(tab === 'phone')} onClick={() => setTab('phone')}>{tt('手機／姓名／暱稱', 'Phone / name / nickname', '電話・名前・ニックネーム')}</span>
               <span style={chip(tab === 'staff')} onClick={() => setTab('staff')}>{tt('教練與櫃檯', 'Coaches & front desk', 'コーチ・スタッフ')}</span>
             </div>
             {tab === 'phone' ? (
               <>
                 <div style={{ display:'flex', gap:8 }}>
-                  <input value={phone} onChange={e => { setPhone(e.target.value); setFound(null); }} inputMode="tel" placeholder="09XXXXXXXX"
+                  <input value={phone} onChange={e => { setPhone(e.target.value); setFound(null); setCands([]); }} placeholder={tt('手機號碼，或對方完整姓名／暱稱', 'Phone, or full name / nickname', '電話番号、または氏名／ニックネーム（完全一致）')}
                     style={{ flex:1, height:42, borderRadius:10, border:'1px solid #E8D5D5', padding:'0 12px', fontSize:15, outline:'none', boxSizing:'border-box' }} />
-                  <button onClick={lookup} disabled={busy || phone.replace(/\D/g, '').length < 8}
-                    style={{ height:42, padding:'0 16px', borderRadius:10, border:'none', background:'#8B1A1A', color:'#fff', fontSize:14, cursor:'pointer', opacity: (busy || phone.replace(/\D/g, '').length < 8) ? .5 : 1 }}>{tt('查詢', 'Find', '検索')}</button>
+                  <button onClick={lookup} disabled={busy || phone.trim().length < 2}
+                    style={{ height:42, padding:'0 16px', borderRadius:10, border:'none', background:'#8B1A1A', color:'#fff', fontSize:14, cursor:'pointer', opacity: (busy || phone.trim().length < 2) ? .5 : 1 }}>{tt('查詢', 'Find', '検索')}</button>
                 </div>
-                {found && <div style={{ marginTop:10, padding:'10px 12px', background:'#E6F4EB', borderRadius:10, fontSize:14, color:'#1F5F34', fontWeight:700 }}>✓ {tt('要送給', 'Send to', '宛先：')} {found.maskedName}</div>}
-                <div style={{ fontSize:11, color:'#999', marginTop:8, lineHeight:1.6 }}>{tt('為了保護隱私，只會顯示對方姓名的一部分。', 'To protect privacy, only part of the name is shown.', 'プライバシー保護のため、お名前の一部のみ表示されます。')}</div>
+                {cands.length > 1 && (
+                  <div style={{ marginTop:10 }}>
+                    <div style={{ fontSize:12, color:'#666', marginBottom:6 }}>{tt('找到多位，請選擇要送的對象：', 'Several matches — choose one:', '複数見つかりました。選択してください：')}</div>
+                    {cands.map(c => (
+                      <div key={c.toMemberId} onClick={() => { setFound(c); setCands([]); }}
+                        style={{ padding:'10px 12px', border:'1px solid #E8D5D5', borderRadius:10, marginBottom:6, fontSize:14, cursor:'pointer', background:'#fff' }}>
+                        {c.maskedName}{c.nickname ? `（${c.nickname}）` : ''}{c.phoneTail ? `　${tt('手機末三碼', 'phone ends', '電話末尾')} ${c.phoneTail}` : ''}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {found && <div style={{ marginTop:10, padding:'10px 12px', background:'#E6F4EB', borderRadius:10, fontSize:14, color:'#1F5F34', fontWeight:700 }}>✓ {tt('要送給', 'Send to', '宛先：')} {found.maskedName}{found.nickname ? `（${found.nickname}）` : ''}</div>}
+                <div style={{ fontSize:11, color:'#999', marginTop:8, lineHeight:1.6 }}>{tt('為了保護隱私，只會顯示對方姓名的一部分；姓名／暱稱需輸入完整才找得到。', 'To protect privacy, only part of the name is shown. Names and nicknames must be typed in full.', 'プライバシー保護のため、お名前の一部のみ表示されます。')}</div>
               </>
             ) : (
               <div style={{ maxHeight:260, overflowY:'auto' }}>
