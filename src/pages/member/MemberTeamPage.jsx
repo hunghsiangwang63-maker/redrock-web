@@ -36,7 +36,7 @@ export default function MemberTeamPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [tab, setTab] = useState('info');
+  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get('tab') === 'apply' ? 'apply' : 'info'); // ?tab=apply 直接開「申請加入」
   const [fees, setFees] = useState(null);
   const [introCfg, setIntroCfg] = useState(null); // 員工端「設定 → 攀岩隊介紹」編輯的文字；空白＝使用下方預設
   const [myRecords, setMyRecords] = useState([]);
@@ -91,7 +91,7 @@ export default function MemberTeamPage() {
   const [agreedPrivacy, setAgreedPrivacy] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
 
-  const year = dayjs().year();
+  const year = fees?.applyYear || dayjs().year(); // 目前開放申請的年度（員工端「攀岩隊年費設定」的申請年度，例如年底先開放下一年度）
   // 員工端自訂文字：目前語言有填就用；英日文沒填但中文有填就顯示中文（避免英日版仍是舊翻譯）
   const _lang = getMemberLang();
   const customIntro = introCfg ? (introCfg.intro?.[_lang] || introCfg.intro?.zh || '') : '';

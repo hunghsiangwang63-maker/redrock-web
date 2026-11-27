@@ -460,6 +460,11 @@ export default function VipPage({ embedded = false, section = null }) {
             </div>
           ))}
         </div>
+        <div style={{ marginBottom:16 }}>
+          <label style={feeLabel}>開放申請年度（例如年底先開放下一年度；留空＝當年度。只接受今年或明年）</label>
+          <input type="number" style={{ ...feeInput, maxWidth:160 }} placeholder={String(new Date().getFullYear())} value={teamFees.applyYear ?? ''} onChange={e => setTeamFees(f => ({ ...f, applyYear: e.target.value === '' ? '' : Number(e.target.value) }))}/>
+          <div style={{ fontSize:11, color:'#999', marginTop:4 }}>申請明年度＝全年隊費（不套中途／晚加入折扣）；進入新年度後設定自動失效。</div>
+        </div>
         <div style={{ background:'#FBF5F5', borderRadius:8, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#666' }}>
           目前費率：全年 NT${teamFees.fullYearFee} ／ {teamFees.midYearCutoff}後 NT${teamFees.midYearFee} ／ {teamFees.lateYearCutoff}後 NT${teamFees.lateYearFee}；不拿隊服減 NT${teamFees.jerseyDiscount}
         </div>
