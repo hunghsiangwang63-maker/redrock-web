@@ -167,7 +167,7 @@ export function FallingLeaves() {
   return (
     <div className="rr-tg-leaves" aria-hidden="true">
       {LEAVES.map((l, i) => (
-        <div key={i} className="rr-tg-leaf" style={{ left:`${l.x}%`, animationDuration:`${l.d}s`, animationDelay:`-${l.delay}s` }}>
+        <div key={i} className="rr-tg-leaf" style={{ left:`${l.x}%`, animationDuration:`${l.d * 2}s`, animationDelay:`-${l.delay * 2}s` }}>
           <div className="rr-tg-leaf-sway" style={{ animationDuration:`${3 + (i % 3)}s` }}><StickerPic id={LEAF_STICKERS[i % LEAF_STICKERS.length]} size={l.s + 12} rotate={(i * 47) % 360} /></div>
         </div>
       ))}
