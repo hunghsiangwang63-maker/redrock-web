@@ -15,7 +15,7 @@ export const updateRentalMember = (id, data) => memberClient.put(`/rentals/${id}
 export const cancelRentalStaff = (id) => client.post(`/rentals/${id}/cancel`);
 export const updateRentalStaff = (id, data) => client.put(`/rentals/${id}`, data);
 export const saveRentalStaffNote = (id, staffNote) => client.put(`/rentals/${id}/staff-note`, { staffNote });
-export const returnRentalDeposit = (id) => client.post(`/rentals/${id}/return-deposit`);
+export const returnRentalDeposit = (id, data) => client.post(`/rentals/${id}/return-deposit`, data || {});
 export const returnRental = (id, data) => client.post(`/rentals/${id}/return`, data);
 
 // 器材租借開立發票（手動記帳版，比照課程/比賽/入場同一套 InvoiceModal）

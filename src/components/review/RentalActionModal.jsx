@@ -10,6 +10,7 @@ const inp = { width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5
 export default function RentalActionModal({ action, rental, onClose, onDone }) {
   const [depositReturned, setDepositReturned] = useState(true);
   const [deductNote, setDeductNote] = useState('');
+  const [refundMethod, setRefundMethod] = useState(''); // 押金退款方式（要店員明確選）：cash＝自動寫結帳加減項「－押金退還」｜transfer
   const [staffNote, setStaffNote] = useState(rental.staffNote || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -21,7 +22,8 @@ export default function RentalActionModal({ action, rental, onClose, onDone }) {
         await confirmRental(rental.id, { staffNote });
         onDone('已確認取件收款');
       } else {
-        await returnRental(rental.id, { depositReturned, deductNote });
+        if (depositReturned && Number(rental.totalDeposit) > 0 && !refundMethod) { setError('請選擇押金是「現金退回」還是「轉帳退回」'); setSaving(false); return; }
+        await returnRental(rental.id, { depositReturned, deductNote, refundMethod: refundMethod || undefined });
         onDone('歸還已確認');
       }
     } catch (err) { setError(err.response?.data?.message || '操作失敗'); setSaving(false); }
@@ -71,6 +73,16 @@ export default function RentalActionModal({ action, rental, onClose, onDone }) {
               <span style={{ fontSize:13 }}>當場退還押金 NT${rental.totalDeposit}</span>
             </label>
           </div>
+          {depositReturned && Number(rental.totalDeposit) > 0 && (
+            <div style={{ marginBottom:14 }}>
+              <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>押金退款方式（必選）</label>
+              <select value={refundMethod} onChange={e => setRefundMethod(e.target.value)} style={inp}>
+                <option value="">請選擇…</option>
+                <option value="cash">現金退回（自動寫入今日結帳「－押金退還」加減項）</option>
+                <option value="transfer">轉帳退回（不影響結帳現金）</option>
+              </select>
+            </div>
+          )}
           {!depositReturned && (
             <div style={{ marginBottom:14 }}>
               <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>押金扣除原因（留空＝稍後退回，將保留在通知「待退押金」）</label>

@@ -61,6 +61,7 @@ export default function RentalsPage({ embedded = false }) {
   const [editTarget, setEditTarget] = useState(null);       // 修改申請 {r, form:{pickupDate,returnDate,rentalType,quantities}, settings}
   const [noteTarget, setNoteTarget] = useState(null);       // 員工備註 {r, text}
   const [depositTarget, setDepositTarget] = useState(null); // 退回押金確認
+  const [depositRefundMethod, setDepositRefundMethod] = useState(''); // 押金退款方式（必選）：cash＝自動寫結帳加減項｜transfer
   const [rowSaving, setRowSaving] = useState(false); // { type:'confirm'|'return', rental }
   const [returnedRental, setReturnedRental] = useState(null); // 剛歸還成功的租借，供帶出「開立發票」入口
   const [rentalInvRefresh, setRentalInvRefresh] = useState(0); // 關閉發票 modal 時 +1，讓按鍵重查一次最新狀態
@@ -135,8 +136,9 @@ export default function RentalsPage({ embedded = false }) {
   };
   const doReturnDeposit = async () => {
     if (!depositTarget) return;
+    if (!depositRefundMethod) { showMsg('請選擇押金是「現金退回」還是「轉帳退回」', 'red'); return; }
     setRowSaving(true);
-    try { const res = await returnRentalDeposit(depositTarget.id); showMsg(res.data?.message || '押金已退回'); setDepositTarget(null); loadAll(); }
+    try { const res = await returnRentalDeposit(depositTarget.id, { refundMethod: depositRefundMethod }); showMsg(res.data?.message || '押金已退回'); setDepositTarget(null); setDepositRefundMethod(''); loadAll(); }
     catch (err) { showMsg(err.response?.data?.message || '操作失敗', 'red'); }
     finally { setRowSaving(false); }
   };
@@ -507,6 +509,14 @@ export default function RentalsPage({ embedded = false }) {
           <div style={{ fontSize:13, color:'#444', lineHeight:1.7, marginBottom:16 }}>
             確認退回 <strong>{depositTarget.memberName}</strong> 的押金 <strong style={{ color:'#8B1A1A' }}>NT${depositTarget.totalDeposit}</strong>？<br/>
             退回後此筆租借結案、移入歷史紀錄。
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ fontSize:12, color:'#666', display:'block', marginBottom:5 }}>押金退款方式（必選）</label>
+            <select value={depositRefundMethod} onChange={e => setDepositRefundMethod(e.target.value)} style={{ width:'100%', height:36, borderRadius:8, border:'0.5px solid #E8D5D5', padding:'0 12px', fontSize:13, background:'#FBF5F5', color:'#1a1a1a' }}>
+                <option value="">請選擇…</option>
+                <option value="cash">現金退回（自動寫入今日結帳「－押金退還」加減項）</option>
+                <option value="transfer">轉帳退回（不影響結帳現金）</option>
+              </select>
           </div>
           <div style={{ display:'flex', gap:8 }}>
             <button onClick={() => setDepositTarget(null)} style={{ flex:1, height:40, borderRadius:9, border:'0.5px solid #E8D5D5', background:'#fff', color:'#444', fontSize:13, cursor:'pointer' }}>返回</button>
