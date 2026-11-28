@@ -90,7 +90,7 @@ export default function CrashPadCalendar() {
                           const isReturn = d === r.returnDate;
                           const c = STATUS_COLOR[r.status] || '#D32F2F';
                           return (
-                            <div key={r.id} title={`${r.memberName} ${r.pickupDate.slice(5)}～${r.returnDate.slice(5)}（${STATUS_TEXT[r.status] || r.status}）${r.overStock ? '・需調度' : ''}`} style={{ marginTop: 2, lineHeight: 1.25 }}>
+                            <div key={r.id} title={`${r.memberName} ${r.pickupDate.slice(5)}～${r.returnDate.slice(5)}（${STATUS_TEXT[r.status] || r.status}）${r.plannedReturnDate && r.plannedReturnDate !== r.returnDate ? `・原定歸還 ${r.plannedReturnDate.slice(5)}、已提前歸還` : ''}${r.overStock ? '・需調度' : ''}`} style={{ marginTop: 2, lineHeight: 1.25 }}>
                               <div style={{ fontSize: 11, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {r.memberName}　<b style={{ color: c }}>{r.quantity}</b>{isReturn ? ' 還' : ''}{r.overStock ? ' ⚠' : ''}
                               </div>
