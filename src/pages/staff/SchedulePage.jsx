@@ -26,6 +26,7 @@ const EVENT_CATEGORY_META = {
   maintenance:  { label: '維修/保養', shortLabel: '維修', emoji: '🔧', color: '#B5762B' },
   routesetting: { label: '定線',      emoji: '🧗', color: '#2D7D46' },
   group_experience: { label: '團體體驗', emoji: '👥', color: '#0E7C86' },
+  holiday:      { label: '國定假日', emoji: '🎌', color: '#C2410C' },
   other:        { label: '其他',      emoji: '📌', color: '#185FA5' },
 };
 
