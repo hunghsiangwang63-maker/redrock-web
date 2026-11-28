@@ -21,3 +21,4 @@ export const updateScheduleEvent = (eventId, data, scope = 'single') => client.p
 export const deleteScheduleEvent = (eventId, scope = 'single') => client.delete(`/schedule/events/${eventId}`, { params: { scope } });
 export const getMyCourses = (month) => client.get('/schedule/my-courses', { params: { month } });
 export const getMyCourseRoster = (sessionId) => client.get(`/schedule/my-courses/${sessionId}/roster`);
+export const getScheduleHistory = (date, gymId) => client.get('/schedule/history', { params: { date, gymId } });

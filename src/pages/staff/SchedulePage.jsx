@@ -4,6 +4,7 @@ import { getGyms } from '../../api/gyms';
 import { useAuth } from '../../store/authStore';
 import dayjs from 'dayjs';
 import { WEEKDAYS } from '../../utils/weekdays';
+import ScheduleHistoryNote from '../../components/ScheduleHistoryNote';
 
 const Modal = ({ title, onClose, children, width=420 }) => (
   <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.45)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:16 }}>
@@ -709,6 +710,7 @@ export default function SchedulePage() {
                   </>);
                 })()}
                 <Row label="備註">{s2.note || '—'}</Row>
+                <ScheduleHistoryNote gymId={s2.gymId} date={s2.date} targetType="shift" />
                 <div style={{ display:'flex', gap:8, marginTop:18 }}>
                   <button onClick={() => setViewingShift(null)}
                     style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>關閉</button>
@@ -746,6 +748,7 @@ export default function SchedulePage() {
                   : `${ev.date}（週${['日','一','二','三','四','五','六'][dayjs(ev.date).day()]}）`}{ev.recurrenceGroupId ? '　🔁 循環系列' : ''}</Row>
                 <Row label="時間">{ev.allDay ? '全天' : `${ev.startTime || ''}~${ev.endTime || ''}`}</Row>
                 <Row label="備註">{ev.note || '—'}</Row>
+                <ScheduleHistoryNote gymId={ev.gymId} date={ev.date} targetType="event" targetId={ev.id} />
                 <div style={{ display:'flex', gap:8, marginTop:18 }}>
                   <button onClick={() => setViewingEvent(null)}
                     style={{ flex:1, height:42, borderRadius:9, border:'0.5px solid #E8D5D5', background:'none', fontSize:13, color:'#6b6b6b', cursor:'pointer' }}>關閉</button>
