@@ -7,6 +7,7 @@ import RentalActionModal from '../../components/review/RentalActionModal';
 import SegmentedTabs from '../../components/SegmentedTabs';
 import InvoiceIssuer from '../../components/InvoiceIssuer';
 import { InvoiceButtonAuto } from '../../components/InvoiceButton';
+import CrashPadCalendar from '../../components/CrashPadCalendar';
 
 const Tag = ({ type='ok', children }) => {
   const s = { ok:{bg:'#E6F4EB',color:'#2D7D46'}, red:{bg:'#FCEBEB',color:'#A32D2D'}, warn:{bg:'#FAEEDA',color:'#854F0B'}, blue:{bg:'#E6F1FB',color:'#185FA5'}, gray:{bg:'#F0EDED',color:'#666'} };
@@ -188,6 +189,7 @@ export default function RentalsPage({ embedded = false }) {
         tabs={[
           { key:'notify', label:`通知${notifyCount>0?` (${notifyCount})`:''}` },
           { key:'stats', label:'備貨統計' },
+          { key:'padcal', label:'抱石墊月曆' },
           { key:'all', label:'全部申請' },
           { key:'history', label:'歷史紀錄' },
         ]}
@@ -229,6 +231,9 @@ export default function RentalsPage({ embedded = false }) {
             )}
           </div>
         )}
+
+        {/* ── 抱石墊月曆（自己載入資料） ── */}
+        {tab === 'padcal' && <CrashPadCalendar />}
 
         {/* ── 備貨統計 ── */}
         {tab === 'stats' && (

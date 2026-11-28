@@ -8,6 +8,7 @@ export const getCrashPadAvailability = (params) => memberClient.get('/rentals/av
 export const getMyRentals = () => memberClient.get('/rentals/my');
 export const getRentals = (params) => client.get('/rentals', { params });
 export const getRentalStats = (params) => client.get('/rentals/stats', { params });
+export const getCrashPadCalendar = (month) => client.get('/rentals/crashpad-calendar', { params: { month } });
 export const confirmRental = (id, data) => client.post(`/rentals/${id}/confirm`, data);
 export const cancelRentalMember = (id) => memberClient.post(`/rentals/${id}/cancel`);
 export const updateRentalMember = (id, data) => memberClient.put(`/rentals/${id}`, data);
