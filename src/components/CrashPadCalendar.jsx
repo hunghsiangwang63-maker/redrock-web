@@ -38,6 +38,8 @@ export default function CrashPadCalendar() {
   for (let d = 1; d <= first.daysInMonth(); d++) days.push(first.date(d).format('YYYY-MM-DD'));
   while (days.length % 7) days.push(null);
   const today = dayjs().format('YYYY-MM-DD');
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) weeks.push(days.slice(i, i + 7));
   const list = Array.isArray(rows) ? rows : [];
   const move = (n) => setMonth(dayjs(`${month}-01`).add(n, 'month').format('YYYY-MM'));
   const navBtn = { height: 34, padding: '0 12px', borderRadius: 8, border: '0.5px solid #E8D5D5', background: '#fff', fontSize: 13, cursor: 'pointer' };
@@ -66,39 +68,41 @@ export default function CrashPadCalendar() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: '#E8D5D5', border: '1px solid #E8D5D5', borderBottom: 'none', borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
               {WD.map(w => <div key={w} style={{ background: '#F6EDED', textAlign: 'center', fontSize: 12, fontWeight: 600, padding: '6px 0', color: w === '日' || w === '六' ? '#A32D2D' : '#444' }}>週{w}</div>)}
             </div>
-            {/* 每一週一樣高：gridAutoRows 1fr＝所有週都跟「最高的那一週」同高 */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: '1fr', gap: 1, background: '#E8D5D5', border: '1px solid #E8D5D5', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
-              {days.map((d, i) => {
-                if (!d) return <div key={'e' + i} style={{ background: '#FAF6F6', minHeight: 120 }} />;
-                return (
-                  <div key={d} style={{ background: d === today ? '#FFF8E6' : '#fff', minHeight: 120, padding: 4, boxSizing: 'border-box', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ fontSize: 12, fontWeight: d === today ? 800 : 600, color: d === today ? '#B7791F' : '#555', marginBottom: 2 }}>{Number(d.slice(8))}</div>
-                    {GYMS.map(g => {
-                      const here = list.filter(r => r.gymId === g.id && r.pickupDate <= d && d <= r.returnDate);
-                      const sum = here.reduce((a, r) => a + r.quantity, 0);
-                      return (
-                        <div key={g.id} style={{ borderTop: '0.5px dashed #E8D5D5', padding: '3px 4px', minHeight: 40, margin: '0 -4px', background: ROW_BG[g.id] || 'transparent', flex: g.id === 'gym-hsinchu' ? 1 : '0 0 auto' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: '#888', display: 'flex', justifyContent: 'space-between' }}>
-                            <span>{g.name}</span>{sum > 0 && <span style={{ color: '#8B1A1A' }}>{sum}</span>}
-                          </div>
-                          {here.map(r => {
-                            const isReturn = d === r.returnDate;
-                            const c = STATUS_COLOR[r.status] || '#D32F2F';
-                            return (
-                              <div key={r.id} title={`${r.memberName} ${r.pickupDate.slice(5)}～${r.returnDate.slice(5)}（${STATUS_TEXT[r.status] || r.status}）${r.overStock ? '・需調度' : ''}`} style={{ marginTop: 2, lineHeight: 1.25 }}>
-                                <div style={{ fontSize: 11, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {r.memberName}　<b style={{ color: c }}>{r.quantity}</b>{isReturn ? ' 還' : ''}{r.overStock ? ' ⚠' : ''}
-                                </div>
-                                <Squares n={r.quantity} color={c} />
-                              </div>
-                            );
-                          })}
+            {/* 每一週獨立排版：日期／士林／新竹各一橫列（grid 同一橫列＝當週所有天自動等高，高度以當週最高的那天為準） */}
+            <div style={{ border: '1px solid #E8D5D5', borderRadius: '0 0 8px 8px', overflow: 'hidden', background: '#E8D5D5', display: 'flex', flexDirection: 'column', gap: 1 }}>
+              {weeks.map((wk, wi) => (
+                <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridTemplateRows: 'auto auto auto', gap: 1, background: '#E8D5D5' }}>
+                  {/* 第 1 橫列：日期 */}
+                  {wk.map((d, ci) => d
+                    ? <div key={'d' + ci} style={{ background: d === today ? '#FFF8E6' : '#fff', padding: '4px 5px 2px', fontSize: 12, fontWeight: d === today ? 800 : 600, color: d === today ? '#B7791F' : '#555' }}>{Number(d.slice(8))}</div>
+                    : <div key={'d' + ci} style={{ background: '#FAF6F6' }} />)}
+                  {/* 第 2、3 橫列：士林、新竹 */}
+                  {GYMS.map(g => wk.map((d, ci) => {
+                    if (!d) return <div key={g.id + ci} style={{ background: '#FAF6F6' }} />;
+                    const here = list.filter(r => r.gymId === g.id && r.pickupDate <= d && d <= r.returnDate);
+                    const sum = here.reduce((a, r) => a + r.quantity, 0);
+                    return (
+                      <div key={g.id + ci} style={{ background: ROW_BG[g.id] || '#fff', padding: '3px 5px', minHeight: 40, boxSizing: 'border-box' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#888', display: 'flex', justifyContent: 'space-between' }}>
+                          <span>{g.name}</span>{sum > 0 && <span style={{ color: '#8B1A1A' }}>{sum}</span>}
                         </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                        {here.map(r => {
+                          const isReturn = d === r.returnDate;
+                          const c = STATUS_COLOR[r.status] || '#D32F2F';
+                          return (
+                            <div key={r.id} title={`${r.memberName} ${r.pickupDate.slice(5)}～${r.returnDate.slice(5)}（${STATUS_TEXT[r.status] || r.status}）${r.overStock ? '・需調度' : ''}`} style={{ marginTop: 2, lineHeight: 1.25 }}>
+                              <div style={{ fontSize: 11, color: '#222', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {r.memberName}　<b style={{ color: c }}>{r.quantity}</b>{isReturn ? ' 還' : ''}{r.overStock ? ' ⚠' : ''}
+                              </div>
+                              <Squares n={r.quantity} color={c} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  }))}
+                </div>
+              ))}
             </div>
           </div>
         </div>
