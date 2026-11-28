@@ -63,8 +63,11 @@ export default function CrashPadCalendar() {
       {Array.isArray(rows) && (
         <div style={{ overflowX: 'auto' }}>
           <div style={{ minWidth: 840 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: '#E8D5D5', border: '1px solid #E8D5D5', borderRadius: 8, overflow: 'hidden' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 1, background: '#E8D5D5', border: '1px solid #E8D5D5', borderBottom: 'none', borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
               {WD.map(w => <div key={w} style={{ background: '#F6EDED', textAlign: 'center', fontSize: 12, fontWeight: 600, padding: '6px 0', color: w === '日' || w === '六' ? '#A32D2D' : '#444' }}>週{w}</div>)}
+            </div>
+            {/* 每一週一樣高：gridAutoRows 1fr＝所有週都跟「最高的那一週」同高 */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: '1fr', gap: 1, background: '#E8D5D5', border: '1px solid #E8D5D5', borderRadius: '0 0 8px 8px', overflow: 'hidden' }}>
               {days.map((d, i) => {
                 if (!d) return <div key={'e' + i} style={{ background: '#FAF6F6', minHeight: 120 }} />;
                 return (

@@ -123,12 +123,15 @@ export default function MemberRentalPage() {
     if (rentalMode === 'locker') {
       setReturnDate(dayjs(pickupDate).add(Number(lockerMonths) || 1, 'month').format('YYYY-MM-DD'));
     } else if (rentalType === 'weekend') {
-      // 週末方案：預設歸還日＝該週末後第一個週一（士林週一不營業→週二）；週六借→+2、週日借→+1、其他日期照週五算 +3
-      const wd = dayjs(pickupDate).day();
-      const toMon = wd === 6 ? 2 : (wd === 0 ? 1 : 3);
-      setReturnDate(dayjs(pickupDate).add(toMon + (gymId === 'gym-shilin' ? 1 : 0), 'day').format('YYYY-MM-DD'));
+      // 週末方案 3 天、借出當天要計入：預設歸還日＝借出日 +2（例：12/4 借→12/6 歸還）；士林週一不營業→順延週二
+      let ret = dayjs(pickupDate).add(2, 'day');
+      if (gymId === 'gym-shilin' && ret.day() === 1) ret = ret.add(1, 'day');
+      setReturnDate(ret.format('YYYY-MM-DD'));
     } else {
-      setReturnDate(dayjs(pickupDate).add(7, 'day').format('YYYY-MM-DD'));
+      // 七天方案 7 天、借出當天要計入：預設歸還日＝借出日 +6（例：12/4 借→12/10 歸還）；士林週一不營業→順延週二
+      let ret = dayjs(pickupDate).add(6, 'day');
+      if (gymId === 'gym-shilin' && ret.day() === 1) ret = ret.add(1, 'day');
+      setReturnDate(ret.format('YYYY-MM-DD'));
     }
   }, [pickupDate, rentalType, rentalMode, lockerMonths, gymId]);
 
@@ -368,6 +371,7 @@ export default function MemberRentalPage() {
                          `Weekend plan: pick up Fri–Sun, return by ${gymId === 'gym-shilin' ? 'the following Tuesday (closed Mondays)' : 'the following Monday'}; mid-weekend pickup/return is fine.`,
                          `週末プラン：金～日曜日に貸出、遅くとも${gymId === 'gym-shilin' ? '翌火曜日（月曜定休）' : '翌月曜日'}までに返却。期間内の途中貸出・返却も可能です。`)
                     : tt('七天方案：借出到歸還最多 9 天。', 'Seven-day plan: up to 9 days from pickup to return.', '7日プラン：貸出から返却まで最大9日間。')}
+                  {tt('　天數含借出當天（例：週五 12/4 借 3 天 → 12/6 歸還）。', '  Days are counted including the pickup day (e.g. 3 days from Fri 12/4 → return 12/6).', '　日数は貸出当日を含みます（例：12/4（金）から3日間 → 12/6返却）。')}
                   {tt('　取件與歸還須在營業日。', '  Pickup and return must be on business days.', '　貸出・返却は営業日のみ。')}
                 </div>
               )}
